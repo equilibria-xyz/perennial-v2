@@ -321,7 +321,7 @@ describe('Checkpoint', () => {
 
           const value = await checkpoint.toSharesGlobal(12)
 
-          expect(value).to.equal(12)
+          expect(value).to.equal(5) // 12 - 7
         })
       })
 
@@ -344,15 +344,16 @@ describe('Checkpoint', () => {
       it('returns shares (full calculation)', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
-          deposit: parse6decimal('4'),
-          redemption: parse6decimal('2'),
+          deposit: parse6decimal('400'),
+          redemption: parse6decimal('200'),
           assets: parse6decimal('100'),
           shares: parse6decimal('60'),
           settlementFee: parse6decimal('10'),
           tradeFee: parse6decimal('1'),
         })
 
-        expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('15.545454'))
+        // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 60 / 100
+        expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('17.967272'))
       })
     })
   })
@@ -388,15 +389,16 @@ describe('Checkpoint', () => {
       it('returns assets (full calculation)', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
-          deposit: parse6decimal('4'),
-          redemption: parse6decimal('2'),
+          deposit: parse6decimal('400'),
+          redemption: parse6decimal('200'),
           assets: parse6decimal('100'),
           shares: parse6decimal('60'),
           settlementFee: parse6decimal('10'),
           tradeFee: parse6decimal('1'),
         })
 
-        expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('47.575756'))
+        // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10
+        expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('56.575757').sub(1))
       })
     })
   })
@@ -419,7 +421,7 @@ describe('Checkpoint', () => {
 
           const value = await checkpoint.toSharesLocal(12)
 
-          expect(value).to.equal(12)
+          expect(value).to.equal(10) // 12 - 2
         })
       })
 
@@ -444,24 +446,24 @@ describe('Checkpoint', () => {
         it('returns shares without settlement fee', async () => {
           await checkpoint.store({
             ...VALID_CHECKPOINT,
-            deposit: parse6decimal('4'),
-            redemption: parse6decimal('2'),
+            deposit: parse6decimal('400'),
+            redemption: parse6decimal('200'),
             assets: parse6decimal('100'),
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
             orders: 0,
           })
-
-          expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('20.727272'))
+          // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60))
+          expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('23.967272'))
         })
       })
 
       it('returns shares (full calculation)', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
-          deposit: parse6decimal('4'),
-          redemption: parse6decimal('2'),
+          deposit: parse6decimal('400'),
+          redemption: parse6decimal('200'),
           assets: parse6decimal('100'),
           shares: parse6decimal('60'),
           settlementFee: parse6decimal('10'),
@@ -469,7 +471,8 @@ describe('Checkpoint', () => {
           orders: 5,
         })
 
-        expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('19.690908'))
+        // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 60 / 100 / 5
+        expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('22.767272'))
       })
     })
   })
@@ -504,26 +507,28 @@ describe('Checkpoint', () => {
       })
 
       context('orders is 0', () => {
-        it('returns assets no settlement fee fee', async () => {
+        it('returns assets no settlement fee', async () => {
           await checkpoint.store({
             ...VALID_CHECKPOINT,
-            deposit: parse6decimal('4'),
-            redemption: parse6decimal('2'),
+            deposit: parse6decimal('400'),
+            redemption: parse6decimal('200'),
             assets: parse6decimal('100'),
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
+            orders: 0,
           })
 
-          expect(await checkpoint.toAssetsLocal(parse6decimal('40'))).to.equal(parse6decimal('55.909090'))
+          // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60))
+          expect(await checkpoint.toAssetsLocal(parse6decimal('40'))).to.equal(parse6decimal('66.575757').sub(1))
         })
       })
 
       it('returns assets (full calculation)', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
-          deposit: parse6decimal('4'),
-          redemption: parse6decimal('2'),
+          deposit: parse6decimal('400'),
+          redemption: parse6decimal('200'),
           assets: parse6decimal('100'),
           shares: parse6decimal('60'),
           settlementFee: parse6decimal('10'),
@@ -531,71 +536,18 @@ describe('Checkpoint', () => {
           orders: 5,
         })
 
-        expect(await checkpoint.toAssetsLocal(parse6decimal('40'))).to.equal(parse6decimal('55.575756'))
+        // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 / 5
+        expect(await checkpoint.toAssetsLocal(parse6decimal('40'))).to.equal(parse6decimal('64.575757').sub(1))
       })
     })
   })
 
-  describe('#toShares', () => {
-    context('zero shares', () => {
-      it('returns assets', async () => {
-        await checkpoint.store({ ...VALID_CHECKPOINT, settlementFee: 0, shares: 0 })
-
-        const value = await checkpoint.toShares(12, 7)
-
-        expect(value).to.equal(12)
-      })
-    })
-
-    context('shares are non-0', () => {
-      context('assets are negative', () => {
-        it('returns assets', async () => {
-          await checkpoint.store({ ...VALID_CHECKPOINT, settlementFee: 0, assets: -12 })
-
-          const value = await checkpoint.toShares(12, 7)
-
-          expect(value).to.equal(12)
-        })
-      })
-
-      context('deposits and redemptions are 0', () => {
-        it('returns shares net of settlement fee', async () => {
-          await checkpoint.store({
-            ...VALID_CHECKPOINT,
-            deposit: 0,
-            redemption: 0,
-            assets: parse6decimal('100'),
-            shares: parse6decimal('60'),
-            settlementFee: 0,
-            tradeFee: parse6decimal('1'),
-          })
-
-          expect(await checkpoint.toShares(parse6decimal('40'), parse6decimal('10'))).to.equal(parse6decimal('18'))
-        })
-      })
-
-      it('returns shares (full calculation)', async () => {
-        await checkpoint.store({
-          ...VALID_CHECKPOINT,
-          deposit: parse6decimal('4'),
-          redemption: parse6decimal('2'),
-          assets: parse6decimal('100'),
-          shares: parse6decimal('60'),
-          settlementFee: 0,
-          tradeFee: parse6decimal('1'),
-        })
-
-        expect(await checkpoint.toShares(parse6decimal('40'), parse6decimal('10'))).to.equal(parse6decimal('15.545454'))
-      })
-    })
-  })
-
-  describe('#toAssets', () => {
+  describe('#toAssetsCustom', () => {
     context('zero shares', () => {
       it('returns shares net of keepr', async () => {
         await checkpoint.store({ ...VALID_CHECKPOINT, settlementFee: 0, shares: 0 })
 
-        const value = await checkpoint.toAssetes(12, 7)
+        const value = await checkpoint.toAssetsCustom(12, 7)
 
         expect(value).to.equal(5)
       })
@@ -614,7 +566,7 @@ describe('Checkpoint', () => {
             tradeFee: parse6decimal('1'),
           })
 
-          expect(await checkpoint.toAssetes(parse6decimal('40'), parse6decimal('10'))).to.equal(
+          expect(await checkpoint.toAssetsCustom(parse6decimal('40'), parse6decimal('10'))).to.equal(
             parse6decimal('56.666666'),
           )
         })
@@ -623,16 +575,17 @@ describe('Checkpoint', () => {
       it('returns assets (full calculation)', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
-          deposit: parse6decimal('4'),
-          redemption: parse6decimal('2'),
+          deposit: parse6decimal('400'),
+          redemption: parse6decimal('200'),
           assets: parse6decimal('100'),
           shares: parse6decimal('60'),
           settlementFee: 0,
           tradeFee: parse6decimal('1'),
         })
 
-        expect(await checkpoint.toAssetes(parse6decimal('40'), parse6decimal('10'))).to.equal(
-          parse6decimal('47.575756'),
+        // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10
+        expect(await checkpoint.toAssetsCustom(parse6decimal('40'), parse6decimal('10'))).to.equal(
+          parse6decimal('56.575757').sub(1),
         )
       })
     })

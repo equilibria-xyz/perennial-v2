@@ -299,7 +299,7 @@ contract Vault is IVault, Instance {
             revert VaultDepositLimitExceededError();
         if (!depositAssets.isZero() && depositAssets.lt(context.settlementFee))
             revert VaultInsufficientMinimumError();
-        if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares, context.settlementFee).isZero())
+        if (!redeemShares.isZero() && context.latestCheckpoint.toAssetsCustom(redeemShares, context.settlementFee).isZero())
             revert VaultInsufficientMinimumError();
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
 
