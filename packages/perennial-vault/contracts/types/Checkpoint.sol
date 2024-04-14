@@ -27,7 +27,10 @@ struct Checkpoint {
     UFixed6 settlementFee;
 
     /// @dev The number of deposits and redemptions during the checkpoint
-    uint256 orders;
+    uint256 deposits;
+
+    /// @dev The number of deposits and redemptions during the checkpoint
+    uint256 redemptions;
 
     // @dev The timestamp of of the checkpoint
     uint256 timestamp;
@@ -43,9 +46,10 @@ struct StoredCheckpoint {
     /* slot 1 */
     int64 tradeFee;         // <= 9.22t
     uint64 settlementFee;   // <= 18.44t
-    uint32 orders;           // <= 4.29b
+    uint32 deposits;        // <= 4.29b
     uint32 timestamp;       // <= 4.29b
-    bytes8 __unallocated__;
+    uint32 redemptions;
+    bytes4 __unallocated0__;
 }
 struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
@@ -61,8 +65,8 @@ library CheckpointLib {
     function next(Checkpoint memory self, uint256 timestamp, Account memory global) internal pure {
         (self.timestamp, self.shares, self.assets) =
             (timestamp, global.shares, Fixed6Lib.from(-1, global.deposit.add(global.assets)));
-        (self.deposit, self.redemption, self.tradeFee, self.settlementFee, self.orders) =
-            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, UFixed6Lib.ZERO, 0);
+        (self.deposit, self.redemption, self.tradeFee, self.settlementFee, self.deposits, self.redemptions) =
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, UFixed6Lib.ZERO, 0, 0);
     }
 
     /// @notice Updates the checkpoint with a new deposit or redemption
@@ -72,7 +76,8 @@ library CheckpointLib {
     function update(Checkpoint memory self, UFixed6 deposit, UFixed6 redemption) internal pure {
         (self.deposit, self.redemption) =
             (self.deposit.add(deposit), self.redemption.add(redemption));
-        if (!deposit.isZero() || !redemption.isZero()) self.orders++;
+        if (!deposit.isZero()) self.deposits++;
+        if (!redemption.isZero()) self.redemptions++;
     }
 
     /// @notice Completes the checkpoint
@@ -164,7 +169,8 @@ library CheckpointLib {
     }
 
     function _settlementFeePerOrder(Checkpoint memory self) private pure returns (UFixed6) {
-        return self.orders == 0 ? UFixed6Lib.ZERO : self.settlementFee.divOut(UFixed6Lib.from(self.orders));
+        UFixed6 orders = UFixed6Lib.from(self.deposits + self.redemptions);
+        return orders.isZero() ? UFixed6Lib.ZERO : self.settlementFee.divOut(orders);
     }
 
     function _toAssetsExact(Checkpoint memory self, UFixed6 shares) private pure returns (UFixed6) {
@@ -197,7 +203,8 @@ library CheckpointStorageLib {
             Fixed6.wrap(int256(storedValue.assets)),
             Fixed6.wrap(int256(storedValue.tradeFee)),
             UFixed6.wrap(uint256(storedValue.settlementFee)),
-            uint256(storedValue.orders),
+            uint256(storedValue.deposits),
+            uint256(storedValue.redemptions),
             uint256(storedValue.timestamp)
         );
     }
@@ -211,7 +218,8 @@ library CheckpointStorageLib {
         if (newValue.tradeFee.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
         if (newValue.tradeFee.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
         if (newValue.settlementFee.gt(UFixed6.wrap(type(uint64).max))) revert CheckpointStorageInvalidError();
-        if (newValue.orders > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
+        if (newValue.deposits > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
+        if (newValue.redemptions > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
         if (newValue.timestamp > uint256(type(uint32).max)) revert CheckpointStorageInvalidError();
 
         self.value = StoredCheckpoint(
@@ -222,9 +230,10 @@ library CheckpointStorageLib {
 
             int64(Fixed6.unwrap(newValue.tradeFee)),
             uint64(UFixed6.unwrap(newValue.settlementFee)),
-            uint32(newValue.orders),
+            uint32(newValue.deposits),
             uint32(newValue.timestamp),
-            bytes8(0)
+            uint32(newValue.redemptions),
+            bytes4(0)
         );
     }
 }
