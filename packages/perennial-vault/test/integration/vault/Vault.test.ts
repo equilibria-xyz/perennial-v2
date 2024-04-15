@@ -859,6 +859,63 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
 
+    it('pending order limits max position size', async () => {
+      // settle pending orders from test setup to simplify the test
+      await updateOracle()
+      await market.connect(user).settle(user.address)
+      await market.connect(user2).settle(user.address)
+      await market.connect(btcUser1).settle(btcUser1.address)
+      await market.connect(btcUser2).settle(btcUser2.address)
+
+      const makerAvailable = (await market.riskParameter()).makerLimit.sub((await currentPositionGlobal(market)).maker)
+      const reservedForVault = parse6decimal('1')
+
+      // risk parameters limit maker position to 1000; let a non-vault user consume almost all of that
+      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await market.connect(perennialUser)['update(address,uint256,uint256,uint256,int256,bool)'](
+        perennialUser.address,
+        makerAvailable.sub(reservedForVault), // 799
+        0,
+        0,
+        parse6decimal('665833'),
+        false,
+      )
+
+      const smallDeposit = parse6decimal('1000')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await updateOracle()
+
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
+      await updateOracle()
+      await vault.rebalance(user2.address)
+
+      // Now we should have opened positions.
+      // The ETH position should be limited by a maxPosition influenced by perennialUser's pending order.
+      expect(await position()).to.be.equal(reservedForVault)
+      expect(await btcPosition()).to.be.equal(
+        smallDeposit.add(largeDeposit).mul(leverage).div(5).div(btcOriginalOraclePrice),
+      )
+
+      console.log('ETH position after rebalance', await market.position()) // 933.433897-100
+      console.log('BTC position after rebalance', await btcMarket.position())
+
+      const fundingAmount0 = BigNumber.from('13639')
+      const balanceOf2 = BigNumber.from('9999863611')
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000')) // FIXME: user's shares have disappeared somehow
+      expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
+      expect(await vault.totalAssets()).to.equal(parse6decimal('11000').add(fundingAmount0))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(
+        parse6decimal('1000').add(balanceOf2),
+      )
+      expect(await vault.convertToAssets(parse6decimal('1000').add(balanceOf2))).to.equal(
+        parse6decimal('11000').add(fundingAmount0),
+      )
+      expect(await vault.convertToShares(parse6decimal('11000').add(fundingAmount0))).to.equal(
+        parse6decimal('1000').add(balanceOf2),
+      )
+    })
+
     it('deposit during redemption', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
