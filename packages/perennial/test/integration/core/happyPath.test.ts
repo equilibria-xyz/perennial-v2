@@ -1139,7 +1139,7 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
-      collateral: '986141042',
+      collateral: '985964909',
     })
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
@@ -1182,7 +1182,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       ...DEFAULT_VERSION,
-      makerValue: { _value: '-3545883' },
+      makerValue: { _value: '-3546980' },
       longValue: { _value: '3620965' },
       shortValue: { _value: 0 },
       liquidationFee: { _value: -riskParameter.liquidationFee },

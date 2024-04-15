@@ -2811,7 +2811,7 @@ describe('Market', () => {
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              const MAKER_FEE = parse6decimal('9.225') // position * (0.01 * (1.00 + 0.00) / 2 + 0.005 + 0.0025) * price
+              const MAKER_FEE = parse6decimal('9.225') // position * (0.00 * (1.00 + 0.00) / 2 + 0.005 + 0.0025) * price
               const MAKER_FEE_WITHOUT_IMPACT = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
               const MAKER_FEE_FEE = MAKER_FEE_WITHOUT_IMPACT.div(10)
               const MAKER_FEE_WITHOUT_FEE = MAKER_FEE_WITHOUT_IMPACT.sub(MAKER_FEE_FEE)
@@ -18118,9 +18118,8 @@ describe('Market', () => {
 
           const MAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.005) * price
           const MAKER_FEE_PROPORTIONAL = parse6decimal('3.075') // position * (0.0025) * price
-          const MAKER_FEE_ADIABATIC = parse6decimal('-6.15') // position * (0.01 * -(1.00 + 0.00) / 2) * price
 
-          const MAKER_FEE = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL).add(MAKER_FEE_ADIABATIC)
+          const MAKER_FEE = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL)
           const MAKER_FEE_WITHOUT_IMPACT = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL)
           const SETTLEMENT_FEE = parse6decimal('0.50')
 

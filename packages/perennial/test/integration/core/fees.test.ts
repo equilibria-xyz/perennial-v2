@@ -1938,7 +1938,7 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
-        collateral: parse6decimal('1182.234252'),
+        collateral: parse6decimal('1105.704894'),
         claimable: expectedClaimableTakerReferral,
       })
 
