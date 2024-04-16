@@ -22,12 +22,17 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 ///
 contract Verifier is IVerifier, EIP712 {
     /// @dev mapping of nonces per account and their cancelled state
-    mapping(address => mapping(bytes32 => bool)) public nonces;
+    mapping(address => mapping(uint256 => bool)) public nonces;
 
     /// @dev mapping of group nonces per account and their cancelled state
-    mapping(address => mapping(bytes32 => bool)) public groups;
+    mapping(address => mapping(uint256 => bool)) public groups;
 
     constructor() EIP712("Perennial", "1.0.0") { }
+
+
+    function chainId() external view returns (uint256) {
+        return block.chainid;
+    }
 
     /// @notice Verifies the signature of an intent order type
     /// @dev Cancels the nonce after verifying the signature
@@ -55,20 +60,20 @@ contract Verifier is IVerifier, EIP712 {
 
     /// @notice Cancels a nonce
     /// @param nonce The nonce to cancel
-    function cancelNonce(bytes32 nonce) external {
+    function cancelNonce(uint256 nonce) external {
         _cancelNonce(msg.sender, nonce);
     }
 
     /// @notice Cancels a group nonce
     /// @param group The group nonce to cancel
-    function cancelGroup(bytes32 group) external {
+    function cancelGroup(uint256 group) external {
         _cancelGroup(msg.sender, group);
     }
 
     /// @notice Cancels a nonce
     /// @param account The account to cancel the nonce for
     /// @param nonce The nonce to cancel
-    function _cancelNonce(address account, bytes32 nonce) private {
+    function _cancelNonce(address account, uint256 nonce) private {
         nonces[account][nonce] = true;
         emit NonceCancelled(account, nonce);
     }
@@ -76,7 +81,7 @@ contract Verifier is IVerifier, EIP712 {
     /// @notice Cancels a group nonce
     /// @param account The account to cancel the group nonce for
     /// @param group The group nonce to cancel
-    function _cancelGroup(address account, bytes32 group) private {
+    function _cancelGroup(address account, uint256 group) private {
         groups[account][group] = true;
         emit GroupCancelled(account, group);
     }

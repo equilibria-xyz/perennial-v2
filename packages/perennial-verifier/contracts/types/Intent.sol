@@ -25,7 +25,7 @@ using IntentLib for Intent global;
 /// @title IntentLib
 /// @notice Library for Intent logic and data.
 library IntentLib {
-    bytes32 constant public STRUCT_HASH = keccak256("Intent(int256 amount,int256 price,Common common)");
+    bytes32 constant public STRUCT_HASH = keccak256("Intent(int256 amount,int256 price,Common common)Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)");
 
     function hash(Intent memory self) internal pure returns (bytes32) {
         return keccak256(abi.encode(STRUCT_HASH, self.amount, self.price, CommonLib.hash(self.common)));
