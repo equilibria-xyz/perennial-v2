@@ -110,15 +110,24 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _storeContext(context, account);
     }
 
+    /// @notice Updates the maker and taker positions of an intent order
+    /// @param intent The intent that is being filled
+    /// @param signature The signature of the intent that is being filled
+    /// @param referrer The referrer of the order
     function update(Intent calldata intent, bytes memory signature, address referrer) external {
         address signer = verifier.verifyIntent(intent, signature);
 
-        if (signer != intent.common.account) revert MarketInvalidSignerError(); // TODO: enable degagated signer
+        if (signer != intent.common.account) revert MarketInvalidSignerError();
 
         _updateIntent(msg.sender, intent, true, referrer); // maker
         _updateIntent(intent.common.account, intent, false, referrer); // taker
     }
 
+    /// @notice Updates the account's position for an intent order
+    /// @param account The account to operate on
+    /// @param intent The intent that is being filled
+    /// @param settlementFee Whether to charge the settlement fee
+    /// @param referrer The referrer of the order
     function _updateIntent(address account, Intent memory intent, bool settlementFee, address referrer) private {
         // settle market & account
         Context memory context = _loadContext(account);

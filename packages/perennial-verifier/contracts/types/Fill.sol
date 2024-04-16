@@ -20,7 +20,7 @@ using FillLib for Fill global;
 /// @title FillLib
 /// @notice Library for Fill logic and data.
 library FillLib {
-    bytes32 constant public STRUCT_HASH = keccak256("Fill(Intent intent, Common common)");
+    bytes32 constant public STRUCT_HASH = keccak256("Fill(Intent intent,Common common)");
 
     function hash(Fill memory self) internal pure returns (bytes32) {
         return keccak256(abi.encode(STRUCT_HASH, IntentLib.hash(self.intent), CommonLib.hash(self.common)));
