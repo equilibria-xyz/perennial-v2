@@ -33,8 +33,8 @@ export interface Order {
   takerReferral: BigNumberish
 }
 
-export interface Intent {
-  intents: BigNumberish
+export interface Guarantee {
+  orders: BigNumberish
   takerPos: BigNumberish
   takerNeg: BigNumberish
   notional: BigNumberish
@@ -106,8 +106,8 @@ export function expectOrderEq(a: Order, b: Order): void {
   expect(a.takerReferral).to.equal(b.takerReferral, 'Order:TakerReferral')
 }
 
-export function expectIntentEq(a: Intent, b: Intent): void {
-  expect(a.intents).to.equal(b.intents, 'Order:Intents')
+export function expectGuaranteeEq(a: Guarantee, b: Guarantee): void {
+  expect(a.orders).to.equal(b.orders, 'Order:Orders')
   expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
   expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
   expect(a.notional).to.equal(b.notional, 'Order:Notional')
@@ -226,8 +226,8 @@ export const DEFAULT_ORDER: Order = {
   takerReferral: 0,
 }
 
-export const DEFAULT_INTENT: Intent = {
-  intents: 0,
+export const DEFAULT_GUARANTEE: Guarantee = {
+  orders: 0,
   takerPos: 0,
   takerNeg: 0,
   notional: 0,

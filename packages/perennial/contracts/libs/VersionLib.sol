@@ -192,7 +192,7 @@ library VersionLib {
         );
         next.takerPosOffset.decrement(Fixed6Lib.from(takerPosLinearFee), takerPosTotal);
 
-        UFixed6 takerNegTotal = context.order.takerNeg().sub(context.intent.takerNeg);
+        UFixed6 takerNegTotal = context.order.takerNeg().sub(context.guarantee.takerNeg);
         UFixed6 takerNegLinearFee = context.riskParameter.takerFee.linear(
             Fixed6Lib.from(takerNegTotal),
             context.toOracleVersion.price.abs()
