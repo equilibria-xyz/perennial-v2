@@ -1910,17 +1910,18 @@ describe('Vault', () => {
     })
 
     context('liquidation', () => {
-      context('long', () => {
+      // Test setup establishes a market where takers have a long position, so vaults will have short exposure.
+      context('short exposure', () => {
         it('recovers from a liquidation', async () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
-          // 1. An oracle update makes the long position liquidatable.
-          // We should now longer be able to deposit or redeem
+          // 1. An oracle update increases the price, making the vault's position liquidatable.
+          // We should no longer be able to deposit or redeem.
           await updateOracle(undefined, parse6decimal('50000'))
           await expect(vault.connect(user).update(user.address, 0, 0, 0)).to.be.reverted
 
-          // 2. Settle accounts / Liquidate the long position.
+          // 2. Settle accounts / Liquidate the vault's maker position.
           // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('5149547500')
           await btcMarket
@@ -1959,12 +1960,12 @@ describe('Vault', () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
-          // 1. An oracle update makes the long position liquidatable.
-          // We should now longer be able to deposit or redeem
+          // 1. An oracle update increases the price, making the vault's position liquidatable.
+          // We should no longer be able to deposit or redeem.
           await updateOracle(undefined, parse6decimal('80000'))
           await expect(vault.connect(user).update(user.address, 0, 0, 0)).to.be.reverted
 
-          // 2. Settle accounts / Liquidate the long position.
+          // 2. Settle accounts / Liquidate the vault's maker position.
           // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('8239276000')
           await btcMarket
@@ -2000,7 +2001,8 @@ describe('Vault', () => {
         })
       })
 
-      context('short', () => {
+      context('long exposure', () => {
+        // Takers zero out their long positions and go short, such that vaults will have long exposure.
         beforeEach(async () => {
           await updateOracle()
 
@@ -2041,12 +2043,12 @@ describe('Vault', () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
-          // 1. An oracle update makes the long position liquidatable.
-          // We should now longer be able to deposit or redeem
+          // 1. An oracle update decreases the price, making the vault's position liquidatable.
+          // We should no longer be able to deposit or redeem.
           await updateOracle(undefined, parse6decimal('20000'))
           await expect(vault.connect(user).update(user.address, 0, 0, 0)).to.be.reverted
 
-          // 2. Settle accounts / Liquidate the long position.
+          // 2. Settle accounts / Liquidate the vault's maker position.
           // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('2059819000')
           await btcMarket
@@ -2083,12 +2085,12 @@ describe('Vault', () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
-          // 1. An oracle update makes the long position liquidatable.
-          // We should now longer be able to deposit or redeem
+          // 1. An oracle update decreases the price, making the vault's position liquidatable.
+          // We should no longer be able to deposit or redeem.
           await updateOracle(undefined, parse6decimal('19000'))
           await expect(vault.connect(user).update(user.address, 0, 0, 0)).to.be.reverted
 
-          // 2. Settle accounts / Liquidate the long position.
+          // 2. Settle accounts / Liquidate the vault's maker position.
           // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('1956828050')
           await btcMarket
