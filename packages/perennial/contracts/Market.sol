@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.24;
 
+import "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
 import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
@@ -14,6 +15,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     Fixed6 private constant MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL = Fixed6.wrap(type(int256).min);
     UFixed6 private constant MAGIC_VALUE_UNCHANGED_POSITION = UFixed6.wrap(type(uint256).max);
     UFixed6 private constant MAGIC_VALUE_FULLY_CLOSED_POSITION = UFixed6.wrap(type(uint256).max - 1);
+
+    IVerifier public immutable verifier;
 
     /// @dev The underlying token that the market settles in
     Token18 public token;
@@ -81,11 +84,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The referrer for each id for each account
     mapping(address => mapping(uint256 => address)) public referrers;
 
-    /// @dev The global pending intent for each id
-    mapping(uint256 => IntentStorageGlobal) private _intent;
+    /// @dev The global pending guarantee for each id
+    mapping(uint256 => GuaranteeStorageGlobal) private _guarantee;
 
-    /// @dev The local pending intent for each id for each account
-    mapping(address => mapping(uint256 => IntentStorageLocal)) private _intents;
+    /// @dev The local pending guarantee for each id for each account
+    mapping(address => mapping(uint256 => GuaranteeStorageLocal)) private _guarantees;
 
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
@@ -104,6 +107,39 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _settle(context, account);
 
+        _storeContext(context, account);
+    }
+
+    function update(Intent calldata intent, bytes memory signature, address referrer) external {
+        address signer = verifier.verifyIntent(intent, signature);
+
+        if (signer != intent.common.account) revert MarketInvalidSignerError(); // TODO: enable degagated signer
+
+        _updateIntent(msg.sender, intent, true, referrer); // maker
+        _updateIntent(intent.common.account, intent, false, referrer); // taker
+    }
+
+    function _updateIntent(address account, Intent memory intent, bool settlementFee, address referrer) private {
+        // settle market & account
+        Context memory context = _loadContext(account);
+        _settle(context, account);
+
+        // load update context
+        UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
+
+        // create new order & guarantee
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            intent.amount,
+            _processReferralFee(context, updateContext, referrer)
+        );
+        Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, intent.price, settlementFee);
+
+        // process update
+        _update(context, updateContext, account, newOrder, newGuarantee, referrer);
+
+        // store updated state
         _storeContext(context, account);
     }
 
@@ -155,7 +191,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
         newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
 
-        // create new order & intent
+        // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
@@ -166,10 +202,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             protect,
             _processReferralFee(context, updateContext, referrer)
         );
-        Intent memory newIntent; // no intent is created for a market order
+        Guarantee memory newGuarantee; // no guarantee is created for a market order
 
         // process update
-        _update(context, updateContext, account, newOrder, newIntent, referrer);
+        _update(context, updateContext, account, newOrder, newGuarantee, referrer);
 
         // store updated state
         _storeContext(context, account);
@@ -314,17 +350,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendingOrders[account][id].read();
     }
 
-    /// @notice Returns the global pending intent for the given id
+    /// @notice Returns the global pending guarantee for the given id
     /// @param id The id to query
-    function intent(uint256 id) external view returns (Intent memory) {
-        return _intent[id].read();
+    function guarantee(uint256 id) external view returns (Guarantee memory) {
+        return _guarantee[id].read();
     }
 
-    /// @notice Returns the local pending intent for the given account and id
+    /// @notice Returns the local pending guarantee for the given account and id
     /// @param account The account to query
     /// @param id The id to query
-    function intents(address account, uint256 id) external view returns (Intent memory) {
-        return _intents[account][id].read();
+    function guarantees(address account, uint256 id) external view returns (Guarantee memory) {
+        return _guarantees[account][id].read();
     }
 
     /// @notice Returns the aggregate global pending order
@@ -406,8 +442,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load current order
         updateContext.orderGlobal = _pendingOrder[context.global.currentId].read();
         updateContext.orderLocal = _pendingOrders[account][context.local.currentId].read();
-        updateContext.intentGlobal = _intent[context.global.currentId].read();
-        updateContext.intentLocal = _intents[account][context.local.currentId].read();
+        updateContext.guaranteeGlobal = _guarantee[context.global.currentId].read();
+        updateContext.guaranteeLocal = _guarantees[account][context.local.currentId].read();
 
         // load external actors
         updateContext.operator = IMarketFactory(address(factory())).operators(account, msg.sender);
@@ -424,8 +460,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // current orders
         _pendingOrder[context.global.currentId].store(updateContext.orderGlobal);
         _pendingOrders[account][context.local.currentId].store(updateContext.orderLocal);
-        _intent[context.global.currentId].store(updateContext.intentGlobal);
-        _intents[account][context.local.currentId].store(updateContext.intentLocal);
+        _guarantee[context.global.currentId].store(updateContext.guaranteeGlobal);
+        _guarantees[account][context.local.currentId].store(updateContext.guaranteeLocal);
 
         // external actors
         liquidators[account][context.local.currentId] = updateContext.liquidator;
@@ -437,25 +473,25 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param updateContext The update context to use
     /// @param account The account to update
     /// @param newOrder The new order to apply
-    /// @param newIntent The new intent to apply
+    /// @param newGuarantee The new guarantee to apply
     /// @param referrer The referrer of the order
     function _update(
         Context memory context,
         UpdateContext memory updateContext,
         address account,
         Order memory newOrder,
-        Intent memory newIntent,
+        Guarantee memory newGuarantee,
         address referrer
     ) private notSettleOnly(context) {
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
             updateContext.orderLocal.next(context.currentTimestamp);
-            updateContext.intentLocal.next();
+            updateContext.guaranteeLocal.next();
             context.local.currentId++;
         }
         if (context.currentTimestamp > updateContext.orderGlobal.timestamp) {
             updateContext.orderGlobal.next(context.currentTimestamp);
-            updateContext.intentGlobal.next();
+            updateContext.guaranteeGlobal.next();
             context.global.currentId++;
         }
 
@@ -468,8 +504,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.orderGlobal.add(newOrder);
         context.pendingGlobal.add(newOrder);
         context.pendingLocal.add(newOrder);
-        updateContext.intentGlobal.add(newIntent);
-        updateContext.intentLocal.add(newIntent);
+        updateContext.guaranteeGlobal.add(newGuarantee);
+        updateContext.guaranteeLocal.add(newGuarantee);
 
         // update collateral
         context.local.update(newOrder.collateral);
@@ -615,19 +651,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder
     ) private {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
-        Intent memory newIntent = _intent[newOrderId].read();
+        Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
         context.pendingGlobal.sub(newOrder);
         if (!oracleVersion.valid) {
             newOrder.invalidate();
-            newIntent.invalidate();
+            newGuarantee.invalidate();
         }
 
         VersionAccumulationContext memory accumulationContext = VersionAccumulationContext(
             context.global,
             context.latestPositionGlobal,
             newOrder,
-            newIntent,
+            newGuarantee,
             settlementContext.orderOracleVersion,
             oracleVersion,
             context.marketParameter,
@@ -660,19 +696,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory versionFrom = _versions[context.latestPositionLocal.timestamp].read();
         Version memory versionTo = _versions[newOrder.timestamp].read();
-        Intent memory newIntent = _intents[account][newOrderId].read();
+        Guarantee memory newGuarantee = _guarantees[account][newOrderId].read();
 
         context.pendingLocal.sub(newOrder);
         if (!versionTo.valid) {
             newOrder.invalidate();
-            newIntent.invalidate();
+            newGuarantee.invalidate();
         }
 
         CheckpointAccumulationResult memory accumulationResult;
         (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
             newOrder,
-            newIntent,
+            newGuarantee,
             context.latestPositionLocal,
             versionFrom,
             versionTo

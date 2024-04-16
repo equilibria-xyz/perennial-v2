@@ -17,13 +17,13 @@ contract CheckpointTester {
 
     function accumulate(
         Order memory order,
-        Intent memory intent,
+        Guarantee memory guarantee,
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
     ) external returns (CheckpointAccumulationResult memory result) {
         Checkpoint memory newCheckpoint = checkpoint.read();
-        (newCheckpoint, result) = CheckpointLib.accumulate(newCheckpoint, order, intent, fromPosition, fromVersion, toVersion);
+        (newCheckpoint, result) = CheckpointLib.accumulate(newCheckpoint, order, guarantee, fromPosition, fromVersion, toVersion);
         checkpoint.store(newCheckpoint);
     }
 }

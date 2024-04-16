@@ -46,7 +46,7 @@ struct VersionAccumulationContext {
     Global global;
     Position fromPosition;
     Order order;
-    Intent intent;
+    Guarantee guarantee;
     OracleVersion fromOracleVersion;
     OracleVersion toOracleVersion;
     MarketParameter marketParameter;
@@ -125,7 +125,7 @@ library VersionLib {
         Version memory next,
         VersionAccumulationContext memory context
     ) private pure returns (UFixed6 settlementFee) {
-        uint256 orders = context.order.orders - context.intent.intents;
+        uint256 orders = context.order.orders - context.guarantee.orders;
         settlementFee = orders == 0 ? UFixed6Lib.ZERO : context.marketParameter.settlementFee;
         next.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(orders));
     }
@@ -185,7 +185,7 @@ library VersionLib {
         );
         next.makerOffset.decrement(Fixed6Lib.from(makerLinearFee), context.order.makerTotal());
 
-        UFixed6 takerPosTotal = context.order.takerPos().sub(context.intent.takerPos);
+        UFixed6 takerPosTotal = context.order.takerPos().sub(context.guarantee.takerPos);
         UFixed6 takerPosLinearFee = context.riskParameter.takerFee.linear(
             Fixed6Lib.from(takerPosTotal),
             context.toOracleVersion.price.abs()
@@ -223,14 +223,14 @@ library VersionLib {
         );
         next.makerOffset.decrement(Fixed6Lib.from(makerProportionalFee), context.order.makerTotal());
 
-        UFixed6 takerPos = context.order.takerPos().sub(context.intent.takerPos);
+        UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos);
         UFixed6 takerPosProportionalFee = context.riskParameter.takerFee.proportional(
             Fixed6Lib.from(takerPos),
             context.toOracleVersion.price.abs()
         );
         next.takerPosOffset.decrement(Fixed6Lib.from(takerPosProportionalFee), takerPos);
 
-        UFixed6 takerNeg = context.order.takerNeg().sub(context.intent.takerNeg);
+        UFixed6 takerNeg = context.order.takerNeg().sub(context.guarantee.takerNeg);
         UFixed6 takerNegProportionalFee = context.riskParameter.takerFee.proportional(
             Fixed6Lib.from(takerNeg),
             context.toOracleVersion.price.abs()
@@ -258,7 +258,7 @@ library VersionLib {
         Fixed6 adiabaticFee;
 
         // position fee from positive skew taker orders
-        UFixed6 takerPos = context.order.takerPos().sub(context.intent.takerPos);
+        UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos);
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew(),
             Fixed6Lib.from(takerPos),
@@ -268,7 +268,7 @@ library VersionLib {
         result.tradeOffset = result.tradeOffset.add(adiabaticFee);
 
         // position fee from negative skew taker orders
-        UFixed6 takerNeg = context.order.takerNeg().sub(context.intent.takerNeg);
+        UFixed6 takerNeg = context.order.takerNeg().sub(context.guarantee.takerNeg);
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew().add(Fixed6Lib.from(takerPos)),
             Fixed6Lib.from(-1, takerNeg),

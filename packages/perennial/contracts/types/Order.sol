@@ -80,6 +80,34 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
+    /// @notice Creates a new order from the an intent order request
+    /// @param timestamp The current timestamp
+    /// @param position The current position
+    /// @param amount The magnitude and direction of the order
+    /// @param referralFee The referral fee
+    /// @return newOrder The resulting order
+    function from(
+        uint256 timestamp,
+        Position memory position,
+        Fixed6 amount,
+        UFixed6 referralFee
+    ) internal pure returns (Order memory newOrder) {
+        newOrder.timestamp = timestamp;
+        newOrder.orders = amount.isZero() ? 0 : 1;
+        newOrder.takerReferral = amount.abs().mul(referralFee);
+
+        // If the order is not counter to the current position, it is opening
+        if (amount.sign() == 0 || position.skew().sign() == 0 || position.skew().sign() == amount.sign()) {
+            newOrder.longPos = amount.max(Fixed6Lib.ZERO).abs();
+            newOrder.shortPos = amount.min(Fixed6Lib.ZERO).abs();
+
+        // If the order is counter to the current position, it is closing
+        } else {
+            newOrder.shortNeg = amount.max(Fixed6Lib.ZERO).abs();
+            newOrder.longNeg = amount.min(Fixed6Lib.ZERO).abs();
+        }
+    }
+
     /// @notice Creates a new order from the current position and an update request
     /// @param timestamp The current timestamp
     /// @param position The current position
