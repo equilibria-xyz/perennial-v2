@@ -241,16 +241,34 @@ describe('Checkpoint', () => {
   })
 
   describe('#update', () => {
-    it('updates the checkpoint', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
+    it('updates the checkpoint (deposit only)', async () => {
+      await checkpoint.store({ ...VALID_CHECKPOINT, redemption: 0 })
 
-      await checkpoint.update(123, 456)
+      await checkpoint.update(123, 0)
 
       const value = await checkpoint.read()
 
       expect(value.deposit).to.equal(124)
+      expect(value.redemption).to.equal(0)
+      expect(value.count).to.equal(7)
+    })
+
+    it('updates the checkpoint (redeem only)', async () => {
+      await checkpoint.store({ ...VALID_CHECKPOINT, deposit: 0 })
+
+      await checkpoint.update(0, 456)
+
+      const value = await checkpoint.read()
+
+      expect(value.deposit).to.equal(0)
       expect(value.redemption).to.equal(458)
       expect(value.count).to.equal(7)
+    })
+
+    it('reverts on both deposit and redeem', async () => {
+      await checkpoint.store(VALID_CHECKPOINT)
+
+      await expect(checkpoint.update(123, 456)).to.be.revertedWithCustomError(checkpoint, 'CheckpointSingleSidedError')
     })
   })
 

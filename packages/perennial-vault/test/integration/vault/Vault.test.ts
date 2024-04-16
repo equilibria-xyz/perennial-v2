@@ -18,6 +18,7 @@ import {
   IVaultFactory__factory,
   IOracleFactory,
   IMarketFactory,
+  CheckpointLib__factory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
@@ -663,7 +664,7 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
 
-    it('deposit during redemption', async () => {
+    it.skip('deposit during redemption', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
@@ -745,6 +746,40 @@ describe('Vault', () => {
       expect(await asset.balanceOf(user2.address)).to.equal(parse6decimal('100000').add(fundingAmount2).mul(1e12))
       expect((await vault.accounts(user2.address)).assets).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
+    })
+
+    it('reverts when redemption during deposit', async () => {
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('1000')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const largeDeposit = parse6decimal('2000')
+      await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
+      await expect(vault.connect(user).update(user.address, 0, parse6decimal('400'), 0)).to.be.revertedWithCustomError(
+        new CheckpointLib__factory(),
+        'CheckpointSingleSidedError',
+      )
+    })
+
+    it('reverts when deposit during redemption', async () => {
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('1000')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const largeDeposit = parse6decimal('2000')
+      await vault.connect(user).update(user.address, 0, parse6decimal('400'), 0)
+      await expect(vault.connect(user2).update(user2.address, largeDeposit, 0, 0)).to.be.revertedWithCustomError(
+        new CheckpointLib__factory(),
+        'CheckpointSingleSidedError',
+      )
     })
 
     it('max redeem', async () => {
