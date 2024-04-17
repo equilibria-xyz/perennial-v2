@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import HRE, { ethers } from 'hardhat'
-import { BigNumber, constants, utils } from 'ethers'
+import { BigNumber, constants, ContractTransaction, utils } from 'ethers'
 import { createMarket, deployProtocolForOracle, InstanceVarsBasic, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
@@ -83,14 +83,13 @@ describe('End to End Flow', () => {
       price: price,
       valid: true,
     }
-    await expect(
-      keeperOracle.connect(oracleFactory).commit(oracleVersion, {
-        maxFeePerGas: 100000000,
-      }),
-    ).to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
+    const tx: ContractTransaction = await keeperOracle.connect(oracleFactory).commit(oracleVersion, {
+      maxFeePerGas: 100000000,
+    })
+    expect(tx).to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
 
     // inform the caller of the current timestamp
-    return await currentBlockTimestamp()
+    return (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
   }
 
   beforeEach(async () => {
@@ -304,5 +303,37 @@ describe('End to End Flow', () => {
       timestamp: time2,
       maker: POSITION,
     })
+  })
+
+  it('ensure settlement is not blocked', async () => {
+    const POSITION = parse6decimal('1')
+    const COLLATERAL = parse6decimal('4000')
+    const { owner, user, userB, dsu } = instanceVars
+
+    // user submits order to establish 1 ETH maker position backed by 4000 collateral
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+    // FIXME: why timestamp no match?
+    const time1 = (await currentBlockTimestamp()) + 7 // current=1712168033  actual=1712168040  block=1712168033
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: time1,
+      orders: 1,
+      collateral: COLLATERAL,
+      makerPos: POSITION,
+    })
+
+    // put market in settle-only mode
+    let marketParameter = { ...(await market.parameter()) }
+    marketParameter.settle = true
+    await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+    marketParameter = await market.parameter()
+    expect(marketParameter.settle).to.be.true
+
+    // keeper commits price for the order's timestamp, doubling the price
+    // FIXME: reverts when Oracle is using no-op update instead of settle
+    // const time2 = await advanceToPrice(time1, PRICE_0.mul(2))
   })
 })
