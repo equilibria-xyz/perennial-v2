@@ -2039,7 +2039,7 @@ describe('Vault', () => {
           await vault.rebalance(user.address)
         })
 
-        it('recovers from a liquidationn', async () => {
+        it('recovers from a liquidation', async () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
