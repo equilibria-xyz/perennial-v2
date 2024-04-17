@@ -1,10 +1,12 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
 import { constants, BigNumberish } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { time } from '@nomicfoundation/hardhat-network-helpers'
+
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { IntentStruct } from '../../../types/generated/contracts/Verifier'
+import { FillStruct, IntentStruct } from '../../../types/generated/contracts/Verifier'
 import { Verifier, Verifier__factory } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
@@ -39,6 +41,29 @@ async function signIntent(signer: SignerWithAddress, verifier: Verifier, intent:
   return await signer._signTypedData(erc721Domain(verifier), types, intent)
 }
 
+async function signFill(signer: SignerWithAddress, verifier: Verifier, fill: FillStruct): Promise<string> {
+  const types = {
+    Common: [
+      { name: 'account', type: 'address' },
+      { name: 'domain', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'group', type: 'uint256' },
+      { name: 'expiry', type: 'uint256' },
+    ],
+    Intent: [
+      { name: 'amount', type: 'int256' },
+      { name: 'price', type: 'int256' },
+      { name: 'common', type: 'Common' },
+    ],
+    Fill: [
+      { name: 'intent', type: 'Intent' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, fill)
+}
+
 describe('Coordinator', () => {
   let owner: SignerWithAddress
   let market: SignerWithAddress
@@ -53,28 +78,292 @@ describe('Coordinator', () => {
   })
 
   describe('#verifyIntent', () => {
-    it('should verify a correct intent message', async () => {
-      const intent = {
-        amount: parse6decimal('10'),
-        price: parse6decimal('123'),
-        common: {
-          account: caller.address,
-          domain: market.address,
-          nonce: 1,
-          group: 17,
-          expiry: 0,
-        },
-      }
+    const DEFAULT_INTENT = {
+      amount: parse6decimal('10'),
+      price: parse6decimal('123'),
+      common: {
+        account: constants.AddressZero,
+        domain: constants.AddressZero,
+        nonce: 0,
+        group: 0,
+        expiry: 0,
+      },
+    }
 
+    it('should verify default intent', async () => {
+      const intent = { ...DEFAULT_INTENT, common: { ...DEFAULT_INTENT.common, account: caller.address } }
+      const signature = await signIntent(caller, verifier, intent)
+
+      const result = await verifier.connect(caller).callStatic.verifyIntent(intent, signature)
+      await expect(verifier.connect(caller).verifyIntent(intent, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify intent w/ expiry', async () => {
+      const now = await time.latest()
+      const intent = {
+        ...DEFAULT_INTENT,
+        common: { ...DEFAULT_INTENT.common, account: caller.address, expiry: now + 2 },
+      } // callstatic & call each take one second
+      const signature = await signIntent(caller, verifier, intent)
+
+      const result = await verifier.connect(caller).callStatic.verifyIntent(intent, signature)
+      await expect(verifier.connect(caller).verifyIntent(intent, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject intent w/ invalid expiry', async () => {
+      const now = await time.latest()
+      const intent = { ...DEFAULT_INTENT, common: { ...DEFAULT_INTENT.common, account: caller.address, expiry: now } }
+      const signature = await signIntent(caller, verifier, intent)
+
+      await expect(verifier.connect(caller).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidExpiryError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should verify intent w/ domain', async () => {
+      const intent = {
+        ...DEFAULT_INTENT,
+        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: market.address },
+      }
       const signature = await signIntent(caller, verifier, intent)
 
       const result = await verifier.connect(market).callStatic.verifyIntent(intent, signature)
       await expect(verifier.connect(market).verifyIntent(intent, signature))
         .to.emit(verifier, 'NonceCancelled')
-        .withArgs(caller.address, 1)
+        .withArgs(caller.address, 0)
 
       expect(result).to.eq(caller.address)
-      expect(await verifier.nonces(caller.address, 1)).to.eq(true)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject intent w/ invalid domain', async () => {
+      const intent = {
+        ...DEFAULT_INTENT,
+        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: market.address },
+      }
+      const signature = await signIntent(caller, verifier, intent)
+
+      await expect(verifier.connect(caller).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidDomainError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject intent w/ invalid signature (too small)', async () => {
+      const intent = { ...DEFAULT_INTENT, common: { ...DEFAULT_INTENT.common, account: caller.address } }
+      const signature =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
+      await expect(verifier.connect(caller).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignatureError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject intent w/ invalid signature (too large)', async () => {
+      const intent = { ...DEFAULT_INTENT, common: { ...DEFAULT_INTENT.common, account: caller.address } }
+      const signature =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
+
+      await expect(verifier.connect(caller).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignatureError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject intent w/ invalid nonce', async () => {
+      const intent = { ...DEFAULT_INTENT, common: { ...DEFAULT_INTENT.common, account: caller.address, nonce: 17 } }
+      const signature = await signIntent(caller, verifier, intent)
+
+      await verifier.connect(caller).cancelNonce(17)
+
+      await expect(verifier.connect(market).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidNonceError',
+      )
+
+      expect(await verifier.nonces(caller.address, 17)).to.eq(true)
+    })
+
+    it('should reject intent w/ invalid nonce', async () => {
+      const intent = { ...DEFAULT_INTENT, common: { ...DEFAULT_INTENT.common, account: caller.address, group: 17 } }
+      const signature = await signIntent(caller, verifier, intent)
+
+      await verifier.connect(caller).cancelGroup(17)
+
+      await expect(verifier.connect(market).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidGroupError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+  })
+
+  describe('#verifyFill', () => {
+    const DEFAULT_FILL = {
+      intent: {
+        amount: parse6decimal('10'),
+        price: parse6decimal('123'),
+        common: {
+          account: constants.AddressZero,
+          domain: constants.AddressZero,
+          nonce: 0,
+          group: 0,
+          expiry: 0,
+        },
+      },
+      common: {
+        account: constants.AddressZero,
+        domain: constants.AddressZero,
+        nonce: 0,
+        group: 0,
+        expiry: 0,
+      },
+    }
+
+    it('should verify default intent', async () => {
+      const intent = { ...DEFAULT_FILL, common: { ...DEFAULT_FILL.common, account: caller.address } }
+      const signature = await signFill(caller, verifier, intent)
+
+      const result = await verifier.connect(caller).callStatic.verifyFill(intent, signature)
+      await expect(verifier.connect(caller).verifyFill(intent, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify intent w/ expiry', async () => {
+      const now = await time.latest()
+      const intent = { ...DEFAULT_FILL, common: { ...DEFAULT_FILL.common, account: caller.address, expiry: now + 2 } } // callstatic & call each take one second
+      const signature = await signFill(caller, verifier, intent)
+
+      const result = await verifier.connect(caller).callStatic.verifyFill(intent, signature)
+      await expect(verifier.connect(caller).verifyFill(intent, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject intent w/ invalid expiry', async () => {
+      const now = await time.latest()
+      const intent = { ...DEFAULT_FILL, common: { ...DEFAULT_FILL.common, account: caller.address, expiry: now } }
+      const signature = await signFill(caller, verifier, intent)
+
+      await expect(verifier.connect(caller).verifyFill(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidExpiryError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should verify intent w/ domain', async () => {
+      const intent = {
+        ...DEFAULT_FILL,
+        common: { ...DEFAULT_FILL.common, account: caller.address, domain: market.address },
+      }
+      const signature = await signFill(caller, verifier, intent)
+
+      const result = await verifier.connect(market).callStatic.verifyFill(intent, signature)
+      await expect(verifier.connect(market).verifyFill(intent, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject intent w/ invalid domain', async () => {
+      const intent = {
+        ...DEFAULT_FILL,
+        common: { ...DEFAULT_FILL.common, account: caller.address, domain: market.address },
+      }
+      const signature = await signFill(caller, verifier, intent)
+
+      await expect(verifier.connect(caller).verifyFill(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidDomainError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject intent w/ invalid signature (too small)', async () => {
+      const intent = { ...DEFAULT_FILL, common: { ...DEFAULT_FILL.common, account: caller.address } }
+      const signature =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
+      await expect(verifier.connect(caller).verifyFill(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignatureError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject intent w/ invalid signature (too large)', async () => {
+      const intent = { ...DEFAULT_FILL, common: { ...DEFAULT_FILL.common, account: caller.address } }
+      const signature =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
+
+      await expect(verifier.connect(caller).verifyFill(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignatureError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject intent w/ invalid nonce', async () => {
+      const intent = { ...DEFAULT_FILL, common: { ...DEFAULT_FILL.common, account: caller.address, nonce: 17 } }
+      const signature = await signFill(caller, verifier, intent)
+
+      await verifier.connect(caller).cancelNonce(17)
+
+      await expect(verifier.connect(market).verifyFill(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidNonceError',
+      )
+
+      expect(await verifier.nonces(caller.address, 17)).to.eq(true)
+    })
+
+    it('should reject intent w/ invalid nonce', async () => {
+      const intent = { ...DEFAULT_FILL, common: { ...DEFAULT_FILL.common, account: caller.address, group: 17 } }
+      const signature = await signFill(caller, verifier, intent)
+
+      await verifier.connect(caller).cancelGroup(17)
+
+      await expect(verifier.connect(market).verifyFill(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidGroupError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })
   })
 

@@ -29,11 +29,6 @@ contract Verifier is IVerifier, EIP712 {
 
     constructor() EIP712("Perennial", "1.0.0") { }
 
-
-    function chainId() external view returns (uint256) {
-        return block.chainid;
-    }
-
     /// @notice Verifies the signature of an intent order type
     /// @dev Cancels the nonce after verifying the signature
     /// @param intent The intent order to verify
@@ -92,7 +87,7 @@ contract Verifier is IVerifier, EIP712 {
         if (signature.length != 65) revert VerifierInvalidSignatureError();
         if (nonces[common.account][common.nonce]) revert VerifierInvalidNonceError();
         if (groups[common.account][common.group]) revert VerifierInvalidGroupError();
-        if (common.expiry != 0 && block.timestamp > common.expiry) revert VerifierInvalidExpiryError();
+        if (common.expiry != 0 && block.timestamp >= common.expiry) revert VerifierInvalidExpiryError();
 
         _cancelNonce(common.account, common.nonce);
 
