@@ -672,7 +672,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @notice Credits an account's claimable
-    /// @dev The amount must have already come from a corresponing debit in the settlement flow.
+    /// @dev The amount must have already come from a corresponding debit in the settlement flow.
     ///      If the receiver is the context's account, the amount is instead credited in-memory.
     /// @param context The context to use
     /// @param account The account of the current context
