@@ -399,7 +399,7 @@ contract Vault is IVault, Instance {
             .allocate(
                 deposit,
                 withdrawal,
-                _ineligable(context, withdrawal)
+                _ineligible(context, withdrawal)
             );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
@@ -410,24 +410,24 @@ contract Vault is IVault, Instance {
                 _retarget(context.registrations[marketId], targets[marketId], rebalance);
     }
 
-    /// @notice Returns the amount of collateral is ineligable for allocation
+    /// @notice Returns the amount of collateral is ineligible for allocation
     /// @param context The context to use
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
-    /// @return The amount of assets that are ineligable from being allocated
-    function _ineligable(Context memory context, UFixed6 withdrawal) private pure returns (UFixed6) {
-        // assets eligable for redemption
-        UFixed6 redemptionEligable = UFixed6Lib.unsafeFrom(context.totalCollateral)
+    /// @return The amount of assets that are ineligible from being allocated
+    function _ineligible(Context memory context, UFixed6 withdrawal) private pure returns (UFixed6) {
+        // assets eligible for redemption
+        UFixed6 redemptionEligible = UFixed6Lib.unsafeFrom(context.totalCollateral)
             // assets pending claim (use latest global assets before withdrawal for redeemability)
             .unsafeSub(context.global.assets.add(withdrawal))
             // assets pending deposit
             .unsafeSub(context.global.deposit);
 
-        return redemptionEligable
+        return redemptionEligible
             // approximate assets up for redemption
             .mul(context.global.redemption.unsafeDiv(context.global.shares.add(context.global.redemption)))
             // assets pending claim (use new global assets after withdrawal for eligability)
             .add(context.global.assets);
-            // assets pending deposit are eligable for allocation
+            // assets pending deposit are eligible for allocation
     }
 
     /// @notice Adjusts the position on `market` to `targetPosition`
