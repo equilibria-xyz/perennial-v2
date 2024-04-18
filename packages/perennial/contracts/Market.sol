@@ -675,13 +675,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The amount must have already come from a corresponding debit in the settlement flow.
     ///      If the receiver is the context's account, the amount is instead credited in-memory.
     /// @param context The context to use
-    /// @param account The account of the current context
+    /// @param contextAccount The account of the current context
     /// @param receiver The account to credit
     /// @param amount The amount to credit
-    function _credit(Context memory context, address account, address receiver, UFixed6 amount) private {
+    function _credit(Context memory context, address contextAccount, address receiver, UFixed6 amount) private {
         if (amount.isZero()) return;
 
-        if (receiver == account) context.local.credit(amount);
+        if (receiver == contextAccount) context.local.credit(amount);
         else {
             Local memory receiverLocal = _locals[receiver].read();
             receiverLocal.credit(amount);
