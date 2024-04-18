@@ -46,12 +46,18 @@ describe('Price', () => {
 
     it('reverts if price out of range', async () => {
       const STORAGE_SIZE = 64
+
       const overflowPrice: PriceStruct = {
         price: BigNumber.from(2).pow(STORAGE_SIZE).add(1),
         valid: true,
       }
-
       await expect(price.store(overflowPrice)).to.be.revertedWithCustomError(price, 'PriceStorageInvalidError')
+
+      const underflowPrice: PriceStruct = {
+        price: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+        valid: false,
+      }
+      await expect(price.store(underflowPrice)).to.be.revertedWithCustomError(price, 'PriceStorageInvalidError')
     })
   })
 })

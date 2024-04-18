@@ -169,8 +169,6 @@ contract KeeperOracle is IKeeperOracle, Instance {
         if (!version.valid) revert KeeperOracleInvalidPriceError();
         if (version.timestamp <= _global.latestVersion || (next() != 0 && version.timestamp >= next()))
             revert KeeperOracleVersionOutsideRangeError();
-        if (version.price.gt(Fixed6.wrap(type(int64).max)) || version.price.lt(Fixed6.wrap(type(int64).min)))
-            revert KeeperOracleInvalidPriceError();
 
         _prices[version.timestamp].store(Price(version.price, true));
         return false;

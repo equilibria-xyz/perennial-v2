@@ -147,6 +147,37 @@ describe('KeeperOracle', () => {
     expect(version.valid).to.be.true
   })
 
+  it('cannot commit invalid prices', async () => {
+    const keeperFactorySigner = await impersonateWithBalance(keeperOracleFactory.address, utils.parseEther('10'))
+    const newTimestamp = (await currentBlockTimestamp()) - 4
+    const oracleVersion = {
+      timestamp: newTimestamp,
+      price: parse6decimal('0.000555'),
+      valid: false,
+    }
+    expect(
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, { maxFeePerGas: 100000000 }),
+    ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleInvalidPriceError')
+  })
+
+  it('cannot commit prices which would overflow or underflow', async () => {
+    const STORAGE_SIZE = 64
+    const keeperFactorySigner = await impersonateWithBalance(keeperOracleFactory.address, utils.parseEther('10'))
+    const newTimestamp = (await currentBlockTimestamp()) - 3
+
+    const overflowPrice = BigNumber.from(2).pow(STORAGE_SIZE).add(2)
+    const oracleVersion = {
+      timestamp: newTimestamp,
+      price: overflowPrice,
+      valid: true,
+    }
+    expect(keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, { maxFeePerGas: 100000000 })).to.be.reverted
+
+    const underflowPrice = BigNumber.from(2).pow(STORAGE_SIZE).add(2).mul(-1)
+    oracleVersion.price = underflowPrice
+    expect(keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, { maxFeePerGas: 100000000 })).to.be.reverted
+  })
+
   it('reverts committing 0 timestamp', async () => {
     const badOracleVersion = {
       timestamp: 0,
