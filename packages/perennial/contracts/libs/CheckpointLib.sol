@@ -14,7 +14,7 @@ import "../types/Guarantee.sol";
 struct CheckpointAccumulationResult {
     Fixed6 collateral;
     Fixed6 priceOverride;
-    Fixed6 tradeFee;
+    UFixed6 tradeFee;
     Fixed6 offset;
     UFixed6 settlementFee;
     UFixed6 liquidationFee;
@@ -57,7 +57,7 @@ library CheckpointLib {
             .add(result.collateral)                   // incorporate collateral change at this settlement
             .add(result.priceOverride);               // incorporate price override pnl at this settlement
         next.transfer = order.collateral;
-        next.tradeFee = result.tradeFee.add(result.offset);
+        next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
     }
 
@@ -81,18 +81,20 @@ library CheckpointLib {
     function _accumulateFee(
         Order memory order,
         Version memory toVersion
-    ) private pure returns (Fixed6 tradeFee, UFixed6 subtractiveFee) {
-        Fixed6 makerFee = Fixed6Lib.ZERO
-            .sub(toVersion.makerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()));
-        Fixed6 takerFee = Fixed6Lib.ZERO
-            .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+    ) private pure returns (UFixed6 tradeFee, UFixed6 subtractiveFee) {
+        UFixed6 makerFee = Fixed6Lib.ZERO
+            .sub(toVersion.makerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
+            .abs();
+        UFixed6 takerFee = Fixed6Lib.ZERO
+            .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()))
+            .abs();
 
         UFixed6 makerSubtractiveFee = order.makerTotal().isZero() ?
             UFixed6Lib.ZERO :
-            UFixed6Lib.from(makerFee).muldiv(order.makerReferral, order.makerTotal());
+            makerFee.muldiv(order.makerReferral, order.makerTotal());
         UFixed6 takerSubtractiveFee = order.takerTotal().isZero() ?
             UFixed6Lib.ZERO :
-            UFixed6Lib.from(takerFee).muldiv(order.takerReferral, order.takerTotal());
+            takerFee.muldiv(order.takerReferral, order.takerTotal());
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee);
