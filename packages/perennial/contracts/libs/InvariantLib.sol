@@ -66,6 +66,7 @@ library InvariantLib {
 
         if (
             sender != account &&                                                // sender is operating on own account
+            updateContext.signer != account &&                                  // sender is relaying the account's signed intention
             !updateContext.operator &&                                          // sender is operator approved for account
             !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO))    // sender is depositing zero or more into account, without position change
         ) revert IMarket.MarketOperatorNotAllowedError();

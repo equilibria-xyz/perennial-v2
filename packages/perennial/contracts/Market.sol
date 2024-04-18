@@ -90,6 +90,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The local pending guarantee for each id for each account
     mapping(address => mapping(uint256 => GuaranteeStorageLocal)) private _guarantees;
 
+    /// @dev Construct the contract implementation
+    /// @param verifier_ The verifier contract to use
+    constructor(IVerifier verifier_) {
+        verifier = verifier_;
+    }
+
     /// @notice Initializes the contract state
     /// @param definition_ The market definition
     function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
@@ -117,33 +123,40 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function update(Intent calldata intent, bytes memory signature, address referrer) external {
         address signer = verifier.verifyIntent(intent, signature);
 
-        if (signer != intent.common.account) revert MarketInvalidSignerError();
-
-        _updateIntent(msg.sender, intent, true, referrer); // maker
-        _updateIntent(intent.common.account, intent, false, referrer); // taker
+        _updateIntent(msg.sender, address(0), intent.amount.mul(Fixed6Lib.NEG_ONE), intent.price, true, referrer); // maker
+        _updateIntent(intent.common.account, signer, intent.amount, intent.price, false, referrer); // taker
     }
 
     /// @notice Updates the account's position for an intent order
     /// @param account The account to operate on
-    /// @param intent The intent that is being filled
+    /// @param signer The signer of the order
+    /// @param amount The size and direction of the order being opened
+    /// @param price The price to execute the order at
     /// @param settlementFee Whether to charge the settlement fee
     /// @param referrer The referrer of the order
-    function _updateIntent(address account, Intent memory intent, bool settlementFee, address referrer) private {
+    function _updateIntent(
+        address account,
+        address signer,
+        Fixed6 amount,
+        Fixed6 price,
+        bool settlementFee,
+        address referrer
+    ) private {
         // settle market & account
         Context memory context = _loadContext(account);
         _settle(context, account);
 
         // load update context
-        UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
+        UpdateContext memory updateContext = _loadUpdateContext(context, account, signer, referrer);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
-            intent.amount,
+            amount,
             _processReferralFee(context, updateContext, referrer)
         );
-        Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, intent.price, settlementFee);
+        Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, price, settlementFee);
 
         // process update
         _update(context, updateContext, account, newOrder, newGuarantee, referrer);
@@ -192,7 +205,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _settle(context, account);
 
         // load update context
-        UpdateContext memory updateContext = _loadUpdateContext(context, account, referrer);
+        UpdateContext memory updateContext = _loadUpdateContext(context, account, address(0), referrer);
 
         // magic values
         collateral = _processCollateralMagicValue(context, collateral);
@@ -440,6 +453,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadUpdateContext(
         Context memory context,
         address account,
+        address signer,
         address referrer
     ) private view returns (UpdateContext memory updateContext) {
         // load current position
@@ -456,6 +470,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // load external actors
         updateContext.operator = IMarketFactory(address(factory())).operators(account, msg.sender);
+        updateContext.signer = signer;
         updateContext.liquidator = liquidators[account][context.local.currentId];
         updateContext.referrer = referrers[account][context.local.currentId];
         updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);
@@ -529,7 +544,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), account);
 
         // after
-        InvariantLib.validate(context, updateContext, msg.sender, account, newOrder);
+        InvariantLib.validate(context, updateContext,msg.sender,  account, newOrder);
 
         // store
         _storeUpdateContext(context, updateContext, account);
@@ -599,25 +614,32 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         while (
             context.global.currentId != context.global.latestId &&
             (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
-        ) _processOrderGlobal(context, settlementContext, context.global.latestId + 1, nextOrder);
+        ) _processOrderGlobal(context, settlementContext, context.global.latestId + 1, nextOrder.timestamp, nextOrder);
 
         while (
             context.local.currentId != context.local.latestId &&
             (nextOrder = _pendingOrders[account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
-        ) _processOrderLocal(context, settlementContext, account, context.local.latestId + 1, nextOrder);
+        ) _processOrderLocal(context, settlementContext, account, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
 
         // sync
-        if (context.latestOracleVersion.timestamp > context.latestPositionGlobal.timestamp) {
-            nextOrder = _pendingOrder[context.global.latestId].read();
-            nextOrder.next(context.latestOracleVersion.timestamp);
-            _processOrderGlobal(context, settlementContext, context.global.latestId, nextOrder);
-        }
+        if (context.latestOracleVersion.timestamp > context.latestPositionGlobal.timestamp)
+            _processOrderGlobal(
+                context,
+                settlementContext,
+                context.global.latestId,
+                context.latestOracleVersion.timestamp,
+                _pendingOrder[context.global.latestId].read()
+            );
 
-        if (context.latestOracleVersion.timestamp > context.latestPositionLocal.timestamp) {
-            nextOrder = _pendingOrders[account][context.local.latestId].read();
-            nextOrder.next(context.latestOracleVersion.timestamp);
-            _processOrderLocal(context, settlementContext, account, context.local.latestId, nextOrder);
-        }
+        if (context.latestOracleVersion.timestamp > context.latestPositionLocal.timestamp)
+            _processOrderLocal(
+                context,
+                settlementContext,
+                account,
+                context.local.latestId,
+                context.latestOracleVersion.timestamp,
+                _pendingOrders[account][context.local.latestId].read()
+            );
     }
 
     /// @notice Modifies the collateral input per magic values
@@ -652,17 +674,27 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Processes the given global pending position into the latest position
     /// @param context The context to use
     /// @param newOrderId The id of the pending position to process
+    /// @param newOrderTimestamp The timestamp of the pending position to process
     /// @param newOrder The pending position to process
     function _processOrderGlobal(
         Context memory context,
         SettlementContext memory settlementContext,
         uint256 newOrderId,
+        uint256 newOrderTimestamp,
         Order memory newOrder
     ) private {
-        OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
+        OracleVersion memory oracleVersion = oracle.at(newOrderTimestamp);
         Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
+        // if latest timestamp is more recent than order timestamp, sync the order data
+        if (newOrderTimestamp > newOrder.timestamp) {
+            newOrder.next(newOrderTimestamp);
+            newGuarantee.next();
+        }
+
         context.pendingGlobal.sub(newOrder);
+
+        // if version is not valid, invalidate order data
         if (!oracleVersion.valid) {
             newOrder.invalidate();
             newGuarantee.invalidate();
@@ -695,19 +727,29 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param context The context to use
     /// @param account The account to process for
     /// @param newOrderId The id of the pending position to process
+    /// @param newOrderTimestamp The timestamp of the pending position to process
     /// @param newOrder The pending order to process
     function _processOrderLocal(
         Context memory context,
         SettlementContext memory settlementContext,
         address account,
         uint256 newOrderId,
+        uint256 newOrderTimestamp,
         Order memory newOrder
     ) private {
         Version memory versionFrom = _versions[context.latestPositionLocal.timestamp].read();
-        Version memory versionTo = _versions[newOrder.timestamp].read();
+        Version memory versionTo = _versions[newOrderTimestamp].read();
         Guarantee memory newGuarantee = _guarantees[account][newOrderId].read();
 
+        // if latest timestamp is more recent than order timestamp, sync the order data
+        if (newOrderTimestamp > newOrder.timestamp) {
+            newOrder.next(newOrderTimestamp);
+            newGuarantee.next();
+        }
+
         context.pendingLocal.sub(newOrder);
+
+        // if version is not valid, invalidate order data
         if (!versionTo.valid) {
             newOrder.invalidate();
             newGuarantee.invalidate();

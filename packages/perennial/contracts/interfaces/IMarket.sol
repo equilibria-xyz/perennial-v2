@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/token/types/Token18.sol";
+import "@equilibria/perennial-v2-verifier/contracts/types/Intent.sol";
 import "./IOracleProvider.sol";
 import "../types/OracleVersion.sol";
 import "../types/MarketParameter.sol";
@@ -44,6 +45,7 @@ interface IMarket is IInstance {
 
     struct UpdateContext {
         bool operator;
+        address signer;
         address liquidator;
         address referrer;
         UFixed6 referralFee;
@@ -106,8 +108,6 @@ interface IMarket is IInstance {
     error MarketInvalidReferrerError();
     // sig: 0x5c5cb438
     error MarketSettleOnlyError();
-    // sig: 0xaafb35c9
-    error MarketInvalidSignerError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();
@@ -141,6 +141,7 @@ interface IMarket is IInstance {
     function liquidators(address account, uint256 id) external view returns (address);
     function referrers(address account, uint256 id) external view returns (address);
     function settle(address account) external;
+    function update(Intent calldata intent, bytes memory signature, address referrer) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
     function parameter() external view returns (MarketParameter memory);

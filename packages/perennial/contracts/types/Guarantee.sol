@@ -36,7 +36,7 @@ library GuaranteeLib {
     /// @notice Invalidates the guarantee
     /// @param self The guarantee object to update
     function invalidate(Guarantee memory self) internal pure {
-        (self.takerPos, self.takerNeg) = (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        (self.takerPos, self.takerNeg, self.notional) = (UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO);
     }
 
     /// @notice Creates a new guarantee from an order
@@ -77,15 +77,11 @@ library GuaranteeLib {
     /// @param guarantee The new guarantee
     function add(Guarantee memory self, Guarantee memory guarantee) internal pure {
         self.orders = self.orders + guarantee.orders;
-        (self.takerPos, self.takerNeg) = (self.takerPos.add(guarantee.takerPos), self.takerNeg.add(guarantee.takerNeg));
-    }
-
-    /// @notice Subtracts the latest local guarantee from current global guarantee
-    /// @param self The guarantee object to update
-    /// @param guarantee The latest guarantee
-    function sub(Guarantee memory self, Guarantee memory guarantee) internal pure {
-        self.orders = self.orders - guarantee.orders;
-        (self.takerPos, self.takerNeg) = (self.takerPos.sub(guarantee.takerPos), self.takerNeg.sub(guarantee.takerNeg));
+        (self.takerPos, self.takerNeg, self.notional) = (
+            self.takerPos.add(guarantee.takerPos),
+            self.takerNeg.add(guarantee.takerNeg),
+            self.notional.add(guarantee.notional)
+        );
     }
 }
 
