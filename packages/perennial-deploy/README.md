@@ -1,10 +1,10 @@
-# Perennial V2 Vault
+# Perennial V2 Deployment
 
-Vault for the Perennial V2 Protocol
+Deployment scripts, migration scripts and verification tests for Perennial V2 Protocol
 
 ## Usage
 
-### Pre Requisites
+### Prerequisites
 
 Before running any command, make sure to install dependencies. Run this in the root workspace as well to capture package patches:
 
@@ -24,33 +24,27 @@ This also generates the Typechain types
 
 ### Test
 
-Run the Mocha tests:
+Run verification tests:
 
 ```sh
-$ yarn test
+$ yarn test:verification:arbitrum
+$ yarn test:verification:base
 ```
 
-To run tests against a Mainnet fork, set your `MAINNET_NODE_URL` in the root `.env` and run
+### Deploy
 
+#### To local fork (for testing)
 ```sh
-$ yarn test:integration
+$ yarn deploy:fork:arbitrumSepolia
+$ yarn deploy:fork:arbitrum
 ```
 
-### Gas Report
-
-To get a gas report based on unit test calls:
-
+#### To target chain
 ```sh
-$ yarn gasReport
+$ yarn deploy
 ```
 
-### Deploy contract to network (requires Mnemonic and infura API key)
-
-```
-npx hardhat run --network rinkeby ./scripts/deploy.ts
-```
-
-### Validate a contract with etherscan (requires API ke)
+### Validate a contract with etherscan (requires API key)
 
 ```
 npx hardhat verify --network <network> <DEPLOYED_CONTRACT_ADDRESS> "Constructor argument 1"
@@ -58,5 +52,4 @@ npx hardhat verify --network <network> <DEPLOYED_CONTRACT_ADDRESS> "Constructor 
 
 ### Added plugins
 
-- Gas reporter [hardhat-gas-reporter](https://hardhat.org/plugins/hardhat-gas-reporter.html)
 - Etherscan [hardhat-etherscan](https://hardhat.org/plugins/nomiclabs-hardhat-etherscan.html)
