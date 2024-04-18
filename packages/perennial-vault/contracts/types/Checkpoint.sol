@@ -132,7 +132,7 @@ library CheckpointLib {
     /// @param shares Number of shares to convert to shares
     /// @param settlementFee Custom settlement fee
     /// @return Amount of assets for the given shares at checkpoint
-    function toAssetsCustom(Checkpoint memory self, UFixed6 shares, UFixed6 settlementFee) internal pure returns (UFixed6) {
+    function toAssets(Checkpoint memory self, UFixed6 shares, UFixed6 settlementFee) internal pure returns (UFixed6) {
         // vault is fresh, use par value
         return (self.shares.isZero() ? shares : _toAssets(self, shares)).unsafeSub(settlementFee);
     }
