@@ -174,7 +174,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param market The market to settle
     /// @param account The account to settle
     function _settle(IMarket market, address account) private {
-        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.ZERO, false);
+        market.settle(account);
     }
 
     /// @dev Only allow authorized callers
