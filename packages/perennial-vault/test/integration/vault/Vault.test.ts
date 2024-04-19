@@ -1963,7 +1963,7 @@ describe('Vault', () => {
           expect(await btcCollateralInVault()).to.equal(btcFinalCollateral)
         })
 
-        it('recovers from a liquidation w/ shortfalll', async () => {
+        it('recovers from a liquidation w/ shortfall', async () => {
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
