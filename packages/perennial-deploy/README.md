@@ -34,9 +34,15 @@ $ yarn test:verification:base
 ### Deploy
 
 #### To local fork (for testing)
+In one terminal, create a hardhat fork from the desired chain, skipping deployment:
+```sh
+yarn node:fork:arbitrumSepolia --no-deploy
+```
+Hardhat should report that the JSON-RPC server has started, and provide a list of funded accounts on the fork.
+
+In another terminal, run the deployment pointing at _localhost_:
 ```sh
 $ yarn deploy:fork:arbitrumSepolia
-$ yarn deploy:fork:arbitrum
 ```
 
 #### To target chain

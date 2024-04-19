@@ -1,10 +1,17 @@
-import { utils } from 'ethers'
+import { BigNumber, utils } from 'ethers'
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { forkNetwork, isArbitrum, isFork, isMainnet } from '../../common/testutil/network'
-import { OracleFactory__factory, ProxyAdmin__factory, PythFactory__factory } from '../types/generated'
+import {
+  OracleFactory__factory,
+  ProxyAdmin__factory,
+  PythFactory__factory,
+  PayoffDefinitionStruct,
+} from '../types/generated'
+import { PAYOFFS } from './002_deploy_payoff'
 
+// TODO: remove once ORACLES is populated
 export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   arbitrum: {
     eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
@@ -24,6 +31,30 @@ export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   base: {
     eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
     btc: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // Pyth: BTC
+  },
+}
+
+export const ORACLES: {
+  [key: string]: {
+    [asset: string]: {
+      oracleId: string
+      underlyingId: string
+      payoffProviderName: string
+      payoffDecimals: BigNumber
+    }
+  }
+} = {
+  arbitrum: {
+    // TODO: determine payoff providers for other chains
+  },
+  arbitrumSepolia: {
+    // pythOracleFactory 0x92F8d5B8d0ca2fc699c7c540471Ad49724a68007
+    eth: {
+      oracleId: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+      underlyingId: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+      payoffProviderName: '',
+      payoffDecimals: BigNumber.from(-3),
+    },
   },
 }
 
@@ -49,6 +80,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
+  // creates a PayoffDefinition struct by looking up the
+  async function getPayoff(name: string, decimals: BigNumber): Promise<PayoffDefinitionStruct> {
+    if (name) return { provider: (await get(name)).address, decimals: decimals }
+    else return { provider: ethers.constants.AddressZero, decimals: 0 }
+  }
+
   // Deploy Oracle Implementations
   await deploy('OracleImpl', {
     contract: 'Oracle',
@@ -73,11 +110,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     args: [
       (await get('OracleFactoryImpl')).address,
       proxyAdmin.address,
-      oracleFactoryInterface.encodeFunctionData('initialize', [
-        (await get('DSU')).address,
-        (await get('USDC')).address,
-        (await get('DSUReserve')).address,
-      ]),
+      oracleFactoryInterface.encodeFunctionData('initialize', [(await get('DSU')).address]),
     ],
     from: deployer,
     skipIfAlreadyDeployed: true,
@@ -164,24 +197,31 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     process.stdout.write('complete\n')
   }
 
+  // Register payoff providers
+  for (const payoffName of PAYOFFS) {
+    process.stdout.write(`Registering payoff provider ${payoffName}...`)
+    const payoffProvider = await get(payoffName)
+    await (await pythFactory.register(payoffProvider.address)).wait()
+    process.stdout.write('complete\n')
+  }
+
   // Create oracles
-  const oracleIDs = isFork() ? ORACLE_IDS[forkNetwork()] : ORACLE_IDS[getNetworkName()]
-  if (!oracleIDs) throw new Error('No oracle IDs for network')
-  for (const id of Object.values(oracleIDs)) {
-    if ((await pythFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
-      process.stdout.write(`Associating pyth oracle id ${id}...`)
-      await (await pythFactory.associate(id, id)).wait()
-      process.stdout.write(`Creating pyth oracle ${id}...`)
-      const address = await pythFactory.callStatic.create(id)
+  const oracles = isFork() ? ORACLES[forkNetwork()] : ORACLES[getNetworkName()]
+  if (!oracles) throw new Error('No oracle IDs for network')
+  for (const oracle of Object.values(oracles)) {
+    if ((await pythFactory.oracles(oracle.oracleId)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
+      process.stdout.write(`Creating pyth oracle ${oracle.oracleId}...`)
+      const payoff: PayoffDefinitionStruct = await getPayoff(oracle.payoffProviderName, oracle.payoffDecimals)
+      const address = await pythFactory.callStatic.create(oracle.oracleId, oracle.underlyingId, payoff)
       process.stdout.write(`deploying at ${address}...`)
-      await (await pythFactory.create(id)).wait()
+      await (await pythFactory.create(oracle.oracleId, oracle.underlyingId, payoff)).wait()
       process.stdout.write('complete\n')
     }
-    if ((await oracleFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
-      process.stdout.write(`Creating oracle ${id}...`)
-      const address = await oracleFactory.callStatic.create(id, pythFactory.address)
+    if ((await oracleFactory.oracles(oracle.oracleId)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
+      process.stdout.write(`Creating oracle ${oracle.oracleId}...`)
+      const address = await oracleFactory.callStatic.create(oracle.oracleId, pythFactory.address)
       process.stdout.write(`deploying at ${address}...`)
-      await (await oracleFactory.create(id, pythFactory.address)).wait()
+      await (await oracleFactory.create(oracle.oracleId, pythFactory.address)).wait()
       process.stdout.write('complete\n')
     }
   }
