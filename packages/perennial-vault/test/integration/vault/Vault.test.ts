@@ -1924,16 +1924,44 @@ describe('Vault', () => {
     })
 
     context('liquidation', () => {
+      // attempts to deposit a small amount
+      async function smallDeposit(account: SignerWithAddress) {
+        console.log('testing small deposit')
+        return vault.connect(account).update(user.address, 3, 0, 0)
+      }
+
+      // attempts to redeem a small amount
+      async function smallRedeem(account: SignerWithAddress) {
+        console.log('testing small redeem')
+        return vault.connect(account).update(user.address, 0, 4, 0)
+      }
+
+      beforeEach(async () => {
+        // needed only for smallDeposit helper function
+        await fundWallet(asset, user)
+      })
+
       // Test setup establishes a market where takers have a long position, so vaults will have short exposure.
       context('short exposure', () => {
-        it('recovers from a liquidation', async () => {
+        it('recovers from a liquidation 1320', async () => {
+          console.log('vault', vault.address, 'user', user.address)
+
+          console.log('user depositing 100k')
           await vault.connect(user).update(user.address, parse6decimal('100000'), 0, 0)
           await updateOracle()
 
           // 1. An oracle update increases the price, making the vault's position liquidatable.
+          // We should no longer be able to deposit or redeem.
+          console.log('updating oracle price')
           await updateOracle(undefined, parse6decimal('50000'))
+          // FIXME: In 2.2 branch, the .update(0,0,0) reverts with MarketInsufficientMarginError.
+          // Here, we're never under margin requirements.
+          await expect(smallDeposit(user)).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+          await expect(smallRedeem(user)).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+          return
 
           // 2. Settle accounts / Liquidate the vault's maker position.
+          // We should still not be able to deposit or redeem.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('5149547500')
           await btcMarket
             .connect(user)
@@ -1942,6 +1970,8 @@ describe('Vault', () => {
             BigNumber.from('4428767485').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
           expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
+          await expect(smallDeposit(user)).to.be.reverted
+          await expect(smallRedeem(user)).to.be.reverted
 
           // 3. Settle the liquidation.
           // We should now be able to deposit.
