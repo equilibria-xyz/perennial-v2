@@ -1,6 +1,6 @@
-# Perennial V2 Extensions
+# Perennial V2 Verifier
 
-Extension systems for the Perennial V2 Protocol
+Intent and Fill Message verifier contracts for the Perennial V2 Protocol
 
 ## Usage
 

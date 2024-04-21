@@ -3,8 +3,6 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
 
-// TODO: calldata packing
-
 struct Common {
     address account;
     address domain;

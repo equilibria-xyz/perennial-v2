@@ -5,10 +5,15 @@ import { Intent } from "../types/Intent.sol";
 import { Fill } from "../types/Fill.sol";
 
 interface IVerifier {
+    // sig: 0xb09262f6
     error VerifierInvalidDomainError();
+    // sig: 0xb09262f6
     error VerifierInvalidSignatureError();
+    // sig: 0xe6784f14
     error VerifierInvalidNonceError();
+    // sig: 0x79998279
     error VerifierInvalidGroupError();
+    // sig: 0x27661908
     error VerifierInvalidExpiryError();
 
     event NonceCancelled(address indexed account, uint256 nonce);

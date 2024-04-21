@@ -5,8 +5,6 @@ import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Common, CommonLib } from "./Common.sol";
 
-// TODO: calldata packing
-
 struct Intent {
     /// @dev The size and direction of the order being opened by the taker
     ///       - Positive opens long / Negative opens short

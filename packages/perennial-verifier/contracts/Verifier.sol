@@ -8,14 +8,11 @@ import { Intent, IntentLib } from "./types/Intent.sol";
 import { Fill, FillLib } from "./types/Fill.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 
-// TODO: permit cancel nonce / group
-// TODO: permit operator approval
-
 /// @title Verifier
 /// @notice Singleton ERC712 signed message verifier for the Perennial protocol.
 /// @dev Handles nonce management for verified messages.
 ///       - nonce is a single use unique value per message that is invalidated after use
-///       - group is allows for an entire set of messages to be invalidated via a single cancel operation
+///       - group allows for an entire set of messages to be invalidated via a single cancel operation
 ///
 ///      Messages verification request must come from the domain address if it is set.
 ///       - In the case of intent / fills, this means that the market should be set as the domain.
@@ -36,7 +33,7 @@ contract Verifier is IVerifier, EIP712 {
     /// @return The address corresponding to the signature
     function verifyIntent(Intent calldata intent, bytes calldata signature)
         external
-        validate(intent.common, signature) returns (address)
+        validateAndCancel(intent.common, signature) returns (address)
     {
         return ECDSA.recover(_hashTypedDataV4(IntentLib.hash(intent)), signature);
     }
@@ -48,7 +45,7 @@ contract Verifier is IVerifier, EIP712 {
     /// @return The address corresponding to the signature
     function verifyFill(Fill calldata fill, bytes calldata signature)
         external
-        validate(fill.common, signature) returns (address)
+        validateAndCancel(fill.common, signature) returns (address)
     {
         return ECDSA.recover(_hashTypedDataV4(FillLib.hash(fill)), signature);
     }
@@ -82,7 +79,7 @@ contract Verifier is IVerifier, EIP712 {
     }
 
     /// @dev Validates the common data of a message
-    modifier validate(Common calldata common, bytes calldata signature) {
+    modifier validateAndCancel(Common calldata common, bytes calldata signature) {
         if (common.domain != address(0) && common.domain != msg.sender) revert VerifierInvalidDomainError();
         if (signature.length != 65) revert VerifierInvalidSignatureError();
         if (nonces[common.account][common.nonce]) revert VerifierInvalidNonceError();

@@ -116,15 +116,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _storeContext(context, account);
     }
 
-    /// @notice Updates the maker and taker positions of an intent order
+    /// @notice Updates both the long and short positions of an intent order
+    /// @dev - One side is specified in the signed intent, while the sender is assumed to be the counterparty
+    ///      - The sender is charged the settlement fee
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
     /// @param referrer The referrer of the order
     function update(Intent calldata intent, bytes memory signature, address referrer) external {
         address signer = verifier.verifyIntent(intent, signature);
 
-        _updateIntent(msg.sender, address(0), intent.amount.mul(Fixed6Lib.NEG_ONE), intent.price, true, referrer); // maker
-        _updateIntent(intent.common.account, signer, intent.amount, intent.price, false, referrer); // taker
+        _updateIntent(msg.sender, address(0), intent.amount.mul(Fixed6Lib.NEG_ONE), intent.price, true, referrer); // sender
+        _updateIntent(intent.common.account, signer, intent.amount, intent.price, false, referrer); // signer
     }
 
     /// @notice Updates the account's position for an intent order
