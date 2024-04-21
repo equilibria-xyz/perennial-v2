@@ -165,9 +165,7 @@ library VersionLib {
             UFixed6Lib.ZERO :
             takerFee.muldiv(context.order.takerReferral, context.order.takerTotal());
 
-        UFixed6 tradeFee = makerFee.add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee);
-
-        result.tradeFee = result.tradeFee.add(tradeFee);
+        result.tradeFee = result.tradeFee.add(makerFee).add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee);
         result.subtractiveFee = result.subtractiveFee.add(makerSubtractiveFee).add(takerSubtractiveFee);
     }
 
