@@ -57,16 +57,16 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 //        /* slot 0 */ (30)
 //        uint24 margin;                              // <= 1677%
 //        uint24 maintenance;                         // <= 1677%
-//        uint24 takerFee;                            // <= 1677%
-//        uint24 takerFeeMagnitude;                   // <= 1677%
-//        uint24 takerImpactFee;                      // <= 1677%
-//        uint24 makerFee;                            // <= 1677%
-//        uint24 makerFeeMagnitude;                   // <= 1677%
+//        uint24 takerLinearFee;                      // <= 1677%
+//        uint24 takerProportionalFee;                // <= 1677%
+//        uint24 takerAdiabaticFee;                   // <= 1677%
+//        uint24 makerLinearFee;                      // <= 1677%
+//        uint24 makerProportionalFee;                // <= 1677%
 //        uint48 makerLimit;                          // <= 281t (no decimals)
 //        uint24 efficiencyLimit;                     // <= 1677%
 //
 //        /* slot 1 */ (31)
-//        uint24 makerImpactFee;                      // <= 1677%
+//        uint24 makerAdiabaticFee;                   // <= 1677%
 //        uint48 makerSkewScale;                      // <= 281t (no decimals)
 //        uint48 takerSkewScale;                      // <= 281t (no decimals)
 //        uint24 utilizationCurveMinRate;             // <= 1677%

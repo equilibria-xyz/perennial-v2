@@ -206,12 +206,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         RiskParameter memory latestRiskParameter = _riskParameter.read();
         OracleVersion memory latestVersion = oracle.at(latestPosition.timestamp);
 
-        Fixed6 updateFee = latestRiskParameter.makerFee
-            .update(newRiskParameter.makerFee, latestPosition.maker, latestVersion.price.abs())
-            .add(latestRiskParameter.takerFee
+        newGlobal.exposure = newGlobal.exposure.sub(latestRiskParameter.takerFee
                 .update(newRiskParameter.takerFee, latestPosition.skew(), latestVersion.price.abs()));
-
-        newGlobal.exposure = newGlobal.exposure.sub(updateFee);
         _global.store(newGlobal);
 
         // update

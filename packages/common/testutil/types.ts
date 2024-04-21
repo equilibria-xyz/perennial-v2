@@ -70,14 +70,11 @@ export interface Version {
   makerValue: Accumulator
   longValue: Accumulator
   shortValue: Accumulator
-  makerLinearFee: Accumulator
-  makerProportionalFee: Accumulator
-  takerLinearFee: Accumulator
-  takerProportionalFee: Accumulator
-  makerPosFee: Accumulator
-  makerNegFee: Accumulator
-  takerPosFee: Accumulator
-  takerNegFee: Accumulator
+  makerFee: Accumulator
+  takerFee: Accumulator
+  makerOffset: Accumulator
+  takerPosOffset: Accumulator
+  takerNegOffset: Accumulator
   settlementFee: Accumulator
   liquidationFee: Accumulator
 }
@@ -146,14 +143,11 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
   expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
   expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
-  expect(a.makerLinearFee._value).to.equal(b.makerLinearFee._value, 'Version:MakerLinearFee')
-  expect(a.makerProportionalFee._value).to.equal(b.makerProportionalFee._value, 'Version:MakerProportionalFee')
-  expect(a.takerLinearFee._value).to.equal(b.takerLinearFee._value, 'Version:TakerLinearFee')
-  expect(a.takerProportionalFee._value).to.equal(b.takerProportionalFee._value, 'Version:TakerProportionalFee')
-  expect(a.makerPosFee._value).to.equal(b.makerPosFee._value, 'Version:MakerPosFee')
-  expect(a.makerNegFee._value).to.equal(b.makerNegFee._value, 'Version:MakerNegFee')
-  expect(a.takerPosFee._value).to.equal(b.takerPosFee._value, 'Version:TakerPosFee')
-  expect(a.takerNegFee._value).to.equal(b.takerNegFee._value, 'Version:TakerNegFee')
+  expect(a.makerFee._value).to.equal(b.makerFee._value, 'Version:MakerLinearFee')
+  expect(a.takerFee._value).to.equal(b.takerFee._value, 'Version:TakerLinearFee')
+  expect(a.makerOffset._value).to.equal(b.makerOffset._value, 'Version:MakerPosFee')
+  expect(a.takerPosOffset._value).to.equal(b.takerPosOffset._value, 'Version:TakerPosFee')
+  expect(a.takerNegOffset._value).to.equal(b.takerNegOffset._value, 'Version:TakerNegFee')
   expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
   expect(a.liquidationFee._value).to.equal(b.liquidationFee._value, 'Version:LiquidationFee')
 }
@@ -245,14 +239,11 @@ export const DEFAULT_VERSION: Version = {
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
-  makerLinearFee: { _value: 0 },
-  makerProportionalFee: { _value: 0 },
-  takerLinearFee: { _value: 0 },
-  takerProportionalFee: { _value: 0 },
-  makerPosFee: { _value: 0 },
-  makerNegFee: { _value: 0 },
-  takerPosFee: { _value: 0 },
-  takerNegFee: { _value: 0 },
+  makerFee: { _value: 0 },
+  takerFee: { _value: 0 },
+  makerOffset: { _value: 0 },
+  takerPosOffset: { _value: 0 },
+  takerNegOffset: { _value: 0 },
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
 }

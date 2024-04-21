@@ -44,9 +44,7 @@ library LocalLib {
     /// @param self The Local object to update
     /// @param accumulation The accumulation result
     function update(Local memory self, uint256 newId, CheckpointAccumulationResult memory accumulation) internal pure {
-        Fixed6 tradeFee = accumulation.linearFee
-            .add(accumulation.proportionalFee)
-            .add(accumulation.adiabaticFee);
+        Fixed6 tradeFee = accumulation.tradeFee.add(accumulation.offset);
         self.collateral = self.collateral
             .add(accumulation.collateral)
             .add(accumulation.priceOverride)

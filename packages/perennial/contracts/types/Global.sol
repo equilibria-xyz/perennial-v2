@@ -52,7 +52,8 @@ library GlobalLib {
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure {
-        UFixed6 marketFee = accumulation.positionFeeProtocol
+        UFixed6 marketFee = accumulation.tradeFee
+            .add(accumulation.tradeOffsetMarket)
             .add(accumulation.fundingFee)
             .add(accumulation.interestFee);
 
@@ -68,7 +69,7 @@ library GlobalLib {
         self.oracleFee = self.oracleFee.add(accumulation.settlementFee).add(oracleFeeAmount);
         self.riskFee = self.riskFee.add(riskFeeAmount);
         self.donation = self.donation.add(donationAmount);
-        self.exposure = self.exposure.add(accumulation.positionFeeExposureProtocol);
+        self.exposure = self.exposure.add(accumulation.adiabaticExposureMarket);
     }
 }
 

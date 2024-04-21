@@ -35,14 +35,11 @@ const VALID_VERSION: VersionStruct = {
   makerValue: { _value: 1 },
   longValue: { _value: 2 },
   shortValue: { _value: 3 },
-  makerLinearFee: { _value: 14 },
-  makerProportionalFee: { _value: 15 },
-  takerLinearFee: { _value: 16 },
-  takerProportionalFee: { _value: 17 },
-  makerPosFee: { _value: 4 },
-  makerNegFee: { _value: 5 },
-  takerPosFee: { _value: 6 },
-  takerNegFee: { _value: 7 },
+  makerFee: { _value: 14 },
+  takerFee: { _value: 16 },
+  makerOffset: { _value: 4 },
+  takerPosOffset: { _value: 6 },
+  takerNegOffset: { _value: 7 },
   settlementFee: { _value: -8 },
   liquidationFee: { _value: -9 },
 }
@@ -163,14 +160,11 @@ describe('Version', () => {
       expect(value.makerValue._value).to.equal(1)
       expect(value.longValue._value).to.equal(2)
       expect(value.shortValue._value).to.equal(3)
-      expect(value.makerLinearFee._value).to.equal(14)
-      expect(value.makerProportionalFee._value).to.equal(15)
-      expect(value.takerLinearFee._value).to.equal(16)
-      expect(value.takerProportionalFee._value).to.equal(17)
-      expect(value.makerPosFee._value).to.equal(4)
-      expect(value.makerNegFee._value).to.equal(5)
-      expect(value.takerPosFee._value).to.equal(6)
-      expect(value.takerNegFee._value).to.equal(7)
+      expect(value.makerFee._value).to.equal(14)
+      expect(value.takerFee._value).to.equal(16)
+      expect(value.makerOffset._value).to.equal(4)
+      expect(value.takerPosOffset._value).to.equal(6)
+      expect(value.takerNegOffset._value).to.equal(7)
       expect(value.settlementFee._value).to.equal(-8)
       expect(value.liquidationFee._value).to.equal(-9)
     })
@@ -342,31 +336,31 @@ describe('Version', () => {
       })
     })
 
-    describe('.makerLinearFee', async () => {
+    describe('.makerFee', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.makerLinearFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.makerLinearFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.makerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -375,37 +369,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.makerProportionalFee', async () => {
+    describe('.takerFee', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.makerProportionalFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.takerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.makerProportionalFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.takerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -414,37 +408,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.takerLinearFee', async () => {
+    describe('.makerOffset', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          makerOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.takerLinearFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          makerOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.takerLinearFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.makerOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            makerOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -453,37 +447,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            makerOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.takerProportionalFee', async () => {
+    describe('.takerPosOffset', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          takerPosOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.takerProportionalFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.takerPosOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          takerPosOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.takerProportionalFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.takerPosOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            takerPosOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -492,37 +486,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            takerPosOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.makerPosFee', async () => {
+    describe('.takerNegOffset', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          takerNegOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.makerPosFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.takerNegOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          takerNegOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.makerPosFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.takerNegOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            takerNegOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -531,124 +525,7 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.makerNegFee', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.makerNegFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.makerNegFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.takerPosFee', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.takerPosFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.takerPosFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.takerNegFee', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.takerNegFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.takerNegFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            takerNegOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -745,7 +622,12 @@ describe('Version', () => {
           { ...DEFAULT_INTENT },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('2'), closed: true },
+          {
+            ...VALID_MARKET_PARAMETER,
+            takerFee: parse6decimal('0.01'),
+            settlementFee: parse6decimal('2'),
+            closed: true,
+          },
           {
             ...VALID_RISK_PARAMETER,
             takerFee: {
@@ -758,17 +640,16 @@ describe('Version', () => {
         )
 
         expect(value.valid).to.be.true
-        expect(value.makerValue._value).to.equal(BigNumber.from('14759956'))
+        expect(value.makerValue._value).to.equal(BigNumber.from('14760000').add(1))
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
-        expect(ret.positionFee).to.equal(BigNumber.from('147600000'))
-        expect(ret.positionFeeMaker).to.equal(BigNumber.from('147599558'))
-        expect(ret.positionFeeProtocol).to.equal(BigNumber.from('442'))
-        expect(ret.positionFeeExposure).to.equal(0)
-        expect(ret.positionFeeExposureMaker).to.equal(0)
-        expect(ret.positionFeeExposureProtocol).to.equal(0)
-        expect(ret.positionFeeImpact).to.equal(BigNumber.from('18450000'))
+        expect(ret.tradeOffset).to.equal(BigNumber.from('147600000').add(BigNumber.from('18450000')))
+        expect(ret.tradeOffsetMaker).to.equal(BigNumber.from('147600000'))
+        expect(ret.tradeFee).to.equal(BigNumber.from('12300000'))
+        expect(ret.adiabaticExposure).to.equal(0)
+        expect(ret.adiabaticExposureMaker).to.equal(0)
+        expect(ret.adiabaticExposureMarket).to.equal(0)
         expect(ret.fundingMaker).to.equal(0)
         expect(ret.fundingLong).to.equal(0)
         expect(ret.fundingShort).to.equal(0)
@@ -1172,9 +1053,9 @@ describe('Version', () => {
         )
 
         // no exposure without price change
-        expect(ret.positionFeeExposure).to.equal(0)
-        expect(ret.positionFeeExposureMaker).to.equal(0)
-        expect(ret.positionFeeExposureProtocol).to.equal(0)
+        expect(ret.adiabaticExposure).to.equal(0)
+        expect(ret.adiabaticExposureMaker).to.equal(0)
+        expect(ret.adiabaticExposureMarket).to.equal(0)
       })
 
       it('exposure changes with updated price', async () => {
@@ -1192,20 +1073,14 @@ describe('Version', () => {
         // takerFeeExposure (linear adiabatic) = skew * adiabaticFee * skew/scale / 2
         //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
 
-        // maker position excludes the pending order
-        // makerFeeExposure (inverse adiabatic) = change * adiabaticFee * (2 + changeScaled) / 2
-        //    with                       change = scale-makerPosition-scale = 100-1.2-100  = -1.2
-        //     and                 changeScaled = change/scale       = -1.2/100 = −0.012
-        //    =   -1.2 * 0.15 * (2 + −0.012) / 2 = -0.18 * 1.988 / 2 = −0.17892
-
         // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
-        //                     = (138 - 123) * (0.003 + −0.17892) = −2.6388
+        //                     = (138 - 123) * (0.003) = 0.045
         // positionFeeExposureMaker = positionFeeExposure * -1
         // positionFeeExposureProtocol is 0 unless maker position is 0
 
-        expect(ret.positionFeeExposure).to.equal(parse6decimal('-2.6388'))
-        expect(ret.positionFeeExposureMaker).to.equal(parse6decimal('2.6388'))
-        expect(ret.positionFeeExposureProtocol).to.equal(0)
+        expect(ret.adiabaticExposure).to.equal(parse6decimal('0.045'))
+        expect(ret.adiabaticExposureMaker).to.equal(parse6decimal('-0.045'))
+        expect(ret.adiabaticExposureMarket).to.equal(0)
       })
 
       it('exposure with no maker position', async () => {
@@ -1232,13 +1107,13 @@ describe('Version', () => {
         // positionFeeExposureMaker = 0
         // positionFeeExposureProtocol = positionFeeExposure * -1 = 0.015
 
-        expect(ret.positionFeeExposure).to.equal(parse6decimal('-0.015'))
-        expect(ret.positionFeeExposureMaker).to.equal(0)
-        expect(ret.positionFeeExposureProtocol).to.equal(parse6decimal('0.015'))
+        expect(ret.adiabaticExposure).to.equal(parse6decimal('-0.015'))
+        expect(ret.adiabaticExposureMaker).to.equal(0)
+        expect(ret.adiabaticExposureMarket).to.equal(parse6decimal('0.015'))
       })
     })
 
-    describe('position fee accumulation', () => {
+    describe('offset / fee accumulation', () => {
       it('allocates when no makers', async () => {
         await version.store(VALID_VERSION)
 
@@ -1259,7 +1134,7 @@ describe('Version', () => {
           { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER },
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
           {
             ...VALID_RISK_PARAMETER,
             pController: { min: 0, max: 0, k: parse6decimal('1') },
@@ -1288,42 +1163,59 @@ describe('Version', () => {
         const makerExposure = parse6decimal('0.0') // 100 -> 100 / 100 = 199 / 100 = 1.0 * 0 * 0.2
         const exposure = takerExposure.add(makerExposure).mul(2) // price delta
 
+        const makerFee = parse6decimal('0.2') // 10 * 0.02
+        const takerFee = parse6decimal('1.1') // 110 * 0.01
+        const fee = makerFee.add(takerFee).mul(123)
+
         const linear1 = parse6decimal('0.2') // 10 * 0.02
-        const linear2 = parse6decimal('1.1') // 110 * 0.01
-        const linear = linear1.add(linear2).mul(123) // price
+        const linear2 = parse6decimal('0.5') // 50 * 0.01
+        const linear3 = parse6decimal('0.6') // 60 * 0.01
+        const linear = linear1.add(linear2).add(linear3).mul(123) // price
 
         const proportional1 = parse6decimal('0.1') // 10 * 0.01
-        const proportional2 = parse6decimal('6.05') // 110 * 0.055
-        const proportional = proportional1.add(proportional2).mul(123) // price
+        const proportional2 = parse6decimal('1.25') // 50 * 0.025
+        const proportional3 = parse6decimal('1.8') // 60 * 0.03
+        const proportional = proportional1.add(proportional2).add(proportional3).mul(123) // price
 
-        const fee = linear.add(proportional)
+        const offset = linear.add(proportional)
 
         const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
         const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
-        const impact3 = parse6decimal('0')
-        const impact4 = parse6decimal('-1.9') // 100 -> 90 / 100 = -95 / 100 = -0.95 * 10 * 0.2
-        const impact = impact1.add(impact2).add(impact3).add(impact4).mul(123) // price
+        const impact = impact1.add(impact2).mul(123) // price
+
+        const makerOffset = linear1.mul(-1).mul(123).div(10).add(proportional1.mul(-1).mul(123).div(10))
+
+        const takerPosOffset = linear2
+          .mul(-1)
+          .mul(123)
+          .div(50)
+          .add(proportional2.mul(-1).mul(123).div(50))
+          .add(impact1.mul(-1).mul(123).div(50))
+
+        const takerNegOffset = linear3
+          .mul(-1)
+          .mul(123)
+          .div(60)
+          .add(proportional3.mul(-1).mul(123).div(60))
+          .add(impact2.mul(-1).mul(123).div(60))
 
         expect(value.makerValue._value).to.equal(1)
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2)) // pnl
         expect(value.shortValue._value).to.equal(parse6decimal('-2').mul(2).div(3).sub(1).add(3)) // pnl
-        expect(value.makerLinearFee._value).to.equal(linear1.mul(-1).mul(123).div(10))
-        expect(value.makerProportionalFee._value).to.equal(proportional1.mul(-1).mul(123).div(10))
-        expect(value.takerLinearFee._value).to.equal(linear2.mul(-1).mul(123).div(110))
-        expect(value.takerProportionalFee._value).to.equal(proportional2.mul(-1).mul(123).div(110))
-        expect(value.makerPosFee._value).to.equal(impact4.mul(-1).mul(123).div(10))
-        expect(value.makerNegFee._value).to.equal(0)
-        expect(value.takerPosFee._value).to.equal(impact1.mul(-1).mul(123).div(50))
-        expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(10))
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
+        expect(value.makerOffset._value).to.equal(makerOffset)
+        expect(value.takerPosOffset._value).to.equal(takerPosOffset)
+        expect(value.takerNegOffset._value).to.equal(takerNegOffset)
         expect(value.settlementFee._value).to.equal(-2) // 0 -(-1*6 / 4) = 0 - 2 due to rounding
 
-        expect(ret.positionFee).to.equal(fee)
-        expect(ret.positionFeeMaker).to.equal(0)
-        expect(ret.positionFeeProtocol).to.equal(fee)
-        expect(ret.positionFeeExposure).to.equal(exposure)
-        expect(ret.positionFeeExposureProtocol).to.equal(-exposure)
-        expect(ret.positionFeeExposureMaker).to.equal(0)
-        expect(ret.positionFeeImpact).to.equal(impact)
+        expect(ret.tradeOffset).to.equal(offset.add(impact))
+        expect(ret.tradeOffsetMaker).to.equal(0)
+        expect(ret.tradeOffsetMarket).to.equal(offset)
+        expect(ret.tradeFee).to.equal(fee)
+        expect(ret.adiabaticExposure).to.equal(exposure)
+        expect(ret.adiabaticExposureMarket).to.equal(-exposure)
+        expect(ret.adiabaticExposureMaker).to.equal(0)
       })
 
       it('allocates when makers', async () => {
@@ -1346,7 +1238,7 @@ describe('Version', () => {
           { ...DEFAULT_INTENT },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, positionFee: parse6decimal('0.1') },
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
           {
             ...VALID_RISK_PARAMETER,
             pController: { min: 0, max: 0, k: parse6decimal('1') },
@@ -1372,47 +1264,60 @@ describe('Version', () => {
         )
 
         const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
-        const makerExposure = parse6decimal('-7.5') // 100 -> 50 / 100 = 75 / 100 = 0.75 * 50 * 0.2
-        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
+        const exposure = takerExposure.mul(2) // price delta
+
+        const makerFee = parse6decimal('0.6') // 30 * 0.02
+        const takerFee = parse6decimal('1.1') // 110 * 0.01
+        const fee = makerFee.add(takerFee).mul(123)
 
         const linear1 = parse6decimal('0.6') // 30 * 0.02
-        const linear2 = parse6decimal('1.1') // 110 * 0.01
-        const linear = linear1.add(linear2).mul(123) // price
+        const linear2 = parse6decimal('0.5') // 50 * 0.01
+        const linear3 = parse6decimal('0.6') // 60 * 0.01
+        const linear = linear1.add(linear2).add(linear3).mul(123) // price
 
         const proportional1 = parse6decimal('0.9') // 30 * 0.03
-        const proportional2 = parse6decimal('6.05') // 110 * 0.055
-        const proportional = proportional1.add(proportional2).mul(123) // price
+        const proportional2 = parse6decimal('1.25') // 50 * 0.025
+        const proportional3 = parse6decimal('1.8') // 60 * 0.03
+        const proportional = proportional1.add(proportional2).add(proportional3).mul(123) // price
 
-        const fee = linear.add(proportional)
+        const offset = linear.add(proportional)
 
         const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
         const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
-        const impact3 = parse6decimal('1.1') // 50 -> 60 / 100 = 55 / 100 = 0.55 * 10 * 0.2
-        const impact4 = parse6decimal('-2.0') // 60 -> 40 / 100 = -50 / 100 = -.5 * 20 * 0.2
-        const impact = impact1.add(impact2).add(impact3).add(impact4).mul(123) // price
+        const impact = impact1.add(impact2).mul(123) // price
 
-        expect(value.makerValue._value).to.equal(
-          fee.mul(9).div(10).sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1),
-        )
+        const makerOffset = linear1.mul(-1).mul(123).div(30).add(proportional1.mul(-1).mul(123).div(30))
+
+        const takerPosOffset = linear2
+          .mul(-1)
+          .mul(123)
+          .div(50)
+          .add(proportional2.mul(-1).mul(123).div(50))
+          .add(impact1.mul(-1).mul(123).div(50))
+
+        const takerNegOffset = linear3
+          .mul(-1)
+          .mul(123)
+          .div(60)
+          .add(proportional3.mul(-1).mul(123).div(60))
+          .add(impact2.mul(-1).mul(123).div(60))
+
+        expect(value.makerValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1))
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
         expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
-        expect(value.makerLinearFee._value).to.equal(linear1.mul(-1).mul(123).div(30))
-        expect(value.makerProportionalFee._value).to.equal(proportional1.mul(-1).mul(123).div(30))
-        expect(value.takerLinearFee._value).to.equal(linear2.mul(-1).mul(123).div(110))
-        expect(value.takerProportionalFee._value).to.equal(proportional2.mul(-1).mul(123).div(110))
-        expect(value.makerPosFee._value).to.equal(impact4.mul(-1).mul(123).div(20))
-        expect(value.makerNegFee._value).to.equal(impact3.mul(-1).mul(123).div(10))
-        expect(value.takerPosFee._value).to.equal(impact1.mul(-1).mul(123).div(50))
-        expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(30))
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
+        expect(value.makerOffset._value).to.equal(makerOffset)
+        expect(value.takerPosOffset._value).to.equal(takerPosOffset)
+        expect(value.takerNegOffset._value).to.equal(takerNegOffset)
         expect(value.settlementFee._value).to.equal(-2)
 
-        expect(ret.positionFee).to.equal(fee)
-        expect(ret.positionFeeMaker).to.equal(fee.mul(9).div(10))
-        expect(ret.positionFeeProtocol).to.equal(fee.div(10))
-        expect(ret.positionFeeExposure).to.equal(exposure)
-        expect(ret.positionFeeExposureMaker).to.equal(-exposure)
-        expect(ret.positionFeeExposureProtocol).to.equal(0)
-        expect(ret.positionFeeImpact).to.equal(impact)
+        expect(ret.tradeOffset).to.equal(offset.add(impact))
+        expect(ret.tradeOffsetMaker).to.equal(offset)
+        expect(ret.tradeFee).to.equal(fee)
+        expect(ret.adiabaticExposure).to.equal(exposure)
+        expect(ret.adiabaticExposureMarket).to.equal(0)
+        expect(ret.adiabaticExposureMaker).to.equal(-exposure)
       })
 
       it('allocates when makers and intents', async () => {
@@ -1435,7 +1340,7 @@ describe('Version', () => {
           { ...DEFAULT_INTENT, takerPos: parse6decimal('40'), takerNeg: parse6decimal('40') },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, positionFee: parse6decimal('0.1') },
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
           {
             ...VALID_RISK_PARAMETER,
             pController: { min: 0, max: 0, k: parse6decimal('1') },
@@ -1461,47 +1366,60 @@ describe('Version', () => {
         )
 
         const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
-        const makerExposure = parse6decimal('-7.5') // 100 -> 50 / 100 = 75 / 100 = 0.75 * 50 * 0.2
-        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
+        const exposure = takerExposure.mul(2) // price delta
+
+        const makerFee = parse6decimal('0.6') // 30 * 0.02
+        const takerFee = parse6decimal('1.9') // 190 * 0.01
+        const fee = makerFee.add(takerFee).mul(123)
 
         const linear1 = parse6decimal('0.6') // 30 * 0.02
-        const linear2 = parse6decimal('1.1') // 110 * 0.01
-        const linear = linear1.add(linear2).mul(123) // price
+        const linear2 = parse6decimal('0.5') // 50 * 0.01
+        const linear3 = parse6decimal('0.6') // 60 * 0.01
+        const linear = linear1.add(linear2).add(linear3).mul(123) // price
 
         const proportional1 = parse6decimal('0.9') // 30 * 0.03
-        const proportional2 = parse6decimal('6.05') // 110 * 0.055
-        const proportional = proportional1.add(proportional2).mul(123) // price
+        const proportional2 = parse6decimal('1.25') // 50 * 0.025
+        const proportional3 = parse6decimal('1.8') // 60 * 0.03
+        const proportional = proportional1.add(proportional2).add(proportional3).mul(123) // price
 
-        const fee = linear.add(proportional)
+        const offset = linear.add(proportional)
 
         const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
         const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
-        const impact3 = parse6decimal('1.1') // 50 -> 60 / 100 = 55 / 100 = 0.55 * 10 * 0.2
-        const impact4 = parse6decimal('-2.0') // 60 -> 40 / 100 = -50 / 100 = -.5 * 20 * 0.2
-        const impact = impact1.add(impact2).add(impact3).add(impact4).mul(123) // price
+        const impact = impact1.add(impact2).mul(123) // price
 
-        expect(value.makerValue._value).to.equal(
-          fee.mul(9).div(10).sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1),
-        )
+        const makerOffset = linear1.mul(-1).mul(123).div(30).add(proportional1.mul(-1).mul(123).div(30))
+
+        const takerPosOffset = linear2
+          .mul(-1)
+          .mul(123)
+          .div(50)
+          .add(proportional2.mul(-1).mul(123).div(50))
+          .add(impact1.mul(-1).mul(123).div(50))
+
+        const takerNegOffset = linear3
+          .mul(-1)
+          .mul(123)
+          .div(60)
+          .add(proportional3.mul(-1).mul(123).div(60))
+          .add(impact2.mul(-1).mul(123).div(60))
+
+        expect(value.makerValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1))
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
         expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
-        expect(value.makerLinearFee._value).to.equal(linear1.mul(-1).mul(123).div(30))
-        expect(value.makerProportionalFee._value).to.equal(proportional1.mul(-1).mul(123).div(30))
-        expect(value.takerLinearFee._value).to.equal(linear2.mul(-1).mul(123).div(110))
-        expect(value.takerProportionalFee._value).to.equal(proportional2.mul(-1).mul(123).div(110))
-        expect(value.makerPosFee._value).to.equal(impact4.mul(-1).mul(123).div(20))
-        expect(value.makerNegFee._value).to.equal(impact3.mul(-1).mul(123).div(10))
-        expect(value.takerPosFee._value).to.equal(impact1.mul(-1).mul(123).div(50))
-        expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(30))
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(190))
+        expect(value.makerOffset._value).to.equal(makerOffset)
+        expect(value.takerPosOffset._value).to.equal(takerPosOffset)
+        expect(value.takerNegOffset._value).to.equal(takerNegOffset)
         expect(value.settlementFee._value).to.equal(-2)
 
-        expect(ret.positionFee).to.equal(fee)
-        expect(ret.positionFeeMaker).to.equal(fee.mul(9).div(10))
-        expect(ret.positionFeeProtocol).to.equal(fee.div(10))
-        expect(ret.positionFeeExposure).to.equal(exposure)
-        expect(ret.positionFeeExposureMaker).to.equal(-exposure)
-        expect(ret.positionFeeExposureProtocol).to.equal(0)
-        expect(ret.positionFeeImpact).to.equal(impact)
+        expect(ret.tradeOffset).to.equal(offset.add(impact))
+        expect(ret.tradeOffsetMaker).to.equal(offset)
+        expect(ret.tradeFee).to.equal(fee)
+        expect(ret.adiabaticExposure).to.equal(exposure)
+        expect(ret.adiabaticExposureMarket).to.equal(0)
+        expect(ret.adiabaticExposureMaker).to.equal(-exposure)
       })
     })
 

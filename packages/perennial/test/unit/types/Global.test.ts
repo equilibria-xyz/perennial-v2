@@ -42,17 +42,17 @@ function generateAccumulationResult(
 ): VersionAccumulationResultStruct {
   const interestFee = BigNumber.from(marketFee).div(10)
   const fundingFee = BigNumber.from(marketFee).div(5)
-  const positionFeeProtocol = BigNumber.from(marketFee).sub(interestFee).sub(fundingFee)
+  const tradeFee = BigNumber.from(marketFee).sub(interestFee).sub(fundingFee)
 
   return {
-    positionFee: 0,
-    positionFeeMaker: 0,
-    positionFeeProtocol,
-    positionFeeSubtractive: 0,
-    positionFeeExposure: 0,
-    positionFeeExposureMaker: 0,
-    positionFeeExposureProtocol: marketExposure,
-    positionFeeImpact: 0,
+    tradeFee: tradeFee,
+    tradeOffset: 0,
+    tradeOffsetMaker: 0,
+    tradeOffsetMarket: 0,
+    subtractiveFee: 0,
+    adiabaticExposure: 0,
+    adiabaticExposureMaker: 0,
+    adiabaticExposureMarket: marketExposure,
     fundingMaker: 0,
     fundingLong: 0,
     fundingShort: 0,
@@ -74,7 +74,8 @@ function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish)
     fundingFee: 0,
     interestFee: 0,
     oracleFee,
-    positionFee: 0,
+    makerFee: 0,
+    takerFee: 0,
     settlementFee: 0,
     maxPendingGlobal: 0,
     maxPendingLocal: 0,

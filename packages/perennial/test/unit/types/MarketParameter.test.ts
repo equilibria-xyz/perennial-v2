@@ -20,7 +20,8 @@ use(smock.matchers)
 export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
   fundingFee: 1,
   interestFee: 2,
-  positionFee: 3,
+  makerFee: 3,
+  takerFee: 13,
   oracleFee: 4,
   riskFee: 5,
   maxPendingGlobal: 10,
@@ -66,7 +67,8 @@ describe('MarketParameter', () => {
       const value = await marketParameter.read()
       expect(value.fundingFee).to.equal(1)
       expect(value.interestFee).to.equal(2)
-      expect(value.positionFee).to.equal(3)
+      expect(value.makerFee).to.equal(3)
+      expect(value.takerFee).to.equal(13)
       expect(value.oracleFee).to.equal(4)
       expect(value.riskFee).to.equal(5)
       expect(value.maxPendingGlobal).to.equal(10)
@@ -134,17 +136,17 @@ describe('MarketParameter', () => {
       })
     })
 
-    context('.positionFee', async () => {
+    context('.makerFee', async () => {
       it('saves if in range', async () => {
         await marketParameter.validateAndStore(
           {
             ...VALID_MARKET_PARAMETER,
-            positionFee: parse6decimal('1'),
+            makerFee: parse6decimal('1'),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await marketParameter.read()
-        expect(value.positionFee).to.equal(parse6decimal('1'))
+        expect(value.makerFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if invalid', async () => {
@@ -152,7 +154,36 @@ describe('MarketParameter', () => {
           marketParameter.validateAndStore(
             {
               ...VALID_MARKET_PARAMETER,
-              positionFee: parse6decimal('0.1'),
+              makerFee: parse6decimal('0.1'),
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              maxCut: parse6decimal('0.01'),
+            },
+          ),
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
+      })
+    })
+
+    context('.takerFee', async () => {
+      it('saves if in range', async () => {
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            takerFee: parse6decimal('1'),
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await marketParameter.read()
+        expect(value.takerFee).to.equal(parse6decimal('1'))
+      })
+
+      it('reverts if invalid', async () => {
+        await expect(
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerFee: parse6decimal('0.1'),
             },
             {
               ...PROTOCOL_PARAMETER,

@@ -1,11 +1,13 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { constants } from 'ethers'
+import { constants, BigNumberish } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { IERC20Metadata, IMarket, IMarket__factory, IMarketFactory } from '../../../types/generated'
 import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 
 export interface DeployProductParams
   extends Partial<Omit<RiskParameterStruct & MarketParameterStruct, 'payoffDefinition'>> {
+  marketMakerFee?: BigNumberish
+  marketTakerFee?: BigNumberish
   factory: IMarketFactory
   token: IERC20Metadata
   oracle: string
@@ -25,10 +27,11 @@ export async function deployProductOnMainnetFork({
   maintenance,
   fundingFee,
   interestFee,
+  makerLimit,
   makerFee,
   takerFee,
-  positionFee,
-  makerLimit,
+  marketMakerFee,
+  marketTakerFee,
   efficiencyLimit,
   utilizationCurve,
   minMargin,
@@ -73,7 +76,8 @@ export async function deployProductOnMainnetFork({
   const marketParameter = {
     fundingFee: fundingFee ?? parse6decimal('0.00'),
     interestFee: interestFee ?? parse6decimal('0.00'),
-    positionFee: positionFee ?? parse6decimal('0.0'),
+    makerFee: marketMakerFee ?? parse6decimal('0.0'),
+    takerFee: marketTakerFee ?? parse6decimal('0.0'),
     riskFee: 0,
     oracleFee: 0,
     settlementFee: 0,
