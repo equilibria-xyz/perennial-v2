@@ -4,19 +4,19 @@ import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import {
-  IntentGlobalTester,
-  IntentLocalTester,
-  IntentGlobalTester__factory,
-  IntentLocalTester__factory,
+  GuaranteeGlobalTester,
+  GuaranteeLocalTester,
+  GuaranteeGlobalTester__factory,
+  GuaranteeLocalTester__factory,
 } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { IntentStruct } from '../../../types/generated/contracts/Market'
-import { parse6decimal, DEFAULT_ORDER, DEFAULT_INTENT, expectIntentEq } from '../../../../common/testutil/types'
+import { GuaranteeStruct } from '../../../types/generated/contracts/Market'
+import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE, expectGuaranteeEq } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
 
-describe('Intent', () => {
+describe('Guarantee', () => {
   let owner: SignerWithAddress
 
   beforeEach(async () => {
@@ -24,28 +24,28 @@ describe('Intent', () => {
   })
 
   describe('global', () => {
-    const VALID_STORED_INTENT: IntentStruct = {
-      intents: 2,
+    const VALID_STORED_GUARANTEE: GuaranteeStruct = {
+      orders: 2,
       takerPos: 3,
       takerNeg: 4,
       notional: 0,
     }
 
-    let intentGlobal: IntentGlobalTester
+    let guaranteeGlobal: GuaranteeGlobalTester
 
     beforeEach(async () => {
-      intentGlobal = await new IntentGlobalTester__factory(owner).deploy()
+      guaranteeGlobal = await new GuaranteeGlobalTester__factory(owner).deploy()
     })
 
     describe('common behavoir', () => {
-      shouldBehaveLike(() => ({ intent: intentGlobal, validStoredIntent: VALID_STORED_INTENT }))
+      shouldBehaveLike(() => ({ guarantee: guaranteeGlobal, validStoredGuarantee: VALID_STORED_GUARANTEE }))
     })
 
     describe('#store', () => {
       it('stores a new value', async () => {
-        await intentGlobal.store(VALID_STORED_INTENT)
+        await guaranteeGlobal.store(VALID_STORED_GUARANTEE)
 
-        const value = await intentGlobal.read()
+        const value = await guaranteeGlobal.read()
         expect(value.takerPos).to.equal(3)
         expect(value.takerNeg).to.equal(4)
         expect(value.notional).to.equal(0)
@@ -54,28 +54,28 @@ describe('Intent', () => {
   })
 
   describe('local', () => {
-    const VALID_STORED_INTENT: IntentStruct = {
-      intents: 2,
+    const VALID_STORED_GUARANTEE: GuaranteeStruct = {
+      orders: 2,
       takerPos: 3,
       takerNeg: 4,
       notional: 14,
     }
 
-    let intentLocal: IntentLocalTester
+    let guaranteeLocal: GuaranteeLocalTester
 
     beforeEach(async () => {
-      intentLocal = await new IntentLocalTester__factory(owner).deploy()
+      guaranteeLocal = await new GuaranteeLocalTester__factory(owner).deploy()
     })
 
     describe('common behavior', () => {
-      shouldBehaveLike(() => ({ intent: intentLocal, validStoredIntent: VALID_STORED_INTENT }))
+      shouldBehaveLike(() => ({ guarantee: guaranteeLocal, validStoredGuarantee: VALID_STORED_GUARANTEE }))
     })
 
     describe('#store', () => {
       it('stores a new value', async () => {
-        await intentLocal.store(VALID_STORED_INTENT)
+        await guaranteeLocal.store(VALID_STORED_GUARANTEE)
 
-        const value = await intentLocal.read()
+        const value = await guaranteeLocal.read()
         expect(value.takerPos).to.equal(3)
         expect(value.takerNeg).to.equal(4)
         expect(value.notional).to.equal(14)
@@ -84,166 +84,166 @@ describe('Intent', () => {
       context('.notional', async () => {
         const STORAGE_SIZE = 63
         it('saves if in range (above)', async () => {
-          await intentLocal.store({
-            ...DEFAULT_INTENT,
+          await guaranteeLocal.store({
+            ...DEFAULT_GUARANTEE,
             notional: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
-          const value = await intentLocal.read()
+          const value = await guaranteeLocal.read()
           expect(value.notional).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
         it('saves if in range (below)', async () => {
-          await intentLocal.store({
-            ...DEFAULT_INTENT,
+          await guaranteeLocal.store({
+            ...DEFAULT_GUARANTEE,
             notional: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
           })
-          const value = await intentLocal.read()
+          const value = await guaranteeLocal.read()
           expect(value.notional).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
         })
 
         it('reverts if notional out of range (above)', async () => {
           await expect(
-            intentLocal.store({
-              ...DEFAULT_INTENT,
+            guaranteeLocal.store({
+              ...DEFAULT_GUARANTEE,
               notional: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(intentLocal, 'IntentStorageInvalidError')
+          ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
         })
 
         it('reverts if notional out of range (below)', async () => {
           await expect(
-            intentLocal.store({
-              ...DEFAULT_INTENT,
+            guaranteeLocal.store({
+              ...DEFAULT_GUARANTEE,
               notional: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(intentLocal, 'IntentStorageInvalidError')
+          ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
         })
       })
     })
 
     describe('#from', () => {
-      it('generates correct intent (long open)', async () => {
-        await intentLocal.from(
+      it('generates correct guarantee (long open)', async () => {
+        await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           parse6decimal('123'),
           false,
         )
-        const newIntent = await intentLocal.read()
+        const newGuarantee = await guaranteeLocal.read()
 
-        expectIntentEq(newIntent, {
-          intents: 1,
+        expectGuaranteeEq(newGuarantee, {
+          orders: 1,
           takerPos: parse6decimal('10'),
           takerNeg: 0,
           notional: parse6decimal('1230'),
         })
       })
 
-      it('generates correct intent (long close)', async () => {
-        await intentLocal.from(
+      it('generates correct guarantee (long close)', async () => {
+        await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, longNeg: parse6decimal('10') },
           parse6decimal('123'),
           false,
         )
-        const newIntent = await intentLocal.read()
+        const newGuarantee = await guaranteeLocal.read()
 
-        expectIntentEq(newIntent, {
-          intents: 1,
+        expectGuaranteeEq(newGuarantee, {
+          orders: 1,
           takerPos: 0,
           takerNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
         })
       })
 
-      it('generates correct intent (long settlementFee)', async () => {
-        await intentLocal.from(
+      it('generates correct guarantee (long settlementFee)', async () => {
+        await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           parse6decimal('123'),
           true,
         )
-        const newIntent = await intentLocal.read()
+        const newGuarantee = await guaranteeLocal.read()
 
-        expectIntentEq(newIntent, {
-          intents: 0,
+        expectGuaranteeEq(newGuarantee, {
+          orders: 0,
           takerPos: parse6decimal('10'),
           takerNeg: 0,
           notional: parse6decimal('1230'),
         })
       })
 
-      it('generates correct intent (short open)', async () => {
-        await intentLocal.from(
+      it('generates correct guarantee (short open)', async () => {
+        await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
           parse6decimal('123'),
           false,
         )
-        const newIntent = await intentLocal.read()
+        const newGuarantee = await guaranteeLocal.read()
 
-        expectIntentEq(newIntent, {
-          intents: 1,
+        expectGuaranteeEq(newGuarantee, {
+          orders: 1,
           takerPos: 0,
           takerNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
         })
       })
 
-      it('generates correct intent (short close)', async () => {
-        await intentLocal.from(
+      it('generates correct guarantee (short close)', async () => {
+        await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, shortNeg: parse6decimal('10') },
           parse6decimal('123'),
           false,
         )
-        const newIntent = await intentLocal.read()
+        const newGuarantee = await guaranteeLocal.read()
 
-        expectIntentEq(newIntent, {
-          intents: 1,
+        expectGuaranteeEq(newGuarantee, {
+          orders: 1,
           takerPos: parse6decimal('10'),
           takerNeg: 0,
           notional: parse6decimal('1230'),
         })
       })
 
-      it('generates correct intent (short settlementFee)', async () => {
-        await intentLocal.from(
+      it('generates correct guarantee (short settlementFee)', async () => {
+        await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
           parse6decimal('123'),
           true,
         )
-        const newIntent = await intentLocal.read()
+        const newGuarantee = await guaranteeLocal.read()
 
-        expectIntentEq(newIntent, {
-          intents: 0,
+        expectGuaranteeEq(newGuarantee, {
+          orders: 0,
           takerPos: 0,
           takerNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
         })
       })
 
-      it('generates correct intent (maker open)', async () => {
-        await intentLocal.from(
+      it('generates correct guarantee (maker open)', async () => {
+        await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, makerPos: parse6decimal('10') },
           parse6decimal('123'),
           false,
         )
-        const newIntent = await intentLocal.read()
+        const newGuarantee = await guaranteeLocal.read()
 
-        expectIntentEq(newIntent, {
-          intents: 0,
+        expectGuaranteeEq(newGuarantee, {
+          orders: 0,
           takerPos: 0,
           takerNeg: 0,
           notional: 0,
         })
       })
 
-      it('generates correct intent (maker close)', async () => {
-        await intentLocal.from(
+      it('generates correct guarantee (maker close)', async () => {
+        await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, makerNeg: parse6decimal('10') },
           parse6decimal('123'),
           false,
         )
-        const newIntent = await intentLocal.read()
+        const newGuarantee = await guaranteeLocal.read()
 
-        expectIntentEq(newIntent, {
-          intents: 0,
+        expectGuaranteeEq(newGuarantee, {
+          orders: 0,
           takerPos: 0,
           takerNeg: 0,
           notional: 0,
@@ -254,85 +254,85 @@ describe('Intent', () => {
 
   function shouldBehaveLike(
     getter: () => {
-      intent: IntentLocalTester | IntentGlobalTester
-      validStoredIntent: IntentStruct
+      guarantee: GuaranteeLocalTester | GuaranteeGlobalTester
+      validStoredGuarantee: GuaranteeStruct
     },
   ) {
-    let intent: IntentLocalTester | IntentGlobalTester
-    let validStoredIntent: IntentStruct
+    let guarantee: GuaranteeLocalTester | GuaranteeGlobalTester
+    let validStoredGuarantee: GuaranteeStruct
 
     beforeEach(async () => {
-      ;({ intent, validStoredIntent } = getter())
+      ;({ guarantee, validStoredGuarantee } = getter())
     })
 
     describe('#store', () => {
       it('stores a new value', async () => {
-        await intent.store(validStoredIntent)
+        await guarantee.store(validStoredGuarantee)
 
-        const value = await intent.read()
-        expect(value.intents).to.equal(2)
+        const value = await guarantee.read()
+        expect(value.orders).to.equal(2)
       })
 
-      context('.intents', async () => {
+      context('.orders', async () => {
         const STORAGE_SIZE = 32
         it('saves if in range', async () => {
-          await intent.store({
-            ...validStoredIntent,
-            intents: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          await guarantee.store({
+            ...validStoredGuarantee,
+            orders: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
-          const value = await intent.read()
-          expect(value.intents).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+          const value = await guarantee.read()
+          expect(value.orders).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
         it('reverts if currentId out of range', async () => {
           await expect(
-            intent.store({
-              ...validStoredIntent,
-              intents: BigNumber.from(2).pow(STORAGE_SIZE),
+            guarantee.store({
+              ...validStoredGuarantee,
+              orders: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(intent, 'IntentStorageInvalidError')
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
       })
 
       context('.takerPos', async () => {
         const STORAGE_SIZE = 64
         it('saves if in range', async () => {
-          await intent.store({
-            ...DEFAULT_INTENT,
+          await guarantee.store({
+            ...DEFAULT_GUARANTEE,
             takerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
-          const value = await intent.read()
+          const value = await guarantee.read()
           expect(value.takerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
         it('reverts if takerPos out of range', async () => {
           await expect(
-            intent.store({
-              ...DEFAULT_INTENT,
+            guarantee.store({
+              ...DEFAULT_GUARANTEE,
               takerPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(intent, 'IntentStorageInvalidError')
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
       })
 
       context('.takerNeg', async () => {
         const STORAGE_SIZE = 64
         it('saves if in range', async () => {
-          await intent.store({
-            ...DEFAULT_INTENT,
+          await guarantee.store({
+            ...DEFAULT_GUARANTEE,
             takerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
-          const value = await intent.read()
+          const value = await guarantee.read()
           expect(value.takerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
         it('reverts if takerNeg out of range', async () => {
           await expect(
-            intent.store({
-              ...DEFAULT_INTENT,
+            guarantee.store({
+              ...DEFAULT_GUARANTEE,
               takerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(intent, 'IntentStorageInvalidError')
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
       })
     })

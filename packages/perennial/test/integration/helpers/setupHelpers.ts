@@ -93,6 +93,13 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
+  const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+  const verifierProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    verifierImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+
   const marketImpl = await new Market__factory(
     {
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
@@ -117,7 +124,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy()
+  ).deploy(verifierProxy.address)
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
 
@@ -277,5 +284,5 @@ export async function updateNoOp(market: IMarket, account: SignerWithAddress): P
 }
 
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  return market.connect(account)['settle(address)'](account.address)
+  return market.connect(account).settle(account.address)
 }

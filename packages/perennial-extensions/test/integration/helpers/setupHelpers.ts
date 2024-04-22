@@ -118,6 +118,13 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
+  const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+  const verifierProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    verifierImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+
   const marketImpl = await new Market__factory(
     {
       '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
@@ -152,7 +159,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       ).address,
     },
     owner,
-  ).deploy()
+  ).deploy(verifierProxy.address)
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
 

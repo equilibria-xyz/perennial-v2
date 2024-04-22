@@ -9,12 +9,12 @@ import "../types/Local.sol";
 import "../types/Order.sol";
 import "../types/Version.sol";
 import "../types/Checkpoint.sol";
-import "../types/Intent.sol";
+import "../types/Guarantee.sol";
 
 struct CheckpointAccumulationResult {
     Fixed6 collateral;
     Fixed6 priceOverride;
-    Fixed6 tradeFee;
+    UFixed6 tradeFee;
     Fixed6 offset;
     UFixed6 settlementFee;
     UFixed6 liquidationFee;
@@ -35,17 +35,17 @@ library CheckpointLib {
     function accumulate(
         Checkpoint memory self,
         Order memory order,
-        Intent memory intent,
+        Guarantee memory guarantee,
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
     ) external pure returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
-        result.priceOverride = _accumulatePriceOverride(intent, toVersion);
+        result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
         (result.tradeFee, result.subtractiveFee) = _accumulateFee(order, toVersion);
-        result.offset = _accumulateOffset(order, intent, toVersion);
-        result.settlementFee = _accumulateSettlementFee(order, intent, toVersion);
+        result.offset = _accumulateOffset(order, guarantee, toVersion);
+        result.settlementFee = _accumulateSettlementFee(order, guarantee, toVersion);
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
         // update checkpoint
@@ -57,7 +57,7 @@ library CheckpointLib {
             .add(result.collateral)                   // incorporate collateral change at this settlement
             .add(result.priceOverride);               // incorporate price override pnl at this settlement
         next.transfer = order.collateral;
-        next.tradeFee = result.tradeFee.add(result.offset);
+        next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
     }
 
@@ -81,18 +81,20 @@ library CheckpointLib {
     function _accumulateFee(
         Order memory order,
         Version memory toVersion
-    ) private pure returns (Fixed6 tradeFee, UFixed6 subtractiveFee) {
-        Fixed6 makerFee = Fixed6Lib.ZERO
-            .sub(toVersion.makerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()));
-        Fixed6 takerFee = Fixed6Lib.ZERO
-            .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()));
+    ) private pure returns (UFixed6 tradeFee, UFixed6 subtractiveFee) {
+        UFixed6 makerFee = Fixed6Lib.ZERO
+            .sub(toVersion.makerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
+            .abs();
+        UFixed6 takerFee = Fixed6Lib.ZERO
+            .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()))
+            .abs();
 
         UFixed6 makerSubtractiveFee = order.makerTotal().isZero() ?
             UFixed6Lib.ZERO :
-            UFixed6Lib.from(makerFee).muldiv(order.makerReferral, order.makerTotal());
+            makerFee.muldiv(order.makerReferral, order.makerTotal());
         UFixed6 takerSubtractiveFee = order.takerTotal().isZero() ?
             UFixed6Lib.ZERO :
-            UFixed6Lib.from(takerFee).muldiv(order.takerReferral, order.takerTotal());
+            takerFee.muldiv(order.takerReferral, order.takerTotal());
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee);
@@ -101,15 +103,15 @@ library CheckpointLib {
     /// @notice Accumulate price offset for the next position
     /// @dev This includes adjustment for linear, proportional, and adiabatic order fees
     /// @param order The next order
-    /// @param intent The next intent
+    /// @param guarantee The next guarantee
     /// @param toVersion The next version
     function _accumulateOffset(
         Order memory order,
-        Intent memory intent,
+        Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (Fixed6) {
         (UFixed6 takerPos, UFixed6 takerNeg) =
-            (order.takerPos().sub(intent.takerPos), order.takerNeg().sub(intent.takerNeg));
+            (order.takerPos().sub(guarantee.takerPos), order.takerNeg().sub(guarantee.takerNeg));
 
         return Fixed6Lib.ZERO
             .sub(toVersion.makerOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
@@ -120,14 +122,14 @@ library CheckpointLib {
 
     /// @notice Accumulate settlement fees for the next position
     /// @param order The next order
-    /// @param intent The next intent
+    /// @param guarantee The next guarantee
     /// @param toVersion The next version
     function _accumulateSettlementFee(
         Order memory order,
-        Intent memory intent,
+        Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (UFixed6) {
-        uint256 orders = order.orders - intent.intents;
+        uint256 orders = order.orders - guarantee.orders;
 
         return toVersion.settlementFee.accumulated(Accumulator6(Fixed6Lib.ZERO), UFixed6Lib.from(orders)).abs();
     }
@@ -144,13 +146,13 @@ library CheckpointLib {
     }
 
     /// @notice Accumulate price override pnl for the next position
-    /// @param intent The next intent
+    /// @param guarantee The next guarantee
     /// @param toVersion The next version
     function _accumulatePriceOverride(
-        Intent memory intent,
+        Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (Fixed6) {
         if (!toVersion.valid) return Fixed6Lib.ZERO;
-        return intent.taker().mul(toVersion.price).sub(intent.notional);
+        return guarantee.taker().mul(toVersion.price).sub(guarantee.notional);
     }
 }

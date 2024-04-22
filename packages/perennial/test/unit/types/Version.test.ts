@@ -12,12 +12,18 @@ import {
   VersionTester__factory,
 } from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { DEFAULT_ORDER, DEFAULT_VERSION, DEFAULT_INTENT, parse6decimal } from '../../../../common/testutil/types'
+import {
+  DEFAULT_ORDER,
+  DEFAULT_VERSION,
+  DEFAULT_GUARANTEE,
+  parse6decimal,
+  Guarantee,
+} from '../../../../common/testutil/types'
 import {
   GlobalStruct,
   MarketParameterStruct,
   OrderStruct,
-  IntentStruct,
+  GuaranteeStruct,
   PositionStruct,
   RiskParameterStruct,
   VersionStruct,
@@ -105,7 +111,7 @@ describe('Version', () => {
     global: GlobalStruct,
     fromPosition: PositionStruct,
     order: OrderStruct,
-    intent: IntentStruct,
+    guarantee: Guarantee,
     fromOracleVersion: OracleVersionStruct,
     toOracleVersion: OracleVersionStruct,
     marketParameter: MarketParameterStruct,
@@ -115,7 +121,7 @@ describe('Version', () => {
       global,
       fromPosition,
       order,
-      intent,
+      guarantee,
       fromOracleVersion,
       toOracleVersion,
       marketParameter,
@@ -125,7 +131,7 @@ describe('Version', () => {
       global,
       fromPosition,
       order,
-      intent,
+      guarantee,
       fromOracleVersion,
       toOracleVersion,
       marketParameter,
@@ -619,7 +625,7 @@ describe('Version', () => {
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('10'), short: parse6decimal('10'), maker: parse6decimal('10') },
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           {
@@ -674,7 +680,7 @@ describe('Version', () => {
             GLOBAL,
             FROM_POSITION,
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             { ...ORACLE_VERSION_2, valid: false },
             VALID_MARKET_PARAMETER,
@@ -693,7 +699,7 @@ describe('Version', () => {
             GLOBAL,
             FROM_POSITION,
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             VALID_MARKET_PARAMETER,
@@ -712,7 +718,7 @@ describe('Version', () => {
             GLOBAL,
             FROM_POSITION,
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             { ...VALID_MARKET_PARAMETER, closed: true },
@@ -732,7 +738,7 @@ describe('Version', () => {
           GLOBAL,
           FROM_POSITION,
           ORDER,
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
           { ...ORACLE_VERSION_2, valid: false },
           VALID_MARKET_PARAMETER,
@@ -795,7 +801,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           { ...order, orders: 1, makerPos: parse6decimal('4') },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
@@ -814,7 +820,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           order,
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.04') },
@@ -830,7 +836,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           { ...order, orders: 1, shortNeg: parse6decimal('2') },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
@@ -854,7 +860,7 @@ describe('Version', () => {
             shortPos: parse6decimal('5'),
             shortNeg: parse6decimal('9'),
           },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.06') },
@@ -864,10 +870,10 @@ describe('Version', () => {
         expect(ret.settlementFee).to.equal(parse6decimal('0.06'))
       })
 
-      it('skips intent orders', async () => {
+      it('skips guarantee orders', async () => {
         // accumulate multiple orders with an increase in settlement fee
         const orderCount = 4
-        const intentCount = 2
+        const guaranteeCount = 2
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
@@ -879,13 +885,13 @@ describe('Version', () => {
             shortPos: parse6decimal('5'),
             shortNeg: parse6decimal('9'),
           },
-          { ...DEFAULT_INTENT, intents: intentCount },
+          { ...DEFAULT_GUARANTEE, orders: guaranteeCount },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.06') },
           riskParameters,
         )
-        expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount - intentCount))
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount - guaranteeCount))
         expect(ret.settlementFee).to.equal(parse6decimal('0.06'))
       })
     })
@@ -942,7 +948,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           order,
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER },
@@ -961,7 +967,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           order,
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER },
@@ -980,7 +986,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           order,
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2, valid: false },
           { ...VALID_MARKET_PARAMETER },
@@ -1045,7 +1051,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           { ...ORDER },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 }, // 123
           { ...ORACLE_VERSION_2 }, // 123
           { ...VALID_MARKET_PARAMETER },
@@ -1063,7 +1069,7 @@ describe('Version', () => {
           GLOBAL,
           position,
           { ...ORDER },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 }, // 123
           { ...ORACLE_VERSION_2, price: parse6decimal('138') },
           { ...VALID_MARKET_PARAMETER },
@@ -1088,7 +1094,7 @@ describe('Version', () => {
           GLOBAL,
           { ...position, maker: 0 },
           { ...order, makerPos: parse6decimal('0.7'), longPos: 0 },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1, price: parse6decimal('142') },
           { ...ORACLE_VERSION_2, price: parse6decimal('137') },
           { ...VALID_MARKET_PARAMETER },
@@ -1131,7 +1137,7 @@ describe('Version', () => {
             makerReferral: 0,
             takerReferral: 0,
           },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
@@ -1235,7 +1241,7 @@ describe('Version', () => {
             makerReferral: 0,
             takerReferral: 0,
           },
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
@@ -1320,7 +1326,7 @@ describe('Version', () => {
         expect(ret.adiabaticExposureMaker).to.equal(-exposure)
       })
 
-      it('allocates when makers and intents', async () => {
+      it('allocates when makers and guarantees', async () => {
         await version.store(VALID_VERSION)
 
         const { ret, value } = await accumulateWithReturn(
@@ -1330,14 +1336,14 @@ describe('Version', () => {
             ...ORDER,
             makerNeg: parse6decimal('10'),
             makerPos: parse6decimal('20'),
-            longPos: parse6decimal('50'), // 20 intent
-            longNeg: parse6decimal('20'), // 10 intent
-            shortPos: parse6decimal('80'), // 30 intent
-            shortNeg: parse6decimal('40'), // 20 intent
+            longPos: parse6decimal('50'), // 20 guarantee
+            longNeg: parse6decimal('20'), // 10 guarantee
+            shortPos: parse6decimal('80'), // 30 guarantee
+            shortNeg: parse6decimal('40'), // 20 guarantee
             makerReferral: 0,
             takerReferral: 0,
           },
-          { ...DEFAULT_INTENT, takerPos: parse6decimal('40'), takerNeg: parse6decimal('40') },
+          { ...DEFAULT_GUARANTEE, takerPos: parse6decimal('40'), takerNeg: parse6decimal('40') },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
           { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
@@ -1437,7 +1443,7 @@ describe('Version', () => {
               short: parse6decimal('2'),
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             {
@@ -1484,7 +1490,7 @@ describe('Version', () => {
               makerPos: ORDER.makerPos,
               makerNeg: 0,
             },
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1527,7 +1533,7 @@ describe('Version', () => {
               short: parse6decimal('8'),
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1571,7 +1577,7 @@ describe('Version', () => {
               short: parse6decimal('12'),
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1615,7 +1621,7 @@ describe('Version', () => {
               short: parse6decimal('12'),
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1662,7 +1668,7 @@ describe('Version', () => {
               short: parse6decimal('2'),
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             {
@@ -1705,7 +1711,7 @@ describe('Version', () => {
               short: parse6decimal('2'),
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1755,7 +1761,7 @@ describe('Version', () => {
               short: parse6decimal('2'),
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1805,7 +1811,7 @@ describe('Version', () => {
               short: 0,
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1851,7 +1857,7 @@ describe('Version', () => {
               short: parse6decimal('9'),
             },
             ORDER,
-            { ...DEFAULT_INTENT },
+            { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -1895,7 +1901,7 @@ describe('Version', () => {
                 short: parse6decimal('9'),
               },
               ORDER,
-              { ...DEFAULT_INTENT },
+              { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1953,7 +1959,7 @@ describe('Version', () => {
                 short: parse6decimal('9'),
               },
               ORDER,
-              { ...DEFAULT_INTENT },
+              { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2011,7 +2017,7 @@ describe('Version', () => {
                 short: parse6decimal('15'),
               },
               ORDER,
-              { ...DEFAULT_INTENT },
+              { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2071,7 +2077,7 @@ describe('Version', () => {
                 short: parse6decimal('9'),
               },
               ORDER,
-              { ...DEFAULT_INTENT },
+              { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2129,7 +2135,7 @@ describe('Version', () => {
                 short: parse6decimal('9'),
               },
               ORDER,
-              { ...DEFAULT_INTENT },
+              { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2187,7 +2193,7 @@ describe('Version', () => {
                 short: parse6decimal('15'),
               },
               ORDER,
-              { ...DEFAULT_INTENT },
+              { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -2247,7 +2253,7 @@ describe('Version', () => {
             short: parse6decimal('9'),
           },
           ORDER,
-          { ...DEFAULT_INTENT },
+          { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           {

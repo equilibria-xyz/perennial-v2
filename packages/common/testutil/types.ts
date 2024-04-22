@@ -33,8 +33,8 @@ export interface Order {
   takerReferral: BigNumberish
 }
 
-export interface Intent {
-  intents: BigNumberish
+export interface Guarantee {
+  orders: BigNumberish
   takerPos: BigNumberish
   takerNeg: BigNumberish
   notional: BigNumberish
@@ -106,8 +106,8 @@ export function expectOrderEq(a: Order, b: Order): void {
   expect(a.takerReferral).to.equal(b.takerReferral, 'Order:TakerReferral')
 }
 
-export function expectIntentEq(a: Intent, b: Intent): void {
-  expect(a.intents).to.equal(b.intents, 'Order:Intents')
+export function expectGuaranteeEq(a: Guarantee, b: Guarantee): void {
+  expect(a.orders).to.equal(b.orders, 'Order:Orders')
   expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
   expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
   expect(a.notional).to.equal(b.notional, 'Order:Notional')
@@ -143,11 +143,11 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
   expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
   expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
-  expect(a.makerFee._value).to.equal(b.makerFee._value, 'Version:MakerLinearFee')
-  expect(a.takerFee._value).to.equal(b.takerFee._value, 'Version:TakerLinearFee')
-  expect(a.makerOffset._value).to.equal(b.makerOffset._value, 'Version:MakerPosFee')
-  expect(a.takerPosOffset._value).to.equal(b.takerPosOffset._value, 'Version:TakerPosFee')
-  expect(a.takerNegOffset._value).to.equal(b.takerNegOffset._value, 'Version:TakerNegFee')
+  expect(a.makerFee._value).to.equal(b.makerFee._value, 'Version:MakerFee')
+  expect(a.takerFee._value).to.equal(b.takerFee._value, 'Version:TakerFee')
+  expect(a.makerOffset._value).to.equal(b.makerOffset._value, 'Version:MakerOffset')
+  expect(a.takerPosOffset._value).to.equal(b.takerPosOffset._value, 'Version:TakerPosOffset')
+  expect(a.takerNegOffset._value).to.equal(b.takerNegOffset._value, 'Version:TakerNegOffset')
   expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
   expect(a.liquidationFee._value).to.equal(b.liquidationFee._value, 'Version:LiquidationFee')
 }
@@ -226,8 +226,8 @@ export const DEFAULT_ORDER: Order = {
   takerReferral: 0,
 }
 
-export const DEFAULT_INTENT: Intent = {
-  intents: 0,
+export const DEFAULT_GUARANTEE: Guarantee = {
+  orders: 0,
   takerPos: 0,
   takerNeg: 0,
   notional: 0,

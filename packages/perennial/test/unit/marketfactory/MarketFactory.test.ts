@@ -21,6 +21,7 @@ import {
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
   VersionStorageLib__factory,
+  IVerifier,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { constants } from 'ethers'
@@ -33,6 +34,7 @@ describe('MarketFactory', () => {
   let oracleFactory: FakeContract<IFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
+  let verifier: FakeContract<IVerifier>
 
   let factory: MarketFactory
   let marketImpl: Market
@@ -42,6 +44,8 @@ describe('MarketFactory', () => {
     oracleFactory = await smock.fake<IFactory>('IFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    verifier = await smock.fake<IVerifier>('IVerifier')
     marketImpl = await new Market__factory(
       {
         'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
@@ -66,7 +70,7 @@ describe('MarketFactory', () => {
         'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
       },
       owner,
-    ).deploy()
+    ).deploy(verifier.address)
     factory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
     await factory.initialize()
   })
