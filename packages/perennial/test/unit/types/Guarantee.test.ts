@@ -107,7 +107,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               notional: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guaranteeLocal, 'OrderstorageInvalidError')
+          ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
         })
 
         it('reverts if notional out of range (below)', async () => {
@@ -116,7 +116,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               notional: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(guaranteeLocal, 'OrderstorageInvalidError')
+          ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
         })
       })
     })
@@ -290,7 +290,7 @@ describe('Guarantee', () => {
               ...validStoredGuarantee,
               orders: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'OrderstorageInvalidError')
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -311,7 +311,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               takerPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'OrderstorageInvalidError')
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -332,7 +332,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               takerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'OrderstorageInvalidError')
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
       })
     })

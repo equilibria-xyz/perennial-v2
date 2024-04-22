@@ -249,6 +249,8 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address)
 
+      const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+
       const marketImpl = await new Market__factory(
         {
           '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
@@ -283,7 +285,7 @@ testOracles.forEach(testOracle => {
           ).address,
         },
         owner,
-      ).deploy()
+      ).deploy(verifierImpl.address)
       marketFactory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
