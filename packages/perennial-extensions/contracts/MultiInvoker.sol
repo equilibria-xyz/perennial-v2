@@ -131,6 +131,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to perform invocations for
     /// @param invocations List of actions to execute in order
     function invoke(address account, Invocation[] calldata invocations) public payable {
+        if (msg.sender != account && !approvals[account][msg.sender]) revert MultiInvokerUnauthorizedError();
+
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 

@@ -44,8 +44,8 @@ interface IMultiInvoker {
     event OrderCancelled(address indexed account, IMarket indexed market, uint256 nonce);
     event InterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
 
-    // sig: 0x217b1699
-    error MultiInvokerBadSenderError();
+    // sig: 0x42ecdedb
+    error MultiInvokerUnauthorizedError();
     // sig: 0x88d67968
     error MultiInvokerOrderMustBeSingleSidedError();
     // sig: 0xbccd78e7
