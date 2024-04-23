@@ -1929,7 +1929,7 @@ describe('Fees', () => {
       // ensure the proper amount of the base fee is claimable by the referrer
       // makerFee = position * makerFee * price = 3 * 0.05 * 113.882975 = 17.082446
       // referralFee = makerFee * referral / makerPos = 17.082446 * 0.45 / 3 = 2.562366
-      const expectedClaimable = parse6decimal('2.562367') // TODO: this is over-claiming due to precision loss
+      const expectedClaimable = parse6decimal('2.562367')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 0,
@@ -1986,7 +1986,7 @@ describe('Fees', () => {
       // ensure the proper amount of the base fee is claimable by the referrer
       // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223
       // referralFee = takerFeeLinear * referral / takerPos =  8.541223 * 0.36 / 3 = 1.024946
-      const expectedClaimable = parse6decimal('1.024947') // TODO: this is over-claiming due to precision loss
+      const expectedClaimable = parse6decimal('1.024947')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 0,
