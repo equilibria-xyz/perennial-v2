@@ -47,6 +47,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev State for the order data
     mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
+    /// @dev Approvals mapping to allow for sender to operate on behalf of account
+    mapping(address => mapping(address => bool)) public approvals;
+
     /// @notice Constructs the MultiInvoker contract
     /// @param usdc_ USDC stablecoin address
     /// @param dsu_ DSU address
@@ -110,9 +113,24 @@ contract MultiInvoker is IMultiInvoker, Kept {
         return order.fillable(market.oracle().latest());
     }
 
+    /// @notice Update the approval for an address to operate on behalf of the msg.sender
+    /// @param target Address being approved to operate on behalf of msg.sender
+    /// @param approved Whether the target is allowed to operate on behalf of msg.sender
+    function approve(address target, bool approved) external {
+        approvals[msg.sender][target] = approved;
+        emit ApprovalUpdated(msg.sender, target, approved);
+    }
+
     /// @notice entry to perform invocations
     /// @param invocations List of actions to execute in order
     function invoke(Invocation[] calldata invocations) external payable {
+        invoke(msg.sender, invocations);
+    }
+
+    /// @notice entry to perform invocations
+    /// @param account Account to perform invocations for
+    /// @param invocations List of actions to execute in order
+    function invoke(address account, Invocation[] calldata invocations) public payable {
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
@@ -129,20 +147,20 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     InterfaceFee memory interfaceFee2
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
 
-                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
+                _update(account, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
 
-                _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
+                _vaultUpdate(account, vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
                 (IMarket market, TriggerOrder memory order) = abi.decode(invocation.args, (IMarket, TriggerOrder));
 
-                _placeOrder(msg.sender, market, order);
+                _placeOrder(account, market, order);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
                 (IMarket market, uint256 nonce) = abi.decode(invocation.args, (IMarket, uint256));
 
-                _cancelOrder(msg.sender, market, nonce);
+                _cancelOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
                 (address account, IMarket market, uint256 nonce)
                     = abi.decode(invocation.args, (address, IMarket, uint256));
@@ -160,7 +178,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             }
         }
         // Eth must not remain in this contract at rest
-        payable(msg.sender).transfer(address(this).balance);
+        payable(account).transfer(address(this).balance);
     }
 
     /// @notice Updates market on behalf of account
@@ -199,13 +217,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
         _chargeFee(account, market, interfaceFee2);
     }
 
-    /// @notice Update vault on behalf of msg.sender
+    /// @notice Update vault on behalf of account
+    /// @param account Address of account to update
     /// @param vault Address of vault to update
     /// @param depositAssets Amount of assets to deposit into vault
     /// @param redeemShares Amount of shares to redeem from vault
     /// @param claimAssets Amount of assets to claim from vault
     /// @param wrap Whether to wrap assets before depositing
     function _vaultUpdate(
+        address account,
         IVault vault,
         UFixed6 depositAssets,
         UFixed6 redeemShares,
@@ -218,7 +238,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        vault.update(msg.sender, depositAssets, redeemShares, claimAssets);
+        vault.update(account, depositAssets, redeemShares, claimAssets);
 
         // handle socialization, settlement fees, and magic values
         UFixed6 claimAmount = claimAssets.isZero() ?
@@ -226,7 +246,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
 
         if (!claimAmount.isZero()) {
-            _withdraw(msg.sender, claimAmount, wrap);
+            _withdraw(account, claimAmount, wrap);
         }
     }
 
@@ -389,7 +409,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         return UFixed18Lib.from(raisedKeeperFee);
     }
 
-    /// @notice Places order on behalf of msg.sender from the invoker
+    /// @notice Places order on behalf of account from the invoker
     /// @param account Account to place order for
     /// @param market Market to place order in
     /// @param order Order state to place
@@ -409,7 +429,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit OrderPlaced(account, market, latestNonce, order);
     }
 
-    /// @notice Cancels an open order for msg.sender
+    /// @notice Cancels an open order for account
     /// @param account Account to cancel order for
     /// @param market Market order is open in
     /// @param nonce UID of order
