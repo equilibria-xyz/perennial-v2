@@ -1,5 +1,10 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { FillStruct, IntentStruct } from '../../types/generated/contracts/Verifier'
+import {
+  CommonStruct,
+  FillStruct,
+  GroupCancellationStruct,
+  IntentStruct,
+} from '../../types/generated/contracts/Verifier'
 import { Verifier } from '../../types/generated'
 
 export function erc721Domain(verifier: Verifier) {
@@ -9,6 +14,20 @@ export function erc721Domain(verifier: Verifier) {
     chainId: 31337, // hardhat chain id
     verifyingContract: verifier.address,
   }
+}
+
+export async function signCommon(signer: SignerWithAddress, verifier: Verifier, common: CommonStruct): Promise<string> {
+  const types = {
+    Common: [
+      { name: 'account', type: 'address' },
+      { name: 'domain', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'group', type: 'uint256' },
+      { name: 'expiry', type: 'uint256' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, common)
 }
 
 export async function signIntent(signer: SignerWithAddress, verifier: Verifier, intent: IntentStruct): Promise<string> {
@@ -51,4 +70,26 @@ export async function signFill(signer: SignerWithAddress, verifier: Verifier, fi
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, fill)
+}
+
+export async function signGroupCancellation(
+  signer: SignerWithAddress,
+  verifier: Verifier,
+  groupCancellation: GroupCancellationStruct,
+): Promise<string> {
+  const types = {
+    Common: [
+      { name: 'account', type: 'address' },
+      { name: 'domain', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'group', type: 'uint256' },
+      { name: 'expiry', type: 'uint256' },
+    ],
+    GroupCancellation: [
+      { name: 'group', type: 'uint256' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, groupCancellation)
 }

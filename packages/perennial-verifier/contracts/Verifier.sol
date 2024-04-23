@@ -3,9 +3,10 @@ pragma solidity 0.8.24;
 
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { Common } from "./types/Common.sol";
+import { Common, CommonLib } from "./types/Common.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { Fill, FillLib } from "./types/Fill.sol";
+import { GroupCancellation, GroupCancellationLib } from "./types/GroupCancellation.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 
 /// @title Verifier
@@ -25,6 +26,18 @@ contract Verifier is IVerifier, EIP712 {
     mapping(address => mapping(uint256 => bool)) public groups;
 
     constructor() EIP712("Perennial", "1.0.0") { }
+
+    /// @notice Verifies the signature of no-op common message
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param common The common data of the message
+    /// @param signature The signature of the account for the message
+    /// @return The address corresponding to the signature
+    function verifyCommon(Common calldata common, bytes calldata signature)
+        external
+        validateAndCancel(common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(CommonLib.hash(common)), signature);
+    }
 
     /// @notice Verifies the signature of an intent order type
     /// @dev Cancels the nonce after verifying the signature
@@ -50,6 +63,18 @@ contract Verifier is IVerifier, EIP712 {
         return ECDSA.recover(_hashTypedDataV4(FillLib.hash(fill)), signature);
     }
 
+    /// @notice Verifies the signature of a group cancellation type
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param groupCancellation The group cancellation to verify
+    /// @param signature The signature of the account for the group cancellation
+    /// @return The address corresponding to the signature
+    function verifyGroupCancellation(GroupCancellation calldata groupCancellation, bytes calldata signature)
+        external
+        validateAndCancel(groupCancellation.common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(GroupCancellationLib.hash(groupCancellation)), signature);
+    }
+
     /// @notice Cancels a nonce
     /// @param nonce The nonce to cancel
     function cancelNonce(uint256 nonce) external {
@@ -60,6 +85,31 @@ contract Verifier is IVerifier, EIP712 {
     /// @param group The group nonce to cancel
     function cancelGroup(uint256 group) external {
         _cancelGroup(msg.sender, group);
+    }
+
+    /// @notice Cancels a nonce for an account via a signed message
+    /// @dev Process a no-op message that will invalidate the specified nonce
+    /// @param common The common data of the message
+    /// @param signature The signature of the account for the message
+    function cancelGroupWithSignature(Common calldata common, bytes calldata signature)
+        external
+        validateAndCancel(common, signature)
+    {
+        address signer = IVerifier(this).verifyCommon(common, signature);
+        if (signer != common.account) revert VerifierInvalidSignerError();
+    }
+
+    /// @notice Cancels a group for an account via a signed message
+    /// @param groupCancellation The group cancellation message
+    /// @param signature The signature of the account for the group cancellation
+    function cancelGroupWithSignature(GroupCancellation calldata groupCancellation, bytes calldata signature)
+        external
+        validateAndCancel(groupCancellation.common, signature)
+    {
+        address signer = IVerifier(this).verifyGroupCancellation(groupCancellation, signature);
+        if (signer != groupCancellation.common.account) revert VerifierInvalidSignerError();
+
+        _cancelGroup(groupCancellation.common.account, groupCancellation.group);
     }
 
     /// @notice Cancels a nonce
@@ -80,11 +130,11 @@ contract Verifier is IVerifier, EIP712 {
 
     /// @dev Validates the common data of a message
     modifier validateAndCancel(Common calldata common, bytes calldata signature) {
-        if (common.domain != address(0) && common.domain != msg.sender) revert VerifierInvalidDomainError();
+        if (common.domain != msg.sender) revert VerifierInvalidDomainError();
         if (signature.length != 65) revert VerifierInvalidSignatureError();
         if (nonces[common.account][common.nonce]) revert VerifierInvalidNonceError();
         if (groups[common.account][common.group]) revert VerifierInvalidGroupError();
-        if (common.expiry != 0 && block.timestamp >= common.expiry) revert VerifierInvalidExpiryError();
+        if (block.timestamp >= common.expiry) revert VerifierInvalidExpiryError();
 
         _cancelNonce(common.account, common.nonce);
 
