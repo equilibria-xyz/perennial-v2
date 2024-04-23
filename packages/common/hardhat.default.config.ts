@@ -143,6 +143,7 @@ export default function defaultConfig({
         {
           version: SOLIDITY_VERSION,
           settings: {
+            evmVersion: 'shanghai',
             optimizer: {
               enabled: OPTIMIZER_ENABLED,
               runs: 1000000, // Max allowed by Etherscan verify
