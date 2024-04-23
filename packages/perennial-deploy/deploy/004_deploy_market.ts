@@ -1,5 +1,5 @@
 import { utils, constants } from 'ethers'
-import { HardhatRuntimeEnvironment } from 'hardhat/types'
+import { HardhatRuntimeEnvironment, Libraries } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
@@ -97,94 +97,47 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
+  // Deploy Libraries
+  const marketLibraries: Array<{
+    name: string // as named in linkReferences of ABI
+    contract: string | undefined // only needed to disambiguate name clashes
+  }> = [
+    { name: 'CheckpointLib', contract: '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib' },
+    { name: 'InvariantLib', contract: undefined },
+    { name: 'VersionLib', contract: undefined },
+    {
+      name: 'CheckpointStorageLib',
+      contract: '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib',
+    },
+    { name: 'GlobalStorageLib', contract: undefined },
+    { name: 'MarketParameterStorageLib', contract: undefined },
+    { name: 'PositionStorageGlobalLib', contract: undefined },
+    { name: 'PositionStorageLocalLib', contract: undefined },
+    { name: 'MarketParameterStorageLib', contract: undefined },
+    { name: 'RiskParameterStorageLib', contract: undefined },
+    { name: 'VersionStorageLib', contract: undefined },
+  ]
+  const marketLibrariesBuilt: Libraries = {}
+  for (const library of marketLibraries) {
+    marketLibrariesBuilt[library.name] = (
+      await deploy(library.name, {
+        contract: library.contract,
+        from: deployer,
+        skipIfAlreadyDeployed: true,
+        log: true,
+        autoMine: true,
+      })
+    ).address
+  }
+
   // Deploy Implementations
-  const checkpoint = await deploy('CheckpointLib', {
-    contract: '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib',
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const invariant = await deploy('InvariantLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const version = await deploy('VersionLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const checkpointStorage = await deploy('CheckpointStorageLib', {
-    contract: '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib',
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const globalStorage = await deploy('GlobalStorageLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const marketParameterStorage = await deploy('MarketParameterStorageLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const positionStorageGlobal = await deploy('PositionStorageGlobalLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const positionStorageLocal = await deploy('PositionStorageLocalLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const riskParameterStorage = await deploy('RiskParameterStorageLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  // const protocolParameterStorage = await deploy('ProtocolParameterStorageLib', {
-  //   from: deployer,
-  //   skipIfAlreadyDeployed: true,
-  //   log: true,
-  //   autoMine: true,
-  // })
-  const versionStorage = await deploy('VersionStorageLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
   const marketImpl = await deploy('MarketImpl', {
     contract: 'Market',
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
     autoMine: true,
-    libraries: {
-      CheckpointLib: checkpoint.address,
-      InvariantLib: invariant.address,
-      VersionLib: version.address,
-      CheckpointStorageLib: checkpointStorage.address,
-      GlobalStorageLib: globalStorage.address,
-      MarketParameterStorageLib: marketParameterStorage.address,
-      PositionStorageGlobalLib: positionStorageGlobal.address,
-      PositionStorageLocalLib: positionStorageLocal.address,
-      RiskParameterStorageLib: riskParameterStorage.address,
-      // ProtocolParameterStorageLib: protocolParameterStorage.address,
-      VersionStorageLib: versionStorage.address,
-    },
+    libraries: marketLibrariesBuilt,
   })
   await deploy('MarketFactoryImpl', {
     contract: 'MarketFactory',
