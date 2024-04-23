@@ -98,13 +98,69 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
   // Deploy Implementations
-  const marketParamaterStorage = await deploy('MarketParameterStorageLib', {
+  const checkpoint = await deploy('CheckpointLib', {
+    contract: '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib',
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
     autoMine: true,
   })
-  const riskParamaterStorage = await deploy('RiskParameterStorageLib', {
+  const invariant = await deploy('InvariantLib', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  const version = await deploy('VersionLib', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  const checkpointStorage = await deploy('CheckpointStorageLib', {
+    contract: '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib',
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  const globalStorage = await deploy('GlobalStorageLib', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  const marketParameterStorage = await deploy('MarketParameterStorageLib', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  const positionStorageGlobal = await deploy('PositionStorageGlobalLib', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  const positionStorageLocal = await deploy('PositionStorageLocalLib', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  const riskParameterStorage = await deploy('RiskParameterStorageLib', {
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  // const protocolParameterStorage = await deploy('ProtocolParameterStorageLib', {
+  //   from: deployer,
+  //   skipIfAlreadyDeployed: true,
+  //   log: true,
+  //   autoMine: true,
+  // })
+  const versionStorage = await deploy('VersionStorageLib', {
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
@@ -117,8 +173,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
     autoMine: true,
     libraries: {
-      MarketParameterStorageLib: marketParamaterStorage.address,
-      RiskParameterStorageLib: riskParamaterStorage.address,
+      CheckpointLib: checkpoint.address,
+      InvariantLib: invariant.address,
+      VersionLib: version.address,
+      CheckpointStorageLib: checkpointStorage.address,
+      GlobalStorageLib: globalStorage.address,
+      MarketParameterStorageLib: marketParameterStorage.address,
+      PositionStorageGlobalLib: positionStorageGlobal.address,
+      PositionStorageLocalLib: positionStorageLocal.address,
+      RiskParameterStorageLib: riskParameterStorage.address,
+      // ProtocolParameterStorageLib: protocolParameterStorage.address,
+      VersionStorageLib: versionStorage.address,
     },
   })
   await deploy('MarketFactoryImpl', {
