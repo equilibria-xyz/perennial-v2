@@ -762,6 +762,51 @@ describe('Verifier', () => {
     })
   })
 
+  describe('#cancelNonceWithSignature', () => {
+    const DEFAULT_COMMON = {
+      account: constants.AddressZero,
+      domain: constants.AddressZero,
+      nonce: 1,
+      group: 0,
+      expiry: constants.MaxUint256,
+    }
+
+    it('should cancel the nonce for the account', async () => {
+      const common = { ...DEFAULT_COMMON, account: caller.address, domain: verifier.address }
+      const signature = await signCommon(caller, verifier, common)
+
+      await expect(verifier.connect(caller).cancelNonceWithSignature(common, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 1)
+
+      expect(await verifier.nonces(caller.address, 1)).to.eq(true)
+    })
+
+    it('rejects the incorrect signer', async () => {
+      const common = { ...DEFAULT_COMMON, account: caller.address, domain: verifier.address }
+      const signature = await signCommon(market, verifier, common)
+
+      await expect(verifier.connect(caller).cancelNonceWithSignature(common, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 1)).to.eq(false)
+    })
+
+    it('rejects the incorrect domain', async () => {
+      const common = { ...DEFAULT_COMMON, account: caller.address, domain: caller.address }
+      const signature = await signCommon(caller, verifier, common)
+
+      await expect(verifier.connect(caller).cancelNonceWithSignature(common, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidDomainError',
+      )
+
+      expect(await verifier.nonces(caller.address, 1)).to.eq(false)
+    })
+  })
+
   describe('#cancelGroup', () => {
     it('should cancel the group for the account', async () => {
       await expect(verifier.connect(caller).cancelGroup(1))
@@ -769,6 +814,61 @@ describe('Verifier', () => {
         .withArgs(caller.address, 1)
 
       expect(await verifier.groups(caller.address, 1)).to.eq(true)
+    })
+  })
+
+  describe('#cancelGroupWithSignature', () => {
+    const DEFAULT_GROUP_CANCELLATION = {
+      group: 1,
+      common: {
+        account: constants.AddressZero,
+        domain: constants.AddressZero,
+        nonce: 0,
+        group: 1,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    it('should cancel the group for the account', async () => {
+      const groupCancellation = {
+        ...DEFAULT_GROUP_CANCELLATION,
+        common: { ...DEFAULT_GROUP_CANCELLATION.common, account: caller.address, domain: verifier.address },
+      }
+      const signature = await signGroupCancellation(caller, verifier, groupCancellation)
+
+      await expect(verifier.connect(caller).cancelGroupWithSignature(groupCancellation, signature))
+        .to.emit(verifier, 'GroupCancelled')
+        .withArgs(caller.address, 1)
+
+      expect(await verifier.groups(caller.address, 1)).to.eq(true)
+    })
+
+    it('rejects the incorrect signer', async () => {
+      const groupCancellation = {
+        ...DEFAULT_GROUP_CANCELLATION,
+        common: { ...DEFAULT_GROUP_CANCELLATION.common, account: caller.address, domain: verifier.address },
+      }
+      const signature = await signGroupCancellation(market, verifier, groupCancellation)
+
+      await expect(
+        verifier.connect(caller).cancelGroupWithSignature(groupCancellation, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
+
+      expect(await verifier.groups(caller.address, 1)).to.eq(false)
+    })
+
+    it('rejects the incorrect domain', async () => {
+      const groupCancellation = {
+        ...DEFAULT_GROUP_CANCELLATION,
+        common: { ...DEFAULT_GROUP_CANCELLATION.common, account: caller.address, domain: caller.address },
+      }
+      const signature = await signGroupCancellation(caller, verifier, groupCancellation)
+
+      await expect(
+        verifier.connect(caller).cancelGroupWithSignature(groupCancellation, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidDomainError')
+
+      expect(await verifier.groups(caller.address, 1)).to.eq(false)
     })
   })
 })

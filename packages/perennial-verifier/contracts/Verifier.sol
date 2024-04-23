@@ -91,10 +91,7 @@ contract Verifier is IVerifier, EIP712 {
     /// @dev Process a no-op message that will invalidate the specified nonce
     /// @param common The common data of the message
     /// @param signature The signature of the account for the message
-    function cancelGroupWithSignature(Common calldata common, bytes calldata signature)
-        external
-        validateAndCancel(common, signature)
-    {
+    function cancelNonceWithSignature(Common calldata common, bytes calldata signature) external {
         address signer = IVerifier(this).verifyCommon(common, signature);
         if (signer != common.account) revert VerifierInvalidSignerError();
     }
@@ -102,10 +99,7 @@ contract Verifier is IVerifier, EIP712 {
     /// @notice Cancels a group for an account via a signed message
     /// @param groupCancellation The group cancellation message
     /// @param signature The signature of the account for the group cancellation
-    function cancelGroupWithSignature(GroupCancellation calldata groupCancellation, bytes calldata signature)
-        external
-        validateAndCancel(groupCancellation.common, signature)
-    {
+    function cancelGroupWithSignature(GroupCancellation calldata groupCancellation, bytes calldata signature) external {
         address signer = IVerifier(this).verifyGroupCancellation(groupCancellation, signature);
         if (signer != groupCancellation.common.account) revert VerifierInvalidSignerError();
 

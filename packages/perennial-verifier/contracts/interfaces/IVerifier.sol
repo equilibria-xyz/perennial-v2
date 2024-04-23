@@ -28,5 +28,7 @@ interface IVerifier {
     function verifyFill(Fill calldata fill, bytes calldata signature) external returns (address);
     function verifyGroupCancellation(GroupCancellation calldata groupCancellation, bytes calldata signature) external returns (address);
     function cancelNonce(uint256 nonce) external;
+    function cancelNonceWithSignature(Common calldata common, bytes calldata signature) external;
     function cancelGroup(uint256 group) external;
+    function cancelGroupWithSignature(GroupCancellation calldata groupCancellation, bytes calldata signature) external;
 }
