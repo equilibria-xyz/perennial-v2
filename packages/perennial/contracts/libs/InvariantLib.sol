@@ -18,13 +18,11 @@ library InvariantLib {
     /// @param context The context to use
     /// @param updateContext The update context to use
     /// @param sender The sender of the transaction
-    /// @param account The account to verify the invariant for
     /// @param newOrder The order to verify the invariant for
     function validate(
         IMarket.Context memory context,
         IMarket.UpdateContext memory updateContext,
         address sender,
-        address account,
         Order memory newOrder
     ) external pure {
         if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) revert IMarket.MarketOverCloseError();
@@ -65,8 +63,8 @@ library InvariantLib {
         if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            sender != account &&                                                // sender is operating on own account
-            updateContext.signer != account &&                                  // sender is relaying the account's signed intention
+            sender != context.account &&                                        // sender is operating on own account
+            updateContext.signer != context.account &&                          // sender is relaying the account's signed intention
             !updateContext.operator &&                                          // sender is operator approved for account
             !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO))    // sender is depositing zero or more into account, without position change
         ) revert IMarket.MarketOperatorNotAllowedError();
