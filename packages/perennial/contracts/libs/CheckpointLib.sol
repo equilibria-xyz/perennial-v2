@@ -11,17 +11,30 @@ import "../types/Version.sol";
 import "../types/Checkpoint.sol";
 
 struct CheckpointAccumulationResult {
+    /// @dev Total Collateral change due to pnl, funding, and interest from the previous position to the next position
     Fixed6 collateral;
+
+    /// @dev Linear fee accumulated from the previous position to the next position
     Fixed6 linearFee;
+
+    /// @dev Proportional fee accumulated from the previous position to the next position
     Fixed6 proportionalFee;
+
+    /// @dev Adiabatic fee accumulated from the previous position to the next position
     Fixed6 adiabaticFee;
+
+    /// @dev Settlement fee charged for this checkpoint
     UFixed6 settlementFee;
+
+    /// @dev Liquidation fee accumulated for this checkpoint (only if the order is protected)
     UFixed6 liquidationFee;
+
+    /// @dev Subtractive fee accumulated from the previous position to the next position (this amount is included in the linear fee)
     UFixed6 subtractiveFee;
 }
 
 /// @title CheckpointLib
-/// @notice Manages the logic for the global order accumualation
+/// @notice Manages the logic for the local order accumulation
 library CheckpointLib {
     /// @notice Accumulate pnl and fees from the latest position to next position
     /// @param self The Local object to update

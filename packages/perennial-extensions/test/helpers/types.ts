@@ -5,7 +5,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { LocalStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { parse6decimal } from '../../../common/testutil/types'
-import { OrderStruct } from './invoke'
 
 export function setMarketPosition(
   market: FakeContract<IMarket>,

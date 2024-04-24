@@ -543,7 +543,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         Order memory nextOrder;
 
-        // settle
+        // settle - process orders whose requested prices are now available from oracle
         while (
             context.global.currentId != context.global.latestId &&
             (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
@@ -554,7 +554,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             (nextOrder = _pendingOrders[account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, account, context.local.latestId + 1, nextOrder);
 
-        // sync
+        // sync - advance position timestamps with the latest oracle version
         if (context.latestOracleVersion.timestamp > context.latestPosition.global.timestamp) {
             nextOrder = _pendingOrder[context.global.latestId].read();
             nextOrder.next(context.latestOracleVersion.timestamp);
@@ -665,22 +665,28 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _checkpoints[account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
-        _credit(liquidators[account][newOrderId], accumulationResult.liquidationFee);
-        _credit(referrers[account][newOrderId], accumulationResult.subtractiveFee);
+        _credit(context, account, liquidators[account][newOrderId], accumulationResult.liquidationFee);
+        _credit(context, account, referrers[account][newOrderId], accumulationResult.subtractiveFee);
 
         emit AccountPositionProcessed(account, newOrderId, newOrder, accumulationResult);
     }
 
-    /// @notice Credits an account's claimable that is out-of-context
-    /// @dev The amount must have already come from a corresponing debit in the settlement flow
-    /// @param account The account to credit
+    /// @notice Credits an account's claimable
+    /// @dev The amount must have already come from a corresponding debit in the settlement flow.
+    ///      If the receiver is the context's account, the amount is instead credited in-memory.
+    /// @param context The context to use
+    /// @param contextAccount The account of the current context
+    /// @param receiver The account to credit
     /// @param amount The amount to credit
-    function _credit(address account, UFixed6 amount) private {
+    function _credit(Context memory context, address contextAccount, address receiver, UFixed6 amount) private {
         if (amount.isZero()) return;
 
-        Local memory newLocal = _locals[account].read();
-        newLocal.credit(amount);
-        _locals[account].store(newLocal);
+        if (receiver == contextAccount) context.local.credit(amount);
+        else {
+            Local memory receiverLocal = _locals[receiver].read();
+            receiverLocal.credit(amount);
+            _locals[receiver].store(receiverLocal);
+        }
     }
 
     /// @notice Only the coordinator or the owner can call

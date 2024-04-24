@@ -108,15 +108,15 @@ library StrategyLib {
     /// @param strategy The strategy of the vault
     /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets to make available for withdrawal
-    /// @param ineligable The amount of assets that are inapplicable for allocation
+    /// @param ineligible The amount of assets that are inapplicable for allocation
     function allocate(
         Strategy memory strategy,
         UFixed6 deposit,
         UFixed6 withdrawal,
-        UFixed6 ineligable
+        UFixed6 ineligible
     ) internal pure returns (MarketTarget[] memory targets) {
         UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
-        UFixed6 assets = collateral.unsafeSub(ineligable);
+        UFixed6 assets = collateral.unsafeSub(ineligible);
 
         if (collateral.lt(strategy.totalMargin)) revert StrategyLibInsufficientCollateralError();
         if (assets.lt(strategy.minAssets)) revert StrategyLibInsufficientAssetsError();
@@ -197,7 +197,7 @@ library StrategyLib {
         marketContext.closable = marketContext.latestAccountPosition.magnitude().sub(pendingLocal.neg());
 
         // current position
-        Order memory pendingGlobal = registration.market.pendings(address(this));
+        Order memory pendingGlobal = registration.market.pending();
         marketContext.currentPosition = registration.market.position();
         marketContext.currentPosition.update(pendingGlobal);
         marketContext.minPosition = marketContext.currentAccountPosition.maker

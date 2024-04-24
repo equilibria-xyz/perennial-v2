@@ -34,7 +34,7 @@ import {
   MIN_INT64,
 } from '../../helpers/invoke'
 
-import { DEFAULT_LOCAL, DEFAULT_ORDER, DEFAULT_POSITION, Local, parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_LOCAL, DEFAULT_POSITION, Local, parse6decimal } from '../../../../common/testutil/types'
 import { openTriggerOrder, setGlobalPrice, setMarketPosition, Compare, Dir } from '../../helpers/types'
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
