@@ -922,6 +922,45 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
 
+    it('pending order limits max position size', async () => {
+      // settle pending orders from test setup to simplify the test
+      await updateOracle()
+      await market.connect(user).settle(user.address)
+      await market.connect(user2).settle(user.address)
+      await market.connect(btcUser1).settle(btcUser1.address)
+      await market.connect(btcUser2).settle(btcUser2.address)
+
+      const makerAvailable = (await market.riskParameter()).makerLimit.sub((await currentPositionGlobal(market)).maker)
+      const reservedForVault = parse6decimal('5')
+
+      // risk parameters limit maker position to 1000; let a non-vault user consume most of that
+      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await market.connect(perennialUser)['update(address,uint256,uint256,uint256,int256,bool)'](
+        perennialUser.address,
+        makerAvailable.sub(reservedForVault), // 795
+        0,
+        0,
+        parse6decimal('662500'),
+        false,
+      )
+
+      const deposit = parse6decimal('11000')
+      await vault.connect(user).update(user.address, deposit, 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      // Now we should have opened positions.
+      // The ETH position should be limited by a maxPosition influenced by perennialUser's pending order.
+      expect(await position()).to.be.equal(reservedForVault)
+      expect(await btcPosition()).to.be.equal(deposit.mul(leverage).div(5).div(btcOriginalOraclePrice))
+
+      expect((await vault.accounts(user.address)).shares).to.equal(deposit)
+      expect(await vault.totalAssets()).to.equal(deposit)
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(deposit)
+      expect(await vault.convertToAssets(deposit)).to.equal(deposit)
+      expect(await vault.convertToShares(deposit)).to.equal(deposit)
+    })
+
     it('deposit during redemption', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
