@@ -620,7 +620,7 @@ describe('Vault', () => {
 
       const checkpoint1 = await vault.checkpoints(1)
       expect(checkpoint1.deposit).to.equal(smallDeposit)
-      expect(checkpoint1.orders).to.equal(1)
+      expect(checkpoint1.deposits).to.equal(1)
       expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
 
       // We're underneath the collateral minimum, so we shouldn't have opened any positions.
@@ -641,7 +641,7 @@ describe('Vault', () => {
       expect(checkpoint2.deposit).to.equal(largeDeposit)
       expect(checkpoint2.assets).to.equal(smallDeposit)
       expect(checkpoint2.shares).to.equal(smallDeposit)
-      expect(checkpoint2.orders).to.equal(1)
+      expect(checkpoint2.deposits).to.equal(1)
       expect(checkpoint2.timestamp).to.equal((await market.pendingOrders(vault.address, 2)).timestamp)
 
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
@@ -709,7 +709,7 @@ describe('Vault', () => {
 
       const checkpoint1 = await vault.checkpoints(1)
       expect(checkpoint1.deposit).to.equal(smallDeposit)
-      expect(checkpoint1.orders).to.equal(1)
+      expect(checkpoint1.deposits).to.equal(1)
       expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
 
       // We're underneath the collateral minimum, so we shouldn't have opened any positions.
@@ -730,7 +730,7 @@ describe('Vault', () => {
       expect(checkpoint2.deposit).to.equal(largeDeposit)
       expect(checkpoint2.assets).to.equal(smallDeposit)
       expect(checkpoint2.shares).to.equal(smallDeposit)
-      expect(checkpoint2.orders).to.equal(1)
+      expect(checkpoint2.deposits).to.equal(1)
       expect(checkpoint2.timestamp).to.equal((await market.pendingOrders(vault.address, 2)).timestamp)
 
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
@@ -941,6 +941,34 @@ describe('Vault', () => {
       expect(await asset.balanceOf(user2.address)).to.equal(parse6decimal('100000').add(fundingAmount2).mul(1e12))
       expect((await vault.accounts(user2.address)).assets).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
+    })
+
+    it('deposit / redemption global-local share sync', async () => {
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, {
+        ...(await market.parameter()),
+        settlementFee: parse6decimal('5'),
+      })
+      await btcMarket.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, {
+        ...(await btcMarket.parameter()),
+        settlementFee: parse6decimal('5'),
+      })
+
+      const smallDeposit = parse6decimal('11000')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await updateOracle()
+      await vault.settle(user.address)
+
+      await vault.connect(user2).update(user2.address, smallDeposit, 0, 0)
+      await vault.connect(user).update(user.address, 0, parse6decimal('10000'), 0)
+      await updateOracle()
+      await vault.settle(user.address)
+      await vault.settle(user2.address)
+
+      const localShares = (await vault.accounts(user.address)).shares.add((await vault.accounts(user2.address)).shares)
+      expect(await vault.totalShares()).to.equal(localShares)
     })
 
     it('max redeem', async () => {
@@ -1847,9 +1875,9 @@ describe('Vault', () => {
       await vault.connect(user2).update(user2.address, deposit2, 0, 0)
 
       const currentId = (await vault.accounts(ethers.constants.AddressZero)).current
-      expect((await vault.checkpoints(currentId)).orders).to.equal(1)
+      expect((await vault.checkpoints(currentId)).deposits).to.equal(1)
       await vault.connect(btcUser1).update(btcUser1.address, 0, 0, 0)
-      expect((await vault.checkpoints(currentId)).orders).to.equal(1)
+      expect((await vault.checkpoints(currentId)).deposits).to.equal(1)
     })
 
     it('doesnt bypass vault deposit cap', async () => {

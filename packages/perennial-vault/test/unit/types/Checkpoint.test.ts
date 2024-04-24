@@ -19,7 +19,8 @@ const VALID_CHECKPOINT: CheckpointStruct = {
   assets: 4,
   tradeFee: 5,
   settlementFee: 7,
-  orders: 6,
+  deposits: 6,
+  redemptions: 9,
   timestamp: 8,
 }
 
@@ -46,7 +47,8 @@ describe('Checkpoint', () => {
       expect(value.assets).to.equal(4)
       expect(value.tradeFee).to.equal(5)
       expect(value.settlementFee).to.equal(7)
-      expect(value.orders).to.equal(6)
+      expect(value.deposits).to.equal(6)
+      expect(value.redemptions).to.equal(9)
       expect(value.timestamp).to.equal(8)
     })
 
@@ -212,22 +214,43 @@ describe('Checkpoint', () => {
       })
     })
 
-    describe('.orders', async () => {
+    describe('.deposits', async () => {
       const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await checkpoint.store({
           ...VALID_CHECKPOINT,
-          orders: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          deposits: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await checkpoint.read()
-        expect(value.orders).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.deposits).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
         await expect(
           checkpoint.store({
             ...VALID_CHECKPOINT,
-            orders: BigNumber.from(2).pow(STORAGE_SIZE),
+            deposits: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
+      })
+    })
+
+    describe('.redemptions', async () => {
+      const STORAGE_SIZE = 32
+      it('saves if in range', async () => {
+        await checkpoint.store({
+          ...VALID_CHECKPOINT,
+          redemptions: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await checkpoint.read()
+        expect(value.redemptions).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          checkpoint.store({
+            ...VALID_CHECKPOINT,
+            redemptions: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(checkpoint, 'CheckpointStorageInvalidError')
       })
@@ -270,7 +293,8 @@ describe('Checkpoint', () => {
       expect(value.redemption).to.equal(0)
       expect(value.tradeFee).to.equal(0)
       expect(value.settlementFee).to.equal(0)
-      expect(value.orders).to.equal(0)
+      expect(value.deposits).to.equal(0)
+      expect(value.redemptions).to.equal(0)
     })
   })
 
@@ -284,7 +308,8 @@ describe('Checkpoint', () => {
 
       expect(value.deposit).to.equal(124)
       expect(value.redemption).to.equal(458)
-      expect(value.orders).to.equal(7)
+      expect(value.deposits).to.equal(7)
+      expect(value.redemptions).to.equal(10)
     })
   })
 
@@ -321,7 +346,7 @@ describe('Checkpoint', () => {
 
           const value = await checkpoint.toSharesGlobal(12)
 
-          expect(value).to.equal(5) // 12 - 7
+          expect(value).to.equal(9) // 12 - 3
         })
       })
 
@@ -337,7 +362,8 @@ describe('Checkpoint', () => {
             tradeFee: parse6decimal('1'),
           })
 
-          expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('18'))
+          // (40 * 60 / 100) - 10 * 6 / 15 * 60 / 100
+          expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('21.60000'))
         })
       })
 
@@ -352,8 +378,8 @@ describe('Checkpoint', () => {
           tradeFee: parse6decimal('1'),
         })
 
-        // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 60 / 100
-        expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('17.967272'))
+        // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 60 / 100 * 6 / 15
+        expect(await checkpoint.toSharesGlobal(parse6decimal('40'))).to.equal(parse6decimal('21.567272'))
       })
     })
   })
@@ -365,7 +391,7 @@ describe('Checkpoint', () => {
 
         const value = await checkpoint.toAssetsGlobal(12)
 
-        expect(value).to.equal(5)
+        expect(value).to.equal(7) // 12 - 5
       })
     })
 
@@ -382,7 +408,8 @@ describe('Checkpoint', () => {
             tradeFee: parse6decimal('1'),
           })
 
-          expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('56.666666'))
+          // (40 * 100 / 60) - 10 * 9 / 15
+          expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('60.666666'))
         })
       })
 
@@ -397,8 +424,8 @@ describe('Checkpoint', () => {
           tradeFee: parse6decimal('1'),
         })
 
-        // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10
-        expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('56.575757').sub(1))
+        // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 9 / 15
+        expect(await checkpoint.toAssetsGlobal(parse6decimal('40'))).to.equal(parse6decimal('60.575757').sub(1))
       })
     })
   })
@@ -421,7 +448,7 @@ describe('Checkpoint', () => {
 
           const value = await checkpoint.toSharesLocal(12)
 
-          expect(value).to.equal(10) // 12 - 2
+          expect(value).to.equal(11) // 12 - 1
         })
       })
 
@@ -435,7 +462,8 @@ describe('Checkpoint', () => {
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
-            orders: 5,
+            deposits: 2,
+            redemptions: 3,
           })
 
           expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('22.8'))
@@ -452,7 +480,8 @@ describe('Checkpoint', () => {
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
-            orders: 0,
+            deposits: 0,
+            redemptions: 0,
           })
           // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60))
           expect(await checkpoint.toSharesLocal(parse6decimal('40'))).to.equal(parse6decimal('23.967272'))
@@ -468,7 +497,8 @@ describe('Checkpoint', () => {
           shares: parse6decimal('60'),
           settlementFee: parse6decimal('10'),
           tradeFee: parse6decimal('1'),
-          orders: 5,
+          deposits: 2,
+          redemptions: 3,
         })
 
         // (40 * 60 / 100) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 * 60 / 100 / 5
@@ -480,7 +510,7 @@ describe('Checkpoint', () => {
   describe('#toAssetsLocal', () => {
     context('zero shares', () => {
       it('returns shares net of settlement fee', async () => {
-        await checkpoint.store({ ...VALID_CHECKPOINT, shares: 0, settlementFee: 10, orders: 5 })
+        await checkpoint.store({ ...VALID_CHECKPOINT, shares: 0, settlementFee: 10, deposits: 2, redemptions: 3 })
 
         const value = await checkpoint.toAssetsLocal(12)
 
@@ -499,7 +529,8 @@ describe('Checkpoint', () => {
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
-            orders: 5,
+            deposits: 2,
+            redemptions: 3,
           })
 
           expect(await checkpoint.toAssetsLocal(parse6decimal('40'))).to.equal(parse6decimal('64.666666'))
@@ -516,7 +547,8 @@ describe('Checkpoint', () => {
             shares: parse6decimal('60'),
             settlementFee: parse6decimal('10'),
             tradeFee: parse6decimal('1'),
-            orders: 0,
+            deposits: 0,
+            redemptions: 0,
           })
 
           // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60))
@@ -533,7 +565,8 @@ describe('Checkpoint', () => {
           shares: parse6decimal('60'),
           settlementFee: parse6decimal('10'),
           tradeFee: parse6decimal('1'),
-          orders: 5,
+          deposits: 2,
+          redemptions: 3,
         })
 
         // (40 * 100 / 60) * ((400 + 200 * 100 / 60 - 1) / (400 + 200 * 100 / 60)) - 10 / 5
