@@ -233,7 +233,7 @@ contract Vault is IVault, Instance {
     /// @dev Rebalances only the collateral of the vault
     /// @param account The account that should be synced
     function rebalance(address account) public whenNotPaused {
-        _updateUnderlying();
+        _settleUnderlying();
         Context memory context = _loadContext(account);
 
         _settle(context, account);
@@ -252,7 +252,7 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) external whenNotPaused {
-        _updateUnderlying();
+        _settleUnderlying();
         Context memory context = _loadContext(account);
 
         _settle(context, account);
@@ -337,19 +337,6 @@ contract Vault is IVault, Instance {
             _registrations[marketId].read().market.settle(address(this));
     }
 
-    /// @notice Handles updating the vault's underlying markets
-    function _updateUnderlying() private {
-        for (uint256 marketId; marketId < totalMarkets; marketId++)
-            _registrations[marketId].read().market.update(
-                address(this),
-                UFixed6Lib.MAX,
-                UFixed6Lib.ZERO,
-                UFixed6Lib.ZERO,
-                Fixed6Lib.ZERO,
-                false
-            );
-    }
-
     /// @notice Handles settling the vault state
     /// @dev Run before every stateful operation to settle up the latest global state of the vault
     /// @param context The context to use
@@ -399,7 +386,7 @@ contract Vault is IVault, Instance {
             .allocate(
                 deposit,
                 withdrawal,
-                _ineligable(context, withdrawal)
+                _ineligible(context, withdrawal)
             );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
@@ -410,24 +397,24 @@ contract Vault is IVault, Instance {
                 _retarget(context.registrations[marketId], targets[marketId], rebalance);
     }
 
-    /// @notice Returns the amount of collateral is ineligable for allocation
+    /// @notice Returns the amount of collateral is ineligible for allocation
     /// @param context The context to use
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
-    /// @return The amount of assets that are ineligable from being allocated
-    function _ineligable(Context memory context, UFixed6 withdrawal) private pure returns (UFixed6) {
-        // assets eligable for redemption
-        UFixed6 redemptionEligable = UFixed6Lib.unsafeFrom(context.totalCollateral)
-            .unsafeSub(withdrawal)
-            .unsafeSub(context.global.assets)
+    /// @return The amount of assets that are ineligible from being allocated
+    function _ineligible(Context memory context, UFixed6 withdrawal) private pure returns (UFixed6) {
+        // assets eligible for redemption
+        UFixed6 redemptionEligible = UFixed6Lib.unsafeFrom(context.totalCollateral)
+            // assets pending claim (use latest global assets before withdrawal for redeemability)
+            .unsafeSub(context.global.assets.add(withdrawal))
+            // assets pending deposit
             .unsafeSub(context.global.deposit);
 
-        return redemptionEligable
+        return redemptionEligible
             // approximate assets up for redemption
             .mul(context.global.redemption.unsafeDiv(context.global.shares.add(context.global.redemption)))
-            // assets pending claim
-            .add(context.global.assets)
-            // assets withdrawing
-            .add(withdrawal);
+            // assets pending claim (use new global assets after withdrawal for eligability)
+            .add(context.global.assets);
+            // assets pending deposit are eligible for allocation
     }
 
     /// @notice Adjusts the position on `market` to `targetPosition`
