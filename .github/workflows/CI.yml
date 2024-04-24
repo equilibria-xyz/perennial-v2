@@ -8,6 +8,7 @@ on:
       - main
       - v2.1
       - v2.2
+  workflow_dispatch:
 
 env:
   CI: true
@@ -22,7 +23,7 @@ jobs:
     steps:
       - uses: actions/setup-node@v3
         with:
-          node-version: 16.13
+          node-version: 18.19
       - uses: actions/checkout@v3
       - uses: actions/cache@v3
         id: cache

@@ -154,6 +154,10 @@ library RiskParameterStorageLib {
         if (self.minMaintenance.lt(self.liquidationFee)) revert RiskParameterStorageInvalidError();
 
         if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();
+
+        // Disable non-zero maker adiabatic fee
+        // TODO: Remove this for v2.3
+        if (!self.makerFee.adiabaticFee.isZero()) revert RiskParameterStorageInvalidError();
     }
 
     function validateAndStore(

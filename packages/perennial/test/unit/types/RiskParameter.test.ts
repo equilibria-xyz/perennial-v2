@@ -29,7 +29,7 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   makerFee: {
     linearFee: 5,
     proportionalFee: 6,
-    adiabaticFee: 19,
+    adiabaticFee: 0,
     scale: 17000000,
   },
   makerLimit: 7000000,
@@ -94,7 +94,7 @@ describe('RiskParameter', () => {
       expect(value.takerFee.scale).to.equal(4000000)
       expect(value.makerFee.linearFee).to.equal(5)
       expect(value.makerFee.proportionalFee).to.equal(6)
-      expect(value.makerFee.adiabaticFee).to.equal(19)
+      expect(value.makerFee.adiabaticFee).to.equal(0)
       expect(value.makerFee.scale).to.equal(17000000)
       expect(value.makerLimit).to.equal(7000000)
       expect(value.efficiencyLimit).to.equal(8)
@@ -607,7 +607,7 @@ describe('RiskParameter', () => {
           {
             ...VALID_RISK_PARAMETER,
             makerFee: {
-              ...VALID_RISK_PARAMETER.takerFee,
+              ...VALID_RISK_PARAMETER.makerFee,
               linearFee: parse6decimal('1'),
             },
           },
@@ -639,7 +639,7 @@ describe('RiskParameter', () => {
           {
             ...VALID_RISK_PARAMETER,
             makerFee: {
-              ...VALID_RISK_PARAMETER.takerFee,
+              ...VALID_RISK_PARAMETER.makerFee,
               proportionalFee: parse6decimal('1'),
             },
           },
@@ -672,13 +672,13 @@ describe('RiskParameter', () => {
             ...VALID_RISK_PARAMETER,
             makerFee: {
               ...VALID_RISK_PARAMETER.makerFee,
-              adiabaticFee: parse6decimal('1'),
+              adiabaticFee: 0,
             },
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.makerFee.adiabaticFee).to.equal(parse6decimal('1'))
+        expect(value.makerFee.adiabaticFee).to.equal(0)
       })
 
       it('reverts if invalid', async () => {
@@ -688,7 +688,7 @@ describe('RiskParameter', () => {
               ...VALID_RISK_PARAMETER,
               makerFee: {
                 ...VALID_RISK_PARAMETER.makerFee,
-                adiabaticFee: parse6decimal('1').add(1),
+                adiabaticFee: 1,
               },
             },
             PROTOCOL_PARAMETER,

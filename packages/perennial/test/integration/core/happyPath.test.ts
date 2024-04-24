@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle, updateNoOp } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
   DEFAULT_POSITION,
@@ -186,7 +186,7 @@ describe('Happy Path', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await settle(market, user)
+    await updateNoOp(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
@@ -300,7 +300,7 @@ describe('Happy Path', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await settle(market, user)
+    await updateNoOp(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
@@ -606,7 +606,7 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await settle(market, userB)
+    await updateNoOp(market, userB)
 
     expectGlobalEq(await market.global(), {
       currentId: 2,
@@ -736,7 +736,7 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await settle(market, userB)
+    await updateNoOp(market, userB)
 
     expectGlobalEq(await market.global(), {
       currentId: 2,
@@ -1077,7 +1077,7 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
         proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),
@@ -1157,7 +1157,7 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
-      collateral: '986141042',
+      collateral: '985964909',
     })
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
@@ -1201,7 +1201,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       ...DEFAULT_VERSION,
-      makerValue: { _value: '-3545883' },
+      makerValue: { _value: '-3546980' },
       longValue: { _value: '3620965' },
       shortValue: { _value: 0 },
       liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -1239,7 +1239,7 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
         proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),

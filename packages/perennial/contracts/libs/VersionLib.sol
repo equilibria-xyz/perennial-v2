@@ -12,35 +12,72 @@ import "../types/Version.sol";
 
 /// @dev Individual accumulation values
 struct VersionAccumulationResult {
+    /// @dev Sum of the linear and proportional fees
     UFixed6 positionFee;
+
+    /// @dev Position fee received by makers
     UFixed6 positionFeeMaker;
+
+    /// @dev Position fee received by the protocol
     UFixed6 positionFeeProtocol;
+
+    /// @dev Total subtractive position fees credited to referrers
     UFixed6 positionFeeSubtractive;
+
+    /// @dev Profit/loss accrued from the oustanding adiabatic fee credit or liability
     Fixed6 positionFeeExposure;
+
+    /// @dev Portion of exposure fees charged to makers
     Fixed6 positionFeeExposureMaker;
+
+    /// @dev Portion of exposure fees charged to the protocol
     Fixed6 positionFeeExposureProtocol;
+
+    /// @dev Sum of the adiabatic fees charged or credited
     Fixed6 positionFeeImpact;
 
+    /// @dev Funding accrued by makers
     Fixed6 fundingMaker;
+
+    /// @dev Funding accrued by longs
     Fixed6 fundingLong;
+
+    /// @dev Funding accrued by shorts
     Fixed6 fundingShort;
+
+    /// @dev Funding received by the protocol
     UFixed6 fundingFee;
 
+    /// @dev Interest accrued by makers
     Fixed6 interestMaker;
+
+    /// @dev Interest accrued by longs
     Fixed6 interestLong;
+
+    /// @dev Interest accrued by shorts
     Fixed6 interestShort;
+
+    /// @dev Interest received by the protocol
     UFixed6 interestFee;
 
+    /// @dev Price-based profit/loss accrued by makers
     Fixed6 pnlMaker;
+
+    /// @dev Price-based profit/loss accrued by longs
     Fixed6 pnlLong;
+
+    /// @dev Price-based profit/loss accrued by shorts
     Fixed6 pnlShort;
 
+    /// @dev Total settlement fee charged
     UFixed6 settlementFee;
+
+    /// @dev Snapshot of the riskParameter.liquidationFee at the version (0 if not valid)
     UFixed6 liquidationFee;
 }
 
 /// @title VersionLib
-/// @notice Manages the logic for the global order accumualation
+/// @notice Manages the logic for the global order accumulation
 library VersionLib {
     struct AccumulationContext {
         Global global;

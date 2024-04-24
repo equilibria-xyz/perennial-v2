@@ -1,9 +1,9 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber, constants, utils } from 'ethers'
+import { BigNumber, constants, ContractTransaction, utils } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle, updateNoOp } from '../helpers/setupHelpers'
 import {
   DEFAULT_CHECKPOINT,
   DEFAULT_POSITION,
@@ -43,7 +43,7 @@ const RISK_PARAMS = {
   makerFee: {
     linearFee: parse6decimal('0.09'),
     proportionalFee: parse6decimal('0.08'),
-    adiabaticFee: parse6decimal('0.16'),
+    adiabaticFee: 0,
     scale: parse6decimal('10'),
   },
   utilizationCurve: {
@@ -81,6 +81,20 @@ describe('Fees', () => {
     return instanceVars
   }
 
+  // parse useful events from a settle or update transaction
+  async function getOrderProcessingEvents(
+    tx: ContractTransaction,
+  ): Promise<[Array<AccountPositionProcessedEventObject>, Array<PositionProcessedEventObject>]> {
+    const txEvents = (await tx.wait()).events!
+    const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
+      .filter(e => e.event === 'AccountPositionProcessed')
+      .map(e => e.args as AccountPositionProcessedEventObject)
+    const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
+      .filter(e => e.event === 'PositionProcessed')
+      .map(e => e.args as PositionProcessedEventObject)
+    return [accountProcessEvents, positionProcessEvents]
+  }
+
   beforeEach(async () => {
     instanceVars = await loadFixture(fixture)
     await instanceVars.chainlink.reset()
@@ -105,13 +119,13 @@ describe('Fees', () => {
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
-      const tx = await settle(market, user)
+      const tx = await updateNoOp(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
       const expectedMakerLinear = parse6decimal('102.494680') // = 3374.655169**2 * 0.0001 * (0.09)
       const expectedMakerProportional = parse6decimal('91.106380') // = 3374.655169**2 * 0.0001 * (0.08)
-      const expectedMakerAdiabatic = parse6decimal('-91.106380') // = 3374.655169**2 * 0.0001 * (-(1.0 + 0.0) / 2 * 0.16)
+      const expectedMakerAdiabatic = parse6decimal('0') // = 3374.655169**2 * 0.0001 * (-(1.0 + 0.0) / 2 * 0.0)
 
       expect(accountProcessEvent?.accumulationResult.linearFee).to.equal(expectedMakerLinear)
       expect(accountProcessEvent?.accumulationResult.proportionalFee).to.equal(expectedMakerProportional)
@@ -195,13 +209,13 @@ describe('Fees', () => {
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
-      const tx = await settle(market, user)
+      const tx = await updateNoOp(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
       const expectedMakerLinear = parse6decimal('102.494680') // = 3374.655169**2 * 0.0001 * (0.09)
       const expectedMakerProportional = parse6decimal('91.106380') // = 3374.655169**2 * 0.0001 * (0.08)
-      const expectedMakerAdiabatic = BigNumber.from('91106380') // = 3374.655169**2 * 0.0001 * ((1.0 + 0.0) / 2 * 0.16)
+      const expectedMakerAdiabatic = BigNumber.from('0') // = 3374.655169**2 * 0.0001 * ((1.0 + 0.0) / 2 * 0)
 
       expect(accountProcessEvent?.accumulationResult.linearFee).to.equal(expectedMakerLinear)
       expect(accountProcessEvent?.accumulationResult.proportionalFee).to.equal(expectedMakerProportional)
@@ -299,7 +313,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -384,7 +398,7 @@ describe('Fees', () => {
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
-      await settle(market, user)
+      await updateNoOp(market, user)
 
       await expect(
         market
@@ -412,7 +426,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -473,7 +487,7 @@ describe('Fees', () => {
         long: LONG_POSITION,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await updateNoOp(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -562,8 +576,8 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await settle(market, userB)
-      await settle(market, user)
+      await updateNoOp(market, userB)
+      await updateNoOp(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
       await market.updateRiskParameter({
@@ -585,7 +599,7 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
 
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
@@ -644,7 +658,7 @@ describe('Fees', () => {
         timestamp: TIMESTAMP_2,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await updateNoOp(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -719,7 +733,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -804,7 +818,7 @@ describe('Fees', () => {
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
-      await settle(market, user)
+      await updateNoOp(market, user)
 
       await expect(
         market
@@ -832,7 +846,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -893,7 +907,7 @@ describe('Fees', () => {
         short: SHORT_POSITION,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await updateNoOp(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -982,8 +996,8 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await settle(market, userB)
-      await settle(market, user)
+      await updateNoOp(market, userB)
+      await updateNoOp(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
       await market.updateRiskParameter({
@@ -1005,7 +1019,7 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await updateNoOp(market, userB)
 
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
@@ -1064,7 +1078,7 @@ describe('Fees', () => {
         timestamp: TIMESTAMP_2,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await updateNoOp(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1432,7 +1446,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        const tx = await settle(market, instanceVars.user)
+        const tx = await updateNoOp(market, instanceVars.user)
 
         const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
@@ -1485,7 +1499,7 @@ describe('Fees', () => {
         expect(accountProcessEventC.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
 
         expectGlobalEq(await market.global(), {
-          currentId: 3,
+          currentId: 2,
           latestId: 2,
           protocolFee: 0,
           riskFee: 0,
@@ -1556,20 +1570,27 @@ describe('Fees', () => {
       await nextWithConstantPrice()
 
       const tx = await settle(market, userB)
-      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const positionProcessEvent: PositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
+      const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
-      const expectedInterest = BigNumber.from('6') // = 3374.655169**2 * 0.00001 * 0.01 * 186 seconds / 365 days
-      const expectedInterestFee = BigNumber.from('1') // = 6 * .2
-      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedInterest.mul(-1))
-      expect(positionProcessEvent.accumulationResult.interestFee).to.equal(expectedInterestFee)
-      expect(
-        positionProcessEvent.accumulationResult.interestFee.add(positionProcessEvent.accumulationResult.interestMaker),
-      ).to.equal(expectedInterest)
+      // payoffPrice = 3374.655169**2 * 0.00001 = 113.882975
+      const expectedInterest = BigNumber.from('177') // payoffPrice * 0.01 * 4912 seconds / 365 days
+      const expectedInterestFee = BigNumber.from('35') // expectedInterest * .2
+
+      const accumulatedInterest = accountProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.collateral),
+        BigNumber.from(0),
+      )
+      const accumulatedInterestFee = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.interestFee),
+        BigNumber.from(0),
+      )
+      const accumulatedInterestMaker = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.interestFee.add(e.accumulationResult.interestMaker)),
+        BigNumber.from(0),
+      )
+      expect(accumulatedInterest).to.equal(expectedInterest.mul(-1))
+      expect(accumulatedInterestFee).to.equal(expectedInterestFee)
+      expect(accumulatedInterestMaker).to.equal(expectedInterest)
     })
 
     it('charges interest fee for short position', async () => {
@@ -1587,20 +1608,27 @@ describe('Fees', () => {
       await nextWithConstantPrice()
 
       const tx = await settle(market, userB)
-      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const positionProcessEvent: PositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
+      const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
-      const expectedInterest = BigNumber.from('6') // = 3374.655169**2 * 0.00001 * 0.01 * 186 seconds / 365 days
-      const expectedInterestFee = BigNumber.from('1') // = 6 * .2
-      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedInterest.mul(-1))
-      expect(positionProcessEvent.accumulationResult.interestFee).to.equal(expectedInterestFee)
-      expect(
-        positionProcessEvent.accumulationResult.interestFee.add(positionProcessEvent.accumulationResult.interestMaker),
-      ).to.equal(expectedInterest)
+      // payoffPrice = 3374.655169**2 * 0.00001 = 113.882975
+      const expectedInterest = BigNumber.from('177') // payoffPrice * 0.01 * 4912 seconds / 365 days
+      const expectedInterestFee = BigNumber.from('35') // expectedInterest * .2
+
+      const accumulatedInterest = accountProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.collateral),
+        BigNumber.from(0),
+      )
+      const accumulatedInterestFee = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.interestFee),
+        BigNumber.from(0),
+      )
+      const accumulatedInterestMaker = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.interestFee.add(e.accumulationResult.interestMaker)),
+        BigNumber.from(0),
+      )
+      expect(accumulatedInterest).to.equal(expectedInterest.mul(-1))
+      expect(accumulatedInterestFee).to.equal(expectedInterestFee)
+      expect(accumulatedInterestMaker).to.equal(expectedInterest)
     })
   })
 
@@ -1661,20 +1689,27 @@ describe('Fees', () => {
       await nextWithConstantPrice()
 
       const tx = await settle(market, userB)
-      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const positionProcessEvent: PositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
+      const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
-      const expectedFunding = BigNumber.from('819')
-      const expectedFundingFee = BigNumber.from('78') // = 819 * .1 - 3 (due to precision loss)
-      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedFunding.mul(-1))
-      expect(positionProcessEvent.accumulationResult.fundingFee).to.equal(expectedFundingFee)
-      expect(
-        positionProcessEvent.accumulationResult.fundingFee.add(positionProcessEvent.accumulationResult.fundingMaker),
-      ).to.equal(expectedFunding)
+      const expectedFunding = BigNumber.from('21259')
+      const expectedFundingFee = expectedFunding.div(10)
+      const expectedFundingWithFee = expectedFunding.add(expectedFundingFee.div(2))
+
+      const accumulatedFunding = accountProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.collateral),
+        BigNumber.from(0),
+      )
+      const accumulatedFundingFee = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.fundingFee),
+        BigNumber.from(0),
+      )
+      const accumulatedFundingMaker = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.fundingFee.add(e.accumulationResult.fundingMaker)),
+        BigNumber.from(0),
+      )
+      expect(accumulatedFunding).to.equal(expectedFundingWithFee.mul(-1).sub(1)) // precision loss
+      expect(accumulatedFundingFee).to.equal(expectedFundingFee)
+      expect(accumulatedFundingMaker).to.equal(expectedFundingWithFee.add(1)) // precision loss
     })
 
     it('charges funding fee for short position', async () => {
@@ -1692,20 +1727,27 @@ describe('Fees', () => {
       await nextWithConstantPrice()
 
       const tx = await settle(market, userB)
-      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const positionProcessEvent: PositionProcessedEventObject = (await tx.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
+      const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
-      const expectedFunding = BigNumber.from('819')
-      const expectedFundingFee = BigNumber.from('78') // = // = 819 * .1 - 3 (due to precision loss)
-      expect(accountProcessEvent.accumulationResult.collateral).to.equal(expectedFunding.mul(-1))
-      expect(positionProcessEvent.accumulationResult.fundingFee).to.equal(expectedFundingFee)
-      expect(
-        positionProcessEvent.accumulationResult.fundingFee.add(positionProcessEvent.accumulationResult.fundingMaker),
-      ).to.equal(expectedFunding)
+      const expectedFunding = BigNumber.from('21259')
+      const expectedFundingFee = expectedFunding.div(10)
+      const expectedFundingWithFee = expectedFunding.add(expectedFundingFee.div(2))
+
+      const accumulatedFunding = accountProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.collateral),
+        BigNumber.from(0),
+      )
+      const accumulatedFundingFee = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.fundingFee),
+        BigNumber.from(0),
+      )
+      const accumulatedFundingMaker = positionProcessEvents.reduce(
+        (acc: BigNumber, e) => acc.add(e.accumulationResult.fundingFee.add(e.accumulationResult.fundingMaker)),
+        BigNumber.from(0),
+      )
+      expect(accumulatedFunding).to.equal(expectedFundingWithFee.mul(-1))
+      expect(accumulatedFundingFee).to.equal(expectedFundingFee)
+      expect(accumulatedFundingMaker).to.equal(expectedFundingWithFee)
     })
   })
 
@@ -1770,7 +1812,7 @@ describe('Fees', () => {
       const expectedClaimable = parse6decimal('4.612260')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimable,
       })
@@ -1827,7 +1869,7 @@ describe('Fees', () => {
       const expectedClaimable = parse6decimal('2.049893')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimable,
       })
@@ -1875,7 +1917,7 @@ describe('Fees', () => {
       const expectedClaimable = parse6decimal('5.227228')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimable,
       })
@@ -1934,7 +1976,7 @@ describe('Fees', () => {
       const expectedClaimableMakerReferral = parse6decimal('7.379616')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimableMakerReferral,
       })
@@ -1948,9 +1990,9 @@ describe('Fees', () => {
       let expectedClaimableTakerReferral = parse6decimal('2.562367')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
-        collateral: parse6decimal('1182.234252'),
+        collateral: parse6decimal('1105.704894'),
         claimable: expectedClaimableTakerReferral,
       })
 
