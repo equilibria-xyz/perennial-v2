@@ -782,6 +782,68 @@ describe('Vault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
 
+    it('simple deposits and redemptions (double withdrawal error check)', async () => {
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('10')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      expect(await collateralInVault()).to.equal(parse6decimal('8'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('2'))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      const checkpoint1 = await vault.checkpoints(1)
+      expect(checkpoint1.deposit).to.equal(smallDeposit)
+      expect(checkpoint1.orders).to.equal(1)
+      expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
+
+      // We're underneath the collateral minimum, so we shouldn't have opened any positions.
+      expect(await position()).to.equal(0)
+      expect(await btcPosition()).to.equal(0)
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, largeDeposit, 0, 0)
+      expect(await collateralInVault()).to.equal(parse6decimal('8008'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('2002'))
+      expect((await vault.accounts(user.address)).shares).to.equal(smallDeposit)
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(smallDeposit)
+      expect(await vault.totalAssets()).to.equal(smallDeposit)
+      expect(await vault.convertToAssets(parse6decimal('10'))).to.equal(parse6decimal('10'))
+      expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
+      await updateOracle()
+      await vault.rebalance(user.address)
+      const checkpoint2 = await vault.checkpoints(2)
+      expect(checkpoint2.deposit).to.equal(largeDeposit)
+      expect(checkpoint2.assets).to.equal(smallDeposit)
+      expect(checkpoint2.shares).to.equal(smallDeposit)
+      expect(checkpoint2.orders).to.equal(1)
+      expect(checkpoint2.timestamp).to.equal((await market.pendingOrders(vault.address, 2)).timestamp)
+
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10010'))
+      expect(await vault.totalAssets()).to.equal(parse6decimal('10010'))
+      expect(await vault.convertToAssets(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
+      expect(await vault.convertToShares(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
+
+      // Now we should have opened positions.
+      // The positions should be equal to (smallDeposit + largeDeposit) * leverage originalOraclePrice.
+      expect(await position()).to.equal(
+        smallDeposit.add(largeDeposit).mul(leverage).mul(4).div(5).div(originalOraclePrice),
+      )
+      expect(await btcPosition()).to.equal(
+        smallDeposit.add(largeDeposit).mul(leverage).div(5).div(btcOriginalOraclePrice),
+      )
+
+      const half = smallDeposit.add(largeDeposit).div(2).add(smallDeposit)
+      await vault.connect(user).update(user.address, 0, half, 0)
+
+      await updateOracle()
+      await expect(vault.connect(user2).update(user2.address, smallDeposit, 0, 0)).to.not.reverted // this will create min position in the market
+      await expect(vault.connect(user).update(user.address, 0, 0, half)).to.not.reverted // this will revert even though it's just claiming
+    })
+
     it('multiple users', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
