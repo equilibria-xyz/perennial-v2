@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - v2.1
+      - v2.1.1
 
 env:
   CI: true
