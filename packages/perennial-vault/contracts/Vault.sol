@@ -233,7 +233,7 @@ contract Vault is IVault, Instance {
     /// @dev Rebalances only the collateral of the vault
     /// @param account The account that should be synced
     function rebalance(address account) public whenNotPaused {
-        _updateUnderlying();
+        _settleUnderlying();
         Context memory context = _loadContext(account);
 
         _settle(context, account);
@@ -252,7 +252,7 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) external whenNotPaused {
-        _updateUnderlying();
+        _settleUnderlying();
         Context memory context = _loadContext(account);
 
         _settle(context, account);
@@ -335,19 +335,6 @@ contract Vault is IVault, Instance {
     function _settleUnderlying() private {
         for (uint256 marketId; marketId < totalMarkets; marketId++)
             _registrations[marketId].read().market.settle(address(this));
-    }
-
-    /// @notice Handles updating the vault's underlying markets
-    function _updateUnderlying() private {
-        for (uint256 marketId; marketId < totalMarkets; marketId++)
-            _registrations[marketId].read().market.update(
-                address(this),
-                UFixed6Lib.MAX,
-                UFixed6Lib.ZERO,
-                UFixed6Lib.ZERO,
-                Fixed6Lib.ZERO,
-                false
-            );
     }
 
     /// @notice Handles settling the vault state

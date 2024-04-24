@@ -260,8 +260,7 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(9).div(10)) // 10% drop
     await settle(market, user)
     await chainlink.nextWithPriceModification(price => price.mul(8).div(10)) // 20% drop
-    // TODO: replace setupHelper.settle with this implementation, renaming the existing
-    await market.connect(user)['settle(address)'](user.address) // avoid invariant violation
+    await settle(market, user)
     price = (await chainlink.oracle.latest()).price
 
     // ensure user's collateral is now lower than minMaintenance but above maintenance requirement
@@ -278,8 +277,8 @@ describe('Liquidate', () => {
     ) // liquidate
       .to.emit(market, 'Updated')
       .withArgs(userC.address, user.address, TIMESTAMP_3, 0, 0, 0, 0, true, constants.AddressZero)
-    expect((await market.pendingOrders(user.address, 3)).protection).to.eq(1)
-    expect(await market.liquidators(user.address, 3)).to.eq(userC.address)
+    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
+    expect(await market.liquidators(user.address, 2)).to.eq(userC.address)
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1500'))
     await chainlink.next()
     await settle(market, user)
