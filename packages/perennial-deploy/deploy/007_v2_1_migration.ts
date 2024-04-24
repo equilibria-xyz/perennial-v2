@@ -141,6 +141,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Deploy Market Implementations
   console.log('Deploying new Market and MarketFactory Impls')
+  // TODO: replace this with impl from script 004
   const marketParamaterStorage = await deploy('MarketParameterStorageLib', {
     from: deployer,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,

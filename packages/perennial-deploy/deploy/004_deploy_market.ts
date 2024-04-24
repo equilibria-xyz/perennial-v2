@@ -193,8 +193,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('Deploying Markets...')
     for (const marketDefinition of Object.values(markets)) {
       const oracleAddress = await oracleFactory.oracles(marketDefinition[0])
-      const payoffAddress =
-        marketDefinition[1] === '' ? ethers.constants.AddressZero : (await get(marketDefinition[1])).address
 
       if ((await marketFactory.markets(oracleAddress)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
         process.stdout.write(`Creating market with oracle ${marketDefinition[0]} and payoff ${marketDefinition[1]}...`)
