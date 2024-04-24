@@ -41,7 +41,7 @@ const RISK_PARAMS = {
   makerFee: {
     linearFee: parse6decimal('0.09'),
     proportionalFee: parse6decimal('0.08'),
-    adiabaticFee: parse6decimal('0.16'),
+    adiabaticFee: 0,
     scale: parse6decimal('10'),
   },
   utilizationCurve: {
@@ -123,7 +123,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
       const expectedMakerLinear = parse6decimal('102.494680') // = 3374.655169**2 * 0.0001 * (0.09)
       const expectedMakerProportional = parse6decimal('91.106380') // = 3374.655169**2 * 0.0001 * (0.08)
-      const expectedMakerAdiabatic = parse6decimal('-91.106380') // = 3374.655169**2 * 0.0001 * (-(1.0 + 0.0) / 2 * 0.16)
+      const expectedMakerAdiabatic = parse6decimal('0') // = 3374.655169**2 * 0.0001 * (-(1.0 + 0.0) / 2 * 0.0)
 
       expect(accountProcessEvent?.accumulationResult.linearFee).to.equal(expectedMakerLinear)
       expect(accountProcessEvent?.accumulationResult.proportionalFee).to.equal(expectedMakerProportional)
@@ -212,7 +212,7 @@ describe('Fees', () => {
       )?.args as unknown as AccountPositionProcessedEventObject
       const expectedMakerLinear = parse6decimal('102.494680') // = 3374.655169**2 * 0.0001 * (0.09)
       const expectedMakerProportional = parse6decimal('91.106380') // = 3374.655169**2 * 0.0001 * (0.08)
-      const expectedMakerAdiabatic = BigNumber.from('91106380') // = 3374.655169**2 * 0.0001 * ((1.0 + 0.0) / 2 * 0.16)
+      const expectedMakerAdiabatic = BigNumber.from('0') // = 3374.655169**2 * 0.0001 * ((1.0 + 0.0) / 2 * 0)
 
       expect(accountProcessEvent?.accumulationResult.linearFee).to.equal(expectedMakerLinear)
       expect(accountProcessEvent?.accumulationResult.proportionalFee).to.equal(expectedMakerProportional)
@@ -1980,7 +1980,7 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: parse6decimal('1182.234252'),
+        collateral: parse6decimal('1105.704894'),
         claimable: expectedClaimableTakerReferral,
       })
 
