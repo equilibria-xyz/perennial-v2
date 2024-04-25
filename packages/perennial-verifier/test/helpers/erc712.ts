@@ -4,6 +4,7 @@ import {
   FillStruct,
   GroupCancellationStruct,
   IntentStruct,
+  OperatorUpdateStruct,
 } from '../../types/generated/contracts/Verifier'
 import { Verifier } from '../../types/generated'
 
@@ -92,4 +93,27 @@ export async function signGroupCancellation(
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, groupCancellation)
+}
+
+export async function signOperatorUpdate(
+  signer: SignerWithAddress,
+  verifier: Verifier,
+  operatorUpdate: OperatorUpdateStruct,
+): Promise<string> {
+  const types = {
+    Common: [
+      { name: 'account', type: 'address' },
+      { name: 'domain', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'group', type: 'uint256' },
+      { name: 'expiry', type: 'uint256' },
+    ],
+    OperatorUpdate: [
+      { name: 'operator', type: 'address' },
+      { name: 'approved', type: 'bool' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, operatorUpdate)
 }
