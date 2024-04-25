@@ -51,7 +51,6 @@ export async function deployProductOnMainnetFork({
     makerFee: makerFee ?? {
       linearFee: parse6decimal('0.0'),
       proportionalFee: parse6decimal('0.0'),
-      adiabaticFee: parse6decimal('0.0'),
       scale: parse6decimal('0.0'),
     },
     makerLimit: makerLimit ?? parse6decimal('100'),

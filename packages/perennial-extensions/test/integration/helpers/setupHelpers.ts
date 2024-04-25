@@ -432,7 +432,6 @@ export async function createVault(
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      adiabaticFee: 0,
       scale: parse6decimal('10'),
     },
   })
@@ -452,7 +451,6 @@ export async function createVault(
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      adiabaticFee: 0,
       scale: parse6decimal('10'),
     },
   })

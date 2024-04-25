@@ -183,7 +183,6 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -276,7 +275,6 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -404,7 +402,6 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -567,7 +564,6 @@ describe('Fees', () => {
           ...riskParams.makerFee,
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
         },
         takerFee: {
           ...riskParams.takerFee,
@@ -630,7 +626,6 @@ describe('Fees', () => {
           ...riskParams.makerFee,
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
         },
         takerFee: {
           ...riskParams.takerFee,
@@ -746,7 +741,6 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -874,7 +868,6 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
@@ -1037,7 +1030,6 @@ describe('Fees', () => {
           ...riskParams.makerFee,
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
         },
         takerFee: {
           ...riskParams.takerFee,
@@ -1100,7 +1092,6 @@ describe('Fees', () => {
           ...riskParams.makerFee,
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
         },
         takerFee: {
           ...riskParams.takerFee,
@@ -1225,7 +1216,6 @@ describe('Fees', () => {
             ...riskParams.makerFee,
             linearFee: BigNumber.from('0'),
             proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
           },
           takerFee: {
             ...riskParams.takerFee,
@@ -1335,7 +1325,6 @@ describe('Fees', () => {
             ...riskParams.makerFee,
             linearFee: BigNumber.from('0'),
             proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
           },
           takerFee: {
             ...riskParams.takerFee,
@@ -1526,7 +1515,6 @@ describe('Fees', () => {
             ...riskParams.makerFee,
             linearFee: BigNumber.from('0'),
             proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
           },
           takerFee: {
             ...riskParams.takerFee,
@@ -1646,7 +1634,6 @@ describe('Fees', () => {
           ...riskParams.makerFee,
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
         },
         takerFee: {
           ...riskParams.takerFee,
@@ -1766,7 +1753,6 @@ describe('Fees', () => {
           ...riskParams.makerFee,
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
         },
         takerFee: {
           ...riskParams.takerFee,
