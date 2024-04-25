@@ -36,7 +36,6 @@ export default task('settle-markets', 'Settles users across all markets')
     const multicall = new ethers.Contract(MultiCallAddress, MultiCallABI, ethers.provider)
 
     const marketUsers = await getMarketUsers(graphURL)
-    // console.log('marketUsers', marketUsers)
     let marketUserCount = 0
 
     for (const marketAddress in marketUsers) {
@@ -45,43 +44,14 @@ export default task('settle-markets', 'Settles users across all markets')
 
       const market = await ethers.getContractAt('IMarket', marketAddress)
 
-      // prune already-settled users from the list
-      // FIXME: pendingPositions calls do not work on a fork for some reason
-      let unsettledUsers: string[]
-      if (networkName === 'localhost') {
-        // just settle all users as workaround
-        unsettledUsers = users
-      } else {
-        // TODO: suspect this logic is incorrect
-        unsettledUsers = []
-        const latestId: BigNumber = (await market.global()).latestId
-        console.log('querying', market.address, 'pending positions for', users.length, 'users from id', latestId)
-        const multicallPayload = getPendingPositionsPayload(market, users, latestId)
-        const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(
-          multicallPayload,
-        )
-        const decoded = result.map(r => {
-          return market.interface.decodeFunctionResult('pendingPositions', r.returnData)
-        })
-        if (users.length !== decoded.length) {
-          console.error('Failed to query pending positions for users')
-          return 1
-        }
-        for (let i = 0; i < decoded.length; ++i) {
-          const user = users[i]
-          const position: PositionStruct = decoded[i][0]
-          if (position.maker != 0 || position.long != 0 || position.short != 0) {
-            console.log('user', user, 'has pending position', position)
-            unsettledUsers.push(user)
-          }
-        }
-      }
-
       if (args.dry) {
-        console.log('found', unsettledUsers.length, 'users to settle in market', marketAddress)
+        console.log('found', users.length, 'users to settle in market', marketAddress)
       } else {
-        console.log('settling', unsettledUsers.length, 'users to settle in market', marketAddress)
+        console.log('settling', users.length, 'users to settle in market', marketAddress)
 
+        // TODO: might need to batch this into 100 users at a time
+        // Run on arbitrum fork instead of arbSeb to experiment.  Should be around 3507 total calls,
+        // with 1930 users in the largest market.
         const multicallPayload = settleMarketUsersPayload(market, users)
         const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(
           multicallPayload,
@@ -131,14 +101,8 @@ async function getMarketUsers(graphURL: string): Promise<{ [key: string]: Set<st
   return result
 }
 
-function getPendingPositionsPayload(market: IMarket, users: string[], latestId: BigNumber): MulticallPayload[] {
-  const pendingPositions = users.map(user => market.interface.encodeFunctionData('pendingPositions', [user, latestId]))
-  return pendingPositions.map(callData => ({ callData, allowFailure: true, target: market.address }))
-}
-
 function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPayload[] {
   // FIXME: despite deploying 2.1.1 contracts to fork, markets still don't have 'settle' method here.
-  // Perhaps implementation was deployed but not updated.
   const settles = users.map(user =>
     market.interface.encodeFunctionData('update', [
       user,
