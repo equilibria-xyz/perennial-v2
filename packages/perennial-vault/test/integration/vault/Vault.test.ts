@@ -797,7 +797,7 @@ describe('Vault', () => {
 
       const checkpoint1 = await vault.checkpoints(1)
       expect(checkpoint1.deposit).to.equal(smallDeposit)
-      expect(checkpoint1.orders).to.equal(1)
+      expect(checkpoint1.deposits).to.equal(1)
       expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
 
       // We're underneath the collateral minimum, so we shouldn't have opened any positions.
@@ -818,7 +818,7 @@ describe('Vault', () => {
       expect(checkpoint2.deposit).to.equal(largeDeposit)
       expect(checkpoint2.assets).to.equal(smallDeposit)
       expect(checkpoint2.shares).to.equal(smallDeposit)
-      expect(checkpoint2.orders).to.equal(1)
+      expect(checkpoint2.deposits).to.equal(1)
       expect(checkpoint2.timestamp).to.equal((await market.pendingOrders(vault.address, 2)).timestamp)
 
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
