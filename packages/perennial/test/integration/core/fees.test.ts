@@ -2060,7 +2060,7 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await settle(market, user)
       await settle(market, userB)
-      await settle(market, userC)
+      await updateNoOp(market, userC) // update userC to clear values
       expect(await market.referrers(userC.address, currentId)).to.equal(userB.address)
       expect((await market.locals(userC.address)).currentId).to.equal(currentId.add(1))
 
@@ -2070,7 +2070,7 @@ describe('Fees', () => {
       const expectedClaimable = parse6decimal('2.049893')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 1,
+        currentId: 0,
         latestId: 0,
         claimable: expectedClaimable,
       })
@@ -2094,9 +2094,9 @@ describe('Fees', () => {
       const expectedCloseClaimable = parse6decimal('2.562367')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 3,
-        latestId: 2,
-        collateral: '1220242686',
+        currentId: 1,
+        latestId: 1,
+        collateral: '1143713328',
         claimable: expectedCloseClaimable,
       })
       await expect(market.connect(user).claimFee())
