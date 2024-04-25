@@ -769,7 +769,7 @@ describe('Verifier', () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
         operator: owner.address,
-        approval: true,
+        approved: true,
         common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)

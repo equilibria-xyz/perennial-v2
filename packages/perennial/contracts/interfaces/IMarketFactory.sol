@@ -17,6 +17,8 @@ interface IMarketFactory is IFactory {
     error FactoryInvalidOracleError();
     // sig: 0x213e2260
     error FactoryAlreadyRegisteredError();
+    // sig: 0x6928a80f
+    error MarketFactoryInvalidSignerError();
 
     // sig: 0x4dc1bc59
     error ProtocolParameterStorageInvalidError();
