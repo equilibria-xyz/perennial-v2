@@ -7,7 +7,9 @@ import { constants } from 'ethers'
 import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUtils'
 import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
 
-const QueryPageSize = 1000
+const GRAPHQL_QUERY_PAGE_SIZE = 1000
+const SETTLE_MULTICALL_BATCH_SIZE = 30 // largest Arbitrum market has 1930 users, 50 is too large for no-op update
+const USE_NO_OP_UPDATE = false // for use on pre-2.1.1 deployments
 
 export default task('settle-markets', 'Settles users across all markets')
   .addFlag('dry', 'Print list of unsettled users')
@@ -28,6 +30,7 @@ export default task('settle-markets', 'Settles users across all markets')
 
     const marketUsers = await getMarketUsers(graphURL)
     let marketUserCount = 0
+    let txCount = 0
 
     for (const marketAddress in marketUsers) {
       const users = [...marketUsers[marketAddress].values()]
@@ -37,23 +40,36 @@ export default task('settle-markets', 'Settles users across all markets')
 
       if (args.dry) {
         console.log('found', users.length, 'users to settle in market', marketAddress)
+        txCount += users.length <= SETTLE_MULTICALL_BATCH_SIZE ? 1 : users.length % SETTLE_MULTICALL_BATCH_SIZE
       } else {
         console.log('settling', users.length, 'users to settle in market', marketAddress)
 
-        // TODO: might need to batch this into 100 users at a time
-        // Run on arbitrum fork instead of arbSeb to experiment.  Should be around 3507 total calls,
-        // with 1930 users in the largest market.
-        const multicallPayload = settleMarketUsersPayload(market, users)
-        const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(
-          multicallPayload,
-        )
+        let batchedUsers
+        while (users.length > 0) {
+          // batch multicalls to handle markets with large numbers of users
+          batchedUsers = users.splice(0, SETTLE_MULTICALL_BATCH_SIZE)
+          console.log('  batch contains', batchedUsers.length, 'users', users.length, 'users remaining')
 
-        console.log('settle result', result)
+          const multicallPayload = settleMarketUsersPayload(market, batchedUsers)
+          const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(
+            multicallPayload,
+          )
+          const successfulSettleCalls = result.reduce((a, c) => (c.success ? a + 1 : a), 0)
+          console.log('  ', successfulSettleCalls, 'sucessfull settle calls')
+
+          if (successfulSettleCalls === batchedUsers.length) {
+            txCount += 1
+          } else {
+            console.error('failed to settle all users:', result)
+            return 1
+          }
+        }
       }
     }
 
     console.log('-------------------')
-    console.log(`Total settlement calls: ${marketUserCount}`)
+    const actionString = args.dry ? 'Need to call' : 'Called'
+    console.log(`${actionString} settle on ${marketUserCount} users in ${txCount} transactions`) // 3507 total calls on Arbitrum
   })
 
 // maps market addresses to a list of users who deposited into that market
@@ -71,15 +87,15 @@ async function getMarketUsers(graphURL: string): Promise<{ [key: string]: Set<st
 
   let page = 0
   let res: { updateds: { market: string; account: string }[] } = await request(graphURL, query, {
-    first: QueryPageSize,
-    skip: page * QueryPageSize,
+    first: GRAPHQL_QUERY_PAGE_SIZE,
+    skip: page * GRAPHQL_QUERY_PAGE_SIZE,
   })
   const rawData = res
-  while (res.updateds.length === QueryPageSize) {
+  while (res.updateds.length === GRAPHQL_QUERY_PAGE_SIZE) {
     page += 1
     res = await request(graphURL, query, {
-      first: QueryPageSize,
-      skip: page * QueryPageSize,
+      first: GRAPHQL_QUERY_PAGE_SIZE,
+      skip: page * GRAPHQL_QUERY_PAGE_SIZE,
     })
     rawData.updateds = [...rawData.updateds, ...res.updateds]
   }
@@ -94,16 +110,17 @@ async function getMarketUsers(graphURL: string): Promise<{ [key: string]: Set<st
 
 // prepares calldata to settle multiple users
 function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPayload[] {
-  // FIXME: despite deploying 2.1.1 contracts to fork, markets still don't have 'settle' method here.
   const settles = users.map(user =>
-    market.interface.encodeFunctionData('update', [
-      user,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      0,
-      false,
-    ]),
+    USE_NO_OP_UPDATE
+      ? market.interface.encodeFunctionData('update', [
+          user,
+          constants.MaxUint256,
+          constants.MaxUint256,
+          constants.MaxUint256,
+          0,
+          false,
+        ])
+      : market.interface.encodeFunctionData('settle', [user]),
   )
   return settles.map(callData => ({ callData, allowFailure: false, target: market.address }))
 }
