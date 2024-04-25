@@ -9,10 +9,10 @@ import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
 
 const GRAPHQL_QUERY_PAGE_SIZE = 1000
 const SETTLE_MULTICALL_BATCH_SIZE = 30 // largest Arbitrum market has 1930 users, 50 is too large for no-op update
-const USE_NO_OP_UPDATE = false // for use on pre-2.1.1 deployments
+const USE_NO_OP_UPDATE = true // for use on pre-2.1.1 deployments
 
 export default task('settle-markets', 'Settles users across all markets')
-  .addFlag('dry', 'Print list of unsettled users')
+  .addFlag('dry', 'Count number of users and transactions required to settle')
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     const {
       ethers,
