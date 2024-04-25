@@ -47,6 +47,9 @@ using CheckpointStorageLib for CheckpointStorage global;
 /// @title Checkpoint
 /// @notice Holds the state for the checkpoint type
 library CheckpointLib {
+    // sig: 0x4596b8b1
+    error CheckpointSingleSidedError();
+
     /// @notice Initializes the checkpoint
     /// @dev Saves the current shares, and the assets + liabilities in the vault itself (not in the markets)
     /// @param self The checkpoint to initialize
@@ -64,6 +67,9 @@ library CheckpointLib {
     /// @param deposit The amount of new deposits
     /// @param redemption The amount of new redemptions
     function update(Checkpoint memory self, UFixed6 deposit, UFixed6 redemption) internal pure {
+        if (!deposit.isZero() && !self.redemption.isZero() || !redemption.isZero() && !self.deposit.isZero())
+            revert CheckpointSingleSidedError();
+
         (self.deposit, self.redemption) = (self.deposit.add(deposit), self.redemption.add(redemption));
         self.count++;
     }

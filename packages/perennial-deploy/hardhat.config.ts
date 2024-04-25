@@ -37,6 +37,7 @@ const config = defaultConfig({
     '@equilibria/perennial-v2-extensions/contracts/MultiInvoker.sol',
     '@equilibria/perennial-v2-extensions/contracts/MultiInvoker_Arbitrum.sol',
     '@equilibria/perennial-v2-extensions/contracts/MultiInvoker_Optimism.sol',
+    '@equilibria/perennial-v2-extensions/contracts/Coordinator.sol',
   ],
   solidityOverrides: {
     '@equilibria/perennial-v2/contracts/Market.sol': {
