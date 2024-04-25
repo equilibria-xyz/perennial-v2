@@ -3,20 +3,11 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { gql, request } from 'graphql-request'
 import { IMarket } from '../types/generated'
-import { constants, BigNumber } from 'ethers'
-import { PositionStruct } from '../types/generated/@equilibria/perennial-v2/contracts/Market'
+import { constants } from 'ethers'
+import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUtils'
+import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
 
 const QueryPageSize = 1000
-
-function getSubgraphUrlFromEnvironment(networkName: string) {
-  switch (networkName) {
-    case 'arbitrum':
-      return process.env.ARBITRUM_GRAPH_URL
-    case 'arbitrumSepolia':
-    case 'localhost':
-      return process.env.ARBITRUMSEPOLIA_GRAPH_URL
-  }
-}
 
 export default task('settle-markets', 'Settles users across all markets')
   .addFlag('dry', 'Print list of unsettled users')
@@ -33,7 +24,7 @@ export default task('settle-markets', 'Settles users across all markets')
       return 1
     }
 
-    const multicall = new ethers.Contract(MultiCallAddress, MultiCallABI, ethers.provider)
+    const multicall = new ethers.Contract(MulticallAddress, MulticallABI, ethers.provider)
 
     const marketUsers = await getMarketUsers(graphURL)
     let marketUserCount = 0
@@ -101,6 +92,7 @@ async function getMarketUsers(graphURL: string): Promise<{ [key: string]: Set<st
   return result
 }
 
+// prepares calldata to settle multiple users
 function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPayload[] {
   // FIXME: despite deploying 2.1.1 contracts to fork, markets still don't have 'settle' method here.
   const settles = users.map(user =>
@@ -115,33 +107,3 @@ function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPa
   )
   return settles.map(callData => ({ callData, allowFailure: false, target: market.address }))
 }
-
-// TODO: move these to a multicall utils module to share with check-solvency task
-
-// valid and both Arbitrum and ArbitrumSepolia
-const MultiCallAddress = '0xcA11bde05977b3631167028862bE2a173976CA11'
-
-interface MulticallPayload {
-  callData: string
-  allowFailure: boolean
-  target: string
-}
-
-const MultiCallABI = [
-  'function aggregate(tuple(address target, bytes callData)[] calls) payable returns (uint256 blockNumber, bytes[] returnData)',
-  'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
-  'function aggregate3Value(tuple(address target, bool allowFailure, uint256 value, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
-  'function blockAndAggregate(tuple(address target, bytes callData)[] calls) payable returns (uint256 blockNumber, bytes32 blockHash, tuple(bool success, bytes returnData)[] returnData)',
-  'function getBasefee() view returns (uint256 basefee)',
-  'function getBlockHash(uint256 blockNumber) view returns (bytes32 blockHash)',
-  'function getBlockNumber() view returns (uint256 blockNumber)',
-  'function getChainId() view returns (uint256 chainid)',
-  'function getCurrentBlockCoinbase() view returns (address coinbase)',
-  'function getCurrentBlockDifficulty() view returns (uint256 difficulty)',
-  'function getCurrentBlockGasLimit() view returns (uint256 gaslimit)',
-  'function getCurrentBlockTimestamp() view returns (uint256 timestamp)',
-  'function getEthBalance(address addr) view returns (uint256 balance)',
-  'function getLastBlockHash() view returns (bytes32 blockHash)',
-  'function tryAggregate(bool requireSuccess, tuple(address target, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
-  'function tryBlockAndAggregate(bool requireSuccess, tuple(address target, bytes callData)[] calls) payable returns (uint256 blockNumber, bytes32 blockHash, tuple(bool success, bytes returnData)[] returnData)',
-]
