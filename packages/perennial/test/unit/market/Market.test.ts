@@ -15255,6 +15255,7 @@ describe('Market', () => {
             oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
             riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
             donation: totalFee.div(2).mul(8).div(10),
+            latestPrice: parse6decimal('96'),
             exposure: 0,
           })
           expectPositionEq(await market.position(), {
@@ -18791,6 +18792,7 @@ describe('Market', () => {
             oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
             riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
             donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: PRICE,
             exposure: 0,
           })
           expectPositionEq(await market.position(), {
