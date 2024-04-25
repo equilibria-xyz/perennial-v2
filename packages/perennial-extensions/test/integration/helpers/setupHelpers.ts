@@ -161,7 +161,11 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     owner,
   ).deploy(verifierProxy.address)
 
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(
+    oracleFactory.address,
+    verifierImpl.address,
+    marketImpl.address,
+  )
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
