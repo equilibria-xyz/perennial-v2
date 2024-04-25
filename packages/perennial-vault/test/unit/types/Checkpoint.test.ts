@@ -284,7 +284,7 @@ describe('Checkpoint', () => {
 
       expect(value.deposit).to.equal(124)
       expect(value.redemption).to.equal(0)
-      expect(value.count).to.equal(7)
+      expect(value.orders).to.equal(7)
     })
 
     it('updates the checkpoint (redeem only)', async () => {
@@ -299,10 +299,16 @@ describe('Checkpoint', () => {
       expect(value.orders).to.equal(7)
     })
 
-    it('reverts on both deposit and redeem', async () => {
+    it('updates the checkpoint (deposit and redemption)', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
 
-      await expect(checkpoint.update(123, 456)).to.be.revertedWithCustomError(checkpoint, 'CheckpointSingleSidedError')
+      await checkpoint.update(123, 456)
+
+      const value = await checkpoint.read()
+
+      expect(value.deposit).to.equal(124)
+      expect(value.redemption).to.equal(458)
+      expect(value.orders).to.equal(7)
     })
   })
 

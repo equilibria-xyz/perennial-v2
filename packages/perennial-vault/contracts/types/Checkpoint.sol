@@ -53,9 +53,6 @@ using CheckpointStorageLib for CheckpointStorage global;
 /// @title Checkpoint
 /// @notice Holds the state for the checkpoint type
 library CheckpointLib {
-    // sig: 0x4596b8b1
-    error CheckpointSingleSidedError();
-
     /// @notice Initializes the checkpoint
     /// @dev Saves the current shares, and the assets + liabilities in the vault itself (not in the markets)
     /// @param self The checkpoint to initialize
