@@ -61,4 +61,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 }
 
 export default func
-func.tags = ['v2_1_Migration']
+func.tags = ['v2_1_1_Migration']
