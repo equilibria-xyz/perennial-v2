@@ -308,7 +308,7 @@ describe('Checkpoint', () => {
 
       expect(value.deposit).to.equal(124)
       expect(value.redemption).to.equal(0)
-      expect(value.orders).to.equal(7)
+      expect(value.deposits).to.equal(7)
     })
 
     it('updates the checkpoint (redeem only)', async () => {
@@ -320,7 +320,7 @@ describe('Checkpoint', () => {
 
       expect(value.deposit).to.equal(0)
       expect(value.redemption).to.equal(458)
-      expect(value.orders).to.equal(7)
+      expect(value.redemptions).to.equal(10)
     })
 
     it('updates the checkpoint (deposit and redemption)', async () => {
