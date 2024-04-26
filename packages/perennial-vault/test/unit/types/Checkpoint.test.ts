@@ -299,7 +299,31 @@ describe('Checkpoint', () => {
   })
 
   describe('#update', () => {
-    it('updates the checkpoint', async () => {
+    it('updates the checkpoint (deposit only)', async () => {
+      await checkpoint.store({ ...VALID_CHECKPOINT, redemption: 0 })
+
+      await checkpoint.update(123, 0)
+
+      const value = await checkpoint.read()
+
+      expect(value.deposit).to.equal(124)
+      expect(value.redemption).to.equal(0)
+      expect(value.orders).to.equal(7)
+    })
+
+    it('updates the checkpoint (redeem only)', async () => {
+      await checkpoint.store({ ...VALID_CHECKPOINT, deposit: 0 })
+
+      await checkpoint.update(0, 456)
+
+      const value = await checkpoint.read()
+
+      expect(value.deposit).to.equal(0)
+      expect(value.redemption).to.equal(458)
+      expect(value.orders).to.equal(7)
+    })
+
+    it('updates the checkpoint (deposit and redemption)', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
 
       await checkpoint.update(123, 456)
