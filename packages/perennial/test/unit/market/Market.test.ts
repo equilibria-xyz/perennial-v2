@@ -12548,6 +12548,133 @@ describe('Market', () => {
               })
             })
 
+            it('with adiabatic fees to incur exposure', async () => {
+              // rate_0 = 0
+              // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -0.5 / 40000 = -0.045
+              // rate_2 = rate_1 + (elapsed * scaledSkew / k) = 3600 * -1   / 40000 = -0.090
+              // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
+              // (0 + -0.045)/2 * 3600 * 10 * 123 / (86400 * 365)
+              const EXPECTED_FUNDING_1 = BigNumber.from(-3159) // −0.003159
+              const EXPECTED_FUNDING_FEE_1 = BigNumber.from(315) // |funding| * fundingFee
+              const EXPECTED_FUNDING_WITH_FEE_1 = EXPECTED_FUNDING_1.add(EXPECTED_FUNDING_FEE_1.div(2))
+
+              // (-0.045 + (-0.045 + -0.090))/2 * 3600 * 10 * 45 / (86400 * 365)
+              const EXPECTED_FUNDING_2 = BigNumber.from(-4623) // −0.004623
+              const EXPECTED_FUNDING_FEE_2 = BigNumber.from(462) // |funding| * fundingFee
+              const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.add(EXPECTED_FUNDING_FEE_2.div(2))
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
+              oracle.request.returns()
+
+              await settle(market, user)
+              await settle(market, userB)
+
+              // establish risk parameters with adiabatic fees
+              const adiabaticRiskParameter = {
+                ...riskParameter,
+                takerFee: {
+                  ...riskParameter.takerFee,
+                  adiabaticFee: parse6decimal('0.003'),
+                },
+              }
+              await market
+                .connect(owner)
+                .updateParameter(beneficiary.address, coordinator.address, await market.parameter())
+              await expect(market.connect(coordinator).updateRiskParameter(adiabaticRiskParameter)).to.emit(
+                market,
+                'RiskParameterUpdated',
+              )
+
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
+
+              const oracleVersionLowerPrice = {
+                price: parse6decimal('45'),
+                timestamp: TIMESTAMP + 7200,
+                valid: true,
+              }
+              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
+              oracle.request.returns()
+
+              await settle(market, user)
+
+              // userB gets liquidated, eliminating the maker position
+              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
+                .to.emit(market, 'Updated')
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp, // TIMESTAMP + 10800
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+              oracle.request.returns()
+
+              await settle(market, userB)
+
+              expectLocalEq(await market.locals(liquidator.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 0,
+                latestId: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
+              })
+
+              const MAKER_FEE_ADIABATIC = parse6decimal('0') // position * (0.000 * (1.00 + 0.00) / 2) * price
+              expectLocalEq(await market.locals(userB.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 4,
+                latestId: 3,
+                collateral: parse6decimal('450')
+                  .sub(EXPECTED_FUNDING_WITH_FEE_1.div(2))
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
+                  .sub(EXPECTED_FUNDING_WITH_FEE_2.div(2))
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL)
+                  .sub(MAKER_FEE_ADIABATIC)
+                  .sub(EXPECTED_LIQUIDATION_FEE)
+                  .sub(25),
+              })
+
+              const totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
+                .add(EXPECTED_FUNDING_FEE_2)
+                .add(EXPECTED_INTEREST_FEE_10_67_45_ALL)
+              // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1]
+              //                  + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerChange * 1]
+              //                = [(-5/5+0)/2 * 0.003 * -5] + [(1+1-(10/10))/2 * 0.000 * -10]
+              //                = 0.0075 + -0.00 = 0.0075
+              // impactExposure = latestExposure * priceChange = 0.0075 * (123-0) = 0.9225
+              const EXPOSURE_BEFORE = BigNumber.from(0)
+              const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('0.9225'))
+              expectGlobalEq(await market.global(), {
+                currentId: 4,
+                latestId: 3,
+                protocolFee: totalFee.div(2).sub(1), // loss of precision
+                oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+                exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
+              })
+              expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                long: POSITION.div(2),
+                short: POSITION,
+              })
+            })
+
             it('with partial socialization', async () => {
               // (0.258823 / 365 / 24 / 60 / 60 ) * 3600 * 12 * 123 = 43610
               const EXPECTED_INTEREST_1 = BigNumber.from(43610)
@@ -15314,6 +15441,156 @@ describe('Market', () => {
             shortValue: { _value: 0 },
             liquidationFee: { _value: -riskParameter.liquidationFee },
           })
+        })
+      })
+
+      context('liquidation w/ referrer', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              parse6decimal('216'),
+              false,
+            )
+        })
+
+        it('sets related accounts', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const EXPECTED_PNL = parse6decimal('80').mul(5)
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
+
+          const oracleVersionLowerPrice = {
+            price: parse6decimal('43'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, userB)
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                0,
+                0,
+                0,
+                true,
+                userB.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, userB.address)
+
+          expect((await market.locals(user.address)).currentId).to.equal(3)
+          expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
+          expect(await market.referrers(user.address, 3)).to.equal(userB.address)
+        })
+
+        it('resets related accounts on update', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
+
+          const oracleVersionLowerPrice = {
+            price: parse6decimal('43'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, userB)
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                0,
+                0,
+                0,
+                true,
+                userB.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, userB.address)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1000')).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(5),
+              0,
+              parse6decimal('1000'),
+              false,
+            )
+          await settle(market, user)
+
+          expect((await market.locals(user.address)).currentId).to.equal(4)
+          expect(await market.liquidators(user.address, 4)).to.equal(constants.AddressZero)
+          expect(await market.referrers(user.address, 4)).to.equal(constants.AddressZero)
         })
       })
 

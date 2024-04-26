@@ -18,6 +18,7 @@ import {
   IVaultFactory__factory,
   IOracleFactory,
   IMarketFactory,
+  CheckpointLib__factory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
