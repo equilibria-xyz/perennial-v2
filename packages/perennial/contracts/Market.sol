@@ -610,6 +610,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder
     ) private {
         OracleVersion memory oracleVersion = oracle.at(newOrder.timestamp);
+        if (oracleVersion.price.isZero()) oracleVersion.price = context.global.latestPrice;
 
         context.pending.global.sub(newOrder);
         if (!oracleVersion.valid) newOrder.invalidate();

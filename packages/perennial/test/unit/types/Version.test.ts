@@ -56,6 +56,7 @@ const GLOBAL: GlobalStruct = {
     _value: 6,
     _skew: 7,
   },
+  latestPrice: 0,
   exposure: 0,
 }
 
@@ -2159,6 +2160,42 @@ describe('Version', () => {
 
         expect(nextGlobal.pAccumulator._value).to.equal(0)
         expect(nextGlobal.pAccumulator._skew).to.equal('-1000000')
+      })
+    })
+
+    describe('global latestPrice', () => {
+      it('returns updated global latestPrice values', async () => {
+        await version.store(DEFAULT_VERSION)
+
+        const { nextGlobal } = await accumulateWithReturn(
+          GLOBAL,
+          {
+            ...FROM_POSITION,
+            maker: parse6decimal('10'),
+            long: parse6decimal('2'),
+            short: parse6decimal('9'),
+          },
+          ORDER,
+          ORACLE_VERSION_1,
+          ORACLE_VERSION_2,
+          {
+            ...VALID_MARKET_PARAMETER,
+            interestFee: 0,
+            fundingFee: 0,
+          },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('999999') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: parse6decimal('0.8'),
+            },
+          },
+        )
+
+        expect(nextGlobal.latestPrice).to.equal(ORACLE_VERSION_2.price)
       })
     })
   })

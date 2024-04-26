@@ -23,7 +23,9 @@ import {
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
 
-export const PRICE = utils.parseEther('3374.655169')
+export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
+
+export const PRICE = parse6decimal('113.882975')
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
 export const TIMESTAMP_2 = 1631113819
@@ -69,7 +71,7 @@ describe('Fees', () => {
   let market: Market
 
   const nextWithConstantPrice = async () => {
-    return instanceVars.chainlink.nextWithPriceModification(() => PRICE)
+    return instanceVars.chainlink.nextWithPriceModification(() => UNDERLYING_PRICE)
   }
 
   const fixture = async () => {
@@ -161,6 +163,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -251,6 +254,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: expectedMakerAdiabatic,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -336,6 +340,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -448,6 +453,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -620,6 +626,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -753,6 +760,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -865,6 +873,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -1037,6 +1046,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -1452,6 +1462,7 @@ describe('Fees', () => {
           riskFee: 0,
           oracleFee: expectedSettlementFee,
           donation: 0,
+          latestPrice: PRICE,
           exposure: 0,
         })
       })
@@ -1494,6 +1505,7 @@ describe('Fees', () => {
           riskFee: 0,
           oracleFee: expectedSettlementFee,
           donation: 0,
+          latestPrice: PRICE,
           exposure: 0,
         })
       })
