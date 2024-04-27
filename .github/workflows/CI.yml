@@ -9,6 +9,7 @@ on:
       - v2.1
       - v2.2
       - v2.3
+  workflow_dispatch:
 
 env:
   CI: true
