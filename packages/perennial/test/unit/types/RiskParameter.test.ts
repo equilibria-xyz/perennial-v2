@@ -29,7 +29,6 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   makerFee: {
     linearFee: 5,
     proportionalFee: 6,
-    adiabaticFee: 19,
     scale: 17000000,
   },
   makerLimit: 7000000,
@@ -94,7 +93,6 @@ describe('RiskParameter', () => {
       expect(value.takerFee.scale).to.equal(4000000)
       expect(value.makerFee.linearFee).to.equal(5)
       expect(value.makerFee.proportionalFee).to.equal(6)
-      expect(value.makerFee.adiabaticFee).to.equal(19)
       expect(value.makerFee.scale).to.equal(17000000)
       expect(value.makerLimit).to.equal(7000000)
       expect(value.efficiencyLimit).to.equal(8)
@@ -657,38 +655,6 @@ describe('RiskParameter', () => {
               makerFee: {
                 ...VALID_RISK_PARAMETER.takerFee,
                 linearFee: parse6decimal('1').add(1),
-              },
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
-      })
-    })
-
-    describe('.makerFee.adiabaticFee', () => {
-      it('saves if in range', async () => {
-        await riskParameter.validateAndStore(
-          {
-            ...VALID_RISK_PARAMETER,
-            makerFee: {
-              ...VALID_RISK_PARAMETER.makerFee,
-              adiabaticFee: parse6decimal('1'),
-            },
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await riskParameter.read()
-        expect(value.makerFee.adiabaticFee).to.equal(parse6decimal('1'))
-      })
-
-      it('reverts if invalid', async () => {
-        await expect(
-          riskParameter.validateAndStore(
-            {
-              ...VALID_RISK_PARAMETER,
-              makerFee: {
-                ...VALID_RISK_PARAMETER.makerFee,
-                adiabaticFee: parse6decimal('1').add(1),
               },
             },
             PROTOCOL_PARAMETER,
