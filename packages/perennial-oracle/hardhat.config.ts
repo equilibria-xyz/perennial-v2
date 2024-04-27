@@ -1,4 +1,5 @@
 import defaultConfig from '../common/hardhat.default.config'
+import './tasks'
 
 const config = defaultConfig({
   dependencyPaths: [
