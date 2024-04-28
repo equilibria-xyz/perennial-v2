@@ -258,4 +258,20 @@ describe('MarketFactory', () => {
       expect(await factory.operators(user.address, owner.address)).to.equal(false)
     })
   })
+
+  describe('#updateSigner', async () => {
+    it('updates the signer status', async () => {
+      await expect(factory.connect(user).updateSigner(owner.address, true))
+        .to.emit(factory, 'SignerUpdated')
+        .withArgs(user.address, owner.address, true)
+
+      expect(await factory.signers(user.address, owner.address)).to.equal(true)
+
+      await expect(factory.connect(user).updateSigner(owner.address, false))
+        .to.emit(factory, 'SignerUpdated')
+        .withArgs(user.address, owner.address, false)
+
+      expect(await factory.signers(user.address, owner.address)).to.equal(false)
+    })
+  })
 })
