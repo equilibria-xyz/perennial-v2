@@ -186,8 +186,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 _approve(target);
             }
         }
-        // Eth must not remain in this contract at rest
-        payable(account).transfer(address(this).balance);
+        // ETH must not remain in this contract at rest
+        Address.sendValue(payable(account), address(this).balance);
     }
 
     /// @notice Updates market on behalf of account
