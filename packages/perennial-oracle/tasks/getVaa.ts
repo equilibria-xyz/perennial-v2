@@ -1,8 +1,8 @@
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
-import fetch from 'isomorphic-fetch'
+import { EvmPriceServiceConnection } from '@pythnetwork/pyth-evm-js'
 
-const HERMES_ENDPOINT = 'https://hermes.pyth.network/api/'
+const PYTH_ENDPOINT = 'https://hermes.pyth.network'
 
 // task helps retrieve VAAs for integration/validation testing purposes
 export default task('get-vaa', 'Retrieves and decodes a Pyth Validator Action Approval (VAA)')
@@ -21,25 +21,17 @@ export default task('get-vaa', 'Retrieves and decodes a Pyth Validator Action Ap
     if (args.timestamp === undefined) {
       timestamp = currentTimestamp - 15 // 15 seconds ago; current time generates 404 response
     } else if (args.timestamp >= currentTimestamp) {
-      console.error('Timestamp must preceed current time', currentTimestamp)
-      return 1
+      throw new Error('Timestamp must preceed current time')
     } else {
       timestamp = args.timestamp
     }
 
-    // make a request to Pyth Hermes API
-    const request = `${HERMES_ENDPOINT}get_vaa?id=${args.priceFeed}&publish_time=${timestamp}`
-    const response = await fetch(request, {
-      method: 'GET',
-      headers: { accept: 'application/json' },
-    })
-    let encodedVaa: string
-    if (response.ok) {
-      encodedVaa = (await response.json()).vaa
-    } else {
-      console.error('Hermes API request failed:', response.status)
-      return 1
-    }
+    const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
+    const pythPriceFeed = await pyth.getPriceFeed(args.priceFeed, timestamp)
+    console.log(pythPriceFeed)
+    const encodedVaa = await pythPriceFeed.getVAA()
+    if (!encodedVaa) throw new Error('Failed to retrieve VAA')
 
-    console.log('0x' + Buffer.from(encodedVaa, 'base64').toString('hex'))
+    console.log('vaa for timestamp', timestamp)
+    console.log(`0x${Buffer.from(encodedVaa, 'base64').toString('hex')}`)
   })
