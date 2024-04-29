@@ -11,8 +11,8 @@ import {
 } from '../types/generated'
 import { PAYOFFS } from './002_deploy_payoff'
 
-// TODO: remove once ORACLES is populated
-export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
+// TODO: remove once ORACLES is populated with all chains
+const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   arbitrum: {
     eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
     btc: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // Pyth: BTC
@@ -45,7 +45,7 @@ export const ORACLES: {
   }
 } = {
   arbitrum: {
-    // TODO: determine payoff providers for other chains
+    // TODO: determine current payoff providers for each market
   },
   arbitrumSepolia: {
     // pythOracleFactory 0x92F8d5B8d0ca2fc699c7c540471Ad49724a68007
@@ -55,6 +55,9 @@ export const ORACLES: {
       payoffProviderName: '',
       payoffDecimals: BigNumber.from(-3),
     },
+  },
+  base: {
+    // TODO: determine current payoff providers for each market
   },
 }
 
@@ -80,7 +83,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
-  // creates a PayoffDefinition struct by looking up the
+  // creates a PayoffDefinition struct by looking up the name from deployments
   async function getPayoff(name: string, decimals: BigNumber): Promise<PayoffDefinitionStruct> {
     if (name) return { provider: (await get(name)).address, decimals: decimals }
     else return { provider: ethers.constants.AddressZero, decimals: 0 }

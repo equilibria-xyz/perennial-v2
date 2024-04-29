@@ -1,10 +1,11 @@
-import { HardhatRuntimeEnvironment } from 'hardhat/types'
+import { HardhatRuntimeEnvironment, Libraries } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { isArbitrum, isMainnet } from '../../common/testutil/network'
 import { OracleFactory__factory, ProxyAdmin__factory, PythFactory__factory } from '../types/generated'
 import { INITIAL_AMOUNT } from './005_deploy_vault'
-import { DEFAULT_GRANULARITY } from './003_deploy_oracle'
+import { DEFAULT_GRANULARITY, ORACLES } from './003_deploy_oracle'
+import { MARKET_LIBRARIES } from './004_deploy_market'
 
 const SkipIfAlreadyDeployed = false
 
@@ -21,7 +22,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
-  console.log('Deploying v2.1 migration...')
+  console.log('Deploying v2.2 migration...')
 
   // Deploy Oracle Implementations
   console.log('Deploying new Oracle and OracleFactory Impls')
@@ -108,6 +109,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   }
 
   // Create oracles
+  // TODO: update with logic from script 003
   const oracleIDs = (await oracleFactory.queryFilter(oracleFactory.filters.OracleCreated())).map(e => e.args.id)
   if (!oracleIDs) throw new Error('No oracle IDs for network')
   for (const id of Object.values(oracleIDs)) {
@@ -141,29 +143,27 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Deploy Market Implementations
   console.log('Deploying new Market and MarketFactory Impls')
-  // TODO: replace this with impl from script 004
-  const marketParamaterStorage = await deploy('MarketParameterStorageLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  const riskParamaterStorage = await deploy('RiskParameterStorageLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
+  // Deploy Libraries
+  const marketLibrariesBuilt: Libraries = {}
+  for (const library of MARKET_LIBRARIES) {
+    marketLibrariesBuilt[library.name] = (
+      await deploy(library.name, {
+        contract: library.contract,
+        from: deployer,
+        skipIfAlreadyDeployed: true,
+        log: true,
+        autoMine: true,
+      })
+    ).address
+  }
+
   const marketImpl = await deploy('MarketImpl', {
     contract: 'Market',
     from: deployer,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
-    libraries: {
-      MarketParameterStorageLib: marketParamaterStorage.address,
-      RiskParameterStorageLib: riskParamaterStorage.address,
-    },
+    libraries: marketLibrariesBuilt,
   })
   await deploy('MarketFactoryImpl', {
     contract: 'MarketFactory',
@@ -228,4 +228,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 }
 
 export default func
-func.tags = ['v2_1_Migration']
+func.tags = ['v2_2_Migration']

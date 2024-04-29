@@ -34,7 +34,7 @@ describe('Verify Arbitrum v2.1 Migration', () => {
 
     if (RunMigrationDeployScript) {
       // Deploy migration
-      await fixture('v2_1_Migration', { keepExistingDeployments: true })
+      await fixture('v2_2_Migration', { keepExistingDeployments: true })
     }
 
     timelockSigner = await impersonateWithBalance(

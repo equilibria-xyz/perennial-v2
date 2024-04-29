@@ -12,6 +12,30 @@ import { forkNetwork, isFork, isMainnet } from '../../common/testutil/network'
 import { ORACLE_IDS } from './003_deploy_oracle'
 import { getLabsMultisig } from '../../common/testutil/constants'
 
+// enumerates libraries required for deployment of Market implementation contract
+export const MARKET_LIBRARIES: Array<{
+  name: string // as named in linkReferences of ABI
+  contract: string | undefined // only needed to disambiguate name clashes
+}> = [
+  {
+    name: 'CheckpointLib',
+    contract: '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib',
+  },
+  { name: 'InvariantLib', contract: undefined },
+  { name: 'VersionLib', contract: undefined },
+  {
+    name: 'CheckpointStorageLib',
+    contract: '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib',
+  },
+  { name: 'GlobalStorageLib', contract: undefined },
+  { name: 'MarketParameterStorageLib', contract: undefined },
+  { name: 'PositionStorageGlobalLib', contract: undefined },
+  { name: 'PositionStorageLocalLib', contract: undefined },
+  { name: 'MarketParameterStorageLib', contract: undefined },
+  { name: 'RiskParameterStorageLib', contract: undefined },
+  { name: 'VersionStorageLib', contract: undefined },
+]
+
 // TODO: 2x what expected gauntlet values are
 const DEFAULT_PROTOCOL_PARAMETER = {
   protocolFee: 0,
@@ -105,30 +129,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
   // Deploy Libraries
-  const marketLibraries: Array<{
-    name: string // as named in linkReferences of ABI
-    contract: string | undefined // only needed to disambiguate name clashes
-  }> = [
-    {
-      name: 'CheckpointLib',
-      contract: '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib',
-    },
-    { name: 'InvariantLib', contract: undefined },
-    { name: 'VersionLib', contract: undefined },
-    {
-      name: 'CheckpointStorageLib',
-      contract: '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib',
-    },
-    { name: 'GlobalStorageLib', contract: undefined },
-    { name: 'MarketParameterStorageLib', contract: undefined },
-    { name: 'PositionStorageGlobalLib', contract: undefined },
-    { name: 'PositionStorageLocalLib', contract: undefined },
-    { name: 'MarketParameterStorageLib', contract: undefined },
-    { name: 'RiskParameterStorageLib', contract: undefined },
-    { name: 'VersionStorageLib', contract: undefined },
-  ]
   const marketLibrariesBuilt: Libraries = {}
-  for (const library of marketLibraries) {
+  for (const library of MARKET_LIBRARIES) {
     marketLibrariesBuilt[library.name] = (
       await deploy(library.name, {
         contract: library.contract,
