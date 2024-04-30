@@ -1,0 +1,24 @@
+{
+  "name": "@equilibria/perennial-v2-account",
+  "version": "1.1.0-rc1",
+  "description": "Perennial V2 Collateral Account",
+  "files": [
+    "contracts/interfaces",
+    "contracts/types",
+    "artifacts/contracts/interfaces",
+    "deployments/!(localhost)"
+  ],
+  "scripts": {
+    "build": "yarn compile",
+    "compile": "hardhat compile",
+    "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
+    "format": "prettier -w .",
+    "clean": "rm -rf cache artifacts types/generated dist deployments/localhost",
+    "prepack": "yarn clean && yarn build && find artifacts/contracts -name '*.dbg.json' -type f -delete"
+  },
+  "author": "",
+  "license": "APACHE-2.0",
+  "dependencies": {
+    "@equilibria/perennial-v2-verifier": "1.1.0-rc1"
+  }
+}
