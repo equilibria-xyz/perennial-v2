@@ -1,0 +1,194 @@
+import HRE from 'hardhat'
+import { expect } from 'chai'
+import { impersonateWithBalance } from '../../../../../common/testutil/impersonate'
+import { increase, increaseTo, reset } from '../../../../../common/testutil/time'
+import { ArbGasInfo, MarketFactory, ProxyAdmin, PythFactory, VaultFactory } from '../../../../types/generated'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { smock } from '@defi-wonderland/smock'
+
+const RunMigrationDeployScript = true
+
+describe('Verify Arbitrum v2.1.1 Migration', () => {
+  let timelockSigner: SignerWithAddress
+  let pythFactory: PythFactory
+  let marketFactory: MarketFactory
+  let vaultFactory: VaultFactory
+  let proxyAdmin: ProxyAdmin
+
+  let oracleIDs: { id: string; oracle: string }[]
+
+  const { deployments, ethers } = HRE
+  const { fixture, get } = deployments
+
+  beforeEach(async () => {
+    await reset()
+
+    if (RunMigrationDeployScript) {
+      // Deploy migration
+      await fixture('v2_1_1_Migration', { keepExistingDeployments: true })
+    }
+
+    timelockSigner = await impersonateWithBalance(
+      (
+        await get('TimelockController')
+      ).address,
+      ethers.utils.parseEther('10'),
+    )
+    pythFactory = (await ethers.getContractAt('PythFactory', (await get('PythFactory')).address)).connect(
+      timelockSigner,
+    )
+    marketFactory = (await ethers.getContractAt('MarketFactory', (await get('MarketFactory')).address)).connect(
+      timelockSigner,
+    )
+    vaultFactory = (await ethers.getContractAt('VaultFactory', (await get('VaultFactory')).address)).connect(
+      timelockSigner,
+    )
+    proxyAdmin = (await ethers.getContractAt('ProxyAdmin', (await get('ProxyAdmin')).address)).connect(timelockSigner)
+
+    await proxyAdmin.upgrade(marketFactory.address, (await get('MarketFactoryImpl')).address)
+    await proxyAdmin.upgrade(vaultFactory.address, (await get('VaultFactoryImpl')).address)
+    await proxyAdmin.upgrade(pythFactory.address, (await get('PythFactoryImpl')).address)
+
+    const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
+      address: '0x000000000000000000000000000000000000006C',
+    })
+    // Hardhat fork network does not support Arbitrum built-ins, so we need to fake this call for testing
+    gasInfo.getL1BaseFeeEstimate.returns(0)
+
+    const oracleFactory = await ethers.getContractAt('OracleFactory', (await get('OracleFactory')).address)
+    oracleIDs = (await oracleFactory.queryFilter(oracleFactory.filters.OracleCreated())).map(e => ({
+      id: e.args.id,
+      oracle: e.args.oracle,
+    }))
+  })
+
+  it('Migrates', async () => {
+    expect(await proxyAdmin.getProxyImplementation(marketFactory.address)).to.equal(
+      (await get('MarketFactoryImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(vaultFactory.address)).to.equal(
+      (await get('VaultFactoryImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(pythFactory.address)).to.equal(
+      (await get('PythFactoryImpl')).address,
+    )
+
+    const markets = (await marketFactory.queryFilter(marketFactory.filters['InstanceRegistered(address)']())).map(
+      e => e.args.instance,
+    )
+    for (const market of markets) {
+      const contract = await ethers.getContractAt('IMarket', market)
+      expect(await contract.update(ethers.constants.AddressZero, 0, 0, 0, 0, false)).to.not.be.reverted
+    }
+  })
+
+  it('Runs full request/fulfill flow', async () => {
+    const perennialUser = await impersonateWithBalance(
+      '0xF8b6010FD6ba8F3E52c943A1473B1b1459a73094',
+      ethers.utils.parseEther('10'),
+    ) // Vault
+
+    await increaseTo(VAA_PUBLISH_TIME)
+
+    const ethMarket = await ethers.getContractAt('IMarket', '0x90A664846960AaFA2c164605Aebb8e9Ac338f9a0')
+    const oracle = await ethers.getContractAt('Oracle', await ethMarket.oracle())
+    const oracleProvider = await ethers.getContractAt('IOracleProvider', (await oracle.oracles(2)).provider)
+    const currentPosition = await ethMarket.positions(perennialUser.address)
+    await pythFactory.commit([oracleIDs[0].id], VAA_PUBLISH_TIME - 4, ETH_VAA_UPDATE, { value: 1 })
+
+    // Next version according to granularity
+    const nextVersion = Math.ceil(VAA_PUBLISH_TIME / 10) * 10
+
+    await expect(
+      ethMarket.connect(perennialUser).update(perennialUser.address, currentPosition.maker.add(10), 0, 0, 0, false),
+    )
+      .to.emit(oracleProvider, 'OracleProviderVersionRequested')
+      .withArgs(nextVersion)
+    await increase(10)
+
+    await expect(pythFactory.commit([oracleIDs[0].id], nextVersion, ETH_VAA_FULFILL, { value: 1 })).to.emit(
+      oracleProvider,
+      'OracleProviderVersionFulfilled',
+    )
+  })
+
+  it('liquidates', async () => {
+    const [, liquidator] = await ethers.getSigners()
+    const perennialUser = await impersonateWithBalance(
+      '0x2EE6C29A4f28C13C22aC0D0B077Dcb2D4e2826B8',
+      ethers.utils.parseEther('10'),
+    )
+
+    const ethMarket = await ethers.getContractAt('IMarket', '0x90A664846960AaFA2c164605Aebb8e9Ac338f9a0')
+    const riskParameter = await ethMarket.riskParameter()
+
+    await increaseTo(VAA_PUBLISH_TIME)
+
+    await pythFactory.commit([oracleIDs[0].id], VAA_PUBLISH_TIME - 4, ETH_VAA_UPDATE, { value: 1 })
+    await ethMarket
+      .connect(timelockSigner)
+      .updateRiskParameter({ ...riskParameter, minMargin: 50e6, minMaintenance: 50e6 })
+
+    await ethMarket.connect(liquidator).update(perennialUser.address, 0, 0, 0, 0, true)
+
+    // Next version according to granularity
+    const nextVersion = Math.ceil(VAA_PUBLISH_TIME / 10) * 10
+    await pythFactory.commit([oracleIDs[0].id], nextVersion, ETH_VAA_FULFILL, { value: 1 })
+
+    await ethMarket.connect(liquidator).update(liquidator.address, 0, 0, 0, 0, false)
+    await ethMarket.connect(liquidator).update(perennialUser.address, 0, 0, 0, 0, false)
+
+    expect((await ethMarket.locals(liquidator.address)).collateral).to.equal(5e6)
+  })
+
+  it('settles vaults', async () => {
+    const perennialUser = await impersonateWithBalance(
+      '0xeb04ee956b3aa60977542e084e38c60be7fd69a5',
+      ethers.utils.parseEther('10'),
+    )
+
+    await increaseTo(VAA_PUBLISH_TIME)
+
+    const ethMarket = await ethers.getContractAt('IMarket', '0x90A664846960AaFA2c164605Aebb8e9Ac338f9a0')
+    const btcMarket = await ethers.getContractAt('IMarket', '0xcC83e3cDA48547e3c250a88C8D5E97089Fd28F60')
+    const linkMarket = await ethers.getContractAt('IMarket', '0xD9c296A7Bee1c201B9f3531c7AC9c9310ef3b738')
+
+    await pythFactory.commit([oracleIDs[0].id], VAA_PUBLISH_TIME - 4, ETH_VAA_UPDATE, { value: 1 })
+    await pythFactory.commit([oracleIDs[1].id], VAA_PUBLISH_TIME - 4, BTC_VAA_UPDATE, { value: 1 })
+    await pythFactory.commit([oracleIDs[6].id], VAA_PUBLISH_TIME - 4, LINK_VAA_UPDATE, { value: 1 })
+
+    const asterVault = await ethers.getContractAt('IVault', (await get('AsterVault')).address)
+
+    await expect(asterVault.connect(perennialUser).update(perennialUser.address, 0, 10e6, 0))
+      .to.emit(ethMarket, 'Updated')
+      .to.emit(btcMarket, 'Updated')
+      .to.emit(linkMarket, 'Updated')
+
+    // Next version according to granularity
+    const nextVersion = Math.ceil(VAA_PUBLISH_TIME / 10) * 10
+    await expect(pythFactory.commit([oracleIDs[0].id], nextVersion, ETH_VAA_FULFILL, { value: 1 })).to.not.be.reverted
+    await expect(pythFactory.commit([oracleIDs[1].id], nextVersion, BTC_VAA_FULFILL, { value: 1 })).to.not.be.reverted
+    await expect(pythFactory.commit([oracleIDs[6].id], nextVersion, LINK_VAA_FULFILL, { value: 1 })).to.not.be.reverted
+  })
+})
+
+const VAA_PUBLISH_TIME = 1714490266
+
+const ETH_VAA_UPDATE =
+  '0x504e41550100000003b801000000040d00bf84910ae0710ca32fce53cc7092f8d0afd764cf29107c79b124b0053bd6fa0041f470afa06445fa08870d082329c8ad72c161e1d793bc661ece5fa5eeb181000102478a2c8addf88d47c84f234100a8b6f90cb2122b73741490d52e661a6a846f873a47b59b3c49a81fc0cf13ac1deced0d108042a69c9a648c989ab331d05a63cd0103d4db036dd3b44ebf543fec8757f73cbd2d935d9242fba949dc69a4e669c23d2315344dadd1bcdf2439d73ae7472339b6e751b3dd73a4b2ba4e20ca49a716f1320004affc8827cc52a46ad9b58ab09d6e9c57482804277e84096b03236648fe8779de29cb7a869dd70b2048fd2dbeff96a8a3e5dea711e07b83c201aa2d8289200bd901064ba79aadae702a760f22efd3e75ca2f1bc3764c3cab8cb0e674d1d5b6ebeae2d3978f36cbca8e67916122685cc4a593baf2e27cf86158a0e71e8224b83a4102c000755ca87b3cd488c2a4e614dcaa09dda9a90e5bd52a96d4d5cd307d3f6309ea03169d1afd35285a43872179808328edf6e5db216ca06d854355bca8d7b77d6a1610008e4a5ea1676cfeb7bd5e4ec1b3db552f7b63feb2b7462bc4cc4856b6d08079bde755f73ddccd5d6badbbb8f9ed093afb13b0824f584afca3265e2159597d08427000bd8a3dc4ed2863bb95cf2f8c6ac0ca562580e6781cce24d1ca9a3582cb0ef96f603b50ca5b218a30cb372b8fdc86beb508d04ec399a33391a09bdcb44fcac2852000cd2989b59db02fd629a6188b1fbb845ee2de4415cc4a96a5a70ae27201388a45838813b333dd67a46791793e4f0b6ca9ebc89026e01b3690d768ffb8670ddcb01010db8a0fa627740ec52383d31784562139825432ad9a38221e320d622cdf47a87840cbc912a058df44af5c67c9f7e68a2c4cda04fdfdf26709dc354612ea5be2742010ea2011e4aa543d9338279d4fc9ff5e50e19196685cccd99989b0860ef88edfddb6254be1bbb843301531fbd90e16882215457b7d858eddf49d6cb6114a41ee18c000ffde17149e85ffc805a3b7ce96980ad8e0128ab47e55cabaff02d0232f6d7ea7c7d38b4988a8c9939e746dd38203e5d8a95704726243e326fd4b4c342bd293c2901125360edcaa7f141957a904532b7f87e60677f63141fdeb4130bdde71acddcebbb261f1d2304b30a7939b329a20578cb96a261811926e6b20ce3e9b82c0eb00c760166310b9a00000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa710000000003343f7401415557560000000000083e384f0000271071ec9a827f5731329bb74386f696d4076c299d3301005500ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace0000004612b40b60000000001a5c17b8fffffff80000000066310b9a0000000066310b99000000461e084850000000001111dbf20a026cedeb9dc455fac1e2e998b26c19fbcb9ef6fb2254b94ff8a4dc2ed5fbbe705140bec8caf1944ff7d25828e60a5e69e59a3de8b2f6a638b79360f1894723330a3ecd5a4d557e6962a8b221e1fb63791f43a2186699d38bb54b8f75129353e36643983d31fcb76ea3ef435c782b2b0542c35f98b9781ad54f06e03208b513d0b86841843b64dbaeff73fdaec8743fb630e6bc0b4c388ac119231ba0c9626ce664490011a4df320b3181d4b6d668d9ff71c8daf03bfa9c407c92904e690636e9718bd1ec31e21072'
+
+const BTC_VAA_UPDATE =
+  '0x504e41550100000003b801000000040d00bf84910ae0710ca32fce53cc7092f8d0afd764cf29107c79b124b0053bd6fa0041f470afa06445fa08870d082329c8ad72c161e1d793bc661ece5fa5eeb181000102478a2c8addf88d47c84f234100a8b6f90cb2122b73741490d52e661a6a846f873a47b59b3c49a81fc0cf13ac1deced0d108042a69c9a648c989ab331d05a63cd0103d4db036dd3b44ebf543fec8757f73cbd2d935d9242fba949dc69a4e669c23d2315344dadd1bcdf2439d73ae7472339b6e751b3dd73a4b2ba4e20ca49a716f1320004affc8827cc52a46ad9b58ab09d6e9c57482804277e84096b03236648fe8779de29cb7a869dd70b2048fd2dbeff96a8a3e5dea711e07b83c201aa2d8289200bd901064ba79aadae702a760f22efd3e75ca2f1bc3764c3cab8cb0e674d1d5b6ebeae2d3978f36cbca8e67916122685cc4a593baf2e27cf86158a0e71e8224b83a4102c000755ca87b3cd488c2a4e614dcaa09dda9a90e5bd52a96d4d5cd307d3f6309ea03169d1afd35285a43872179808328edf6e5db216ca06d854355bca8d7b77d6a1610008e4a5ea1676cfeb7bd5e4ec1b3db552f7b63feb2b7462bc4cc4856b6d08079bde755f73ddccd5d6badbbb8f9ed093afb13b0824f584afca3265e2159597d08427000bd8a3dc4ed2863bb95cf2f8c6ac0ca562580e6781cce24d1ca9a3582cb0ef96f603b50ca5b218a30cb372b8fdc86beb508d04ec399a33391a09bdcb44fcac2852000cd2989b59db02fd629a6188b1fbb845ee2de4415cc4a96a5a70ae27201388a45838813b333dd67a46791793e4f0b6ca9ebc89026e01b3690d768ffb8670ddcb01010db8a0fa627740ec52383d31784562139825432ad9a38221e320d622cdf47a87840cbc912a058df44af5c67c9f7e68a2c4cda04fdfdf26709dc354612ea5be2742010ea2011e4aa543d9338279d4fc9ff5e50e19196685cccd99989b0860ef88edfddb6254be1bbb843301531fbd90e16882215457b7d858eddf49d6cb6114a41ee18c000ffde17149e85ffc805a3b7ce96980ad8e0128ab47e55cabaff02d0232f6d7ea7c7d38b4988a8c9939e746dd38203e5d8a95704726243e326fd4b4c342bd293c2901125360edcaa7f141957a904532b7f87e60677f63141fdeb4130bdde71acddcebbb261f1d2304b30a7939b329a20578cb96a261811926e6b20ce3e9b82c0eb00c760166310b9a00000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa710000000003343f7401415557560000000000083e384f0000271071ec9a827f5731329bb74386f696d4076c299d3301005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b430000058ce5440300000000012c1c00c0fffffff80000000066310b9a0000000066310b990000058f281c37400000000113bf30240ad9de5059659a1dba416f9a5af31d7ba0593baa9fead238e7a6dfd7e0b1414dca7317313fa822055947d17ecb51bd5436a5195f991c29169adc49ee0f65c03a119d4132ab9b3f4b07c5e1b7b404eee0ab968c78123c7247267e46fef519c7d7f1f76326f382492c37e13556bf3b46ec5c071b5134526c65224f06e03208b513d0b86841843b64dbaeff73fdaec8743fb630e6bc0b4c388ac119231ba0c9626ce664490011a4df320b3181d4b6d668d9ff71c8daf03bfa9c407c92904e690636e9718bd1ec31e21072'
+
+const LINK_VAA_UPDATE =
+  '0x504e41550100000003b801000000040d00bf84910ae0710ca32fce53cc7092f8d0afd764cf29107c79b124b0053bd6fa0041f470afa06445fa08870d082329c8ad72c161e1d793bc661ece5fa5eeb181000102478a2c8addf88d47c84f234100a8b6f90cb2122b73741490d52e661a6a846f873a47b59b3c49a81fc0cf13ac1deced0d108042a69c9a648c989ab331d05a63cd0103d4db036dd3b44ebf543fec8757f73cbd2d935d9242fba949dc69a4e669c23d2315344dadd1bcdf2439d73ae7472339b6e751b3dd73a4b2ba4e20ca49a716f1320004affc8827cc52a46ad9b58ab09d6e9c57482804277e84096b03236648fe8779de29cb7a869dd70b2048fd2dbeff96a8a3e5dea711e07b83c201aa2d8289200bd901064ba79aadae702a760f22efd3e75ca2f1bc3764c3cab8cb0e674d1d5b6ebeae2d3978f36cbca8e67916122685cc4a593baf2e27cf86158a0e71e8224b83a4102c000755ca87b3cd488c2a4e614dcaa09dda9a90e5bd52a96d4d5cd307d3f6309ea03169d1afd35285a43872179808328edf6e5db216ca06d854355bca8d7b77d6a1610008e4a5ea1676cfeb7bd5e4ec1b3db552f7b63feb2b7462bc4cc4856b6d08079bde755f73ddccd5d6badbbb8f9ed093afb13b0824f584afca3265e2159597d08427000bd8a3dc4ed2863bb95cf2f8c6ac0ca562580e6781cce24d1ca9a3582cb0ef96f603b50ca5b218a30cb372b8fdc86beb508d04ec399a33391a09bdcb44fcac2852000cd2989b59db02fd629a6188b1fbb845ee2de4415cc4a96a5a70ae27201388a45838813b333dd67a46791793e4f0b6ca9ebc89026e01b3690d768ffb8670ddcb01010db8a0fa627740ec52383d31784562139825432ad9a38221e320d622cdf47a87840cbc912a058df44af5c67c9f7e68a2c4cda04fdfdf26709dc354612ea5be2742010ea2011e4aa543d9338279d4fc9ff5e50e19196685cccd99989b0860ef88edfddb6254be1bbb843301531fbd90e16882215457b7d858eddf49d6cb6114a41ee18c000ffde17149e85ffc805a3b7ce96980ad8e0128ab47e55cabaff02d0232f6d7ea7c7d38b4988a8c9939e746dd38203e5d8a95704726243e326fd4b4c342bd293c2901125360edcaa7f141957a904532b7f87e60677f63141fdeb4130bdde71acddcebbb261f1d2304b30a7939b329a20578cb96a261811926e6b20ce3e9b82c0eb00c760166310b9a00000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa710000000003343f7401415557560000000000083e384f0000271071ec9a827f5731329bb74386f696d4076c299d33010055008ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221000000004e8cc8f90000000000119427fffffff80000000066310b9a0000000066310b99000000004e8450a00000000000125b280a6981646db139b51d8e22dc87d1cde063fe889749882efb164e07ff3a6d9648d7072b0bcee67a904af73a2a5142bb84790352d18aaad295cffe418c89b42c9a9ca3ab93ceead0f46119838ca42c9e3026d7be1c065671cce8e3be6ce8fa23d21c892c3378416cd01d54c7704d7beda0bc455c9bd74acdf9d375da0d5494024fd4a601737bc77eb4f8089ff7039f345f1311a397f306e327b6ce39b027c287084064490011a4df320b3181d4b6d668d9ff71c8daf03bfa9c407c92904e690636e9718bd1ec31e21072'
+
+// Publish Time: 1714490274
+const ETH_VAA_FULFILL =
+  '0x504e41550100000003b801000000040d00c4ef24924a7353bfdedfa32ba0d65fcef47a28827329a62a94a1809b86e2fd0d0a707993e1b91fa3d276913ab532592e62f2fb7d4ca64b777b1de3b8965dfb5b0002f5167934951e1bad15c73318d2bbe07fefc754db0305f3b02f4cc4192c12225c16901256a917a9ad3f396ff6d7d828ff06bd25953479899ee20bb2dde084f315010337bdc97b4fd557208d725ed842d468b112eb7762a10ee5123827d6269685ffef048ec04d189aa4252030145ba9b3a92aa8675f0e0d6d1d31c44a1f29e86c8aa3000445e9acf2ef610314971a7e0a8417db115ee74104933704f0f91c07cf8a2beacb050126a72b995fc5cea33d0bc0058c38bbcc297e9d5737d766649098303a33f30106525d74a81d64c4eb31c457a1f41672db02e025e598dfdb843849864a94c022e62d833024e2f13e434a109f2b2a619fd0a45c0a75d6adf489096271b777dc0c6d0007cbb9a1914890f1ef3f6b4d8d192c855f3397cc84360303fac1e4846764474ba40f0edef5504a1e976020476db389cd158815ef9160b0374731509e7dafa58bc00108ee8c792881fd669e932219d4801783c16278991bb5827e5b3f9c4401c6f5377a66fae9d257248b591102b1a4c0bf684c5306a325e27dce1d2bf71243b217c766010b5cefe9728629d9959f0ffd039c5ef5b31f4270bf61849b6432d14c55f02b15d530b6710bd60466c86f05ccf3295a74d542c979e0b28ed34d794d662d55ed95a2000d9f1acfa8fd7624c9f273de33df21f37326da0a78c4931f3a56e6791ce1ac8af44d094978d74aaf84b85e694a2e179f086293b06d8331f703afccc0b9c22e7eea000e186db6db0270d632c1182adc1c9cd7d9899c540fc08e35f491f9e3a8ce7a68d449fce7c08bfe58e265b10e77c918c96a8e3b49ee2081a3347cf8f39e7bf9f09f000f89f7bea1de1fe8e953537eba94b85f8f1d3b0885dc71172d54eb9d5ec1a54b6067dd960d9c25f5e1632207e90f7c397470a1e3ec0b8048ea3fe4800766a8b8d701115005d9ee867266fa67f99753feba57c7578ed02898dd7a1a8eb9cec3f0297b876a2ecaeb2bc65d2991fbd33764f3c60625cd5a2afcdcf67d123c0a1cdf4f720f001244934cdb2e766643564100bf42c4872424589be876c3757a60ceafdf2302151c0168ea3cf08c6a2a2f8c401c5f72cf58c03700c1576c3eaa37b07193a93b38010166310ba200000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa710000000003343f8101415557560000000000083e385d00002710241610397921ca6f32c2be3f0a0037cb68a6f6f601005500ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace000000460cf392400000000015950fa0fffffff80000000066310ba20000000066310ba1000000461e053b10000000001113bbfc0a3b8731a640e2743fa9a31f56a51424a3a2597a847f5788c107290fe0a04a4e7e5837ca5563e4700a37200c1903f190e9f2d43d3e3442b2d02737835ed65c46d6adf2d2929e9a36fd0cfbec64955bab9cdc45484d158ec7e31c14b9dac1cf9152fd23676a5401f3bbe1fbb69da7b01110c9d6100a45c32fc563851f3a55daaa1262d7b013f0c2ae4d9309b16f825f9ffddf878840725d3394846b437757b5cc8012d33b165aeec83e4f5d2e02bad5b5db2f29b2b69b611ea9b1bd511aa01bb4c763a08843be0173e4'
+
+const BTC_VAA_FULFILL =
+  '0x504e41550100000003b801000000040d00c4ef24924a7353bfdedfa32ba0d65fcef47a28827329a62a94a1809b86e2fd0d0a707993e1b91fa3d276913ab532592e62f2fb7d4ca64b777b1de3b8965dfb5b0002f5167934951e1bad15c73318d2bbe07fefc754db0305f3b02f4cc4192c12225c16901256a917a9ad3f396ff6d7d828ff06bd25953479899ee20bb2dde084f315010337bdc97b4fd557208d725ed842d468b112eb7762a10ee5123827d6269685ffef048ec04d189aa4252030145ba9b3a92aa8675f0e0d6d1d31c44a1f29e86c8aa3000445e9acf2ef610314971a7e0a8417db115ee74104933704f0f91c07cf8a2beacb050126a72b995fc5cea33d0bc0058c38bbcc297e9d5737d766649098303a33f30106525d74a81d64c4eb31c457a1f41672db02e025e598dfdb843849864a94c022e62d833024e2f13e434a109f2b2a619fd0a45c0a75d6adf489096271b777dc0c6d0007cbb9a1914890f1ef3f6b4d8d192c855f3397cc84360303fac1e4846764474ba40f0edef5504a1e976020476db389cd158815ef9160b0374731509e7dafa58bc00108ee8c792881fd669e932219d4801783c16278991bb5827e5b3f9c4401c6f5377a66fae9d257248b591102b1a4c0bf684c5306a325e27dce1d2bf71243b217c766010b5cefe9728629d9959f0ffd039c5ef5b31f4270bf61849b6432d14c55f02b15d530b6710bd60466c86f05ccf3295a74d542c979e0b28ed34d794d662d55ed95a2000d9f1acfa8fd7624c9f273de33df21f37326da0a78c4931f3a56e6791ce1ac8af44d094978d74aaf84b85e694a2e179f086293b06d8331f703afccc0b9c22e7eea000e186db6db0270d632c1182adc1c9cd7d9899c540fc08e35f491f9e3a8ce7a68d449fce7c08bfe58e265b10e77c918c96a8e3b49ee2081a3347cf8f39e7bf9f09f000f89f7bea1de1fe8e953537eba94b85f8f1d3b0885dc71172d54eb9d5ec1a54b6067dd960d9c25f5e1632207e90f7c397470a1e3ec0b8048ea3fe4800766a8b8d701115005d9ee867266fa67f99753feba57c7578ed02898dd7a1a8eb9cec3f0297b876a2ecaeb2bc65d2991fbd33764f3c60625cd5a2afcdcf67d123c0a1cdf4f720f001244934cdb2e766643564100bf42c4872424589be876c3757a60ceafdf2302151c0168ea3cf08c6a2a2f8c401c5f72cf58c03700c1576c3eaa37b07193a93b38010166310ba200000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa710000000003343f8101415557560000000000083e385d00002710241610397921ca6f32c2be3f0a0037cb68a6f6f601005500e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b430000058cc029f07b000000014626c6c5fffffff80000000066310ba20000000066310ba10000058f2735cee00000000113c62ff00a2fc1f74245c66bf5129284c1f485efc4c8cba2d39b5289266526d7b15e5160e8f3f7486feb5cff3864945717b3b4c30e394156d1b92e0a5a38d2bc17bd09213d5ddf9ae1a7ecd62d5057c819f914a8c0135806037f89ae8fe54b1bf2fb3d155ad8e1e926134db91cc01c235ee6153b03d854607be68b05ce63851f3a55daaa1262d7b013f0c2ae4d9309b16f825f9ffddf878840725d3394846b437757b5cc8012d33b165aeec83e4f5d2e02bad5b5db2f29b2b69b611ea9b1bd511aa01bb4c763a08843be0173e4'
+
+const LINK_VAA_FULFILL =
+  '0x504e41550100000003b801000000040d00c4ef24924a7353bfdedfa32ba0d65fcef47a28827329a62a94a1809b86e2fd0d0a707993e1b91fa3d276913ab532592e62f2fb7d4ca64b777b1de3b8965dfb5b0002f5167934951e1bad15c73318d2bbe07fefc754db0305f3b02f4cc4192c12225c16901256a917a9ad3f396ff6d7d828ff06bd25953479899ee20bb2dde084f315010337bdc97b4fd557208d725ed842d468b112eb7762a10ee5123827d6269685ffef048ec04d189aa4252030145ba9b3a92aa8675f0e0d6d1d31c44a1f29e86c8aa3000445e9acf2ef610314971a7e0a8417db115ee74104933704f0f91c07cf8a2beacb050126a72b995fc5cea33d0bc0058c38bbcc297e9d5737d766649098303a33f30106525d74a81d64c4eb31c457a1f41672db02e025e598dfdb843849864a94c022e62d833024e2f13e434a109f2b2a619fd0a45c0a75d6adf489096271b777dc0c6d0007cbb9a1914890f1ef3f6b4d8d192c855f3397cc84360303fac1e4846764474ba40f0edef5504a1e976020476db389cd158815ef9160b0374731509e7dafa58bc00108ee8c792881fd669e932219d4801783c16278991bb5827e5b3f9c4401c6f5377a66fae9d257248b591102b1a4c0bf684c5306a325e27dce1d2bf71243b217c766010b5cefe9728629d9959f0ffd039c5ef5b31f4270bf61849b6432d14c55f02b15d530b6710bd60466c86f05ccf3295a74d542c979e0b28ed34d794d662d55ed95a2000d9f1acfa8fd7624c9f273de33df21f37326da0a78c4931f3a56e6791ce1ac8af44d094978d74aaf84b85e694a2e179f086293b06d8331f703afccc0b9c22e7eea000e186db6db0270d632c1182adc1c9cd7d9899c540fc08e35f491f9e3a8ce7a68d449fce7c08bfe58e265b10e77c918c96a8e3b49ee2081a3347cf8f39e7bf9f09f000f89f7bea1de1fe8e953537eba94b85f8f1d3b0885dc71172d54eb9d5ec1a54b6067dd960d9c25f5e1632207e90f7c397470a1e3ec0b8048ea3fe4800766a8b8d701115005d9ee867266fa67f99753feba57c7578ed02898dd7a1a8eb9cec3f0297b876a2ecaeb2bc65d2991fbd33764f3c60625cd5a2afcdcf67d123c0a1cdf4f720f001244934cdb2e766643564100bf42c4872424589be876c3757a60ceafdf2302151c0168ea3cf08c6a2a2f8c401c5f72cf58c03700c1576c3eaa37b07193a93b38010166310ba200000000001ae101faedac5851e32b9b23b5f9411a8c2bac4aae3ed4dd7b811dd1a72ea4aa710000000003343f8101415557560000000000083e385d00002710241610397921ca6f32c2be3f0a0037cb68a6f6f6010055008ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221000000004e877460000000000013725cfffffff80000000066310ba20000000066310ba1000000004e8452620000000000125b4d0a1cc3a82fbcb972a5808ed605ada87318e1f47bf97885ac543149a4a28c43f955261f255103c5f0f386638e58274ecd336685e230b4c9c0307d7e000c7fdde95f6d3230e3984240fe8713999ac478d3e12cb2f9d08404f8b04b75d6eb315edae362e93322bb688a04557f6a7e4591c137249734c3386a24800d6f0f4183ecfe279691395021202147b20cf3a250798e91266792cdaaf29bef5785dd76e9d6a2a312d33b165aeec83e4f5d2e02bad5b5db2f29b2b69b611ea9b1bd511aa01bb4c763a08843be0173e4'
