@@ -796,7 +796,7 @@ describe('Orders', () => {
           const { user, userB } = instanceVars
 
           await expect(
-            (buildExecOrder({ user: user.address, market: market.address, orderId: 0 }), userB),
+            invoke(buildExecOrder({ user: user.address, market: market.address, orderId: 0 }), userB),
           ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerCantExecuteError')
 
           const trigger = openTriggerOrder({
