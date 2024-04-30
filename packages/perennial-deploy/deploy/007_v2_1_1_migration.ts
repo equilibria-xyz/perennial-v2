@@ -118,7 +118,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   })
 
   console.log(`
-    Step 0 of migration complete! Next Steps:
+    Step 0 of v2.1.1 migration complete! Next Steps:
+      1. Upgrade the MarketFactory to new Impl
+      2. Upgrade the VaultFactory to new Impl
+      3. Upgrade the PythFactory to new Impl
   `)
 }
 
