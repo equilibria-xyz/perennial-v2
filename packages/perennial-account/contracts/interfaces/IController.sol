@@ -5,8 +5,11 @@ import { DeployAccount, DeployAccountLib } from "../types/DeployAccount.sol";
 
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
 interface IController {
-    /// @notice Deploys and returns the collateral account for msg.sender
-    function deployAccount() external;
+    /// @notice Emitted upon creation of a collateral account
+    event AccountDeployed(address indexed account);
+
+    /// @notice Deploys the collateral account for msg.sender and returns the address of the account
+    function deployAccount() external returns (address);
 
     /// @notice Deploys a collateral account via a signed message 
     /// @param deployAccount Message requesting creation of a collateral account
@@ -16,5 +19,5 @@ interface IController {
     /// @notice Returns the deterministic address of the collateral account for a user, 
     /// regardless of whether or not it exists.
     /// @param user Identifies the EOA for which a collateral account is desired
-    function getAccount(address user) external returns (address);
+    function getAccountAddress(address user) external view returns (address);
 }

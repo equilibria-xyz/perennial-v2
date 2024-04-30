@@ -11,6 +11,7 @@
   "scripts": {
     "build": "yarn compile",
     "compile": "hardhat compile",
+    "test": "hardhat test test/unit/*",
     "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
     "format": "prettier -w .",
     "clean": "rm -rf cache artifacts types/generated dist deployments/localhost",
@@ -19,6 +20,6 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
-    "@equilibria/perennial-v2-verifier": "1.1.0-rc1"
+    "@equilibria/perennial-v2": "1.1.0-rc1"
   }
 }
