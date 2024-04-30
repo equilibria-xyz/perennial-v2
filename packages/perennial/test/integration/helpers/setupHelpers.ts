@@ -223,7 +223,6 @@ export async function createMarket(
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      adiabaticFee: 0,
       scale: parse6decimal('10000'),
     },
     makerLimit: parse6decimal('1000'),

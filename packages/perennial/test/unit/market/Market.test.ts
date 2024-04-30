@@ -450,7 +450,6 @@ describe('Market', () => {
       makerFee: {
         linearFee: 0,
         proportionalFee: 0,
-        adiabaticFee: 0,
         scale: parse6decimal('10.000'),
       },
       makerLimit: parse6decimal('1000'),
@@ -529,7 +528,6 @@ describe('Market', () => {
       expect(riskParameterResult.takerFee.scale).to.equal(0)
       expect(riskParameterResult.makerFee.linearFee).to.equal(0)
       expect(riskParameterResult.makerFee.proportionalFee).to.equal(0)
-      expect(riskParameterResult.makerFee.adiabaticFee).to.equal(0)
       expect(riskParameterResult.makerFee.scale).to.equal(0)
       expect(riskParameterResult.makerLimit).to.equal(0)
       expect(riskParameterResult.efficiencyLimit).to.equal(0)
@@ -639,7 +637,6 @@ describe('Market', () => {
         makerFee: {
           linearFee: parse6decimal('0.005'),
           proportionalFee: parse6decimal('0.001'),
-          adiabaticFee: parse6decimal('0.004'),
           scale: parse6decimal('100.00'),
         },
         makerLimit: parse6decimal('2000'),
@@ -677,7 +674,6 @@ describe('Market', () => {
         expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
         expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
         expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
-        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
         expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
@@ -712,7 +708,6 @@ describe('Market', () => {
         expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
         expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
         expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
-        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
         expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
@@ -783,7 +778,6 @@ describe('Market', () => {
         expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
         expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
         expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
-        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
         expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
@@ -2144,7 +2138,6 @@ describe('Market', () => {
             const riskParameterMakerFee = { ...riskParameter.makerFee }
             riskParameterMakerFee.linearFee = parse6decimal('0.005')
             riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
-            riskParameterMakerFee.adiabaticFee = BigNumber.from(0)
             riskParameter.makerFee = riskParameterMakerFee
             await market.updateRiskParameter(riskParameter)
 
@@ -2713,7 +2706,6 @@ describe('Market', () => {
               const riskParameterMakerFee = { ...riskParameter.makerFee }
               riskParameterMakerFee.linearFee = parse6decimal('0.005')
               riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
-              riskParameterMakerFee.adiabaticFee = BigNumber.from(0)
               riskParameter.makerFee = riskParameterMakerFee
               await market.updateRiskParameter(riskParameter)
 
@@ -9346,7 +9338,6 @@ describe('Market', () => {
             const riskParameterMakerFee = { ...riskParameter.makerFee }
             riskParameterMakerFee.linearFee = parse6decimal('0.01')
             riskParameterMakerFee.proportionalFee = parse6decimal('0.004')
-            riskParameterMakerFee.adiabaticFee = BigNumber.from(0)
             riskParameter.takerFee = riskParmeterTakerFee
             riskParameter.makerFee = riskParameterMakerFee
             await market.updateRiskParameter(riskParameter)
