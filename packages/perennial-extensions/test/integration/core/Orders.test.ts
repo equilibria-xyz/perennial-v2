@@ -6,7 +6,7 @@ import 'hardhat'
 
 import { expect } from 'chai'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { Market, MultiInvoker } from '../../../types/generated'
+import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 import {
   MAX_INT64,
@@ -91,8 +91,8 @@ describe('Orders', () => {
       context: 'From delegate',
       setup: async () => {
         const { user, userB, userD } = instanceVars
-        multiInvoker.connect(user).approve(userD.address, true)
-        multiInvoker.connect(userB).approve(userD.address, true)
+        await multiInvoker.connect(user).approve(userD.address, true)
+        await multiInvoker.connect(userB).approve(userD.address, true)
       },
       invoke: async (
         args: IMultiInvoker.InvocationStruct[],
@@ -819,8 +819,6 @@ describe('Orders', () => {
         })
 
         it('fails to place order with 0 fee', async () => {
-          const { user } = instanceVars
-
           const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
           const trigger = openTriggerOrder({
@@ -841,8 +839,6 @@ describe('Orders', () => {
         })
 
         it('fails to place order with comparison == 0 || > |1|', async () => {
-          const { user } = instanceVars
-
           const triggerPrice = payoff(PRICE).div(1e12)
 
           const trigger = openTriggerOrder({
@@ -869,8 +865,6 @@ describe('Orders', () => {
         })
 
         it('fails to place order with side > 3', async () => {
-          const { user } = instanceVars
-
           const triggerPrice = payoff(PRICE).div(1e12)
 
           const trigger = openTriggerOrder({
@@ -886,8 +880,6 @@ describe('Orders', () => {
         })
 
         it('fails to place order with side = 3, delta >= 0', async () => {
-          const { user } = instanceVars
-
           const triggerPrice = payoff(PRICE).div(1e12)
 
           const trigger = openTriggerOrder({

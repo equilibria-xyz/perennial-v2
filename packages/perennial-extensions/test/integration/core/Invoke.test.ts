@@ -156,7 +156,7 @@ describe('Invoke', () => {
       context: 'From delegate',
       setup: async () => {
         const { user, userD } = instanceVars
-        multiInvoker.connect(user).approve(userD.address, true)
+        await multiInvoker.connect(user).approve(userD.address, true)
       },
       invoke: async (args: IMultiInvoker.InvocationStruct[]) => {
         const { user, userD } = instanceVars
@@ -647,16 +647,12 @@ describe('Invoke', () => {
         })
 
         it('Only allows updates to factory created markets', async () => {
-          const { user } = instanceVars
-
           await expect(
             invoke(buildUpdateMarket({ market: vault.address, collateral: collateral })),
           ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
         })
 
         it('Only allows updates to factory created vaults', async () => {
-          const { user } = instanceVars
-
           await expect(invoke(buildUpdateVault({ vault: market.address }))).to.be.revertedWithCustomError(
             multiInvoker,
             'MultiInvokerInvalidInstanceError',
@@ -664,8 +660,6 @@ describe('Invoke', () => {
         })
 
         it('Only allows liquidations to factory created markets', async () => {
-          const { user } = instanceVars
-
           await expect(invoke(buildUpdateMarket({ market: vault.address }))).to.be.revertedWithCustomError(
             multiInvoker,
             'MultiInvokerInvalidInstanceError',
@@ -673,8 +667,6 @@ describe('Invoke', () => {
         })
 
         it('Fails to place an order in an address not created by MarketFactory', async () => {
-          const { user } = instanceVars
-
           const trigger = openTriggerOrder({
             delta: collateral,
             price: 1100e6,
@@ -704,7 +696,6 @@ describe('Invoke', () => {
           })
 
           it('Wraps USDC to DSU through RESERVE and unwraps DSU to USDC through RESERVE if BATCHER address == 0', async () => {
-            const { user } = instanceVars
             await expect(
               invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
             )
