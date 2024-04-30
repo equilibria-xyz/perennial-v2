@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/attribute/interfaces/IFactory.sol";
+import "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
 import "../types/ProtocolParameter.sol";
 import "./IMarket.sol";
 
@@ -33,6 +34,7 @@ interface IMarketFactory is IFactory {
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;
     function updateOperator(address operator, bool newEnabled) external;
+    function updateOperatorWithSignature(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external;
     function updateSigner(address signer, bool newEnabled) external;
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external;
     function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);

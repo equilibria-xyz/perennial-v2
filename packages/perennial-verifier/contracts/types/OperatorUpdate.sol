@@ -23,6 +23,6 @@ library OperatorUpdateLib {
     bytes32 constant public STRUCT_HASH = keccak256("OperatorUpdate(address operator,bool approved,Common common)Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)");
 
     function hash(OperatorUpdate memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.operator, self.approved,CommonLib.hash(self.common)));
+        return keccak256(abi.encode(STRUCT_HASH, self.operator, self.approved, CommonLib.hash(self.common)));
     }
 }
