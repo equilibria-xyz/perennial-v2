@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import { DeployAccount, DeployAccountLib } from "../types/DeployAccount.sol";
 
+/// @notice Facilitates unpermissioned actions between collateral accounts and markets
 interface IController {
     /// @notice Deploys and returns the collateral account for msg.sender
     function deployAccount() external;
