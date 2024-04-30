@@ -11,8 +11,8 @@ import {
 } from '../types/generated'
 import { PAYOFFS } from './002_deploy_payoff'
 
-// TODO: remove once ORACLES is populated with all chains
-const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
+// used by other scripts to map assets to oracleId
+export const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   arbitrum: {
     eth: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', // Pyth: ETH
     btc: '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', // Pyth: BTC
@@ -34,16 +34,15 @@ const ORACLE_IDS: { [key: string]: { [asset: string]: string } } = {
   },
 }
 
-export const ORACLES: {
-  [key: string]: {
-    [asset: string]: {
-      oracleId: string
-      underlyingId: string
-      payoffProviderName: string
-      payoffDecimals: BigNumber
-    }
-  }
-} = {
+interface OracleDefinition {
+  oracleId: string
+  underlyingId: string
+  payoffProviderName: string
+  payoffDecimals: BigNumber
+}
+
+// used by this script to configure oracles
+const ORACLES: { [key: string]: { [asset: string]: OracleDefinition } } = {
   arbitrum: {
     // TODO: determine current payoff providers for each market
   },

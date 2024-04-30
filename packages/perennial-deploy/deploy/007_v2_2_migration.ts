@@ -4,7 +4,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { isArbitrum, isMainnet } from '../../common/testutil/network'
 import { OracleFactory__factory, ProxyAdmin__factory, PythFactory__factory } from '../types/generated'
 import { INITIAL_AMOUNT } from './005_deploy_vault'
-import { DEFAULT_GRANULARITY, ORACLES } from './003_deploy_oracle'
+import { DEFAULT_GRANULARITY } from './003_deploy_oracle'
 import { MARKET_LIBRARIES } from './004_deploy_market'
 
 const SkipIfAlreadyDeployed = false
