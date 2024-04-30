@@ -91,8 +91,8 @@ describe('Orders', () => {
       context: 'From delegate',
       setup: async () => {
         const { user, userB, userD } = instanceVars
-        await multiInvoker.connect(user).approve(userD.address, true)
-        await multiInvoker.connect(userB).approve(userD.address, true)
+        await multiInvoker.connect(user).updateOperator(userD.address, true)
+        await multiInvoker.connect(userB).updateOperator(userD.address, true)
       },
       invoke: async (
         args: IMultiInvoker.InvocationStruct[],

@@ -123,23 +123,23 @@ describe('Invoke', () => {
     ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
   })
 
-  describe('#approve', () => {
-    it('approves a target', async () => {
+  describe('#updateOperator', () => {
+    it('sets operator as enabled', async () => {
       const { user, userD } = instanceVars
-      await expect(multiInvoker.connect(user).approve(userD.address, true))
-        .to.emit(multiInvoker, 'ApprovalUpdated')
+      await expect(multiInvoker.connect(user).updateOperator(userD.address, true))
+        .to.emit(multiInvoker, 'OperatorUpdated')
         .withArgs(user.address, userD.address, true)
-      expect(await multiInvoker.approvals(user.address, userD.address)).to.be.true
+      expect(await multiInvoker.operators(user.address, userD.address)).to.be.true
     })
 
-    it('removes target approval', async () => {
+    it('sets an operator as disabled', async () => {
       const { user, userD } = instanceVars
-      await multiInvoker.connect(user).approve(userD.address, true)
-      expect(await multiInvoker.approvals(user.address, userD.address)).to.be.true
-      await expect(multiInvoker.connect(user).approve(userD.address, false))
-        .to.emit(multiInvoker, 'ApprovalUpdated')
+      await multiInvoker.connect(user).updateOperator(userD.address, true)
+      expect(await multiInvoker.operators(user.address, userD.address)).to.be.true
+      await expect(multiInvoker.connect(user).updateOperator(userD.address, false))
+        .to.emit(multiInvoker, 'OperatorUpdated')
         .withArgs(user.address, userD.address, false)
-      expect(await multiInvoker.approvals(user.address, userD.address)).to.be.false
+      expect(await multiInvoker.operators(user.address, userD.address)).to.be.false
     })
   })
 
@@ -156,7 +156,7 @@ describe('Invoke', () => {
       context: 'From delegate',
       setup: async () => {
         const { user, userD } = instanceVars
-        await multiInvoker.connect(user).approve(userD.address, true)
+        await multiInvoker.connect(user).updateOperator(userD.address, true)
       },
       invoke: async (args: IMultiInvoker.InvocationStruct[]) => {
         const { user, userD } = instanceVars

@@ -37,7 +37,7 @@ interface IMultiInvoker {
         bytes args;
     }
 
-    event ApprovalUpdated(address indexed account, address indexed target, bool approved);
+    event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
     event OrderPlaced(address indexed account, IMarket indexed market, uint256 indexed nonce, TriggerOrder order);
     event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce);
@@ -57,7 +57,8 @@ interface IMultiInvoker {
     // sig: 0x6f462962
     error MultiInvokerCantExecuteError();
 
-    function approve(address target, bool approved) external;
+    function updateOperator(address operator, bool newEnabled) external;
+    function operators(address account, address operator) external view returns (bool);
     function invoke(address account, Invocation[] calldata invocations) external payable;
     function invoke(Invocation[] calldata invocations) external payable;
     function marketFactory() external view returns (IFactory);

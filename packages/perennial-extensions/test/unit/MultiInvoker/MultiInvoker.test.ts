@@ -18,7 +18,6 @@ import {
   IOracleProvider,
   IMultiInvoker,
 } from '../../../types/generated'
-import { OracleVersionStruct } from '@equilibria/perennial-v2-oracle/types/generated/contracts/Oracle'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
   buildUpdateMarket,
@@ -40,6 +39,7 @@ import { openTriggerOrder, setGlobalPrice, setMarketPosition, Compare, Dir } fro
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { PositionStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import { OracleVersionStruct } from '../../../types/generated/@equilibria/perennial-v2-oracle/contracts/Oracle'
 
 const ethers = { HRE }
 use(smock.matchers)
@@ -125,21 +125,21 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
       await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
     })
 
-    describe('#approve', () => {
-      it('approves a target', async () => {
-        await expect(multiInvoker.connect(user).approve(user2.address, true))
-          .to.emit(multiInvoker, 'ApprovalUpdated')
+    describe('#updateOperator', () => {
+      it('sets operator as enabled', async () => {
+        await expect(multiInvoker.connect(user).updateOperator(user2.address, true))
+          .to.emit(multiInvoker, 'OperatorUpdated')
           .withArgs(user.address, user2.address, true)
-        expect(await multiInvoker.approvals(user.address, user2.address)).to.be.true
+        expect(await multiInvoker.operators(user.address, user2.address)).to.be.true
       })
 
-      it('removes target approval', async () => {
-        await multiInvoker.connect(user).approve(user2.address, true)
-        expect(await multiInvoker.approvals(user.address, user2.address)).to.be.true
-        await expect(multiInvoker.connect(user).approve(user2.address, false))
-          .to.emit(multiInvoker, 'ApprovalUpdated')
+      it('sets an operator as disabled', async () => {
+        await multiInvoker.connect(user).updateOperator(user2.address, true)
+        expect(await multiInvoker.operators(user.address, user2.address)).to.be.true
+        await expect(multiInvoker.connect(user).updateOperator(user2.address, false))
+          .to.emit(multiInvoker, 'OperatorUpdated')
           .withArgs(user.address, user2.address, false)
-        expect(await multiInvoker.approvals(user.address, user2.address)).to.be.false
+        expect(await multiInvoker.operators(user.address, user2.address)).to.be.false
       })
     })
 
@@ -152,7 +152,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
       },
       {
         context: 'From delegate',
-        setup: async () => multiInvoker.connect(user).approve(user2.address, true),
+        setup: async () => multiInvoker.connect(user).updateOperator(user2.address, true),
         invoke: async (args: IMultiInvoker.InvocationStruct[]) =>
           multiInvoker.connect(user2)['invoke(address,(uint8,bytes)[])'](user.address, args),
       },

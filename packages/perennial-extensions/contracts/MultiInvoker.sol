@@ -47,8 +47,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev State for the order data
     mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
-    /// @dev Approvals mapping to allow for sender to operate on behalf of account
-    mapping(address => mapping(address => bool)) public approvals;
+    /// @dev Mapping of allowed operators for each account
+    mapping(address => mapping(address => bool)) public operators;
 
     /// @notice Constructs the MultiInvoker contract
     /// @param usdc_ USDC stablecoin address
@@ -113,12 +113,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
         return order.fillable(market.oracle().latest());
     }
 
-    /// @notice Update the approval for an address to operate on behalf of the msg.sender
-    /// @param target Address being approved to operate on behalf of msg.sender
-    /// @param approved Whether the target is allowed to operate on behalf of msg.sender
-    function approve(address target, bool approved) external {
-        approvals[msg.sender][target] = approved;
-        emit ApprovalUpdated(msg.sender, target, approved);
+    /// @notice Updates the status of an operator for the caller
+    /// @param operator The operator to update
+    /// @param newEnabled The new status of the operator
+    function updateOperator(address operator, bool newEnabled) external {
+        operators[msg.sender][operator] = newEnabled;
+        emit OperatorUpdated(msg.sender, operator, newEnabled);
     }
 
     /// @notice entry to perform invocations for msg.sender
@@ -138,7 +138,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to perform invocations for
     /// @param invocations List of actions to execute in order
     function _invoke(address account, Invocation[] calldata invocations) private {
-        if (msg.sender != account && !approvals[account][msg.sender]) revert MultiInvokerUnauthorizedError();
+        if (msg.sender != account && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
 
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
