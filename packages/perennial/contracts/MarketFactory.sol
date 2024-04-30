@@ -24,6 +24,9 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev The referreral fee level for each referrer
     mapping(address => UFixed6) public referralFee;
 
+    /// @dev Mapping of allowed signers for each account
+    mapping(address => mapping(address => bool)) public signers;
+
     /// @notice Constructs the contract
     /// @param oracleFactory_ The oracle factory
     /// @param implementation_ The initial market implementation contract
@@ -58,6 +61,14 @@ contract MarketFactory is IMarketFactory, Factory {
     function updateOperator(address operator, bool newEnabled) external {
         operators[msg.sender][operator] = newEnabled;
         emit OperatorUpdated(msg.sender, operator, newEnabled);
+    }
+
+    /// @notice Updates the status of a signer for the caller
+    /// @param signer The signer to update
+    /// @param newEnabled The new status of the opersignerator
+    function updateSigner(address signer, bool newEnabled) external {
+        signers[msg.sender][signer] = newEnabled;
+        emit SignerUpdated(msg.sender, signer, newEnabled);
     }
 
     /// @notice Updates the referral fee for a referrer

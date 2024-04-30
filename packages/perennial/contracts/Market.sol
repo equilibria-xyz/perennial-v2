@@ -472,8 +472,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeLocal = _guarantees[context.account][context.local.currentId].read();
 
         // load external actors
-        updateContext.operator = IMarketFactory(address(factory())).operators(context.account, msg.sender);
-        updateContext.signer = signer;
+        updateContext.operator = context.account == msg.sender || IMarketFactory(address(factory())).operators(context.account, msg.sender);
+        updateContext.signer = context.account == signer || IMarketFactory(address(factory())).signers(context.account, signer);
         updateContext.liquidator = liquidators[context.account][context.local.currentId];
         updateContext.referrer = referrers[context.account][context.local.currentId];
         updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);
@@ -544,7 +544,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
 
         // after
-        InvariantLib.validate(context, updateContext, msg.sender, newOrder);
+        InvariantLib.validate(context, updateContext, newOrder);
 
         // store
         _storeUpdateContext(context, updateContext);

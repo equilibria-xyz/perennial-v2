@@ -46,7 +46,7 @@ interface IMarket is IInstance {
 
     struct UpdateContext {
         bool operator;
-        address signer;
+        bool signer;
         address liquidator;
         address referrer;
         UFixed6 referralFee;
