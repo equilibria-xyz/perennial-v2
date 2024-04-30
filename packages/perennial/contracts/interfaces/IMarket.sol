@@ -24,6 +24,7 @@ interface IMarket is IInstance {
     }
 
     struct Context {
+        address account;
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         RiskParameter riskParameter;
@@ -45,7 +46,7 @@ interface IMarket is IInstance {
 
     struct UpdateContext {
         bool operator;
-        address signer;
+        bool signer;
         address liquidator;
         address referrer;
         UFixed6 referralFee;

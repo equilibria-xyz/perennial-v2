@@ -237,7 +237,6 @@ describe('Vault', () => {
       makerFee: {
         linearFee: 0,
         proportionalFee: 0,
-        adiabaticFee: 0,
         scale: parse6decimal('100'),
       },
     })
@@ -258,7 +257,6 @@ describe('Vault', () => {
       makerFee: {
         linearFee: 0,
         proportionalFee: 0,
-        adiabaticFee: 0,
         scale: parse6decimal('10'),
       },
     })
