@@ -86,6 +86,7 @@ export async function deployProductOnMainnetFork({
     makerCloseAlways: false,
     takerCloseAlways: false,
     closed: false,
+    settle: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     token: token.address,
