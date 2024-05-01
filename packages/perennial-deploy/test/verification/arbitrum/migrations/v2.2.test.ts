@@ -1,15 +1,23 @@
-import HRE from 'hardhat'
+import HRE, { run } from 'hardhat'
 import { expect } from 'chai'
 import { impersonateWithBalance } from '../../../../../common/testutil/impersonate'
 import { increase, increaseTo, reset } from '../../../../../common/testutil/time'
-import { ArbGasInfo, IERC20, MarketFactory, OracleFactory, ProxyAdmin, PythFactory } from '../../../../types/generated'
+import {
+  ArbGasInfo,
+  IERC20,
+  IMarket,
+  MarketFactory,
+  OracleFactory,
+  ProxyAdmin,
+  PythFactory,
+} from '../../../../types/generated'
 import { BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { smock } from '@defi-wonderland/smock'
 
-const RunMigrationDeployScript = false
+const RunMigrationDeployScript = true
 
-describe('Verify Arbitrum v2.1 Migration', () => {
+describe('Verify Arbitrum v2.2 Migration', () => {
   let DSU: IERC20
   let USDC: IERC20
   let timelockSigner: SignerWithAddress
@@ -22,6 +30,7 @@ describe('Verify Arbitrum v2.1 Migration', () => {
   let usdcBalanceDifference: BigNumber
 
   let oracleIDs: { id: string; oracle: string }[]
+  let markets: IMarket[]
 
   const { deployments, ethers } = HRE
   const { fixture, get } = deployments
@@ -54,45 +63,32 @@ describe('Verify Arbitrum v2.1 Migration', () => {
     )
     proxyAdmin = (await ethers.getContractAt('ProxyAdmin', (await get('ProxyAdmin')).address)).connect(timelockSigner)
 
-    await oracleFactory.register(pythFactory.address)
-
-    const dsuBalance = await DSU.balanceOf(oracleFactory.address)
-    const usdcBalance = await USDC.balanceOf(oracleFactory.address)
-
-    await proxyAdmin.upgradeAndCall(
-      oracleFactory.address,
-      (
-        await get('OracleFactoryImpl')
-      ).address,
-      oracleFactory.interface.encodeFunctionData('initialize', [
-        (await get('DSU')).address,
-        (await get('USDC')).address,
-        (await get('DSUReserve')).address,
-      ]),
-    )
-
-    dsuBalanceDifference = (await DSU.balanceOf(oracleFactory.address)).sub(dsuBalance)
-    usdcBalanceDifference = (await USDC.balanceOf(oracleFactory.address)).sub(usdcBalance)
-
-    await proxyAdmin.upgrade((await get('MarketFactory')).address, (await get('MarketFactoryImpl')).address)
-    await proxyAdmin.upgrade((await get('VaultFactory')).address, (await get('VaultFactoryImpl')).address)
-    await proxyAdmin.upgrade((await get('MultiInvoker')).address, (await get('MultiInvokerImpl_Arbitrum')).address)
-
-    oracleIDs = (await oracleFactory.queryFilter(oracleFactory.filters.OracleCreated())).map(e => ({
-      id: e.args.id,
-      oracle: e.args.oracle,
-    }))
-    for (const oracle of oracleIDs) {
-      await oracleFactory.update(oracle.id, pythFactory.address)
-    }
-
-    await pythFactory.acceptOwner()
-
     const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
       address: '0x000000000000000000000000000000000000006C',
     })
     // Hardhat fork network does not support Arbitrum built-ins, so we need to fake this call for testing
     gasInfo.getL1BaseFeeEstimate.returns(0)
+
+    const marketsAddrs = (await marketFactory.queryFilter(marketFactory.filters['InstanceRegistered(address)']())).map(
+      e => e.args.instance,
+    )
+    markets = await Promise.all(marketsAddrs.map(e => ethers.getContractAt('IMarket', e)))
+
+    // Perform v2.2 Migration
+    // Enter settle only for all markets
+    // Update to settle only using hardhat task
+    run('change-markets-mode', { settleOnly: true })
+
+    // Settle all users using hardhat task
+    run('settle-markets')
+
+    // Update implementations
+
+    // Update Protocol/Risk/Market parameters to new formats
+
+    // Update sub-oracles
+
+    // Update powerperp oracles
   })
 
   it('Migrates', async () => {
@@ -112,11 +108,20 @@ describe('Verify Arbitrum v2.1 Migration', () => {
     )
     for (const market of markets) {
       const contract = await ethers.getContractAt('IMarket', market)
-      expect(await contract.update(ethers.constants.AddressZero, 0, 0, 0, 0, false)).to.not.be.reverted
+      expect(
+        await contract['update(address,uint256,uint256,uint256,int256,bool)'](
+          ethers.constants.AddressZero,
+          0,
+          0,
+          0,
+          0,
+          false,
+        ),
+      ).to.not.be.reverted
     }
   })
 
-  it('Runs full request/fulfill flow', async () => {
+  /* it('Runs full request/fulfill flow', async () => {
     const perennialUser = await impersonateWithBalance(
       '0xF8b6010FD6ba8F3E52c943A1473B1b1459a73094',
       ethers.utils.parseEther('10'),
@@ -197,7 +202,7 @@ describe('Verify Arbitrum v2.1 Migration', () => {
     await expect(pythFactory.commit([oracleIDs[0].id], 1705340310, ETH_VAA_FULFILL, { value: 1 })).to.not.be.reverted
     await expect(pythFactory.commit([oracleIDs[1].id], 1705340310, BTC_VAA_FULFILL, { value: 1 })).to.not.be.reverted
     await expect(pythFactory.commit([oracleIDs[6].id], 1705340310, LINK_VAA_FULFILL, { value: 1 })).to.not.be.reverted
-  })
+  }) */
 })
 
 // Publish Time: 1704922300

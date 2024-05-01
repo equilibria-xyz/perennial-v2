@@ -1,31 +1,83 @@
 import { HardhatRuntimeEnvironment, Libraries } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { isArbitrum, isMainnet } from '../../common/testutil/network'
-import { OracleFactory__factory, ProxyAdmin__factory, PythFactory__factory } from '../types/generated'
 import { INITIAL_AMOUNT } from './005_deploy_vault'
-import { DEFAULT_GRANULARITY } from './003_deploy_oracle'
+import { L1_GAS_BUFFERS } from './003_deploy_oracle'
 import { MARKET_LIBRARIES } from './004_deploy_market'
 
 const SkipIfAlreadyDeployed = false
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+  const log = (...args: unknown[]) => console.log('[v2.2 Migration]', ...args)
   const { deployments, getNamedAccounts, ethers } = hre
   const { deploy, get, getOrNull, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
   if (!isArbitrum(getNetworkName()) || !isMainnet(getNetworkName())) {
-    console.log('Skipping. This migration is only for Arbitrum Mainnet')
+    log('Skipping. This migration is only for Arbitrum Mainnet')
     return
   }
 
-  const deployerSigner: SignerWithAddress = await ethers.getSigner(deployer)
+  log('Deploying v2.2 migration...')
 
-  const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
+  // Market: Market + all external libs, MarketFactory
+  log('Deploying Market Contracts...')
+  log('  Deploying Market libs...')
+  const marketLibrariesBuilt: Libraries = {}
+  for (const library of MARKET_LIBRARIES) {
+    marketLibrariesBuilt[library.name] = (
+      await deploy(library.name, {
+        contract: library.contract,
+        from: deployer,
+        skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+        log: true,
+        autoMine: true,
+      })
+    ).address
+  }
+  log('  Deploying Market Impl...')
+  const marketImpl = await deploy('MarketImpl', {
+    contract: 'Market',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+    libraries: marketLibrariesBuilt,
+  })
+  log('  Deploying Market Factory Impl...')
+  await deploy('MarketFactoryImpl', {
+    contract: 'MarketFactory',
+    args: [(await get('OracleFactory')).address, marketImpl.address],
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Market Contracts...')
 
-  console.log('Deploying v2.2 migration...')
+  // Vault: Vault, VaultFactory
+  log('Deploying Vault...')
+  log('  Deploying Vault Impl...')
+  const vaultImpl = await deploy('VaultImpl', {
+    contract: 'Vault',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Vault Factory Impl...')
+  await deploy('VaultFactoryImpl', {
+    contract: 'VaultFactory',
+    args: [(await get('MarketFactory')).address, vaultImpl.address, INITIAL_AMOUNT],
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Vault...')
 
-  // Deploy Oracle Implementations
-  console.log('Deploying new Oracle and OracleFactory Impls')
+  // Oracles: Oracle, OracleFactory, KeeperOracle, PowerHalf, PowerTwo, PythFactory_{Arbitrum}
+  log('Deploying Oracles...')
+  log('  Deploying Oracle Impl...')
   await deploy('OracleImpl', {
     contract: 'Oracle',
     from: deployer,
@@ -33,6 +85,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
     autoMine: true,
   })
+  log('  Deploying Oracle Factory Impl...')
   await deploy('OracleFactoryImpl', {
     contract: 'OracleFactory',
     args: [(await get('OracleImpl')).address],
@@ -41,10 +94,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
     autoMine: true,
   })
-  const oracleFactory = new OracleFactory__factory(deployerSigner).attach((await get('OracleFactory')).address)
 
-  // Deploy Pyth Implementations
-  console.log('Deploying new PythFactory')
+  log('  Deploying KeeperOracle Impl...')
   const pythFactoryContract = isArbitrum(getNetworkName()) ? 'PythFactory_Arbitrum' : 'PythFactory_Optimism'
   await deploy('KeeperOracleImpl', {
     contract: 'KeeperOracle',
@@ -54,6 +105,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
     autoMine: true,
   })
+
+  log('  Deploying PythFactory Impl...')
+  const commitBufferOracle = isArbitrum(getNetworkName())
+    ? L1_GAS_BUFFERS.arbitrum.commitCalldata
+    : L1_GAS_BUFFERS.base.commitCalldata
+  const incrementalBuffer = isArbitrum(getNetworkName())
+    ? L1_GAS_BUFFERS.arbitrum.commitIncrement
+    : L1_GAS_BUFFERS.base.commitIncrement
   await deploy('PythFactoryImpl', {
     contract: pythFactoryContract,
     args: [
@@ -63,139 +122,53 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       12,
       {
         multiplierBase: 0, // Unused
-        bufferBase: 900_000, // Each Call uses approx 750k gas
+        bufferBase: 788_000, // Each Call uses approx 750k gas
         multiplierCalldata: 0,
-        bufferCalldata: 36_000, // Each update costs 31k L1 gas
+        bufferCalldata: commitBufferOracle,
       },
       {
-        multiplierBase: ethers.utils.parseEther('1.15'), // Gas usage tracks full call
+        multiplierBase: ethers.utils.parseEther('1.05'), // Gas usage tracks full call
         bufferBase: 100_000, // Initial Fee + Transfers
-        multiplierCalldata: ethers.utils.parseEther('1.15'), // Gas usage tracks full L1 calldata,
+        multiplierCalldata: ethers.utils.parseEther('1.05'), // Gas usage tracks full L1 calldata,
         bufferCalldata: 0,
       },
-      4_600, // Each subsequent pyth commitment adds about 4k L1 gas
+      incrementalBuffer,
     ],
     from: deployer,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
-
-  // Deploy Pyth Factory
-  const pythFactoryInterface = PythFactory__factory.createInterface()
-  await deploy('PythFactory', {
-    contract: 'TransparentUpgradeableProxy',
-    args: [
-      (await get('PythFactoryImpl')).address,
-      proxyAdmin.address,
-      pythFactoryInterface.encodeFunctionData('initialize', [
-        (await get('OracleFactory')).address,
-        (await get('ChainlinkETHUSDFeed')).address,
-        (await get('DSU')).address,
-      ]),
-    ],
+  log('  Deploying PowerHalf...')
+  await deploy('PowerHalf', {
+    args: [],
     from: deployer,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
-  const pythFactory = new PythFactory__factory(deployerSigner).attach((await get('PythFactory')).address)
-
-  // Authorize Oracle Factory
-  if (!(await pythFactory.callers(oracleFactory.address))) {
-    process.stdout.write('Authorizing oracle factory to call pyth factory...')
-    await (await pythFactory.authorize(oracleFactory.address)).wait()
-    process.stdout.write('complete\n')
-  }
-
-  // Create oracles
-  // TODO: update with logic from script 003
-  const oracleIDs = (await oracleFactory.queryFilter(oracleFactory.filters.OracleCreated())).map(e => e.args.id)
-  if (!oracleIDs) throw new Error('No oracle IDs for network')
-  for (const id of Object.values(oracleIDs)) {
-    if ((await pythFactory.oracles(id)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
-      process.stdout.write(`Associating pyth oracle id ${id}...`)
-      await (await pythFactory.associate(id, id)).wait()
-      process.stdout.write(`Creating pyth oracle ${id}...`)
-      const address = await pythFactory.callStatic.create(id)
-      process.stdout.write(`deploying at ${address}...`)
-      await (await pythFactory.create(id)).wait()
-      process.stdout.write('complete\n')
-    }
-  }
-
-  // If mainnet, use timelock as owner
-  const owner = isMainnet(getNetworkName()) ? (await get('TimelockController')).address : deployer
-  if (owner === deployer) console.log('[WARNING] Testnet detected, timelock will not be set as owner')
-
-  if ((await pythFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
-    process.stdout.write('Setting owner...')
-    await (await pythFactory.updatePendingOwner(owner)).wait()
-    process.stdout.write('complete\n')
-  }
-
-  // Update granularity
-  if ((await pythFactory.granularity()).effectiveAfter.eq(0)) {
-    process.stdout.write('Setting granularity...')
-    await (await pythFactory.updateGranularity(DEFAULT_GRANULARITY)).wait()
-    process.stdout.write('complete\n')
-  }
-
-  // Deploy Market Implementations
-  console.log('Deploying new Market and MarketFactory Impls')
-  // Deploy Libraries
-  const marketLibrariesBuilt: Libraries = {}
-  for (const library of MARKET_LIBRARIES) {
-    marketLibrariesBuilt[library.name] = (
-      await deploy(library.name, {
-        contract: library.contract,
-        from: deployer,
-        skipIfAlreadyDeployed: true,
-        log: true,
-        autoMine: true,
-      })
-    ).address
-  }
-
-  const marketImpl = await deploy('MarketImpl', {
-    contract: 'Market',
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-    libraries: marketLibrariesBuilt,
-  })
-  await deploy('MarketFactoryImpl', {
-    contract: 'MarketFactory',
-    args: [(await get('OracleFactory')).address, (await get('PayoffFactory')).address, marketImpl.address],
+  log('  Deploying PowerTwo...')
+  await deploy('PowerTwo', {
+    args: [],
     from: deployer,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
 
-  // Deploy Vault Implementations
-  console.log('Deploying new Vault and VaultFactory Impls')
-  const vaultImpl = await deploy('VaultImpl', {
-    contract: 'Vault',
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  await deploy('VaultFactoryImpl', {
-    contract: 'VaultFactory',
-    args: [(await get('MarketFactory')).address, vaultImpl.address, INITIAL_AMOUNT],
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
+  log('Done deploying Oracles...')
 
-  // Deploy MultiInvoker Implementation
-  console.log('Deploying new MultiInvoker Impl')
-  const multiInvokerContract = isArbitrum(getNetworkName()) ? 'MultiInvoker_Arbitrum' : 'MultiInvoker'
-  const multiInvokerContractName = isArbitrum(getNetworkName()) ? 'MultiInvokerImpl_Arbitrum' : 'MultiInvokerImpl'
+  // Extensions: MultiInvoker_{Arbitrum}, Gauntlet Coordinator
+  log('Deploying Extensions...')
+  log('  Deploying MultiInvoker Impl...')
+  const multiInvokerContract = isArbitrum(getNetworkName()) ? 'MultiInvoker_Arbitrum' : 'MultiInvoker_Optimism'
+  const multiInvokerContractName = isArbitrum(getNetworkName())
+    ? 'MultiInvokerImpl_Arbitrum'
+    : 'MultiInvokerImpl_Optimism'
+
+  const commitBuffer = isArbitrum(getNetworkName())
+    ? L1_GAS_BUFFERS.arbitrum.commitCalldata + L1_GAS_BUFFERS.arbitrum.commitIncrement
+    : L1_GAS_BUFFERS.base.commitCalldata + L1_GAS_BUFFERS.arbitrum.commitIncrement
   await deploy(multiInvokerContractName, {
     contract: multiInvokerContract,
     args: [
@@ -205,25 +178,26 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       (await get('VaultFactory')).address,
       (await getOrNull('DSUBatcher'))?.address ?? ethers.constants.AddressZero,
       (await get('DSUReserve')).address,
-      1_800_000, // Full Order Commit uses about 1.5M gas
-      36_000, // Single commitment uses 31k calldata gas
+      1_500_000, // Full Order Commit uses about 1.5M gas
+      commitBuffer,
     ],
     from: deployer,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
+  await deploy('GauntletCoordinator', {
+    contract: 'Coordinator',
+    args: [],
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Extensions...')
 
-  console.log(`
-    Step 0 of migration complete! Next Steps:
-    1. Register new PythFactory with OracleFactory
-    2. Update Market virtualSkew values with new staticSkew values
-    3. Atomically
-      a. Settle all markets
-      b. 'proxyAdmihn.upgrade' MarketFactory, VaultFactory, MultiInvoker contracts
-      c. 'proxyAdmin.upgradeAndCall' OracleFactory(initialize)
-      d. 'oracleFactory.update(oracleID, pythFactory)' for each each oracleID
-      e. Accept PythFactory ownership from Timelock
+  log(`
+    Step 0 of v2.2 migration complete! Next Steps: https://github.com/equilibria-xyz/perennial-v2/blob/1a40c59618a233e8517bee6d48b58124e11686ce/runbooks/MIGRATION_v2.2.md
   `)
 }
 
