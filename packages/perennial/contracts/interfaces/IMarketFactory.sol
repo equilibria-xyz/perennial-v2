@@ -9,7 +9,8 @@ interface IMarketFactory is IFactory {
     event ParameterUpdated(ProtocolParameter newParameter);
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
     event SignerUpdated(address indexed account, address indexed signer, bool newEnabled);
-    event ReferralFeeUpdated(address indexed referrer, UFixed6 newFee);
+    event OrderReferralFeeUpdated(address indexed referrer, UFixed6 newFee);
+    event GuaranteeReferralFeeUpdated(address indexed referrer, UFixed6 newFee);
     event MarketCreated(IMarket indexed market, IMarket.MarketDefinition definition);
 
     // sig: 0x0a37dc74
