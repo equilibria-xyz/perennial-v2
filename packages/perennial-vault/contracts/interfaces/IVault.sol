@@ -66,7 +66,6 @@ interface IVault is IInstance {
     function initialize(Token18 asset, IMarket initialMaker, UFixed6 cap, string calldata name_) external;
     function name() external view returns (string memory);
     function settle(address account) external;
-    function rebalance(address account) external;
     function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;
     function asset() external view returns (Token18);
     function totalAssets() external view returns (Fixed6);

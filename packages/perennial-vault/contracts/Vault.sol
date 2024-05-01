@@ -145,7 +145,7 @@ contract Vault is IVault, Instance {
     /// @notice Registers a new market
     /// @param market The market to register
     function register(IMarket market) external onlyOwner {
-        rebalance(address(0));
+        settle(address(0));
 
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
@@ -172,7 +172,7 @@ contract Vault is IVault, Instance {
     /// @param newWeight The new weight
     /// @param newLeverage The new leverage
     function updateMarket(uint256 marketId, uint256 newWeight, UFixed6 newLeverage) external onlyOwner {
-        rebalance(address(0));
+        settle(address(0));
         _updateMarket(marketId, newWeight, newLeverage);
     }
 
@@ -193,7 +193,7 @@ contract Vault is IVault, Instance {
     /// @notice Settles, then updates the vault parameter set
     /// @param newParameter The new vault parameter set
     function updateParameter(VaultParameter memory newParameter) external onlyOwner {
-        rebalance(address(0));
+        settle(address(0));
         _updateParameter(newParameter);
     }
 
@@ -212,17 +212,6 @@ contract Vault is IVault, Instance {
         Context memory context = _loadContext(account);
 
         _settle(context, account);
-        _saveContext(context, account);
-    }
-
-    /// @notice Syncs `account`'s state up to current
-    /// @dev Also rebalances the collateral and position of the vault without a deposit or withdraw
-    /// @param account The account that should be synced
-    function rebalance(address account) public whenNotPaused {
-        _updateUnderlying();
-        Context memory context = _loadContext(account);
-
-        _settle(context, account);
         _manage(context, UFixed6Lib.ZERO, false);
         _saveContext(context, account);
     }
@@ -238,7 +227,7 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) external whenNotPaused {
-        _updateUnderlying();
+        _settleUnderlying();
         Context memory context = _loadContext(account);
 
         _settle(context, account);
@@ -332,12 +321,6 @@ contract Vault is IVault, Instance {
 
     /// @notice Handles settling the vault's underlying markets
     function _settleUnderlying() private {
-        for (uint256 marketId; marketId < totalMarkets; marketId++)
-            _registrations[marketId].read().market.settle(address(this));
-    }
-
-    /// @notice Handles settling the vault's underlying markets
-    function _updateUnderlying() private {
         for (uint256 marketId; marketId < totalMarkets; marketId++)
             _registrations[marketId].read().market.update(
                 address(this),
