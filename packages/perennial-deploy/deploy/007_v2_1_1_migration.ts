@@ -2,7 +2,6 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { isArbitrum, isMainnet } from '../../common/testutil/network'
 import { DEFAULT_KEEPER_ORACLE_TIMEOUT, L1_GAS_BUFFERS } from './003_deploy_oracle'
-import { INITIAL_AMOUNT } from './005_deploy_vault'
 
 const SkipIfAlreadyDeployed = false
 
@@ -46,23 +45,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await deploy('MarketFactoryImpl', {
     contract: 'MarketFactory',
     args: [(await get('OracleFactory')).address, (await get('PayoffFactory')).address, marketImpl.address],
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-
-  // Deploy new Vault impl
-  const vaultImpl = await deploy('VaultImpl', {
-    contract: 'Vault',
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  await deploy('VaultFactoryImpl', {
-    contract: 'VaultFactory',
-    args: [(await get('MarketFactory')).address, vaultImpl.address, INITIAL_AMOUNT],
     from: deployer,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
@@ -117,8 +99,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log(`
     Step 0 of v2.1.1 migration complete! Next Steps:
       1. Upgrade the MarketFactory to new Impl
-      2. Upgrade the VaultFactory to new Impl
-      3. Upgrade the PythFactory to new Impl
+      2. Upgrade the PythFactory to new Impl
   `)
 }
 

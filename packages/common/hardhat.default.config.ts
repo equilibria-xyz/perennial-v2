@@ -157,6 +157,23 @@ export default function defaultConfig({
             viaIR: OPTIMIZER_ENABLED,
           },
         },
+        {
+          version: '0.8.24',
+          settings: {
+            optimizer: {
+              enabled: OPTIMIZER_ENABLED,
+              runs: 1000000, // Max allowed by Etherscan verify
+            },
+            outputSelection: OPTIMIZER_ENABLED
+              ? {}
+              : {
+                  '*': {
+                    '*': ['storageLayout'], // This is needed by Smock for mocking functions
+                  },
+                },
+            viaIR: OPTIMIZER_ENABLED,
+          },
+        },
       ],
       overrides: solidityOverrides,
     },
