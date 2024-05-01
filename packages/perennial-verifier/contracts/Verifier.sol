@@ -7,6 +7,7 @@ import { Common, CommonLib } from "./types/Common.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { Fill, FillLib } from "./types/Fill.sol";
 import { GroupCancellation, GroupCancellationLib } from "./types/GroupCancellation.sol";
+import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 
 /// @title Verifier
@@ -73,6 +74,18 @@ contract Verifier is IVerifier, EIP712 {
         validateAndCancel(groupCancellation.common, signature) returns (address)
     {
         return ECDSA.recover(_hashTypedDataV4(GroupCancellationLib.hash(groupCancellation)), signature);
+    }
+
+    /// @notice Verifies the signature of a operator approval type
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param operatorUpdate The operator approval message to verify
+    /// @param signature The signature of the account for the operator approval
+    /// @return The address corresponding to the signature
+    function verifyOperatorUpdate(OperatorUpdate calldata operatorUpdate, bytes calldata signature)
+        external
+        validateAndCancel(operatorUpdate.common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(OperatorUpdateLib.hash(operatorUpdate)), signature);
     }
 
     /// @notice Cancels a nonce

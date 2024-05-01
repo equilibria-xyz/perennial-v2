@@ -4,10 +4,12 @@ import {
   FillStruct,
   GroupCancellationStruct,
   IntentStruct,
+  OperatorUpdateStruct,
 } from '../../types/generated/contracts/Verifier'
-import { Verifier } from '../../types/generated'
+import { IVerifier, Verifier } from '../../types/generated'
+import { FakeContract } from '@defi-wonderland/smock'
 
-export function erc721Domain(verifier: Verifier) {
+export function erc721Domain(verifier: Verifier | FakeContract<IVerifier>) {
   return {
     name: 'Perennial',
     version: '1.0.0',
@@ -16,7 +18,11 @@ export function erc721Domain(verifier: Verifier) {
   }
 }
 
-export async function signCommon(signer: SignerWithAddress, verifier: Verifier, common: CommonStruct): Promise<string> {
+export async function signCommon(
+  signer: SignerWithAddress,
+  verifier: Verifier | FakeContract<IVerifier>,
+  common: CommonStruct,
+): Promise<string> {
   const types = {
     Common: [
       { name: 'account', type: 'address' },
@@ -30,7 +36,11 @@ export async function signCommon(signer: SignerWithAddress, verifier: Verifier, 
   return await signer._signTypedData(erc721Domain(verifier), types, common)
 }
 
-export async function signIntent(signer: SignerWithAddress, verifier: Verifier, intent: IntentStruct): Promise<string> {
+export async function signIntent(
+  signer: SignerWithAddress,
+  verifier: Verifier | FakeContract<IVerifier>,
+  intent: IntentStruct,
+): Promise<string> {
   const types = {
     Common: [
       { name: 'account', type: 'address' },
@@ -49,7 +59,11 @@ export async function signIntent(signer: SignerWithAddress, verifier: Verifier, 
   return await signer._signTypedData(erc721Domain(verifier), types, intent)
 }
 
-export async function signFill(signer: SignerWithAddress, verifier: Verifier, fill: FillStruct): Promise<string> {
+export async function signFill(
+  signer: SignerWithAddress,
+  verifier: Verifier | FakeContract<IVerifier>,
+  fill: FillStruct,
+): Promise<string> {
   const types = {
     Common: [
       { name: 'account', type: 'address' },
@@ -74,7 +88,7 @@ export async function signFill(signer: SignerWithAddress, verifier: Verifier, fi
 
 export async function signGroupCancellation(
   signer: SignerWithAddress,
-  verifier: Verifier,
+  verifier: Verifier | FakeContract<IVerifier>,
   groupCancellation: GroupCancellationStruct,
 ): Promise<string> {
   const types = {
@@ -92,4 +106,27 @@ export async function signGroupCancellation(
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, groupCancellation)
+}
+
+export async function signOperatorUpdate(
+  signer: SignerWithAddress,
+  verifier: Verifier | FakeContract<IVerifier>,
+  operatorUpdate: OperatorUpdateStruct,
+): Promise<string> {
+  const types = {
+    Common: [
+      { name: 'account', type: 'address' },
+      { name: 'domain', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'group', type: 'uint256' },
+      { name: 'expiry', type: 'uint256' },
+    ],
+    OperatorUpdate: [
+      { name: 'operator', type: 'address' },
+      { name: 'approved', type: 'bool' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, operatorUpdate)
 }

@@ -8,7 +8,7 @@ import HRE from 'hardhat'
 
 import { Verifier, Verifier__factory } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { signIntent, signFill, signCommon, signGroupCancellation } from '../../helpers/erc712'
+import { signIntent, signFill, signCommon, signGroupCancellation, signOperatorUpdate } from '../../helpers/erc712'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -747,6 +747,204 @@ describe('Verifier', () => {
       await expect(
         verifier.connect(caller).verifyGroupCancellation(groupCancellation, signature),
       ).to.revertedWithCustomError(verifier, 'VerifierInvalidGroupError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+  })
+
+  describe('#verifyOperatorUpdate', () => {
+    const DEFAULT_OPERATOR_UPDATE = {
+      operator: constants.AddressZero,
+      approved: false,
+      common: {
+        account: constants.AddressZero,
+        domain: constants.AddressZero,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    it('should verify default group cancellation', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        operator: owner.address,
+        approved: true,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      const result = await verifier.connect(caller).callStatic.verifyOperatorUpdate(operatorUpdate, signature)
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify group cancellation w/ expiry', async () => {
+      const now = await time.latest()
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          domain: caller.address,
+          expiry: now + 2,
+        },
+      } // callstatic & call each take one second
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      const result = await verifier.connect(caller).callStatic.verifyOperatorUpdate(operatorUpdate, signature)
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject group cancellation w/ invalid expiry', async () => {
+      const now = await time.latest()
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address, expiry: now },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidExpiryError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid expiry (zero)', async () => {
+      const now = await time.latest()
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address, expiry: 0 },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidExpiryError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should verify group cancellation w/ domain', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: market.address },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      const result = await verifier.connect(market).callStatic.verifyOperatorUpdate(operatorUpdate, signature)
+      await expect(verifier.connect(market).verifyOperatorUpdate(operatorUpdate, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject group cancellation w/ invalid domain', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: market.address },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidDomainError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid domain (zero)', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidDomainError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid signature (too small)', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address },
+      }
+      const signature =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignatureError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid signature (too large)', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address },
+      }
+      const signature =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignatureError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid nonce', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address, nonce: 17 },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      await verifier.connect(caller).cancelNonce(17)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidNonceError',
+      )
+
+      expect(await verifier.nonces(caller.address, 17)).to.eq(true)
+    })
+
+    it('should reject group cancellation w/ invalid nonce', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address, group: 17 },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      await verifier.connect(caller).cancelGroup(17)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidGroupError',
+      )
 
       expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })

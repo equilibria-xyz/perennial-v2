@@ -25,6 +25,7 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { constants } from 'ethers'
+import { signOperatorUpdate } from '../../../../perennial-verifier/test/helpers/erc712'
 
 const { ethers } = HRE
 
@@ -71,7 +72,11 @@ describe('MarketFactory', () => {
       },
       owner,
     ).deploy(verifier.address)
-    factory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+    factory = await new MarketFactory__factory(owner).deploy(
+      oracleFactory.address,
+      verifier.address,
+      marketImpl.address,
+    )
     await factory.initialize()
   })
 
@@ -256,6 +261,70 @@ describe('MarketFactory', () => {
         .withArgs(user.address, owner.address, false)
 
       expect(await factory.operators(user.address, owner.address)).to.equal(false)
+    })
+  })
+
+  describe('#updateOperatorWithSignature', async () => {
+    const DEFAULT_OPERATOR_UPDATE = {
+      operator: constants.AddressZero,
+      approved: false,
+      common: {
+        account: constants.AddressZero,
+        domain: constants.AddressZero,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    it('updates the operator status', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        operator: owner.address,
+        approved: true,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: user.address, domain: factory.address },
+      }
+      const signature = await signOperatorUpdate(user, verifier, operatorUpdate)
+
+      verifier.verifyOperatorUpdate.returns(user.address)
+
+      await expect(factory.connect(owner).updateOperatorWithSignature(operatorUpdate, signature))
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, owner.address, true)
+
+      expect(await factory.operators(user.address, owner.address)).to.equal(true)
+
+      const operatorUpdate2 = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        operator: owner.address,
+        approval: false,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: user.address, domain: factory.address, nonce: 1 },
+      }
+      const signature2 = await signOperatorUpdate(user, verifier, operatorUpdate2)
+
+      verifier.verifyOperatorUpdate.returns(user.address)
+
+      await expect(factory.connect(owner).updateOperatorWithSignature(operatorUpdate2, signature2))
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, owner.address, false)
+
+      expect(await factory.operators(user.address, owner.address)).to.equal(false)
+    })
+
+    it('reverts if signer does not match', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        operator: owner.address,
+        approved: true,
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: user.address, domain: factory.address },
+      }
+      const signature = await signOperatorUpdate(user, verifier, operatorUpdate)
+
+      verifier.verifyOperatorUpdate.returns(owner.address)
+
+      await expect(
+        factory.connect(owner).updateOperatorWithSignature(operatorUpdate, signature),
+      ).to.revertedWithCustomError(factory, 'MarketFactoryInvalidSignerError')
     })
   })
 
