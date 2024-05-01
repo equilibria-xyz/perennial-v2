@@ -21,8 +21,11 @@ contract MarketFactory is IMarketFactory, Factory {
     ///      Note: address(0) is used in place of the deprecated payoff provider field
     mapping(IOracleProvider => mapping(address => IMarket)) private _markets;
 
-    /// @dev The referreral fee level for each referrer
-    mapping(address => UFixed6) public referralFee;
+    /// @dev The referreral fee level for each referrer for orders
+    mapping(address => UFixed6) public orderReferralFee;
+
+    /// @dev The referreral fee level for each referrer for guarantees
+    mapping(address => UFixed6) public guaranteeReferralFee;
 
     /// @dev Mapping of allowed signers for each account
     mapping(address => mapping(address => bool)) public signers;

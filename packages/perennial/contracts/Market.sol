@@ -151,14 +151,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load update context
         UpdateContext memory updateContext = _loadUpdateContext(context, signer, referrer);
 
+        UFixed6 orderReferralFee = _processReferralFee(context, updateContext, referrer);
+        UFixed6 guarenteeReferralFee = _processReferralFee(context, updateContext, referrer);
+
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
             amount,
-            _processReferralFee(context, updateContext, referrer)
+            orderReferralFee
         );
-        Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, price, settlementFee);
+        Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, price, guarenteeReferralFee, settlementFee);
 
         // process update
         _update(context, updateContext, newOrder, newGuarantee, referrer);
@@ -215,6 +218,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
         newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
 
+        // Compute referral fees
+        (UFixed6 orderReferralFee, UFixed6 guaranteeReferralFee) =
+            _processReferralFee(context, updateContext, referrer, address(0));
+
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
@@ -224,7 +231,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newLong,
             newShort,
             protect,
-            _processReferralFee(context, updateContext, referrer)
+            orderReferralFee
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order
 
@@ -499,13 +506,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param updateContext The update context to use
     /// @param newOrder The new order to apply
     /// @param newGuarantee The new guarantee to apply
-    /// @param referrer The referrer of the order
+    /// @param orderReferrer The referrer of the order
+    /// @param guaranteeReferrer The referrer of the guarantee
     function _update(
         Context memory context,
         UpdateContext memory updateContext,
         Order memory newOrder,
         Guarantee memory newGuarantee,
-        address referrer
+        address orderReferrer,
+        address guaranteeReferrer
     ) private notSettleOnly(context) {
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
@@ -538,7 +547,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (newOrder.protected()) updateContext.liquidator = msg.sender;
 
         // apply referrer
-        _processReferrer(updateContext, newOrder, referrer);
+        _processReferrer(updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
 
         // request version
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
@@ -560,32 +569,47 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Processes the referral fee for the given order
     /// @param context The context to use
     /// @param updateContext The update context to use
-    /// @param referrer The referrer of the order
-    /// @return The referral fee to apply
+    /// @param orderReferrer The referrer of the order
+    /// @param guaranteeReferrer The referrer of the guarantee
+    /// @return orderReferralFee The referral fee to apply to the order referrer
+    /// @return guaranteeReferralFee The referral fee to apply to the guarantee referrer
     function _processReferralFee(
         Context memory context,
         UpdateContext memory updateContext,
-        address referrer
-    ) private pure returns (UFixed6) {
-        if (referrer == address(0)) return UFixed6Lib.ZERO;
-        if (!updateContext.referralFee.isZero()) return updateContext.referralFee;
-        return context.protocolParameter.referralFee;
+        address orderReferrer,
+        address guaranteeReferrer
+    ) private pure returns (UFixed6 orderReferralFee, UFixed6 guaranteeReferralFee) {
+        if (orderReferrer != address(0)) {
+            if (!updateContext.orderReferralFee.isZero()) return updateContext.orderReferralFee;
+            return context.protocolParameter.orderReferralFee;
+        }
+        if (guaranteeReferrer != address(0)) {
+            if (!updateContext.guaranteeReferralFee.isZero()) return updateContext.guaranteeReferralFee;
+            return context.protocolParameter.guaranteeReferralFee;
+        }
     }
 
     /// @notice Processes the referrer for the given order
     /// @param updateContext The update context to use
     /// @param newOrder The order to process
-    /// @param referrer The referrer of the order
+    /// @param newGuarantee The guarantee to process
+    /// @param orderReferrer The referrer of the order
+    /// @param guaranteeReferrer The referrer of the guarantee
     function _processReferrer(
         UpdateContext memory updateContext,
         Order memory newOrder,
-        address referrer
+        Guarantee memory newGuarantee,
+        address orderReferrer,
+        address guaranteeReferrer
     ) private pure {
-        if (newOrder.makerReferral.isZero() && newOrder.takerReferral.isZero()) return;
-        if (updateContext.referrer == address(0)) updateContext.referrer = referrer;
-        if (updateContext.referrer == referrer) return;
-
-        revert MarketInvalidReferrerError();
+        if (!newOrder.makerReferral.isZero() || !newOrder.takerReferral.isZero()) {
+            if (updateContext.orderReferrer == address(0)) updateContext.orderReferrer = orderReferrer;
+            if (updateContext.referrer != orderReferrer) revert MarketInvalidReferrerError();
+        }
+        if (!newGuarantee.guaranteeReferral.isZero()) {
+            if (updateContext.guaranteeReferrer == address(0)) updateContext.guaranteeReferrer = guaranteeReferrer;
+            if (updateContext.guaranteeReferrer != guaranteeReferrer) revert MarketInvalidReferrerError();
+        }
     }
 
     /// @notice Loads the settlement context

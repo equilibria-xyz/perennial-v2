@@ -48,8 +48,10 @@ interface IMarket is IInstance {
         bool operator;
         bool signer;
         address liquidator;
-        address referrer;
-        UFixed6 referralFee;
+        address orderReferrer;
+        UFixed6 orderReferralFee;
+        address guaranteeReferrer;
+        UFixed6 guaranteeReferralFee;
         Order orderGlobal;
         Order orderLocal;
         Position currentPositionGlobal;
