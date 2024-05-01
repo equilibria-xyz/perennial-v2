@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-// import { Common, CommonLib } from "@equilibria/root/verifier/Common.sol";
-import { Common, CommonLib } from "./Common.sol";
+import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
+//import { Common, CommonLib } from "./Common.sol";
 
 struct DeployAccount {
     /// @dev The EOA for which the collateral account should be deployed

@@ -3,10 +3,10 @@ pragma solidity 0.8.24;
 
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { Common, CommonLib } from "./types/Common.sol";
+import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
+import { GroupCancellation, GroupCancellationLib } from "@equilibria/root/verifier/types/GroupCancellation.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { Fill, FillLib } from "./types/Fill.sol";
-import { GroupCancellation, GroupCancellationLib } from "./types/GroupCancellation.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 
