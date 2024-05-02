@@ -34,6 +34,7 @@ contract Controller is Instance, IController {
     function deployAccountWithSignature(DeployAccount calldata deployAccount_, bytes calldata signature_) external {
         // Ensure the message was signed by the user creating the collateral account
         address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
+        // TODO: add support for delegated signing
         if (signer != deployAccount_.user) revert InvalidSignerError();
 
         Account account = new Account{salt: SALT}(deployAccount_.user);
