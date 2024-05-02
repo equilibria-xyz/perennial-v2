@@ -2,8 +2,9 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { isArbitrum, isMainnet } from '../../common/testutil/network'
 import { DEFAULT_KEEPER_ORACLE_TIMEOUT, L1_GAS_BUFFERS } from './003_deploy_oracle'
+import { INITIAL_AMOUNT } from './005_deploy_vault'
 
-const SkipIfAlreadyDeployed = false
+const SkipIfAlreadyDeployed = true
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
@@ -96,10 +97,28 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     autoMine: true,
   })
 
+  // Deploy new VaultFactory impl
+  const vaultImpl = await deploy('VaultImpl', {
+    contract: 'Vault',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  await deploy('VaultFactoryImpl', {
+    contract: 'VaultFactory',
+    args: [(await get('MarketFactory')).address, vaultImpl.address, INITIAL_AMOUNT],
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+
   console.log(`
     Step 0 of v2.1.1 migration complete! Next Steps:
       1. Upgrade the MarketFactory to new Impl
       2. Upgrade the PythFactory to new Impl
+      3. Upgrade the VaultFactory to new Impl
   `)
 }
 
