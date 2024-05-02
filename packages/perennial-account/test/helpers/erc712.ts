@@ -25,7 +25,6 @@ const commonType = {
 
 const actionType = {
   Action: [
-    { name: 'relayer', type: 'address' },
     { name: 'fee', type: 'uint256' },
     { name: 'common', type: 'Common' },
   ],
