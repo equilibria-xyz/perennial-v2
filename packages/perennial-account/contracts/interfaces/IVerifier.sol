@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
-// import { Common } from "@equilibria/root/verifier/types/Common.sol";
 import { Action } from "../types/Action.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 

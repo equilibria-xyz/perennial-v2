@@ -23,6 +23,6 @@ library DeployAccountLib {
 
     /// @dev used to create a signed message
     function hash(DeployAccount memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.user, ActionLib.hash(self.action)/*, CommonLib.hash(self.common)*/));
+        return keccak256(abi.encode(STRUCT_HASH, self.user, ActionLib.hash(self.action)));
     }
 }
