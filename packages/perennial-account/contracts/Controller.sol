@@ -1,28 +1,43 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { Instance } from "@equilibria/root/attribute/Instance.sol";
+
 import { IController } from "./interfaces/IController.sol";
+import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 
-contract Controller is IController {
+contract Controller is Instance, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perrenial V2 Collateral Account");
 
-    // TODO: constructor/initializer should take interface for verifier contract
+    /// @dev Contract used to validate messages were signed by the sender
+    IVerifier public verifier;
 
+    /// @notice Initializes the Collateral Account Controller
+    /// @param verifier_ Contract used to validate messages were signed by the sender
+    function initialize(IVerifier verifier_) external initializer(1) {
+        __Instance__initialize();
+        verifier = verifier_;
+    }
+
+    // TODO: remove
     /// @inheritdoc IController
     function deployAccount() external returns (address accountAddress_) {
         Account account = new Account{salt: SALT}(msg.sender);
-        // TODO: emit event with address
         accountAddress_ = address(account);
+        emit AccountDeployed(msg.sender, accountAddress_);
     }
 
     /// @inheritdoc IController
     function deployAccountWithSignature(DeployAccount calldata deployAccount_, bytes calldata signature_) external {
-        // TODO: call verifier to verify signature
+        // Ensure the message was signed by the user creating the collateral account
+        address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
+        if (signer != deployAccount_.user) revert InvalidSignerError();
+
         Account account = new Account{salt: SALT}(deployAccount_.user);
-        // TODO: emit event with address
+        emit AccountDeployed(signer, address(account));
     }
 
     /// @inheritdoc IController

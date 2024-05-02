@@ -5,9 +5,16 @@ import { DeployAccount, DeployAccountLib } from "../types/DeployAccount.sol";
 
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
 interface IController {
-    /// @notice Emitted upon creation of a collateral account
-    event AccountDeployed(address indexed account);
+    /// @notice Emitted when a collateral account is deployed
+    /// @param user EOA for which the collateral account was created
+    /// @param account contract address of the collateral account
+    event AccountDeployed(address indexed user, address indexed account);
 
+    // sig: 0x35e0fb4b
+    /// @custom:error Signer is trying to perform an action for another user
+    error InvalidSignerError();
+
+    // TODO: remove this; only updating the signer may be done from a TX
     /// @notice Deploys the collateral account for msg.sender and returns the address of the account
     function deployAccount() external returns (address);
 

@@ -5,10 +5,11 @@ import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
+
+import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { Fill, FillLib } from "./types/Fill.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
-import { IVerifier } from "./interfaces/IVerifier.sol";
 
 /// @title Verifier
 /// @notice Singleton ERC712 signed message verifier for the Perennial protocol.
