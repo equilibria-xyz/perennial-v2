@@ -14733,6 +14733,19 @@ describe('Market', () => {
         })
       })
 
+      context('settle only', async () => {
+        it('reverts if update during settle-only', async () => {
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settle = true
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
+          await expect(
+            market.connect(user).update(user.address, parse6decimal('10'), 0, 0, parse6decimal('1000'), false),
+          ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
+        })
+      })
+
       context('liquidation w/ under min collateral', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)

@@ -3,11 +3,11 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { gql, request } from 'graphql-request'
 import { IMarket } from '../types/generated'
-import { isArbitrum } from '../../common/testutil/network'
 import { utils } from 'ethers'
+import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUtils'
+import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
 
 const QueryPageSize = 1000
-const MultiCallAddress = '0xcA11bde05977b3631167028862bE2a173976CA11'
 
 export default task('check-solvency', 'Check the solvency of all markets').setAction(
   async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
@@ -16,10 +16,10 @@ export default task('check-solvency', 'Check the solvency of all markets').setAc
       deployments: { getNetworkName },
     } = HRE
 
-    const graphURL = process.env.ARBITRUM_GRAPH_URL
-    if (!graphURL || !isArbitrum(getNetworkName())) {
-      console.log('Invalid Network.')
-      return
+    const graphURL = getSubgraphUrlFromEnvironment(getNetworkName())
+    if (!graphURL) {
+      console.error('Invalid Network.')
+      return 1
     }
     const marketFactory = await ethers.getContractAt(
       'IMarketFactory',
@@ -39,7 +39,7 @@ export default task('check-solvency', 'Check the solvency of all markets').setAc
 
       const market = await ethers.getContractAt('IMarket', marketAddress)
       const multicallPayload = liquidations.map(account => settleAndReadLocalsMulticallPayload(market, account)).flat()
-      const multicall = new ethers.Contract(MultiCallAddress, MultiCallABI, ethers.provider)
+      const multicall = new ethers.Contract(MulticallAddress, MulticallABI, ethers.provider)
 
       const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(multicallPayload)
       const decoded = result
@@ -112,10 +112,7 @@ async function getLiquidations(market: string, graphURL: string): Promise<string
   return rawData.updateds.map(u => u.account)
 }
 
-function settleAndReadLocalsMulticallPayload(
-  market: IMarket,
-  account: string,
-): { callData: string; allowFailure: boolean; target: string }[] {
+function settleAndReadLocalsMulticallPayload(market: IMarket, account: string): MulticallPayload[] {
   const settle = market.interface.encodeFunctionData('settle', [account])
   const locals = market.interface.encodeFunctionData('locals', [account])
   return [settle, locals].map(callData => ({ callData, allowFailure: true, target: market.address }))

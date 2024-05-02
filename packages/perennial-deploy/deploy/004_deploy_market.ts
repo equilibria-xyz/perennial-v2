@@ -35,6 +35,7 @@ const DEFAULT_MARKET_PARAMETER = {
   makerCloseAlways: false,
   takerCloseAlways: true,
   closed: false,
+  settle: false,
 }
 
 const DEFAULT_RISK_PARAMETERS = {
