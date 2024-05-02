@@ -13,24 +13,30 @@ export function erc721Domain(verifier: Verifier | FakeContract<IVerifier>) {
   }
 }
 
-// TODO: rework this to share types constants
+const commonType = {
+  Common: [
+    { name: 'account', type: 'address' },
+    { name: 'domain', type: 'address' },
+    { name: 'nonce', type: 'uint256' },
+    { name: 'group', type: 'uint256' },
+    { name: 'expiry', type: 'uint256' },
+  ],
+}
+
+const actionType = {
+  Action: [
+    { name: 'relayer', type: 'address' },
+    { name: 'fee', type: 'uint256' },
+    { name: 'common', type: 'Common' },
+  ],
+}
 
 export async function signCommon(
   signer: SignerWithAddress,
   verifier: Verifier | FakeContract<IVerifier>,
   common: CommonStruct,
 ): Promise<string> {
-  const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
-  }
-
-  return await signer._signTypedData(erc721Domain(verifier), types, common)
+  return await signer._signTypedData(erc721Domain(verifier), commonType, common)
 }
 
 export async function signAction(
@@ -39,20 +45,9 @@ export async function signAction(
   action: ActionStruct,
 ): Promise<string> {
   const types = {
-    Action: [
-      { name: 'relayer', type: 'address' },
-      { name: 'fee', type: 'uint256' },
-      { name: 'common', type: 'Common' },
-    ],
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
+    ...actionType,
+    ...commonType,
   }
-
   return await signer._signTypedData(erc721Domain(verifier), types, action)
 }
 
@@ -66,41 +61,9 @@ export async function signDeployAccount(
       { name: 'user', type: 'address' },
       { name: 'action', type: 'Action' },
     ],
-    Action: [
-      { name: 'relayer', type: 'address' },
-      { name: 'fee', type: 'uint256' },
-      { name: 'common', type: 'Common' },
-    ],
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
+    ...actionType,
+    ...commonType,
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, message)
-}
-
-export async function signGroupCancellation(
-  signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
-  groupCancellation: GroupCancellationStruct,
-): Promise<string> {
-  const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
-    GroupCancellation: [
-      { name: 'group', type: 'uint256' },
-      { name: 'common', type: 'Common' },
-    ],
-  }
-
-  return await signer._signTypedData(erc721Domain(verifier), types, groupCancellation)
 }
