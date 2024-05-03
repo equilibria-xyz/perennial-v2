@@ -39,6 +39,7 @@ import {
   expectOrderEq,
   expectCheckpointEq,
   DEFAULT_GLOBAL,
+  DEFAULT_GUARANTEE,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
@@ -1273,7 +1274,11 @@ describe('Market', () => {
               constants.AddressZero,
             )
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL })
+            .withArgs(
+              user.address,
+              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL },
+              { ...DEFAULT_GUARANTEE },
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1330,11 +1335,15 @@ describe('Market', () => {
               constants.AddressZero,
             )
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, {
-              ...DEFAULT_ORDER,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              collateral: -COLLATERAL,
-            })
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                collateral: -COLLATERAL,
+              },
+              { ...DEFAULT_GUARANTEE },
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1632,13 +1641,17 @@ describe('Market', () => {
                 constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                orders: 1,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                collateral: COLLATERAL,
-                makerPos: POSITION,
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  collateral: COLLATERAL,
+                  makerPos: POSITION,
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -2837,13 +2850,17 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
                 .to.emit(market, 'OrderCreated')
-                .withArgs(user.address, {
-                  ...DEFAULT_ORDER,
-                  timestamp: ORACLE_VERSION_2.timestamp,
-                  collateral: COLLATERAL,
-                  orders: 1,
-                  longPos: POSITION,
-                })
+                .withArgs(
+                  user.address,
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    collateral: COLLATERAL,
+                    orders: 1,
+                    longPos: POSITION,
+                  },
+                  { ...DEFAULT_GUARANTEE },
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -6102,13 +6119,17 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
                 .to.emit(market, 'OrderCreated')
-                .withArgs(user.address, {
-                  ...DEFAULT_ORDER,
-                  timestamp: ORACLE_VERSION_2.timestamp,
-                  collateral: COLLATERAL,
-                  orders: 1,
-                  shortPos: POSITION,
-                })
+                .withArgs(
+                  user.address,
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    collateral: COLLATERAL,
+                    orders: 1,
+                    shortPos: POSITION,
+                  },
+                  { ...DEFAULT_GUARANTEE },
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -16528,21 +16549,29 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, {
-              ...DEFAULT_ORDER,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              orders: 1,
-              longPos: POSITION.div(2),
-              takerReferral: POSITION.div(2).mul(2).div(10),
-            })
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                takerReferral: POSITION.div(2).mul(2).div(10),
+              },
+              { ...DEFAULT_GUARANTEE },
+            )
             .to.emit(market, 'OrderCreated')
-            .withArgs(userC.address, {
-              ...DEFAULT_ORDER,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              orders: 1,
-              shortPos: POSITION.div(2),
-              takerReferral: POSITION.div(2).mul(2).div(10),
-            })
+            .withArgs(
+              userC.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                shortPos: POSITION.div(2),
+                takerReferral: POSITION.div(2).mul(2).div(10),
+              },
+              { ...DEFAULT_GUARANTEE },
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
@@ -18621,21 +18650,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
@@ -18809,21 +18846,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
@@ -18997,21 +19042,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
@@ -19185,21 +19238,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
@@ -19388,21 +19449,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longNeg: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -19593,21 +19662,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortNeg: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -19798,21 +19875,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortNeg: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -20004,21 +20089,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longNeg: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -20216,21 +20309,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longNeg: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortNeg: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -20429,21 +20530,29 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortNeg: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
-              .withArgs(userC.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longNeg: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
-              })
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
