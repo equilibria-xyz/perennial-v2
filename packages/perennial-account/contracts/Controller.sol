@@ -41,7 +41,7 @@ contract Controller is Instance, IController {
     // TODO: consider creating modifiers for signedBySender and signedByDelegate, 
     // maybe even for drawing keeper fee from the account
 
-    // TODO: remove
+    // TODO: remove; Kevin wants this to be message-only
     /// @inheritdoc IController
     function deployAccount() external returns (address accountAddress_) {
         Account account = new Account{salt: SALT}(msg.sender);
@@ -54,8 +54,6 @@ contract Controller is Instance, IController {
     function deployAccountWithSignature(DeployAccount calldata deployAccount_, bytes calldata signature_) external {
         // Ensure the message was signed by the user creating the collateral account
         address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
-        // TODO: Since addresses are deterministic, should we support allowing a delegate signer 
-        // to deploy the account before it even exists?
         if (signer != deployAccount_.action.common.account) revert InvalidSignerError();
 
         Account account = new Account{salt: SALT}(signer);
@@ -78,10 +76,8 @@ contract Controller is Instance, IController {
     ) external {
         // Ensure the message was signed only by the owner, not an existing delegate
         address signer = verifier.verifyUpdateSigner(updateSigner_, signature_);
-        address account = updateSigner_.account;
+        address account = updateSigner_.action.common.account;
         if (signer != owners[account]) revert InvalidSignerError();
-
-        // TODO: Do we need to validate deployAccount_.action.common.account?
 
         signers[account][updateSigner_.delegate] = updateSigner_.newEnabled;
         emit SignerUpdated(account, updateSigner_.delegate, updateSigner_.newEnabled);

@@ -71,7 +71,6 @@ export async function signUpdateSigner(
 ): Promise<string> {
   const types = {
     UpdateSigner: [
-      { name: 'account', type: 'address' },
       { name: 'delegate', type: 'address' },
       { name: 'newEnabled', type: 'bool' },
       { name: 'action', type: 'Action' },

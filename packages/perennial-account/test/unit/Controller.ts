@@ -31,12 +31,12 @@ describe('Controller', () => {
   }
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(user: SignerWithAddress, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
+  function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
     return {
       action: {
         fee: feeOverride,
         common: {
-          account: user.address,
+          account: userAddress,
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
@@ -49,7 +49,7 @@ describe('Controller', () => {
   // deploys a collateral account for the specified user and returns the address
   async function createCollateralAccount(user: SignerWithAddress): Promise<Address> {
     const deployAccountMessage = {
-      ...createAction(user),
+      ...createAction(user.address),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signatureCreate)
@@ -104,7 +104,7 @@ describe('Controller', () => {
           domain: verifier.address,
           nonce: nonce,
           group: 0,
-          expiry: constants.MaxUint256, // TODO: currentTime.add(6),
+          expiry: currentTime.add(6),
         },
       }
       const signature = await signAction(userB, verifier, actionMessage)
@@ -141,7 +141,7 @@ describe('Controller', () => {
 
     it('creates collateral accounts from a signed message', async () => {
       const deployAccountMessage = {
-        ...createAction(userA),
+        ...createAction(userA.address),
       }
 
       // ensure message verification works
@@ -209,10 +209,9 @@ describe('Controller', () => {
 
       // userA signs a message assigning userB's delegation rights
       const updateSignerMessage = {
-        account: accountAddressA,
         delegate: userB.address,
         newEnabled: true,
-        ...createAction(userB),
+        ...createAction(accountAddressA),
       }
 
       // owner is unknown
@@ -235,10 +234,9 @@ describe('Controller', () => {
 
       // userA signs a message assigning userB's delegation rights
       const updateSignerMessage = {
-        account: accountAddressA,
         delegate: userB.address,
         newEnabled: true,
-        ...createAction(userA),
+        ...createAction(accountAddressA),
       }
       const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
 
@@ -265,10 +263,9 @@ describe('Controller', () => {
 
       // userB signs a message granting them delegation rights to userA's collateral account
       const updateSignerMessage = {
-        account: accountAddressA,
         delegate: userB.address,
         newEnabled: true,
-        ...createAction(userA),
+        ...createAction(accountAddressA),
       }
       const signature = await signUpdateSigner(userB, verifier, updateSignerMessage)
 
@@ -293,10 +290,9 @@ describe('Controller', () => {
 
       // userA signs a message assigning userB's delegation rights
       const updateSignerMessage = {
-        account: accountAddressA,
         delegate: userB.address,
         newEnabled: false,
-        ...createAction(userA),
+        ...createAction(accountAddressA),
       }
       const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
 
