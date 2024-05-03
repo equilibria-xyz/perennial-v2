@@ -16500,9 +16500,9 @@ describe('Market', () => {
           const intent: IntentStruct = {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
-            fee: 0,
-            originator: constants.AddressZero,
-            solver: constants.AddressZero,
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
             common: {
               account: user.address,
               domain: market.address,
@@ -16620,7 +16620,11 @@ describe('Market', () => {
           })
           expectLocalEq(await market.locals(liquidator.address), {
             ...DEFAULT_LOCAL,
-            claimable: TAKER_FEE.mul(2).div(10).mul(2),
+            claimable: TAKER_FEE.mul(2).div(10),
+          })
+          expectLocalEq(await market.locals(owner.address), {
+            ...DEFAULT_LOCAL,
+            claimable: TAKER_FEE.mul(2).div(10),
           })
           const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)).mul(2))
           expectGlobalEq(await market.global(), {
@@ -16656,9 +16660,12 @@ describe('Market', () => {
         })
 
         it('reverts when not operator', async () => {
-          const intent = {
+          const intent: IntentStruct = {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
             common: {
               account: user.address,
               domain: market.address,
@@ -16684,8 +16691,11 @@ describe('Market', () => {
 
           await expect(
             market
-              .connect(operator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+              .connect(userC)
+              ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
+                intent,
+                DEFAULT_SIGNATURE,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
       })
@@ -18596,9 +18606,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -18715,7 +18725,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)).mul(2))
             expectGlobalEq(await market.global(), {
@@ -18786,9 +18800,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -18905,7 +18919,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)).mul(2))
             expectGlobalEq(await market.global(), {
@@ -18976,9 +18994,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('121'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19095,7 +19113,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)).mul(2))
             expectGlobalEq(await market.global(), {
@@ -19166,9 +19188,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('121'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19285,7 +19307,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)).mul(2))
             expectGlobalEq(await market.global(), {
@@ -19347,9 +19373,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19492,7 +19518,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = EXPECTED_INTEREST_FEE_5_123.add(EXPECTED_FUNDING_FEE_1_5_123)
               .add(TAKER_FEE) // setup
@@ -19554,9 +19584,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19699,7 +19729,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = EXPECTED_INTEREST_FEE_5_123.add(EXPECTED_FUNDING_FEE_1_5_123)
               .add(TAKER_FEE) // setup
@@ -19761,9 +19795,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19907,7 +19941,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = EXPECTED_INTEREST_FEE_5_123.add(EXPECTED_FUNDING_FEE_1_5_123)
               .add(TAKER_FEE) // setup
@@ -19969,9 +20007,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -20115,7 +20153,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = EXPECTED_INTEREST_FEE_5_123.add(EXPECTED_FUNDING_FEE_1_5_123)
               .add(TAKER_FEE) // setup
@@ -20177,9 +20219,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -20330,7 +20372,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = TAKER_FEE.mul(2) // setup
               .add(EXPECTED_INTEREST_FEE_10_123_EFF) // while open
@@ -20392,9 +20438,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
-              fee: 0,
-              originator: constants.AddressZero,
-              solver: constants.AddressZero,
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -20545,7 +20591,11 @@ describe('Market', () => {
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).mul(2),
+              claimable: TAKER_FEE.mul(2).div(10),
+            })
+            expectLocalEq(await market.locals(owner.address), {
+              ...DEFAULT_LOCAL,
+              claimable: TAKER_FEE.mul(2).div(10),
             })
             const totalFee = TAKER_FEE.mul(2) // setup
               .add(EXPECTED_INTEREST_FEE_10_123_EFF) // while open
@@ -20605,7 +20655,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: 0,
-            originator: constants.AddressZero,
+            originator: liquidator.address,
             solver: constants.AddressZero,
             common: {
               account: user.address,

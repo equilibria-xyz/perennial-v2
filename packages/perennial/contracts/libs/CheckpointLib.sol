@@ -101,7 +101,7 @@ library CheckpointLib {
 
         solverFee = order.takerTotal().isZero() ?
             UFixed6Lib.ZERO :
-            takerSubtractiveFee.muldiv(guarantee.referral, order.takerTotal());
+            takerFee.muldiv(guarantee.referral, order.takerTotal());
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
