@@ -26,6 +26,7 @@ function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish)
     shortRewardRate: 0,
     riskFee,
     closed: false,
+    settle: false,
     makerCloseAlways: false,
     takerCloseAlways: false,
   }

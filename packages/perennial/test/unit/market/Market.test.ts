@@ -448,6 +448,7 @@ describe('Market', () => {
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
+      settle: false,
     }
     market = await new Market__factory(
       {
@@ -541,6 +542,7 @@ describe('Market', () => {
         makerCloseAlways: true,
         takerCloseAlways: true,
         closed: true,
+        settle: true,
       }
 
       it('updates the parameters', async () => {
@@ -567,6 +569,7 @@ describe('Market', () => {
         expect(marketParameter.longRewardRate).to.equal(0)
         expect(marketParameter.shortRewardRate).to.equal(0)
         expect(marketParameter.closed).to.equal(defaultMarketParameter.closed)
+        expect(marketParameter.settle).to.equal(defaultMarketParameter.settle)
       })
 
       it('reverts if not owner (user)', async () => {
@@ -687,6 +690,159 @@ describe('Market', () => {
           market,
           'MarketNotCoordinatorError',
         )
+      })
+    })
+
+    describe('#settle', async () => {
+      beforeEach(async () => {
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+      })
+      it('opens the position and settles', async () => {
+        await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+          .to.emit(market, 'Updated')
+          .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+        await expect(await market.settle(user.address))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, 1, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            ORACLE_VERSION_1.timestamp,
+            ORACLE_VERSION_2.timestamp,
+            0,
+            1,
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 1,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectPositionEq(await market.pendingPositions(user.address, 1), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+          delta: COLLATERAL,
+        })
+        expectGlobalEq(await market.global(), {
+          currentId: 1,
+          latestId: 1,
+          protocolFee: 0,
+          oracleFee: 0,
+          riskFee: 0,
+          donation: 0,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectPositionEq(await market.pendingPosition(1), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          makerValue: { _value: 0 },
+          longValue: { _value: 0 },
+          shortValue: { _value: 0 },
+          makerReward: { _value: 0 },
+          longReward: { _value: 0 },
+          shortReward: { _value: 0 },
+        })
+      })
+
+      it('settles when market is in settle-only mode', async () => {
+        await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+          .to.emit(market, 'Updated')
+          .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        const marketParameter = { ...(await market.parameter()) }
+        marketParameter.settle = true
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+        await expect(await market.settle(user.address))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, 1, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            ORACLE_VERSION_1.timestamp,
+            ORACLE_VERSION_2.timestamp,
+            0,
+            1,
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 1,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectPositionEq(await market.pendingPositions(user.address, 1), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+          delta: COLLATERAL,
+        })
+        expectGlobalEq(await market.global(), {
+          currentId: 1,
+          latestId: 1,
+          protocolFee: 0,
+          oracleFee: 0,
+          riskFee: 0,
+          donation: 0,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectPositionEq(await market.pendingPosition(1), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          makerValue: { _value: 0 },
+          longValue: { _value: 0 },
+          shortValue: { _value: 0 },
+          makerReward: { _value: 0 },
+          longReward: { _value: 0 },
+          shortReward: { _value: 0 },
+        })
       })
     })
 
@@ -12313,6 +12469,19 @@ describe('Market', () => {
               )
             })
           })
+        })
+      })
+
+      context('settle only', async () => {
+        it('reverts if update during settle-only', async () => {
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settle = true
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
+          await expect(
+            market.connect(user).update(user.address, parse6decimal('10'), 0, 0, parse6decimal('1000'), false),
+          ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
         })
       })
 

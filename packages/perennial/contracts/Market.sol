@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/root/attribute/ReentrancyGuard.sol";
@@ -68,6 +68,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         token = definition_.token;
         oracle = definition_.oracle;
         payoff = definition_.payoff;
+    }
+
+    /// @notice Settle the account's position and collateral
+    /// @param account The account to operate on
+    function settle(address account) external nonReentrant whenNotPaused {
+        Context memory context = _loadContext(account);
+        _settle(context, account);
+        _saveContext(context, account);
     }
 
     /// @notice Updates the account's position and collateral
@@ -317,6 +325,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         bool protect
     ) private {
+        if (context.marketParameter.settle) revert MarketSettleOnlyError();
+
         // load
         _loadUpdateContext(context, account);
 
