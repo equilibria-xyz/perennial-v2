@@ -32,6 +32,7 @@ describe('Controller', () => {
     controller = await new Controller__factory(owner).deploy()
     verifier = await new Verifier__factory(owner).deploy()
     verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
+    await controller.initialize(verifier.address)
   }
 
   beforeEach(async () => {
@@ -50,12 +51,12 @@ describe('Controller', () => {
   it('created address matches calculated address', async () => {
     const [owner] = await ethers.getSigners()
 
-    const accountAddressCalculated = await controller.getAccountAddress(owner.address)
+    const accountAddressCalculated = await controller.getAccountAddress(userA.address)
 
-    // TODO: move to helper function
-    const accountAddressActual = await controller.connect(owner).callStatic.deployAccount()
-    await controller.connect(owner).deployAccount()
-    // TODO: check event was emitted
+    const accountAddressActual = await controller.connect(userA).callStatic.deployAccount()
+    await expect(controller.connect(userA).deployAccount())
+      .to.emit(controller, 'AccountDeployed')
+      .withArgs(userA.address, accountAddressCalculated)
 
     expect(accountAddressCalculated).to.equal(accountAddressActual)
   })
@@ -114,23 +115,24 @@ describe('Controller', () => {
         fee: utils.parseEther('12'),
         common: {
           account: userA.address,
-          domain: verifier.address,
+          domain: controller.address,
           nonce: nextNonce(),
           group: 0,
-          expiry: constants.MaxUint256, // TODO: currentTime.add(6),
+          expiry: currentTime.add(6),
         },
       },
     }
 
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
-    console.log('user', userA.address, 'verifier', verifier.address, 'controller', controller.address)
-    console.log('signed message for', userA.address, 'with domain', verifier.address, signature)
+    const controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
     const signerResult = await verifier
-      .connect(verifierSigner)
+      .connect(controllerSigner)
       .callStatic.verifyDeployAccount(deployAccountMessage, signature)
     expect(signerResult).to.eq(userA.address)
 
-    // FIXME: not yet working
-    // await controller.connect(verifierSigner).deployAccountWithSignature(deployAccountMessage, signature)
+    const accountAddressCalculated = await controller.getAccountAddress(userA.address)
+    await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature))
+      .to.emit(controller, 'AccountDeployed')
+      .withArgs(userA.address, accountAddressCalculated)
   })
 })
