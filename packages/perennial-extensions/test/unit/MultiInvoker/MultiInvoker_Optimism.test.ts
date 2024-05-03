@@ -91,7 +91,7 @@ describe('MultiInvoker_Optimism', () => {
     gasInfo.getL1GasUsed.returns(0)
     gasInfo.getL1GasUsed.returns(0)
     gasInfo.l1BaseFee.returns(0)
-    gasInfo.scalar.returns(684000)
+    gasInfo.baseFeeScalar.returns(684000)
     gasInfo.decimals.returns(6)
 
     // Default mkt price: 1150

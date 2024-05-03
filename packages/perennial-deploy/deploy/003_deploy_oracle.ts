@@ -61,6 +61,7 @@ const ORACLES: { [key: string]: { [asset: string]: OracleDefinition } } = {
 }
 
 const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('25', 6)
+export const DEFAULT_KEEPER_ORACLE_TIMEOUT = 60
 export const L1_GAS_BUFFERS = {
   arbitrum: {
     commitCalldata: 31_000,
@@ -125,7 +126,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const pythFactoryContract = isArbitrum(getNetworkName()) ? 'PythFactory_Arbitrum' : 'PythFactory_Optimism'
   await deploy('KeeperOracleImpl', {
     contract: 'KeeperOracle',
-    args: [60],
+    args: [DEFAULT_KEEPER_ORACLE_TIMEOUT],
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
