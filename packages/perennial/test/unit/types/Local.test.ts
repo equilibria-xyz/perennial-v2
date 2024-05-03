@@ -165,7 +165,7 @@ describe('Local', () => {
   describe('#update', () => {
     it('correctly updates fees', async () => {
       await local.store({ ...DEFAULT_LOCAL, collateral: 1000 })
-      await local['update(uint256,(int256,int256,uint256,int256,uint256,uint256,uint256))'](11, {
+      await local['update(uint256,(int256,int256,uint256,int256,uint256,uint256,uint256,uint256))'](11, {
         collateral: 567,
         priceOverride: -222,
         tradeFee: 123,
@@ -173,6 +173,7 @@ describe('Local', () => {
         settlementFee: 456,
         liquidationFee: 256,
         subtractiveFee: 0,
+        solverFee: 0,
       })
 
       const storedLocal = await local.read()

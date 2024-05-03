@@ -817,7 +817,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _credit(liquidators[context.account][newOrderId], accumulationResult.liquidationFee);
         _credit(orderReferrers[context.account][newOrderId], accumulationResult.subtractiveFee);
-        _credit(guaranteeReferrers[context.account][newOrderId], UFixed6Lib.ZERO); // TODO: add solver fee
+        _credit(guaranteeReferrers[context.account][newOrderId], accumulationResult.solverFee);
 
         emit AccountPositionProcessed(context.account, newOrderId, newOrder, accumulationResult);
     }
