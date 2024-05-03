@@ -82,7 +82,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     mapping(address => mapping(uint256 => address)) public liquidators;
 
     /// @dev The referrer for each id for each account
-    mapping(address => mapping(uint256 => address)) public referrers;
+    mapping(address => mapping(uint256 => address)) public orderReferrers;
+
+    /// @dev The referrer for each id for each account
+    mapping(address => mapping(uint256 => address)) public guaranteeReferrers;
 
     /// @dev The global pending guarantee for each id
     mapping(uint256 => GuaranteeStorageGlobal) private _guarantee;
@@ -121,12 +124,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ///      - The sender is charged the settlement fee
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
-    /// @param referrer The referrer of the order
-    function update(Intent calldata intent, bytes memory signature, address referrer) external {
+    /// @param orderReferrer The referrer of the order // TODO: put these in the message
+    /// @param guaranteeReferrer The referrer of the guarantee
+    function update(Intent calldata intent, bytes memory signature, address orderReferrer, address guaranteeReferrer) external {
         address signer = verifier.verifyIntent(intent, signature);
 
-        _updateIntent(msg.sender, address(0), intent.amount.mul(Fixed6Lib.NEG_ONE), intent.price, true, referrer); // sender
-        _updateIntent(intent.common.account, signer, intent.amount, intent.price, false, referrer); // signer
+        _updateIntent(msg.sender, address(0), intent.amount.mul(Fixed6Lib.NEG_ONE), intent.price, true, orderReferrer, guaranteeReferrer); // sender
+        _updateIntent(intent.common.account, signer, intent.amount, intent.price, false, orderReferrer, guaranteeReferrer); // signer
     }
 
     /// @notice Updates the account's position for an intent order
@@ -153,7 +157,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load update context
         UpdateContext memory updateContext = _loadUpdateContext(context, signer, orderReferrer, guaranteeReferrer);
 
-        (UFixed6 orderReferralFee, UFixed6 guarenteeReferralFee) = _processReferralFee(context, updateContext, referrer);
+        (UFixed6 orderReferralFee, UFixed6 guarenteeReferralFee) =
+            _processReferralFee(context, updateContext, orderReferrer, guaranteeReferrer);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
@@ -165,7 +170,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, price, guarenteeReferralFee, settlementFee);
 
         // process update
-        _update(context, updateContext, newOrder, newGuarantee, referrer);
+        _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
 
         // store updated state
         _storeContext(context);
@@ -211,7 +216,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _settle(context);
 
         // load update context
-        UpdateContext memory updateContext = _loadUpdateContext(context, address(0), referrer);
+        UpdateContext memory updateContext = _loadUpdateContext(context, address(0), referrer, address(0));
 
         // magic values
         collateral = _processCollateralMagicValue(context, collateral);
@@ -220,8 +225,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
 
         // Compute referral fees
-        (UFixed6 orderReferralFee, UFixed6 guaranteeReferralFee) =
-            _processReferralFee(context, updateContext, referrer, address(0));
+        (UFixed6 orderReferralFee, ) = _processReferralFee(context, updateContext, referrer, address(0));
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
@@ -237,7 +241,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Guarantee memory newGuarantee; // no guarantee is created for a market order
 
         // process update
-        _update(context, updateContext, newOrder, newGuarantee, referrer);
+        _update(context, updateContext, newOrder, newGuarantee, referrer, address(0));
 
         // store updated state
         _storeContext(context);
@@ -482,11 +486,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeLocal = _guarantees[context.account][context.local.currentId].read();
 
         // load external actors
-        updateContext.operator = context.account == msg.sender || IMarketFactory(address(factory())).operators(context.account, msg.sender);
-        updateContext.signer = context.account == signer || IMarketFactory(address(factory())).signers(context.account, signer);
+        (
+            updateContext.operator,
+            updateContext.signer,
+            updateContext.orderReferralFee,
+            updateContext.guaranteeReferralFee
+        ) = IMarketFactory(address(factory())).status(context.account, msg.sender, signer, orderReferrer, guaranteeReferrer);
+        updateContext.operator = updateContext.operator || context.account == msg.sender;
+        updateContext.signer = updateContext.signer || context.account == signer;
         updateContext.liquidator = liquidators[context.account][context.local.currentId];
         updateContext.orderReferrer = orderReferrers[context.account][context.local.currentId];
-        updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);
     }
 
     /// @notice Stores the context for the update process
@@ -501,7 +510,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // external actors
         liquidators[context.account][context.local.currentId] = updateContext.liquidator;
-        referrers[context.account][context.local.currentId] = updateContext.referrer;
+        orderReferrers[context.account][context.local.currentId] = updateContext.orderReferrer;
+        guaranteeReferrers[context.account][context.local.currentId] = updateContext.guaranteeReferrer;
     }
 
     /// @notice Updates the current position with a new order
@@ -583,12 +593,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address guaranteeReferrer
     ) private pure returns (UFixed6 orderReferralFee, UFixed6 guaranteeReferralFee) {
         if (orderReferrer != address(0)) {
-            if (!updateContext.orderReferralFee.isZero()) return updateContext.orderReferralFee;
-            return context.protocolParameter.orderReferralFee;
+            orderReferralFee = updateContext.orderReferralFee.isZero()
+                ? context.protocolParameter.orderReferralFee
+                : updateContext.orderReferralFee;
         }
         if (guaranteeReferrer != address(0)) {
-            if (!updateContext.guaranteeReferralFee.isZero()) return updateContext.guaranteeReferralFee;
-            return context.protocolParameter.guaranteeReferralFee;
+            guaranteeReferralFee = updateContext.guaranteeReferralFee.isZero()
+                ? context.protocolParameter.guaranteeReferralFee
+                : updateContext.guaranteeReferralFee;
         }
     }
 
@@ -607,9 +619,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private pure {
         if (!newOrder.makerReferral.isZero() || !newOrder.takerReferral.isZero()) {
             if (updateContext.orderReferrer == address(0)) updateContext.orderReferrer = orderReferrer;
-            if (updateContext.referrer != orderReferrer) revert MarketInvalidReferrerError();
+            if (updateContext.orderReferrer != orderReferrer) revert MarketInvalidReferrerError();
         }
-        if (!newGuarantee.guaranteeReferral.isZero()) {
+        if (!newGuarantee.referral.isZero()) {
             if (updateContext.guaranteeReferrer == address(0)) updateContext.guaranteeReferrer = guaranteeReferrer;
             if (updateContext.guaranteeReferrer != guaranteeReferrer) revert MarketInvalidReferrerError();
         }
@@ -792,7 +804,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _checkpoints[context.account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
         _credit(liquidators[context.account][newOrderId], accumulationResult.liquidationFee);
-        _credit(referrers[context.account][newOrderId], accumulationResult.subtractiveFee);
+        _credit(orderReferrers[context.account][newOrderId], accumulationResult.subtractiveFee);
+        _credit(guaranteeReferrers[context.account][newOrderId], UFixed6Lib.ZERO); // TODO: add solver fee
 
         emit AccountPositionProcessed(context.account, newOrderId, newOrder, accumulationResult);
     }

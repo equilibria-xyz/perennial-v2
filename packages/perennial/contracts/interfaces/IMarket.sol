@@ -142,9 +142,10 @@ interface IMarket is IInstance {
     function global() external view returns (Global memory);
     function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);
     function liquidators(address account, uint256 id) external view returns (address);
-    function referrers(address account, uint256 id) external view returns (address);
+    function orderReferrers(address account, uint256 id) external view returns (address);
+    function guaranteeReferrers(address account, uint256 id) external view returns (address);
     function settle(address account) external;
-    function update(Intent calldata intent, bytes memory signature, address referrer) external;
+    function update(Intent calldata intent, bytes memory signature, address orderReferrer, address guaranteeReferrer) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
     function parameter() external view returns (MarketParameter memory);

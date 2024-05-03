@@ -70,7 +70,7 @@ contract MarketFactory is IMarketFactory, Factory {
         address signer,
         address orderReferrer,
         address guaranteeReferrer
-    ) external returns (bool isOperator, bool isSigner, UFixed6 orderReferralFee, UFixed6 guaranteeReferralFee) {
+    ) external view returns (bool isOperator, bool isSigner, UFixed6 orderReferralFee, UFixed6 guaranteeReferralFee) {
         return (
             operators[account][operator],
             signers[account][signer],
@@ -99,7 +99,7 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @param referrer The referrer to update
     /// @param newReferralFee The new referral fee
     function updateOrderReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
-        orderReferralFee[referrer] = newReferralFee;
+        orderReferralFees[referrer] = newReferralFee;
         emit OrderReferralFeeUpdated(referrer, newReferralFee);
     }
 
@@ -107,7 +107,7 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @param referrer The referrer to update
     /// @param newReferralFee The new referral fee
     function updateGuaranteeReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
-        guaranteeReferralFee[referrer] = newReferralFee;
+        guaranteeReferralFees[referrer] = newReferralFee;
         emit GuaranteeReferralFeeUpdated(referrer, newReferralFee);
     }
 
