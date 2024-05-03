@@ -23,7 +23,7 @@ struct Guarantee {
 using GuaranteeLib for Guarantee global;
 struct GuaranteeStorageGlobal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using GuaranteeStorageGlobalLib for GuaranteeStorageGlobal global;
-struct GuaranteeStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (1) slots
+struct GuaranteeStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using GuaranteeStorageLocalLib for GuaranteeStorageLocal global;
 
 /// @title Guarantee
@@ -62,7 +62,7 @@ library GuaranteeLib {
             (order.longPos.add(order.shortNeg), order.longNeg.add(order.shortPos));
 
         newGuarantee.notional = taker(newGuarantee).mul(priceOverride);
-        newGuarantee.referral = takerTotal(newGuarantee).mul(referralFee);
+        newGuarantee.referral = order.takerReferral.mul(referralFee);
     }
 
     /// @notice Returns the taker delta of the guarantee

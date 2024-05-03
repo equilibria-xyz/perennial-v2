@@ -22,10 +22,7 @@ contract MarketFactory is IMarketFactory, Factory {
     mapping(IOracleProvider => mapping(address => IMarket)) private _markets;
 
     /// @dev The referreral fee level for each referrer for orders
-    mapping(address => UFixed6) public orderReferralFees;
-
-    /// @dev The referreral fee level for each referrer for guarantees
-    mapping(address => UFixed6) public guaranteeReferralFees;
+    mapping(address => UFixed6) public referralFees;
 
     /// @dev Mapping of allowed signers for each account
     mapping(address => mapping(address => bool)) public signers;
@@ -58,27 +55,6 @@ contract MarketFactory is IMarketFactory, Factory {
         emit ParameterUpdated(newParameter);
     }
 
-    /// @notice Returns a snapshot of the parameter settings for a market update
-    /// @param account The account being operated on
-    /// @param operator The operator of the update
-    /// @param signer The signer of the update
-    /// @param orderReferrer The referrer of the order of the update
-    /// @param guaranteeReferrer The referrer of the guarantee of the update
-    function status(
-        address account,
-        address operator,
-        address signer,
-        address orderReferrer,
-        address guaranteeReferrer
-    ) external view returns (bool isOperator, bool isSigner, UFixed6 orderReferralFee, UFixed6 guaranteeReferralFee) {
-        return (
-            operators[account][operator],
-            signers[account][signer],
-            orderReferralFees[orderReferrer],
-            guaranteeReferralFees[guaranteeReferrer]
-        );
-    }
-
     /// @notice Updates the status of an operator for the caller
     /// @param operator The operator to update
     /// @param newEnabled The new status of the operator
@@ -98,17 +74,9 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @notice Updates the referral fee for orders
     /// @param referrer The referrer to update
     /// @param newReferralFee The new referral fee
-    function updateOrderReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
-        orderReferralFees[referrer] = newReferralFee;
-        emit OrderReferralFeeUpdated(referrer, newReferralFee);
-    }
-
-    /// @notice Updates the referral fee for guarantees
-    /// @param referrer The referrer to update
-    /// @param newReferralFee The new referral fee
-    function updateGuaranteeReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
-        guaranteeReferralFees[referrer] = newReferralFee;
-        emit GuaranteeReferralFeeUpdated(referrer, newReferralFee);
+    function updateReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
+        referralFees[referrer] = newReferralFee;
+        emit ReferralFeeUpdated(referrer, newReferralFee);
     }
 
     /// @notice Creates a new market market with the given definition

@@ -9,8 +9,7 @@ interface IMarketFactory is IFactory {
     event ParameterUpdated(ProtocolParameter newParameter);
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
     event SignerUpdated(address indexed account, address indexed signer, bool newEnabled);
-    event OrderReferralFeeUpdated(address indexed referrer, UFixed6 newFee);
-    event GuaranteeReferralFeeUpdated(address indexed referrer, UFixed6 newFee);
+    event ReferralFeeUpdated(address indexed referrer, UFixed6 newFee);
     event MarketCreated(IMarket indexed market, IMarket.MarketDefinition definition);
 
     // sig: 0x0a37dc74
@@ -27,15 +26,12 @@ interface IMarketFactory is IFactory {
     function parameter() external view returns (ProtocolParameter memory);
     function operators(address account, address operator) external view returns (bool);
     function signers(address signer, address operator) external view returns (bool);
-    function orderReferralFees(address referrer) external view returns (UFixed6);
-    function guaranteeReferralFees(address referrer) external view returns (UFixed6);
+    function referralFees(address referrer) external view returns (UFixed6);
     function markets(IOracleProvider oracle) external view returns (IMarket);
-    function status(address account, address operator, address signer, address orderReferrer, address guaranteeReferrer) external view returns (bool, bool, UFixed6, UFixed6);
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;
     function updateOperator(address operator, bool newEnabled) external;
     function updateSigner(address signer, bool newEnabled) external;
-    function updateOrderReferralFee(address referrer, UFixed6 newReferralFee) external;
-    function updateGuaranteeReferralFee(address referrer, UFixed6 newReferralFee) external;
+    function updateReferralFee(address referrer, UFixed6 newReferralFee) external;
     function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);
 }

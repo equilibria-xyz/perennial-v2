@@ -233,7 +233,7 @@ describe('MarketFactory', () => {
         .to.emit(factory, 'ReferralFeeUpdated')
         .withArgs(user.address, parse6decimal('0.3'))
 
-      expect(await factory.referralFee(user.address)).to.equal(parse6decimal('0.3'))
+      expect(await factory.referralFees(user.address)).to.equal(parse6decimal('0.3'))
     })
 
     it('reverts if not owner', async () => {
