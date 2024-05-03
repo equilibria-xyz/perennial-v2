@@ -3,13 +3,11 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { gql, request } from 'graphql-request'
 import { IMarket } from '../types/generated'
-import { constants } from 'ethers'
 import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUtils'
 import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
 
 const GRAPHQL_QUERY_PAGE_SIZE = 1000
-const SETTLE_MULTICALL_BATCH_SIZE = 30 // largest Arbitrum market has 1930 users, 50 is too large for no-op update
-const USE_NO_OP_UPDATE = true // for use on pre-2.1.1 deployments
+const SETTLE_MULTICALL_BATCH_SIZE = 100
 
 export default task('settle-markets', 'Settles users across all markets')
   .addFlag('dry', 'Count number of users and transactions required to settle')
@@ -38,31 +36,36 @@ export default task('settle-markets', 'Settles users across all markets')
 
       const market = await ethers.getContractAt('IMarket', marketAddress)
 
-      if (args.dry) {
-        console.log('found', users.length, 'users to settle in market', marketAddress)
-        txCount += users.length <= SETTLE_MULTICALL_BATCH_SIZE ? 1 : users.length % SETTLE_MULTICALL_BATCH_SIZE
-      } else {
-        console.log('settling', users.length, 'users to settle in market', marketAddress)
+      // Commit VAA for market?
 
-        let batchedUsers
-        while (users.length > 0) {
-          // batch multicalls to handle markets with large numbers of users
-          batchedUsers = users.splice(0, SETTLE_MULTICALL_BATCH_SIZE)
-          console.log('  batch contains', batchedUsers.length, 'users', users.length, 'users remaining')
+      console.log('settling', users.length, 'users to settle in market', marketAddress)
 
-          const multicallPayload = settleMarketUsersPayload(market, batchedUsers)
-          const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(
-            multicallPayload,
-          )
-          const successfulSettleCalls = result.reduce((a, c) => (c.success ? a + 1 : a), 0)
-          console.log('  ', successfulSettleCalls, 'sucessfull settle calls')
+      let batchedUsers
+      while (users.length > 0) {
+        // batch multicalls to handle markets with large numbers of users
+        batchedUsers = users.splice(0, SETTLE_MULTICALL_BATCH_SIZE)
+        console.log('  batch contains', batchedUsers.length, 'users', users.length, 'users remaining')
 
-          if (successfulSettleCalls === batchedUsers.length) {
-            txCount += 1
-          } else {
-            console.error('failed to settle all users:', result)
-            return 1
+        const multicallPayload = settleMarketUsersPayload(market, batchedUsers)
+        const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(
+          multicallPayload,
+        )
+        const gasUsage = await multicall.estimateGas.aggregate3(multicallPayload)
+
+        const successfulSettleCalls = result.reduce((a, c) => (c.success ? a + 1 : a), 0)
+        console.log(`    ${successfulSettleCalls} successful settle calls. gas: ${gasUsage.toString()}`)
+
+        if (successfulSettleCalls === batchedUsers.length) {
+          if (!args.dry) {
+            process.stdout.write('    Sending Transaction...')
+            const tx = await multicall.aggregate3(multicallPayload)
+            await tx.wait()
+            console.log('done. Hash:', tx.hash)
           }
+          txCount += 1
+        } else {
+          console.error('failed to settle all users:', result)
+          return 1
         }
       }
     }
@@ -110,17 +113,6 @@ async function getMarketUsers(graphURL: string): Promise<{ [key: string]: Set<st
 
 // prepares calldata to settle multiple users
 function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPayload[] {
-  const settles = users.map(user =>
-    USE_NO_OP_UPDATE
-      ? market.interface.encodeFunctionData('update', [
-          user,
-          constants.MaxUint256,
-          constants.MaxUint256,
-          constants.MaxUint256,
-          0,
-          false,
-        ])
-      : market.interface.encodeFunctionData('settle', [user]),
-  )
+  const settles = users.map(user => market.interface.encodeFunctionData('settle', [user]))
   return settles.map(callData => ({ callData, allowFailure: false, target: market.address }))
 }

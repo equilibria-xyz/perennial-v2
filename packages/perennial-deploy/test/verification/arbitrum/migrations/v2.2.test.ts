@@ -7,13 +7,16 @@ import {
   IERC20,
   IMarket,
   MarketFactory,
+  MultiInvoker,
   OracleFactory,
   ProxyAdmin,
   PythFactory,
+  VaultFactory,
 } from '../../../../types/generated'
 import { BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { smock } from '@defi-wonderland/smock'
+import { cmsqETHOracleID, msqBTCOracleID } from '../../../../util/constants'
 
 const RunMigrationDeployScript = true
 
@@ -24,6 +27,8 @@ describe('Verify Arbitrum v2.2 Migration', () => {
   let oracleFactory: OracleFactory
   let pythFactory: PythFactory
   let marketFactory: MarketFactory
+  let vaultFactory: VaultFactory
+  let multiinvoker: MultiInvoker
   let proxyAdmin: ProxyAdmin
 
   let dsuBalanceDifference: BigNumber
@@ -61,6 +66,12 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     marketFactory = (await ethers.getContractAt('MarketFactory', (await get('MarketFactory')).address)).connect(
       timelockSigner,
     )
+    vaultFactory = (await ethers.getContractAt('VaultFactory', (await get('VaultFactory')).address)).connect(
+      timelockSigner,
+    )
+    multiinvoker = (await ethers.getContractAt('MultiInvoker', (await get('MultiInvoker')).address)).connect(
+      timelockSigner,
+    )
     proxyAdmin = (await ethers.getContractAt('ProxyAdmin', (await get('ProxyAdmin')).address)).connect(timelockSigner)
 
     const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
@@ -72,23 +83,52 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     const marketsAddrs = (await marketFactory.queryFilter(marketFactory.filters['InstanceRegistered(address)']())).map(
       e => e.args.instance,
     )
-    markets = await Promise.all(marketsAddrs.map(e => ethers.getContractAt('IMarket', e)))
+    markets = await Promise.all(marketsAddrs.map(a => ethers.getContractAt('IMarket', a)))
+    const v2_1_1Artifact = await deployments.getArtifact('MarketV2_1_1')
+    const marketsOld = await Promise.all(marketsAddrs.map(a => ethers.getContractAt(v2_1_1Artifact.abi, a)))
+    const prevMarketParameters = await Promise.all(marketsOld.map(m => m.parameters()))
+    const prevRiskParameters = await Promise.all(marketsOld.map(m => m.riskParameter()))
 
     // Perform v2.2 Migration
     // Enter settle only for all markets
     // Update to settle only using hardhat task
-    run('change-markets-mode', { settleOnly: true })
+    // run('change-markets-mode', { settleOnly: true })
 
     // Settle all users using hardhat task
-    run('settle-markets')
+    // run('settle-markets')
 
     // Update implementations
+    await proxyAdmin.upgrade(marketFactory.address, (await get('MarketFactoryImpl')).address)
+    await proxyAdmin.upgrade(vaultFactory.address, (await get('VaultFactoryImpl')).address)
+    await proxyAdmin.upgrade(oracleFactory.address, (await get('OracleFactoryImpl')).address)
+    await proxyAdmin.upgrade(pythFactory.address, (await get('PythFactoryImpl')).address)
+    await proxyAdmin.upgrade(multiinvoker.address, (await get('MultiInvokerImpl')).address)
+
+    // Authorize OracleFactory to call new PythFactory
+    await oracleFactory.authorize(pythFactory.address)
+    await pythFactory.acceptOwner()
+
+    // Create powerperp oracle in OracleFactory
+    const cmsqETHNewOracle = await oracleFactory.callStatic.create(cmsqETHOracleID, pythFactory.address)
+    await oracleFactory.create(cmsqETHOracleID, pythFactory.address)
+
+    const msqBTCNewOracle = await oracleFactory.callStatic.create(msqBTCOracleID, pythFactory.address)
+    await oracleFactory.create(msqBTCOracleID, pythFactory.address)
 
     // Update Protocol/Risk/Market parameters to new formats
+    // Recreate the market and risk parameters from the old values above? alternatively hardcode params for all markets
 
     // Update sub-oracles
+    const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
+    for (const oracle of oracles) {
+      await oracleFactory.update(oracle.args.id, pythFactory.address)
+    }
 
     // Update powerperp oracles
+    const marketmsqETH = await ethers.getContractAt('IMarket', '0x004E1Abf70e4FF99BC572843B63a63a58FAa08FF')
+    await marketmsqETH.updateOracle(cmsqETHNewOracle)
+    const marketmsqBTC = await ethers.getContractAt('IMarket', '0x768a5909f0B6997efa56761A89344eA2BD5560fd')
+    await marketmsqBTC.updateOracle(msqBTCNewOracle)
   })
 
   it('Migrates', async () => {

@@ -22,14 +22,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Deploy Implementation
   const multiInvokerContract = isArbitrum(getNetworkName()) ? 'MultiInvoker_Arbitrum' : 'MultiInvoker_Optimism'
-  const multiInvokerContractName = isArbitrum(getNetworkName())
-    ? 'MultiInvokerImpl_Arbitrum'
-    : 'MultiInvokerImpl_Optimism'
 
   const commitBuffer = isArbitrum(getNetworkName())
     ? L1_GAS_BUFFERS.arbitrum.commitCalldata + L1_GAS_BUFFERS.arbitrum.commitIncrement
     : L1_GAS_BUFFERS.base.commitCalldata + L1_GAS_BUFFERS.arbitrum.commitIncrement
-  await deploy(multiInvokerContractName, {
+  await deploy('MultiInvokerImpl', {
     contract: multiInvokerContract,
     args: [
       (await get('USDC')).address,
@@ -52,7 +49,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await deploy('MultiInvoker', {
     contract: 'TransparentUpgradeableProxy',
     args: [
-      (await get(multiInvokerContractName)).address,
+      (await get('MultiInvokerImpl')).address,
       proxyAdmin.address,
       multiInvokerInterface.encodeFunctionData('initialize', [(await get('ChainlinkETHUSDFeed')).address]),
     ],
