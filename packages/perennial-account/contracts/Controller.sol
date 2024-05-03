@@ -54,12 +54,11 @@ contract Controller is Instance, IController {
     function deployAccountWithSignature(DeployAccount calldata deployAccount_, bytes calldata signature_) external {
         // Ensure the message was signed by the user creating the collateral account
         address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
-        // TODO: What should we do with deployAccount_.action.common.account?
         // TODO: Since addresses are deterministic, should we support allowing a delegate signer 
         // to deploy the account before it even exists?
-        if (signer != deployAccount_.user) revert InvalidSignerError();
+        if (signer != deployAccount_.action.common.account) revert InvalidSignerError();
 
-        Account account = new Account{salt: SALT}(deployAccount_.user);
+        Account account = new Account{salt: SALT}(signer);
         owners[address(account)] = signer;
         // TODO: draw fee from newly created contract
         emit AccountDeployed(signer, address(account));

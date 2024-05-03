@@ -49,7 +49,6 @@ describe('Controller', () => {
   // deploys a collateral account for the specified user and returns the address
   async function createCollateralAccount(user: SignerWithAddress): Promise<Address> {
     const deployAccountMessage = {
-      user: user.address,
       ...createAction(user),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
@@ -142,7 +141,6 @@ describe('Controller', () => {
 
     it('creates collateral accounts from a signed message', async () => {
       const deployAccountMessage = {
-        user: userA.address,
         ...createAction(userA),
       }
 

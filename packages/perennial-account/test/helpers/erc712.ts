@@ -56,10 +56,7 @@ export async function signDeployAccount(
   message: DeployAccountStruct,
 ): Promise<string> {
   const types = {
-    DeployAccount: [
-      { name: 'user', type: 'address' },
-      { name: 'action', type: 'Action' },
-    ],
+    DeployAccount: [{ name: 'action', type: 'Action' }],
     ...actionType,
     ...commonType,
   }
