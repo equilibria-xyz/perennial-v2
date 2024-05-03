@@ -86,16 +86,14 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     markets = await Promise.all(marketsAddrs.map(a => ethers.getContractAt('IMarket', a)))
     const v2_1_1Artifact = await deployments.getArtifact('MarketV2_1_1')
     const marketsOld = await Promise.all(marketsAddrs.map(a => ethers.getContractAt(v2_1_1Artifact.abi, a)))
-    const prevMarketParameters = await Promise.all(marketsOld.map(m => m.parameters()))
-    const prevRiskParameters = await Promise.all(marketsOld.map(m => m.riskParameter()))
 
     // Perform v2.2 Migration
     // Enter settle only for all markets
     // Update to settle only using hardhat task
-    // run('change-markets-mode', { settleOnly: true })
+    await run('change-markets-mode', { settle: true, prevabi: true })
 
     // Settle all users using hardhat task
-    // run('settle-markets')
+    await run('settle-markets', { batchsize: 30 })
 
     // Update implementations
     await proxyAdmin.upgrade(marketFactory.address, (await get('MarketFactoryImpl')).address)

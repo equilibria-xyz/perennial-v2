@@ -1,5 +1,5 @@
 import '@nomiclabs/hardhat-ethers'
-import { task } from 'hardhat/config'
+import { task, types } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { gql, request } from 'graphql-request'
 import { IMarket } from '../types/generated'
@@ -11,12 +11,14 @@ const SETTLE_MULTICALL_BATCH_SIZE = 100
 
 export default task('settle-markets', 'Settles users across all markets')
   .addFlag('dry', 'Count number of users and transactions required to settle')
+  .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     const {
       ethers,
       deployments: { getNetworkName },
     } = HRE
 
+    const batchSize = args.batchsize
     const networkName = getNetworkName()
     const graphURL = getSubgraphUrlFromEnvironment(networkName)
     if (!graphURL) {
@@ -24,7 +26,9 @@ export default task('settle-markets', 'Settles users across all markets')
       return 1
     }
 
-    const multicall = new ethers.Contract(MulticallAddress, MulticallABI, ethers.provider)
+    const multicall = new ethers.Contract(MulticallAddress, MulticallABI, ethers.provider).connect(
+      (await ethers.getSigners())[0],
+    )
 
     const marketUsers = await getMarketUsers(graphURL)
     let marketUserCount = 0
@@ -43,7 +47,7 @@ export default task('settle-markets', 'Settles users across all markets')
       let batchedUsers
       while (users.length > 0) {
         // batch multicalls to handle markets with large numbers of users
-        batchedUsers = users.splice(0, SETTLE_MULTICALL_BATCH_SIZE)
+        batchedUsers = users.splice(0, batchSize)
         console.log('  batch contains', batchedUsers.length, 'users', users.length, 'users remaining')
 
         const multicallPayload = settleMarketUsersPayload(market, batchedUsers)

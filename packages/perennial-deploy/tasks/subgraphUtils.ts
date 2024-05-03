@@ -5,6 +5,7 @@ export function getSubgraphUrlFromEnvironment(networkName: string): string {
       return process.env.ARBITRUM_GRAPH_URL ?? ''
     case 'arbitrumSepolia':
       return process.env.ARBITRUM_SEPOLIA_GRAPH_URL ?? ''
+    case 'hardhat':
     case 'localhost':
       // caller must have FORK_NETWORK set for this to avoid fallback to default chain
       return getSubgraphUrlFromEnvironment(process.env.FORK_NETWORK ?? 'arbitrum')
