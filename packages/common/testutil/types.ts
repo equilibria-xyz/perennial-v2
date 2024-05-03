@@ -224,12 +224,3 @@ export const DEFAULT_VERSION: Version = {
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
 }
-
-export const DEFAULT_VERSION: Version = {
-  makerValue: { _value: 0 },
-  longValue: { _value: 0 },
-  shortValue: { _value: 0 },
-  makerReward: { _value: 0 },
-  longReward: { _value: 0 },
-  shortReward: { _value: 0 },
-}
