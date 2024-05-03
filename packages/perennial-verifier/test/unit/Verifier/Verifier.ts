@@ -184,6 +184,9 @@ describe('Verifier', () => {
     const DEFAULT_INTENT = {
       amount: parse6decimal('10'),
       price: parse6decimal('123'),
+      fee: parse6decimal('0.5'),
+      originator: constants.AddressZero,
+      solver: constants.AddressZero,
       common: {
         account: constants.AddressZero,
         domain: constants.AddressZero,
@@ -373,6 +376,9 @@ describe('Verifier', () => {
       intent: {
         amount: parse6decimal('10'),
         price: parse6decimal('123'),
+        fee: parse6decimal('0.5'),
+        originator: constants.AddressZero,
+        solver: constants.AddressZero,
         common: {
           account: constants.AddressZero,
           domain: constants.AddressZero,

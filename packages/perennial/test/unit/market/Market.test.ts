@@ -40,7 +40,12 @@ import {
   expectCheckpointEq,
   DEFAULT_GLOBAL,
 } from '../../../../common/testutil/types'
-import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
+import {
+  IMarket,
+  IntentStruct,
+  MarketParameterStruct,
+  RiskParameterStruct,
+} from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -16492,9 +16497,12 @@ describe('Market', () => {
           const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
-          const intent = {
+          const intent: IntentStruct = {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
+            fee: 0,
+            originator: constants.AddressZero,
+            solver: constants.AddressZero,
             common: {
               account: user.address,
               domain: market.address,
@@ -16521,11 +16529,9 @@ describe('Market', () => {
           await expect(
             market
               .connect(userC)
-              ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+              ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                 intent,
                 DEFAULT_SIGNATURE,
-                liquidator.address,
-                constants.AddressZero,
               ),
           )
             .to.emit(market, 'OrderCreated')
@@ -18590,6 +18596,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -18615,11 +18624,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -18779,6 +18786,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -18804,11 +18814,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -18968,6 +18976,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('121'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -18993,11 +19004,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -19157,6 +19166,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('121'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19182,11 +19194,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -19337,6 +19347,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19386,11 +19399,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -19543,6 +19554,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19592,11 +19606,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -19749,6 +19761,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -19798,11 +19813,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -19956,6 +19969,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -20005,11 +20021,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -20163,6 +20177,9 @@ describe('Market', () => {
             const intent = {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -20218,11 +20235,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -20377,6 +20392,9 @@ describe('Market', () => {
             const intent = {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
+              fee: 0,
+              originator: constants.AddressZero,
+              solver: constants.AddressZero,
               common: {
                 account: user.address,
                 domain: market.address,
@@ -20432,11 +20450,9 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                   intent,
                   DEFAULT_SIGNATURE,
-                  liquidator.address,
-                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -20588,6 +20604,9 @@ describe('Market', () => {
           const intent = {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
+            fee: 0,
+            originator: constants.AddressZero,
+            solver: constants.AddressZero,
             common: {
               account: user.address,
               domain: market.address,
@@ -20613,11 +20632,9 @@ describe('Market', () => {
           await expect(
             market
               .connect(userC)
-              ['update((int256,int256,(address,address,uint256,uint256,uint256)),bytes,address,address)'](
+              ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
                 intent,
                 DEFAULT_SIGNATURE,
-                liquidator.address,
-                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })

@@ -124,9 +124,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ///      - The sender is charged the settlement fee
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
-    /// @param orderReferrer The referrer of the order // TODO: put these in the message
-    /// @param guaranteeReferrer The referrer of the guarantee
-    function update(Intent calldata intent, bytes memory signature, address orderReferrer, address guaranteeReferrer) external {
+    function update(Intent calldata intent, bytes memory signature) external {
         address signer = verifier.verifyIntent(intent, signature);
 
         _updateIntent(
@@ -135,9 +133,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             intent.amount.mul(Fixed6Lib.NEG_ONE),
             intent.price,
             true,
-            orderReferrer,
-            guaranteeReferrer,
-            UFixed6Lib.ZERO // TODO: referral fee in message
+            intent.originator,
+            intent.solver,
+            intent.fee
         ); // sender
         _updateIntent(
             intent.common.account,
@@ -145,9 +143,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             intent.amount,
             intent.price,
             false,
-            orderReferrer,
-            guaranteeReferrer,
-            UFixed6Lib.ZERO // TODO: referral fee in message
+            intent.originator,
+            intent.solver,
+            intent.fee
         ); // signer
     }
 
