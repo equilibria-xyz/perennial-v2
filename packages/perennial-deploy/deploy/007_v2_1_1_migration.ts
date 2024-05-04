@@ -1,6 +1,6 @@
 import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { isArbitrum, isMainnet } from '../../common/testutil/network'
+import { isArbitrum } from '../../common/testutil/network'
 import { DEFAULT_KEEPER_ORACLE_TIMEOUT, L1_GAS_BUFFERS } from './003_deploy_oracle'
 import { INITIAL_AMOUNT } from './005_deploy_vault'
 
@@ -11,8 +11,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deploy, get, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
 
-  if (!isArbitrum(getNetworkName()) || !isMainnet(getNetworkName())) {
-    console.log('Skipping. This migration is only for Arbitrum Mainnet')
+  if (!isArbitrum(getNetworkName())) {
+    console.log('Skipping. This migration is only for Arbitrum')
     return
   }
 
