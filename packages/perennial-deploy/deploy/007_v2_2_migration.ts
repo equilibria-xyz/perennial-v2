@@ -17,8 +17,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
   const { deploy, get, getOrNull, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
-  if (!isArbitrum(getNetworkName()) || !isMainnet(getNetworkName())) {
-    log('Skipping. This migration is only for Arbitrum Mainnet')
+  if (!isArbitrum(getNetworkName())) {
+    log('Skipping. This migration is only for Arbitrum')
     return
   }
   const deployerSigner = await ethers.getSigner(deployer)
@@ -223,18 +223,20 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await pythFactory.create(event.args.id, event.args.id, { provider: ethers.constants.AddressZero, decimals: 0 })
   }
 
-  // Create power oracles
-  log('    Creating cmsqETH Oracle in PythFactory at ID:', cmsqETHOracleID, '...')
-  await pythFactory.create(cmsqETHOracleID, '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', {
-    provider: (await get('PowerTwo')).address,
-    decimals: -5,
-  })
+  // Create power oracles for Mainnet
+  if (isMainnet(getNetworkName())) {
+    log('    Creating cmsqETH Oracle in PythFactory at ID:', cmsqETHOracleID, '...')
+    await pythFactory.create(cmsqETHOracleID, '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace', {
+      provider: (await get('PowerTwo')).address,
+      decimals: -5,
+    })
 
-  log('    Creating msqBTC Oracle in PythFactory at ID:', msqBTCOracleID, '...')
-  await pythFactory.create(msqBTCOracleID, '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', {
-    provider: (await get('PowerTwo')).address,
-    decimals: -6,
-  })
+    log('    Creating msqBTC Oracle in PythFactory at ID:', msqBTCOracleID, '...')
+    await pythFactory.create(msqBTCOracleID, '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43', {
+      provider: (await get('PowerTwo')).address,
+      decimals: -6,
+    })
+  }
 
   log('Done deploying Oracles...')
 
