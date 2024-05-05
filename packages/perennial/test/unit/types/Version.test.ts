@@ -111,7 +111,7 @@ describe('Version', () => {
     global: GlobalStruct,
     fromPosition: PositionStruct,
     order: OrderStruct,
-    guarantee: Guarantee,
+    guarantee: GuaranteeStruct,
     fromOracleVersion: OracleVersionStruct,
     toOracleVersion: OracleVersionStruct,
     marketParameter: MarketParameterStruct,
