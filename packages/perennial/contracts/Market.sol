@@ -474,7 +474,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load external actors
         updateContext.operator = context.account == msg.sender
             || IMarketFactory(address(factory())).extensions(msg.sender)
-            || IMarketFactory(address(factory())).operators(context.account, signer);
+            || IMarketFactory(address(factory())).operators(context.account, msg.sender);
         updateContext.signer = context.account == signer
             || IMarketFactory(address(factory())).signers(context.account, signer);
         updateContext.liquidator = liquidators[context.account][context.local.currentId];
