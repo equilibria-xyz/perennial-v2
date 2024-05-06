@@ -91,7 +91,7 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @param signer The signer to update
     /// @param newEnabled The new status of the opersignerator
     function updateSigner(address signer, bool newEnabled) external {
-        _updateSigner(signer, newEnabled);
+        _updateSigner(msg.sender, signer, newEnabled);
     }
 
     /// @notice Updates the status of a signer for the caller verified via a signed message
@@ -101,15 +101,16 @@ contract MarketFactory is IMarketFactory, Factory {
         address signer = verifier.verifySignerUpdate(signerUpdate, signature);
         if (signer != signerUpdate.common.account) revert MarketFactoryInvalidSignerError();
 
-        _updateSigner(signerUpdate.signer, signerUpdate.approved);
+        _updateSigner(signerUpdate.common.account, signerUpdate.signer, signerUpdate.approved);
     }
 
     /// @notice Updates the status of a signer for the caller
+    /// @param account The account to update the operator for
     /// @param signer The signer to update
     /// @param newEnabled The new status of the opersignerator
-    function _updateSigner(address signer, bool newEnabled) private {
-        signers[msg.sender][signer] = newEnabled;
-        emit SignerUpdated(msg.sender, signer, newEnabled);
+    function _updateSigner(address account, address signer, bool newEnabled) private {
+        signers[account][signer] = newEnabled;
+        emit SignerUpdated(account, signer, newEnabled);
     }
 
 
