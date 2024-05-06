@@ -7,7 +7,6 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { signAction, signCommon, signDeployAccount, signUpdateSigner } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
-import { ActionStruct } from '../../types/generated/contracts/Verifier'
 import { Address } from 'hardhat-deploy/dist/types'
 import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 

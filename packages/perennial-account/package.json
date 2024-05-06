@@ -12,6 +12,7 @@
     "build": "yarn compile",
     "compile": "hardhat compile",
     "test": "hardhat test test/unit/*",
+    "test:integration": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_BLOCK_NUMBER=208460709 hardhat test test/integration/*",
     "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
     "format": "prettier -w .",
     "clean": "rm -rf cache artifacts types/generated dist deployments/localhost",

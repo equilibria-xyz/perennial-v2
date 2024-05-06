@@ -1,22 +1,59 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IOwnable } from "@equilibria/root/attribute/interfaces/IOwnable.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
 
-contract Account is Instance, IAccount{
-    address private _owner;
+// TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
+// _Ownable_ does not let someone other than the sender assign the owner.
+// Consider making Ownable._updateOwner overridable to work around this.
+contract Account is IAccount{
+    address public owner;
 
-    constructor(address owner) initializer(1) {
-        __Instance__initialize();
-        _owner = owner;
+    constructor(address owner_) {
+        owner = owner_;
     }
 
     /// @inheritdoc IAccount
-    function withdraw(Token18 token, UFixed6 amount) external {
-        // TODO: implement
+    function withdraw(address token_, UFixed6 amount_) external onlyOwner {
+        uint8 tokenDecimals;
+        try IERC20Metadata(token_).decimals() returns (uint8 tokenDecimals_) {
+            tokenDecimals = tokenDecimals_;
+        } catch {
+            // revert if token contract does not implement optional `decimals` method
+            revert TokenNotSupportedError();
+        }
+        if (tokenDecimals == 18)
+            return _withdraw18(Token18.wrap(token_), amount_);
+        else if (tokenDecimals == 6)
+            return _withdraw6(Token6.wrap(token_), amount_);
+        else // revert if token is not 18 or 6 decimals
+            revert TokenNotSupportedError();
+    }
+
+    function _withdraw18(Token18 token_, UFixed6 amount_) private {
+        // if user requested max withdrawal, withdraw the balance, otherwise convert amount to token precision
+        UFixed18 amount = amount_.eq(UFixed6Lib.MAX) ? token_.balanceOf() : UFixed18Lib.from(amount_);
+        // send funds back to the owner
+        token_.push(owner, amount);
+    }
+
+    function _withdraw6(Token6 token_, UFixed6 amount_) private {
+        // if user requested max withdrawal, withdraw the balance, otherwise withdraw specified amount
+        UFixed6 amount = amount_.eq(UFixed6Lib.MAX) ? token_.balanceOf() : amount_;
+        // send funds back to the owner
+        token_.push(owner, amount);
+    }
+
+    /// @dev Throws if called by any account other than the owner
+    modifier onlyOwner {
+        if (owner != msg.sender) revert IOwnable.OwnableNotOwnerError(msg.sender);
+        _;
     }
 }
