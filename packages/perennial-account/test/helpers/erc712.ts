@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { CommonStruct } from '../../types/generated/contracts/Verifier'
 import { IVerifier, Verifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
-import { ActionStruct, DeployAccountStruct, UpdateSignerStruct } from '../../types/generated/contracts/Controller'
+import { ActionStruct, DeployAccountStruct, SignerUpdateStruct } from '../../types/generated/contracts/Controller'
 
 export function erc721Domain(verifier: Verifier | FakeContract<IVerifier>) {
   return {
@@ -64,15 +64,15 @@ export async function signDeployAccount(
   return await signer._signTypedData(erc721Domain(verifier), types, message)
 }
 
-export async function signUpdateSigner(
+export async function signSignerUpdate(
   signer: SignerWithAddress,
   verifier: Verifier | FakeContract<IVerifier>,
-  message: UpdateSignerStruct,
+  message: SignerUpdateStruct,
 ): Promise<string> {
   const types = {
-    UpdateSigner: [
-      { name: 'delegate', type: 'address' },
-      { name: 'newEnabled', type: 'bool' },
+    SignerUpdate: [
+      { name: 'signer', type: 'address' },
+      { name: 'approved', type: 'bool' },
       { name: 'action', type: 'Action' },
     ],
     ...actionType,

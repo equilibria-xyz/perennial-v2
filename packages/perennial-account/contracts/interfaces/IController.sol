@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { DeployAccount, DeployAccountLib } from "../types/DeployAccount.sol";
-import { UpdateSigner, UpdateSignerLib } from "../types/UpdateSigner.sol";
+import { SignerUpdate, SignerUpdateLib } from "../types/SignerUpdate.sol";
 
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
 interface IController {
@@ -43,7 +43,7 @@ interface IController {
     /// @notice Updates the status of a delegated signer for the specified collateral account
     /// @param updateSigner Message requesting a delegation update
     function updateSignerWithSignature(
-        UpdateSigner calldata updateSigner, 
+        SignerUpdate calldata updateSigner, 
         bytes calldata signature
     ) external;
 }

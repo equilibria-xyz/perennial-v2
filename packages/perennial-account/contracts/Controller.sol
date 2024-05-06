@@ -7,7 +7,7 @@ import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
-import { UpdateSigner, UpdateSignerLib } from "./types/UpdateSigner.sol";
+import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 
 import "hardhat/console.sol";
 
@@ -65,17 +65,17 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function updateSignerWithSignature(
-        UpdateSigner calldata updateSigner_, 
+        SignerUpdate calldata signerUpdate_, 
         bytes calldata signature_
     ) external {
         // Ensure the message was signed only by the owner, not an existing delegate
-        address signer = verifier.verifyUpdateSigner(updateSigner_, signature_);
-        address owner = updateSigner_.action.common.account;
+        address messageSigner = verifier.verifySignerUpdate(signerUpdate_, signature_);
+        address owner = signerUpdate_.action.common.account;
         address account = _getAccountAddress(owner);
-        if (signer != owner) revert InvalidSignerError();
+        if (messageSigner != owner) revert InvalidSignerError();
 
-        signers[account][updateSigner_.delegate] = updateSigner_.newEnabled;
-        emit SignerUpdated(account, updateSigner_.delegate, updateSigner_.newEnabled);
+        signers[account][signerUpdate_.signer] = signerUpdate_.approved;
+        emit SignerUpdated(account, signerUpdate_.signer, signerUpdate_.approved);
     }
 
     /// @dev calculates the create2 deterministic address of a user's collateral account

@@ -8,7 +8,7 @@ import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
-import { UpdateSigner, UpdateSignerLib } from "./types/UpdateSigner.sol";
+import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 
 /// @title Verifier
 /// @notice ERC712 signed message verifier for the Perennial V2 Collateral Accounts package.
@@ -33,10 +33,10 @@ contract Verifier is VerifierBase, IVerifier {
     }
 
     /// @inheritdoc IVerifier
-    function verifyUpdateSigner(UpdateSigner calldata updateSigner, bytes calldata signature)
+    function verifySignerUpdate(SignerUpdate calldata updateSigner, bytes calldata signature)
         external
         validateAndCancel(updateSigner.action.common, signature) returns (address)
     {
-        return ECDSA.recover(_hashTypedDataV4(UpdateSignerLib.hash(updateSigner)), signature);
+        return ECDSA.recover(_hashTypedDataV4(SignerUpdateLib.hash(updateSigner)), signature);
     }
 }

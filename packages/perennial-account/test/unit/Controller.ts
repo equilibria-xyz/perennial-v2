@@ -4,7 +4,7 @@ import { BigNumber, constants, utils } from 'ethers'
 import { Controller, Controller__factory, Verifier, Verifier__factory } from '../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { signAction, signCommon, signDeployAccount, signUpdateSigner } from '../helpers/erc712'
+import { signAction, signCommon, signDeployAccount, signSignerUpdate } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { Address } from 'hardhat-deploy/dist/types'
@@ -209,17 +209,17 @@ describe('Controller', () => {
 
       // userA signs a message assigning userB's delegation rights
       const updateSignerMessage = {
-        delegate: userB.address,
-        newEnabled: true,
+        signer: userB.address,
+        approved: true,
         ...createAction(userA.address),
       }
-      const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
+      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
       // ensure message verification works
       const controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
       const signerResult = await verifier
         .connect(controllerSigner)
-        .callStatic.verifyUpdateSigner(updateSignerMessage, signature)
+        .callStatic.verifySignerUpdate(updateSignerMessage, signature)
       expect(signerResult).to.eq(userA.address)
 
       // assign the delegate
@@ -232,13 +232,13 @@ describe('Controller', () => {
     it('can assign a delegate before collateral account was created', async () => {
       // userA signs a message assigning userB's delegation rights
       const updateSignerMessage = {
-        delegate: userB.address,
-        newEnabled: true,
+        signer: userB.address,
+        approved: true,
         ...createAction(userA.address),
       }
 
       // assign the delegate
-      const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
+      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
       await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
         .to.emit(controller, 'SignerUpdated')
         .withArgs(accountAddressA, userB.address, true)
@@ -254,17 +254,17 @@ describe('Controller', () => {
 
       // userB signs a message granting them delegation rights to userA's collateral account
       const updateSignerMessage = {
-        delegate: userB.address,
-        newEnabled: true,
+        signer: userB.address,
+        approved: true,
         ...createAction(userA.address),
       }
-      const signature = await signUpdateSigner(userB, verifier, updateSignerMessage)
+      const signature = await signSignerUpdate(userB, verifier, updateSignerMessage)
 
       // ensure message verification fails
       const controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
       const signerResult = await verifier
         .connect(controllerSigner)
-        .callStatic.verifyUpdateSigner(updateSignerMessage, signature)
+        .callStatic.verifySignerUpdate(updateSignerMessage, signature)
       expect(signerResult).to.not.eq(userA.address)
 
       // ensure assignment fails
@@ -281,11 +281,11 @@ describe('Controller', () => {
 
       // userA signs a message assigning userB's delegation rights
       const updateSignerMessage = {
-        delegate: userB.address,
-        newEnabled: false,
+        signer: userB.address,
+        approved: false,
         ...createAction(userA.address),
       }
-      const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
+      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
       // disable the delegate
       await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
