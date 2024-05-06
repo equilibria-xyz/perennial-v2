@@ -6,3 +6,6 @@ export * from './settleMarkets'
 export * from './subgraphUtils'
 export * from './verifyProxies'
 export * from './checkVaultShares'
+
+export * from './v2_2_migration.ts/upgradeImpls'
+export * from './v2_2_migration.ts/setupOracles'

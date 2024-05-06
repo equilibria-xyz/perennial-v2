@@ -13,6 +13,7 @@ export default task('settle-markets', 'Settles users across all markets')
   .addFlag('dry', 'Count number of users and transactions required to settle')
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
+    console.log('[Settle Markets] Running Settle Markets Task')
     const {
       ethers,
       deployments: { getNetworkName },
@@ -42,13 +43,19 @@ export default task('settle-markets', 'Settles users across all markets')
 
       // Commit VAA for market?
 
-      console.log('settling', users.length, 'users to settle in market', marketAddress)
+      console.log('[Settle Markets]    Settling', users.length, 'users to settle in market', marketAddress)
 
       let batchedUsers
       while (users.length > 0) {
         // batch multicalls to handle markets with large numbers of users
         batchedUsers = users.splice(0, batchSize)
-        console.log('  batch contains', batchedUsers.length, 'users', users.length, 'users remaining')
+        console.log(
+          '[Settle Markets]      batch contains',
+          batchedUsers.length,
+          'users',
+          users.length,
+          'users remaining',
+        )
 
         const multicallPayload = settleMarketUsersPayload(market, batchedUsers)
         const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(
@@ -57,14 +64,16 @@ export default task('settle-markets', 'Settles users across all markets')
         const gasUsage = await multicall.estimateGas.aggregate3(multicallPayload)
 
         const successfulSettleCalls = result.reduce((a, c) => (c.success ? a + 1 : a), 0)
-        console.log(`    ${successfulSettleCalls} successful settle calls. gas: ${gasUsage.toString()}`)
+        console.log(
+          `[Settle Markets]        ${successfulSettleCalls} successful settle calls. gas: ${gasUsage.toString()}`,
+        )
 
         if (successfulSettleCalls === batchedUsers.length) {
           if (!args.dry) {
-            process.stdout.write('    Sending Transaction...')
+            process.stdout.write('[Settle Markets]        Sending Transaction...')
             const tx = await multicall.aggregate3(multicallPayload)
             await tx.wait()
-            console.log('done. Hash:', tx.hash)
+            process.stdout.write(`done. Hash: ${tx.hash}\n`)
           }
           txCount += 1
         } else {
@@ -74,9 +83,9 @@ export default task('settle-markets', 'Settles users across all markets')
       }
     }
 
-    console.log('-------------------')
     const actionString = args.dry ? 'Need to call' : 'Called'
-    console.log(`${actionString} settle on ${marketUserCount} users in ${txCount} transactions`) // 3507 total calls on Arbitrum
+    console.log(`[Settle Markets] ${actionString} settle on ${marketUserCount} users in ${txCount} transactions`) // 3507 total calls on Arbitrum
+    console.log('[Settle Markets] Done.')
   })
 
 // maps market addresses to a list of users who deposited into that market

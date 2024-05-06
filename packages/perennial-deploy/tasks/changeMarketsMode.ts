@@ -4,11 +4,13 @@ import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { IMarket, IMarketFactory } from '../types/generated'
 
 export default task('change-markets-mode', 'Opens or closes all markets; must be run as owner of market factory')
-  .addFlag('dry', 'print-calldata')
+  .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
   .addFlag('open', 'Update market parameters to set closed=false and settle=false')
   .addFlag('settle', 'Update market parameters to set closed=false and settle=true')
   .addFlag('prevabi', 'Use v2.1.1 Market ABI')
+  .addFlag('timelock', 'Print timelock transaction payload')
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
+    console.log('[Change Markets Mode] Running Change Markets Mode Task')
     const {
       ethers,
       deployments: { get, getArtifact },
@@ -24,9 +26,14 @@ export default task('change-markets-mode', 'Opens or closes all markets; must be
       return 1
     }
 
-    let txCount = 0
-
     const markets = await getMarketList(marketFactory)
+    const timelockPayloads = {
+      targets: [] as (string | undefined)[],
+      values: [] as (string | undefined)[],
+      payloads: [] as (string | undefined)[],
+      predecessor: ethers.constants.HashZero,
+      salt: ethers.utils.id(Math.random().toString()),
+    }
     for (const marketAddress of markets) {
       const market = args.prevabi
         ? ((await ethers.getContractAt((await getArtifact('MarketV2_1_1')).abi, marketAddress)) as IMarket)
@@ -35,30 +42,32 @@ export default task('change-markets-mode', 'Opens or closes all markets; must be
 
       let parameter = await market.parameter()
       console.log(
-        `found market ${marketAddress} beneficiary ${beneficiary} coordinator ${coordinator}. Current state: closed: ${parameter.closed}, settle: ${parameter.settle}`,
+        `[Change Markets Mode]    Found market ${marketAddress} beneficiary ${beneficiary} coordinator ${coordinator}. Current state: closed: ${parameter.closed}, settle: ${parameter.settle}`,
       )
 
-      console.log('Updating market parameter')
+      console.log('[Change Markets Mode]    Updating market parameter')
 
       parameter = { ...parameter, closed: false, settle: args.settle }
-      if (args.dry) {
+      if (args.dry || args.timelock) {
         await market.connect(owner).callStatic.updateParameter(beneficiary, coordinator, parameter)
+        console.log('[Change Markets Mode]  Dry run successful')
         const txData = await market.populateTransaction.updateParameter(beneficiary, coordinator, parameter)
-        console.log('')
-        console.log(`    Dry run complete
-            TX Data:
-              ${JSON.stringify({ to: txData.to, data: txData.data, value: txData.value }, undefined, 2)}
-        `)
+        timelockPayloads.targets.push(txData.to)
+        timelockPayloads.values.push(txData.value?.toString())
+        timelockPayloads.payloads.push(txData.data)
       } else {
-        process.stdout.write('    Sending Transaction...')
+        process.stdout.write('[Change Markets Mode]    Sending Transaction...')
         const tx = await market.connect(signer).updateParameter(beneficiary, coordinator, parameter)
         await tx.wait()
-        console.log('    Transaction complete. Hash:', tx.hash)
+        process.stdout.write(`complete. Hash: ${tx.hash}\n`)
       }
-      txCount += 1
     }
 
-    console.log(`Updated ${markets.length} markets. Total txs: ${txCount}`)
+    if (args.timelock) {
+      console.log('[Change Markets Mode]  Timelock payload:')
+      console.log(`[Change Markets Mode]    ${JSON.stringify(timelockPayloads, null, 2)}`)
+    }
+    console.log('[Change Markets Mode] Done.')
   })
 
 // retrieves market creation events from the market factory to get a list of market addresses

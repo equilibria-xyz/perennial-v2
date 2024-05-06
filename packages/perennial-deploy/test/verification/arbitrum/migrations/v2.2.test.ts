@@ -49,7 +49,9 @@ describe('Verify Arbitrum v2.2 Migration', () => {
 
     if (RunMigrationDeployScript) {
       // Deploy migration
+      console.log('---- Deploying Impls ----')
       await fixture('v2_2_Migration', { keepExistingDeployments: true })
+      console.log('---- Done ----\n')
     }
 
     marketFactory = await ethers.getContractAt('MarketFactory', (await get('MarketFactory')).address)
@@ -84,44 +86,24 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     // Perform v2.2 Migration
     // Enter settle only for all markets
     // Update to settle only using hardhat task
+    console.log('---- Changing Markets Mode ----')
     await run('change-markets-mode', { settle: true, prevabi: true })
+    console.log('---- Done ----\n')
 
     // Settle all users using hardhat task
+    console.log('---- Settling Market Users ----')
     await run('settle-markets', { batchsize: 30 })
+    console.log('---- Done ----\n')
 
     // Update implementations
-    await proxyAdmin.upgrade(marketFactory.address, (await get('MarketFactoryImpl')).address)
-    await proxyAdmin.upgrade(vaultFactory.address, (await get('VaultFactoryImpl')).address)
-    await proxyAdmin.upgrade(oracleFactory.address, (await get('OracleFactoryImpl')).address)
-    await proxyAdmin.upgrade(pythFactory.address, (await get('PythFactoryImpl')).address)
-    await proxyAdmin.upgrade(multiinvoker.address, (await get('MultiInvokerImpl')).address)
+    console.log('---- Upgrading Implementations ----')
+    await run('2_2_upgrade-impls')
+    console.log('---- Done ----\n')
 
-    // Authorize OracleFactory to call new PythFactory
-    await oracleFactory.register(pythFactory.address)
-    if ((await pythFactory.pendingOwner()) === ownerSigner.address) await pythFactory.acceptOwner()
-
-    // Update Protocol/Risk/Market parameters to new formats
-    // TODO: Recreate the market and risk parameters from the old values above? alternatively hardcode params for all markets
-
-    // Update sub-oracles
-    const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
-    for (const oracle of oracles) {
-      await oracleFactory.update(oracle.args.id, pythFactory.address)
-    }
-
-    // Create and Update powerperp oracles
-    if (isMainnet(getNetworkName())) {
-      const cmsqETHNewOracle = await oracleFactory.callStatic.create(cmsqETHOracleID, pythFactory.address)
-      await oracleFactory.create(cmsqETHOracleID, pythFactory.address)
-
-      const msqBTCNewOracle = await oracleFactory.callStatic.create(msqBTCOracleID, pythFactory.address)
-      await oracleFactory.create(msqBTCOracleID, pythFactory.address)
-
-      const marketmsqETH = await ethers.getContractAt('IMarket', '0x004E1Abf70e4FF99BC572843B63a63a58FAa08FF')
-      await marketmsqETH.updateOracle(cmsqETHNewOracle)
-      const marketmsqBTC = await ethers.getContractAt('IMarket', '0x768a5909f0B6997efa56761A89344eA2BD5560fd')
-      await marketmsqBTC.updateOracle(msqBTCNewOracle)
-    }
+    // Update oracles
+    console.log('---- Setting up Oracles ----')
+    await run('2_2_setup-oracles')
+    console.log('---- Done ----\n')
   })
 
   it('Migrates', async () => {
