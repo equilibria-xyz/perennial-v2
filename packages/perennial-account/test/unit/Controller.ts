@@ -156,9 +156,6 @@ describe('Controller', () => {
       await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature))
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
-
-      // validate owners mapping was updated properly
-      expect(await controller.owners(accountAddressCalculated)).to.equal(userA.address)
     })
   })
 
@@ -202,27 +199,6 @@ describe('Controller', () => {
       expect(await controller.signers(accountAddressA, userB.address)).to.be.true
     })
 
-    it('cannot assign a delegate unless collateral account was created', async () => {
-      // TODO: For discussion; this currently is not possible because the owner mapping will not exist.
-      // We could spend extra gas to create that mapping, but that could become a keeper griefing vector.
-
-      // userA signs a message assigning userB's delegation rights
-      const updateSignerMessage = {
-        delegate: userB.address,
-        newEnabled: true,
-        ...createAction(accountAddressA),
-      }
-
-      // owner is unknown
-      expect(await controller.owners(accountAddressA)).to.equal(constants.AddressZero)
-
-      // should revert attempting to assign the delegate
-      const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
-      await expect(
-        controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
-    })
-
     it('can assign a delegate from a signed message', async () => {
       // validate initial state
       expect(await controller.signers(accountAddressA, userB.address)).to.be.false
@@ -235,7 +211,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         delegate: userB.address,
         newEnabled: true,
-        ...createAction(accountAddressA),
+        ...createAction(userA.address),
       }
       const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
 
@@ -253,6 +229,22 @@ describe('Controller', () => {
       expect(await controller.signers(accountAddressA, userB.address)).to.be.true
     })
 
+    it('can assign a delegate before collateral account was created', async () => {
+      // userA signs a message assigning userB's delegation rights
+      const updateSignerMessage = {
+        delegate: userB.address,
+        newEnabled: true,
+        ...createAction(userA.address),
+      }
+
+      // assign the delegate
+      const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
+      await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
+        .to.emit(controller, 'SignerUpdated')
+        .withArgs(accountAddressA, userB.address, true)
+      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+    })
+
     it('cannot assign a delegate from an unauthorized signer', async () => {
       // validate initial state
       expect(await controller.signers(accountAddressA, userB.address)).to.be.false
@@ -264,7 +256,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         delegate: userB.address,
         newEnabled: true,
-        ...createAction(accountAddressA),
+        ...createAction(userA.address),
       }
       const signature = await signUpdateSigner(userB, verifier, updateSignerMessage)
 
@@ -291,7 +283,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         delegate: userB.address,
         newEnabled: false,
-        ...createAction(accountAddressA),
+        ...createAction(userA.address),
       }
       const signature = await signUpdateSigner(userA, verifier, updateSignerMessage)
 

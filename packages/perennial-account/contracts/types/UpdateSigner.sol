@@ -9,7 +9,7 @@ struct UpdateSigner {
     /// @dev True to assign/enable, false to disable
     bool newEnabled;
     /// @dev Common information for collateral account actions;
-    /// set action.common.account to the collateral account for which delegated signer should be updated
+    /// set action.common.account to the owner whose delegated signer should be updated
     Action action;
 }
 using UpdateSignerLib for UpdateSigner global;

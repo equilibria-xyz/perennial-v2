@@ -18,10 +18,6 @@ contract Controller is Instance, IController {
     /// @dev Contract used to validate messages were signed by the sender
     IVerifier public verifier;
 
-    /// @dev Mapping of collateral accounts back to their owners
-    /// collateral account => owner
-    mapping(address => address) public owners;
-
     /// @dev Mapping of allowed signers for each collateral account
     /// collateral account => delegate => enabled flag
     mapping(address => mapping(address => bool)) public signers;
@@ -46,7 +42,6 @@ contract Controller is Instance, IController {
     function deployAccount() external returns (address accountAddress_) {
         Account account = new Account{salt: SALT}(msg.sender);
         accountAddress_ = address(account);
-        owners[accountAddress_] = msg.sender;
         emit AccountDeployed(msg.sender, accountAddress_);
     }
 
@@ -57,7 +52,6 @@ contract Controller is Instance, IController {
         if (signer != deployAccount_.action.common.account) revert InvalidSignerError();
 
         Account account = new Account{salt: SALT}(signer);
-        owners[address(account)] = signer;
         // TODO: draw fee from newly created contract
         emit AccountDeployed(signer, address(account));
     }
@@ -76,8 +70,9 @@ contract Controller is Instance, IController {
     ) external {
         // Ensure the message was signed only by the owner, not an existing delegate
         address signer = verifier.verifyUpdateSigner(updateSigner_, signature_);
-        address account = updateSigner_.action.common.account;
-        if (signer != owners[account]) revert InvalidSignerError();
+        address owner = updateSigner_.action.common.account;
+        address account = _getAccountAddress(owner);
+        if (signer != owner) revert InvalidSignerError();
 
         signers[account][updateSigner_.delegate] = updateSigner_.newEnabled;
         emit SignerUpdated(account, updateSigner_.delegate, updateSigner_.newEnabled);
