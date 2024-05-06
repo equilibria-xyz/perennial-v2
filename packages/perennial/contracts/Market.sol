@@ -472,8 +472,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeLocal = _guarantees[context.account][context.local.currentId].read();
 
         // load external actors
-        updateContext.operator = context.account == msg.sender || IMarketFactory(address(factory())).operators(context.account, msg.sender);
-        updateContext.signer = context.account == signer || IMarketFactory(address(factory())).signers(context.account, signer);
+        updateContext.operator = context.account == msg.sender
+            || IMarketFactory(address(factory())).extensions(msg.sender)
+            || IMarketFactory(address(factory())).operators(context.account, signer);
+        updateContext.signer = context.account == signer
+            || IMarketFactory(address(factory())).signers(context.account, signer);
         updateContext.liquidator = liquidators[context.account][context.local.currentId];
         updateContext.referrer = referrers[context.account][context.local.currentId];
         updateContext.referralFee = IMarketFactory(address(factory())).referralFee(referrer);

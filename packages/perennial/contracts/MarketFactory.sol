@@ -18,7 +18,10 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev The global protocol parameters
     ProtocolParameterStorage private _parameter;
 
-    /// @dev Mapping of allowed operators for each account
+    /// @dev Mapping of allowed protocol-wide operators
+    mapping(address => bool) public extensions;
+
+    /// @dev Mapping of allowed operators per account
     mapping(address => mapping(address => bool)) public operators;
 
     /// @dev Registry of created markets by oracle and payoff
@@ -59,6 +62,14 @@ contract MarketFactory is IMarketFactory, Factory {
     function updateParameter(ProtocolParameter memory newParameter) public onlyOwner {
         _parameter.validateAndStore(newParameter);
         emit ParameterUpdated(newParameter);
+    }
+
+    /// @notice Updates the status of an operator for the caller
+    /// @param extension The operator to update to enable protocol-wide
+    /// @param newEnabled The new status of the operator
+    function updateExtension(address extension, bool newEnabled) external {
+        extensions[extension] = newEnabled;
+        emit ExtensionUpdated(extension, newEnabled);
     }
 
     /// @notice Updates the status of an operator for the caller
