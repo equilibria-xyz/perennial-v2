@@ -248,6 +248,22 @@ describe('MarketFactory', () => {
     })
   })
 
+  describe('#updateExtension', async () => {
+    it('updates the operator status', async () => {
+      await expect(factory.connect(user).updateExtension(owner.address, true))
+        .to.emit(factory, 'ExtensionUpdated')
+        .withArgs(owner.address, true)
+
+      expect(await factory.extensions(owner.address)).to.equal(true)
+
+      await expect(factory.connect(user).updateExtension(owner.address, false))
+        .to.emit(factory, 'ExtensionUpdated')
+        .withArgs(owner.address, false)
+
+      expect(await factory.extensions(owner.address)).to.equal(false)
+    })
+  })
+
   describe('#updateOperator', async () => {
     it('updates the operator status', async () => {
       await expect(factory.connect(user).updateOperator(owner.address, true))
