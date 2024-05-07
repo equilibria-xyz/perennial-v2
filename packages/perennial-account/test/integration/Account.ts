@@ -136,7 +136,7 @@ describe('Account', () => {
     it('reverts if someone other than the owner attempts a withdrawal', async () => {
       await expect(account.connect(userB).withdraw(usdc.address, parse6decimal('100'))).to.be.revertedWithCustomError(
         account,
-        'OwnableNotOwnerError',
+        'NotAuthorizedError',
       )
     })
   })

@@ -5,6 +5,7 @@ import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBas
 import { Action } from "../types/Action.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
+import { Withdrawal } from "../types/Withdrawal.sol";
 
 interface IVerifier is IVerifierBase {
     /// @notice Verifies the signature of no-op action message
@@ -16,10 +17,19 @@ interface IVerifier is IVerifierBase {
 
     /// @notice Verifies the signature of a request to deploy a collateral account
     /// @dev Cancels the nonce after verifying the signature
-    /// @param deployAccount identifies the EOA of the user and signer
+    /// @param deployAccount message to verify, which includes the owner of the collateral account
     /// @return The address corresponding to the signature
     function verifyDeployAccount(DeployAccount calldata deployAccount, bytes calldata signature) external returns (address);
 
     /// @notice Verifies the signature of a request to assign/enable/disable a delegated signer for the sender's collateral account
-    function verifySignerUpdate(SignerUpdate calldata updateSigner, bytes calldata signature) external returns (address);
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param signerUpdate message to verify, which includes the owner of the collateral account
+    /// @return The address corresponding to the signature
+    function verifySignerUpdate(SignerUpdate calldata signerUpdate, bytes calldata signature) external returns (address);
+
+    /// @notice Verifies the signature of a request to transfer funds from the collateral account back to the owner
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param withdrawal message to verify, which includes the owner of the collateral account
+    /// @return The address corresponding to the signature
+    function verifyWithdrawal(Withdrawal calldata withdrawal, bytes calldata signature) external returns (address);
 }

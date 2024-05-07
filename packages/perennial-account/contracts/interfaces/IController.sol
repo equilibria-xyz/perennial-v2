@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { DeployAccount, DeployAccountLib } from "../types/DeployAccount.sol";
-import { SignerUpdate, SignerUpdateLib } from "../types/SignerUpdate.sol";
+import { DeployAccount } from "../types/DeployAccount.sol";
+import { SignerUpdate } from "../types/SignerUpdate.sol";
+import { Withdrawal } from "../types/Withdrawal.sol";
 
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
 interface IController {
@@ -42,8 +43,11 @@ interface IController {
 
     /// @notice Updates the status of a delegated signer for the specified collateral account
     /// @param updateSigner Message requesting a delegation update
-    function updateSignerWithSignature(
-        SignerUpdate calldata updateSigner, 
-        bytes calldata signature
-    ) external;
+    /// @param signature ERC712 message signature
+    function updateSignerWithSignature(SignerUpdate calldata updateSigner, bytes calldata signature) external;
+
+    /// @notice Transfers tokens from the collateral account back to the owner of the account
+    /// @param withdrawal Message requesting a withdrawal
+    /// @param signature ERC712 message signature
+    function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) external;
 }

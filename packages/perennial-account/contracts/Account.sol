@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IOwnable } from "@equilibria/root/attribute/interfaces/IOwnable.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
@@ -15,13 +14,15 @@ import { IAccount } from "./interfaces/IAccount.sol";
 // Consider making Ownable._updateOwner overridable to work around this.
 contract Account is IAccount{
     address public owner;
+    address public controller;
 
-    constructor(address owner_) {
+    constructor(address owner_, address controller_) {
         owner = owner_;
+        controller = controller_;
     }
 
     /// @inheritdoc IAccount
-    function withdraw(address token_, UFixed6 amount_) external onlyOwner {
+    function withdraw(address token_, UFixed6 amount_) external ownerOrController {
         uint8 tokenDecimals;
         try IERC20Metadata(token_).decimals() returns (uint8 tokenDecimals_) {
             tokenDecimals = tokenDecimals_;
@@ -51,9 +52,9 @@ contract Account is IAccount{
         token_.push(owner, amount);
     }
 
-    /// @dev Throws if called by any account other than the owner
-    modifier onlyOwner {
-        if (owner != msg.sender) revert IOwnable.OwnableNotOwnerError(msg.sender);
+    /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller
+    modifier ownerOrController {
+        if (msg.sender != owner && msg.sender != controller) revert NotAuthorizedError(msg.sender);
         _;
     }
 }

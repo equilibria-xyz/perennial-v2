@@ -8,6 +8,10 @@ interface IAccount {
     /// @custom:error Token is not 6- or 18- decimals, or does not offer a .decimals() function
     error TokenNotSupportedError();
 
+    // sig: 0x458a16af
+    /// @custom:error Only the owner or the collateral account controller may withdraw
+    error NotAuthorizedError(address);
+
     // TODO: consider adding withdrawalTarget parameter
     /// @notice Transfers funds from this contract to owner of this collateral account
     /// @param token identifies which collateral to withdraw
