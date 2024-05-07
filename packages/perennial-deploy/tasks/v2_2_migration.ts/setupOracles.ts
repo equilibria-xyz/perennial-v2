@@ -45,6 +45,7 @@ export default task('2_2_setup-oracles', 'Sets up the new oracles for v2.2 Migra
       await addPayload(() => pythFactory.populateTransaction.acceptOwner(), 'Accept PythFactory ownership')
     }
 
+    // Update existing oracles to use new PythFactory
     const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
     for (const oracle of oracles) {
       await addPayload(

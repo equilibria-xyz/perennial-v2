@@ -53,7 +53,6 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
     await buildUpgrade(marketFactory.address, (await get('MarketFactoryImpl')).address, 'marketFactory')
     await buildUpgrade(vaultFactory.address, (await get('VaultFactoryImpl')).address, 'vaultFactory')
     await buildUpgrade(oracleFactory.address, (await get('OracleFactoryImpl')).address, 'oracleFactory')
-    await buildUpgrade(pythFactory.address, (await get('PythFactoryImpl')).address, 'pythFactory')
     await buildUpgrade(multiinvoker.address, (await get('MultiInvokerImpl')).address, 'multiinvoker')
 
     // Update Protocol/Risk/Market parameters to new formats
