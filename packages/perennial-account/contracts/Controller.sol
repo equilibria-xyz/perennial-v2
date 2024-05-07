@@ -45,14 +45,16 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function deployAccountWithSignature(DeployAccount calldata deployAccount_, bytes calldata signature_) external {
-        // ensure the message was signed by the user creating the collateral account
-        address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
-        // TODO: support creation by delegated signer
-        if (signer != deployAccount_.action.common.account) revert InvalidSignerError();
+        // create the account
+        address owner = deployAccount_.action.common.account;
+        Account account = new Account{salt: SALT}(owner, address(this));
 
-        Account account = new Account{salt: SALT}(signer, address(this));
+        // check signer after account creation to avoid cost of recalculating address
+        address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
+        if (signer != owner && !signers[address(account)][signer]) revert InvalidSignerError();
+
         // TODO: draw fee from newly created contract
-        emit AccountDeployed(signer, address(account));
+        emit AccountDeployed(owner, address(account));
     }
 
     /// @inheritdoc IController
@@ -71,6 +73,7 @@ contract Controller is Instance, IController {
         if (messageSigner != owner) revert InvalidSignerError();
 
         signers[account][signerUpdate_.signer] = signerUpdate_.approved;
+        // TODO: draw fee
         emit SignerUpdated(account, signerUpdate_.signer, signerUpdate_.approved);
     }
 
@@ -79,6 +82,9 @@ contract Controller is Instance, IController {
         // ensure the message was signed by the owner or a delegated signer
         address signer = verifier.verifyWithdrawal(withdrawal_, signature_);
         IAccount account = IAccount(_ensureValidSigner(withdrawal_.action.common.account, signer));
+
+        // TODO: draw fee
+
         // call the account's implementation to push to owner
         account.withdraw(withdrawal_.token, withdrawal_.amount);
     }

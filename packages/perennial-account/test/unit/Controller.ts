@@ -103,6 +103,23 @@ describe('Controller', () => {
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
     })
+
+    it('creates collateral accounts from a delegated signer', async () => {
+      // delegate userB to sign for userA
+      await controller.connect(userA).updateSigner(userB.address, true)
+
+      // create a message to create collateral account for userA but sign it as userB
+      const deployAccountMessage = {
+        ...createAction(userA.address),
+      }
+      const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
+
+      // create the account
+      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
+      await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature))
+        .to.emit(controller, 'AccountDeployed')
+        .withArgs(userA.address, accountAddressCalculated)
+    })
   })
 
   describe('#delegation', () => {
