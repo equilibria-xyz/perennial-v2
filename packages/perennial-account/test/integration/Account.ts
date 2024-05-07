@@ -22,6 +22,8 @@ const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
 
+const WBTC_ADDRESS = '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f' // Wrapped Bitcoin (8 decimals)
+
 describe('Account', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
@@ -119,6 +121,23 @@ describe('Account', () => {
         .withArgs(account.address, userA.address, balanceBefore)
 
       expect(await dsu.balanceOf(account.address)).to.equal(constants.Zero)
+    })
+  })
+
+  describe('#negative tests', () => {
+    it('rejects withdrawal of token with unsupported decimals', async () => {
+      const wbtc = IERC20Metadata__factory.connect(WBTC_ADDRESS, owner)
+      await expect(account.withdraw(wbtc.address, BigNumber.from(0.0213 * 1e6))).to.be.revertedWithCustomError(
+        account,
+        'TokenNotSupportedError',
+      )
+    })
+
+    it('reverts if someone other than the owner attempts a withdrawal', async () => {
+      await expect(account.connect(userB).withdraw(usdc.address, parse6decimal('100'))).to.be.revertedWithCustomError(
+        account,
+        'OwnableNotOwnerError',
+      )
     })
   })
 })
