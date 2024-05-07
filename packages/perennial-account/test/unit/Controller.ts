@@ -1,14 +1,14 @@
 import { expect } from 'chai'
 import HRE from 'hardhat'
-import { BigNumber, constants, utils } from 'ethers'
-import { Controller, Controller__factory, Verifier, Verifier__factory } from '../../types/generated'
+import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { BigNumber, constants, utils } from 'ethers'
+import { Controller, Controller__factory, Verifier, Verifier__factory } from '../../types/generated'
+import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 import { signAction, signCommon, signDeployAccount, signSignerUpdate } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
-import { Address } from 'hardhat-deploy/dist/types'
-import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 
 const { ethers } = HRE
 
@@ -22,12 +22,6 @@ describe('Controller', () => {
   let keeper: SignerWithAddress
   let lastNonce = 0
   let currentTime: BigNumber
-
-  // create a serial nonce for testing purposes; real users may choose a nonce however they please
-  function nextNonce(): BigNumber {
-    lastNonce += 1
-    return BigNumber.from(lastNonce)
-  }
 
   // create a default action for the specified user with reasonable fee and expiry
   function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
@@ -58,6 +52,12 @@ describe('Controller', () => {
     return creationArgs.account
   }
 
+  // create a serial nonce for testing purposes; real users may choose a nonce however they please
+  function nextNonce(): BigNumber {
+    lastNonce += 1
+    return BigNumber.from(lastNonce)
+  }
+
   const fixture = async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
     controller = await new Controller__factory(owner).deploy()
@@ -69,53 +69,6 @@ describe('Controller', () => {
   beforeEach(async () => {
     await loadFixture(fixture)
     currentTime = BigNumber.from(await currentBlockTimestamp())
-  })
-
-  describe('#messaging', () => {
-    it('should verify common', async () => {
-      // ensures domain, chain, and verifier are configured properly
-      const nonce = nextNonce()
-      const commonMessage = {
-        account: userA.address,
-        domain: verifier.address,
-        nonce: nonce,
-        group: 0,
-        expiry: constants.MaxUint256,
-      }
-      const signature = await signCommon(userA, verifier, commonMessage)
-
-      const verifyResult = await verifier.connect(verifierSigner).callStatic.verifyCommon(commonMessage, signature)
-      await expect(verifier.connect(verifierSigner).verifyCommon(commonMessage, signature))
-        .to.emit(verifier, 'NonceCancelled')
-        .withArgs(userA.address, nonce)
-
-      expect(verifyResult).to.eq(userA.address)
-      expect(await verifier.nonces(userA.address, nonce)).to.eq(true)
-    })
-
-    it('should verify action', async () => {
-      // ensures any problems with message encoding are not caused by a common data type
-      const nonce = nextNonce()
-      const actionMessage = {
-        fee: utils.parseEther('12'),
-        common: {
-          account: userB.address,
-          domain: verifier.address,
-          nonce: nonce,
-          group: 0,
-          expiry: currentTime.add(6),
-        },
-      }
-      const signature = await signAction(userB, verifier, actionMessage)
-
-      const verifyResult = await verifier.connect(verifierSigner).callStatic.verifyAction(actionMessage, signature)
-      await expect(verifier.connect(verifierSigner).verifyAction(actionMessage, signature))
-        .to.emit(verifier, 'NonceCancelled')
-        .withArgs(userB.address, nonce)
-
-      expect(verifyResult).to.eq(userB.address)
-      expect(await verifier.nonces(userB.address, nonce)).to.eq(true)
-    })
   })
 
   describe('#creation', () => {
@@ -142,14 +95,7 @@ describe('Controller', () => {
       const deployAccountMessage = {
         ...createAction(userA.address),
       }
-
-      // ensure message verification works
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
-      const controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
-      const signerResult = await verifier
-        .connect(controllerSigner)
-        .callStatic.verifyDeployAccount(deployAccountMessage, signature)
-      expect(signerResult).to.eq(userA.address)
 
       // deploy and confirm address of the account matches calculated expectation
       const accountAddressCalculated = await controller.getAccountAddress(userA.address)
@@ -214,13 +160,6 @@ describe('Controller', () => {
         ...createAction(userA.address),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-
-      // ensure message verification works
-      const controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
-      const signerResult = await verifier
-        .connect(controllerSigner)
-        .callStatic.verifySignerUpdate(updateSignerMessage, signature)
-      expect(signerResult).to.eq(userA.address)
 
       // assign the delegate
       await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))

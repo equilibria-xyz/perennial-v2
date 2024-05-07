@@ -2,7 +2,12 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { CommonStruct } from '../../types/generated/contracts/Verifier'
 import { IVerifier, Verifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
-import { ActionStruct, DeployAccountStruct, SignerUpdateStruct } from '../../types/generated/contracts/Controller'
+import {
+  ActionStruct,
+  DeployAccountStruct,
+  SignerUpdateStruct,
+  WithdrawalStruct,
+} from '../../types/generated/contracts/Controller'
 
 export function erc721Domain(verifier: Verifier | FakeContract<IVerifier>) {
   return {
@@ -73,6 +78,24 @@ export async function signSignerUpdate(
     SignerUpdate: [
       { name: 'signer', type: 'address' },
       { name: 'approved', type: 'bool' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signWithdrawal(
+  signer: SignerWithAddress,
+  verifier: Verifier | FakeContract<IVerifier>,
+  message: WithdrawalStruct,
+): Promise<string> {
+  const types = {
+    Withdrawal: [
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' },
       { name: 'action', type: 'Action' },
     ],
     ...actionType,
