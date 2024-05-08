@@ -31,7 +31,7 @@ const commonType = {
 const actionType = {
   Action: [
     { name: 'account', type: 'address' },
-    { name: 'fee', type: 'uint256' },
+    { name: 'maxFee', type: 'uint256' },
     { name: 'common', type: 'Common' },
   ],
 }

@@ -52,7 +52,7 @@ describe('Controller_Arbitrum', () => {
     return {
       action: {
         account: accountAddress,
-        fee: feeOverride,
+        maxFee: feeOverride,
         common: {
           account: userAddress,
           domain: controller.address,
@@ -105,6 +105,11 @@ describe('Controller_Arbitrum', () => {
   })
 
   describe('#deployment', () => {
+    afterEach(async () => {
+      // ensure controller has no funds at rest
+      expect(await dsu.balanceOf(controller.address)).to.equal(0)
+    })
+
     it('can create an account', async () => {
       // fund userA and pre-fund the collateral account with 15k DSU
       await fundWallet(userA)
@@ -122,7 +127,30 @@ describe('Controller_Arbitrum', () => {
       await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature)
       accountA = Account__factory.connect(accountAddressA, userA)
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      // TODO: See if chai supports custom matchers; I once implemented a "to.be.between" for jest.
       expect(keeperFeePaid).to.be.greaterThan(utils.parseEther('0.001'))
+      expect(keeperFeePaid).to.be.lessThan(utils.parseEther('0.005'))
+    })
+
+    it('keeper fee is limited by maxFee', async () => {
+      // fund userA and pre-fund the collateral account with 15k DSU
+      await fundWallet(userA)
+      const accountAddressA = await controller.getAccountAddress(userA.address)
+      await dsu.connect(userA).transfer(accountAddressA, utils.parseEther('15000'))
+
+      // sign a message with maxFee smaller than the calculated keeper fee (~0.0033215)
+      const maxFee = parse6decimal('0.000789')
+      const deployAccountMessage = {
+        ...createAction(accountAddressA, userA.address, maxFee),
+      }
+      const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
+
+      // keeper executes deployment of the account and is compensated
+      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+      await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature)
+      accountA = Account__factory.connect(accountAddressA, userA)
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.equal(maxFee.mul(1e12)) // convert from 6- to 18- decimal
     })
   })
 })

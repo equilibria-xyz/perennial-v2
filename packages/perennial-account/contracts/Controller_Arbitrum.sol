@@ -12,6 +12,8 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Controller } from "./Controller.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 
+import "hardhat/console.sol";
+
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     // TODO: do we really need separate Keep config for each message type?
     KeepConfig public keepConfigDeploy;
@@ -46,7 +48,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
             keepConfigDeploy, 
             abi.encode(deployAccount_, signature_), 
             0, 
-            abi.encode(deployAccount_.action.account, deployAccount_.action.fee)
+            abi.encode(deployAccount_.action.account, deployAccount_.action.maxFee)
         )
     {
         IAccount account = _deployAccountWithSignature(deployAccount_, signature_);
@@ -59,7 +61,8 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         bytes memory data
     ) internal override returns (UFixed18) {
         (address account, uint256 maxFee) = abi.decode(data, (address, uint256));
-        UFixed18 raisedKeeperFee = amount.min(UFixed18.wrap(maxFee));
+        // maxFee is a UFixed6; convert to 18-decimal precision
+        UFixed18 raisedKeeperFee = amount.min(UFixed18.wrap(maxFee * 1e12));
         keeperToken().pull(account, raisedKeeperFee);
         return raisedKeeperFee;
     }

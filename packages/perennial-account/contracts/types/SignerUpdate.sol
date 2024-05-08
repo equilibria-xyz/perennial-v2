@@ -21,7 +21,7 @@ library SignerUpdateLib {
     /// @dev used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
         "SignerUpdate(address signer,bool approved,Action action)"
-        "Action(address account,uint256 fee,Common common)"
+        "Action(address account,uint256 maxFee,Common common)"
         "Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 

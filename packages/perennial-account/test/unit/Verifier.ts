@@ -30,7 +30,7 @@ describe('Verifier', () => {
     return {
       action: {
         account: accountAddress,
-        fee: feeOverride,
+        maxFee: feeOverride,
         common: {
           account: userAddress,
           domain: controller.address,
@@ -88,7 +88,7 @@ describe('Verifier', () => {
     const nonce = nextNonce()
     const actionMessage = {
       account: (await smock.fake('IAccount')).address,
-      fee: utils.parseEther('12'),
+      maxFee: utils.parseEther('12'),
       common: {
         account: userB.address,
         domain: verifier.address,

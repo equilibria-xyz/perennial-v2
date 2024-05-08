@@ -47,7 +47,7 @@ describe('Controller', () => {
     return {
       action: {
         account: accountAddress,
-        fee: feeOverride,
+        maxFee: feeOverride,
         common: {
           account: userAddress,
           domain: controller.address,
