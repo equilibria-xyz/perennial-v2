@@ -6,7 +6,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
 import { Controller, Controller__factory, Verifier, Verifier__factory } from '../../types/generated'
 import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
-import { signAction, signCommon, signDeployAccount, signSignerUpdate } from '../helpers/erc712'
+import { signDeployAccount, signSignerUpdate } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 
@@ -24,9 +24,15 @@ describe('Controller', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
+  function createAction(
+    accountAddress: Address,
+    userAddress: Address,
+    feeOverride = utils.parseEther('12'),
+    expiresInSeconds = 6,
+  ) {
     return {
       action: {
+        account: accountAddress,
         fee: feeOverride,
         common: {
           account: userAddress,
@@ -41,8 +47,9 @@ describe('Controller', () => {
 
   // deploys a collateral account for the specified user and returns the address
   async function createCollateralAccount(user: SignerWithAddress): Promise<Address> {
+    const accountAddress = await controller.getAccountAddress(user.address)
     const deployAccountMessage = {
-      ...createAction(user.address),
+      ...createAction(accountAddress, user.address),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signatureCreate)
@@ -92,13 +99,13 @@ describe('Controller', () => {
     })
 
     it('creates collateral accounts from a signed message', async () => {
+      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...createAction(accountAddressCalculated, userA.address),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
       // deploy and confirm address of the account matches calculated expectation
-      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature))
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
@@ -109,13 +116,13 @@ describe('Controller', () => {
       await controller.connect(userA).updateSigner(userB.address, true)
 
       // create a message to create collateral account for userA but sign it as userB
+      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...createAction(accountAddressCalculated, userA.address),
       }
       const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
 
       // create the account
-      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature))
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
@@ -174,7 +181,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...createAction(accountAddressA, userA.address),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
@@ -190,7 +197,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...createAction(accountAddressA, userA.address),
       }
 
       // assign the delegate
@@ -212,7 +219,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...createAction(accountAddressA, userA.address),
       }
       const signature = await signSignerUpdate(userB, verifier, updateSignerMessage)
 
@@ -239,7 +246,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: false,
-        ...createAction(userA.address),
+        ...createAction(accountAddressA, userA.address),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 

@@ -8,6 +8,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
+import "hardhat/console.sol";
 
 // TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
 // _Ownable_ does not let someone other than the sender assign the owner.
@@ -23,19 +24,34 @@ contract Account is IAccount{
 
     /// @inheritdoc IAccount
     function withdraw(address token_, UFixed6 amount_) external ownerOrController {
-        uint8 tokenDecimals;
-        try IERC20Metadata(token_).decimals() returns (uint8 tokenDecimals_) {
-            tokenDecimals = tokenDecimals_;
+        uint8 tokenDecimals = _getTokenDecimals(token_);
+        if (tokenDecimals == 18)
+            _withdraw18(Token18.wrap(token_), amount_);
+        else if (tokenDecimals == 6)
+            _withdraw6(Token6.wrap(token_), amount_);
+        else // revert if token is not 18 or 6 decimals
+            revert TokenNotSupportedError();
+    }
+
+    /// @inheritdoc IAccount
+    function approveController(address token_) external ownerOrController {
+        uint8 tokenDecimals = _getTokenDecimals(token_);
+        if (tokenDecimals == 18) {
+            Token18.wrap(token_).approve(controller);
+        }
+        else if (tokenDecimals == 6)
+             Token6.wrap(token_).approve(controller);
+        else // revert if token is not 18 or 6 decimals
+            revert TokenNotSupportedError();
+    }
+
+    function _getTokenDecimals(address token_) private returns (uint8 tokenDecimals_) {
+        try IERC20Metadata(token_).decimals() returns (uint8 decimals_) {
+            tokenDecimals_ = decimals_;
         } catch {
             // revert if token contract does not implement optional `decimals` method
             revert TokenNotSupportedError();
         }
-        if (tokenDecimals == 18)
-            return _withdraw18(Token18.wrap(token_), amount_);
-        else if (tokenDecimals == 6)
-            return _withdraw6(Token6.wrap(token_), amount_);
-        else // revert if token is not 18 or 6 decimals
-            revert TokenNotSupportedError();
     }
 
     function _withdraw18(Token18 token_, UFixed6 amount_) private {

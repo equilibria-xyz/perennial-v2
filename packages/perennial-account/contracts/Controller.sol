@@ -23,7 +23,7 @@ contract Controller is Instance, IController {
     /// collateral account => delegate => enabled flag
     mapping(address => mapping(address => bool)) public signers;
 
-    /// @notice Initializes the Collateral Account Controller
+    /// @notice Configures the EIP-712 message verifier used by this controller
     /// @param verifier_ Contract used to validate messages were signed by the sender
     function initialize(IVerifier verifier_) external initializer(1) {
         __Instance__initialize();
@@ -44,17 +44,27 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
-    function deployAccountWithSignature(DeployAccount calldata deployAccount_, bytes calldata signature_) external {
+    function deployAccountWithSignature(
+        DeployAccount calldata deployAccount_, 
+        bytes calldata signature_
+    ) virtual external {
+        _deployAccountWithSignature(deployAccount_, signature_);
+    }
+
+    function _deployAccountWithSignature(
+        DeployAccount calldata deployAccount_, 
+        bytes calldata signature_
+    ) internal returns (Account _account)
+    {
         // create the account
         address owner = deployAccount_.action.common.account;
-        Account account = new Account{salt: SALT}(owner, address(this));
+        _account = new Account{salt: SALT}(owner, address(this));
 
         // check signer after account creation to avoid cost of recalculating address
         address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
-        if (signer != owner && !signers[address(account)][signer]) revert InvalidSignerError();
+        if (signer != owner && !signers[address(_account)][signer]) revert InvalidSignerError();
 
-        // TODO: draw fee from newly created contract
-        emit AccountDeployed(owner, address(account));
+        emit AccountDeployed(owner, address(_account));
     }
 
     /// @inheritdoc IController

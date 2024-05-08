@@ -12,6 +12,10 @@ interface IAccount {
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error NotAuthorizedError(address);
 
+    /// @notice Called by controller during account creation, needed for keeper compensation
+    /// @dev Due to Kept limitations, this will always be a Token18
+    function approveController(address token_) external;
+
     // TODO: consider adding withdrawalTarget parameter
     /// @notice Transfers funds from this contract to owner of this collateral account
     /// @param token identifies which collateral to withdraw
