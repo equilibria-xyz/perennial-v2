@@ -2,6 +2,8 @@ import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PopulatedTransaction } from 'ethers'
+import { DEFAULT_MARKET_PARAMETER, DEFAULT_PROTOCOL_PARAMETER, DEFAULT_RISK_PARAMETERS } from '../../util/constants'
+import { getMarketBeneficiaryAndCoordinator } from '../changeMarketsMode'
 
 export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migration')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
@@ -57,6 +59,25 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
 
     // Update Protocol/Risk/Market parameters to new formats
     // TODO: Recreate the market and risk parameters from the old values above? alternatively hardcode params for all markets
+    await addPayload(
+      () => marketFactory.populateTransaction.updateParameter(DEFAULT_PROTOCOL_PARAMETER),
+      'Update Protocol Parameter',
+    )
+    const marketsAddrs = (await marketFactory.queryFilter(marketFactory.filters['InstanceRegistered(address)']())).map(
+      e => e.args.instance,
+    )
+    const markets = await Promise.all(marketsAddrs.map(a => ethers.getContractAt('IMarket', a)))
+    for (const market of markets) {
+      const { beneficiary, coordinator } = await getMarketBeneficiaryAndCoordinator(market)
+      await addPayload(
+        () => market.populateTransaction.updateParameter(beneficiary, coordinator, DEFAULT_MARKET_PARAMETER),
+        `Update Market ${market.address} Parameter`,
+      )
+      // await addPayload(
+      //   () => market.populateTransaction.updateRiskParameter(DEFAULT_RISK_PARAMETERS),
+      //   `Update Market ${market.address} Risk Parameter`,
+      // )
+    }
 
     if (args.timelock) {
       console.log('[v2.2 Upgrade Impls]  Timelock payload:')

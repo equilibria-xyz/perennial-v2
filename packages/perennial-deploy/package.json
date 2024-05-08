@@ -16,7 +16,7 @@
     "deploy": "OPTIMIZER_ENABLED=true hardhat deploy",
     "deploy:fork": "FORK_ENABLED=true FORK_BLOCK_NUMBER=17433260 OPTIMIZER_ENABLED=true hardhat deploy --network hardhat",
     "verify": "hardhat etherscan-verify --sleep --solc-input",
-    "test:verification:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=207464787 hardhat test test/verification/arbitrum/**/*",
+    "test:verification:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=207491063 hardhat test test/verification/arbitrum/**/*",
     "test:verification:arbitrumSepolia": "FORK_ENABLED=true FORK_NETWORK=arbitrumSepolia FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=40238474 hardhat test test/verification/arbitrum/**/*",
     "test:verification:base": "FORK_ENABLED=true FORK_NETWORK=base FORK_USE_REAL_DEPLOYS=true hardhat test test/verification/base/**/*",
     "lint": "eslint --fix --ext '.ts,.js' ./",
