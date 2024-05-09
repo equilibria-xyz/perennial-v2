@@ -97,6 +97,11 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     await run('settle-markets', { batchsize: 30 })
     console.log('---- Done ----\n')
 
+    // Settle all users in vaults using hardhat task
+    console.log('---- Settling Vault Users ----')
+    await run('settle-vaults', { batchsize: 30 })
+    console.log('---- Done ----\n')
+
     for (const market of marketsOld) {
       beforeGlobals.push(await market.global())
     }

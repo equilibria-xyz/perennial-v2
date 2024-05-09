@@ -27,9 +27,6 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
     const oracleFactory = (await ethers.getContractAt('OracleFactory', (await get('OracleFactory')).address)).connect(
       ownerSigner,
     )
-    const pythFactory = (await ethers.getContractAt('PythFactory', (await get('PythFactory')).address)).connect(
-      ownerSigner,
-    )
     const vaultFactory = (await ethers.getContractAt('VaultFactory', (await get('VaultFactory')).address)).connect(
       ownerSigner,
     )
@@ -68,15 +65,16 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
     )
     const markets = await Promise.all(marketsAddrs.map(a => ethers.getContractAt('IMarket', a)))
     for (const market of markets) {
-      const { beneficiary, coordinator } = await getMarketBeneficiaryAndCoordinator(market)
+      const { beneficiary } = await getMarketBeneficiaryAndCoordinator(market)
+      const coordinator = (await get('GauntletCoordinator')).address
       await addPayload(
         () => market.populateTransaction.updateParameter(beneficiary, coordinator, DEFAULT_MARKET_PARAMETER),
         `Update Market ${market.address} Parameter`,
       )
-      // await addPayload(
-      //   () => market.populateTransaction.updateRiskParameter(DEFAULT_RISK_PARAMETERS),
-      //   `Update Market ${market.address} Risk Parameter`,
-      // )
+      await addPayload(
+        () => market.populateTransaction.updateRiskParameter(DEFAULT_RISK_PARAMETERS),
+        `Update Market ${market.address} Risk Parameter`,
+      )
     }
 
     if (args.timelock) {

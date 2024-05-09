@@ -2,18 +2,18 @@ import '@nomiclabs/hardhat-ethers'
 import { task, types } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { gql, request } from 'graphql-request'
-import { IMarket } from '../types/generated'
+import { IVault } from '../types/generated'
 import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUtils'
 import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
 
 const GRAPHQL_QUERY_PAGE_SIZE = 1000
 const SETTLE_MULTICALL_BATCH_SIZE = 100
 
-export default task('settle-markets', 'Settles users across all markets')
+export default task('settle-vaults', 'Settles users across all vaults')
   .addFlag('dry', 'Count number of users and transactions required to settle')
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
-    console.log('[Settle Markets] Running Settle Markets Task')
+    console.log('[Settle Vaults] Running Settle Vaults Task')
     const {
       ethers,
       deployments: { getNetworkName },
@@ -31,33 +31,33 @@ export default task('settle-markets', 'Settles users across all markets')
       (await ethers.getSigners())[0],
     )
 
-    const marketUsers = await getMarketUsers(graphURL)
-    let marketUserCount = 0
+    const vaultUsers = await getVaultUsers(graphURL)
+    let vaultUserCount = 0
     let txCount = 0
 
-    for (const marketAddress in marketUsers) {
-      const users = [...marketUsers[marketAddress].values()]
-      marketUserCount += users.length
+    for (const vaultAddress in vaultUsers) {
+      const users = [...vaultUsers[vaultAddress].values()]
+      vaultUserCount += users.length
 
-      const market = await ethers.getContractAt('IMarket', marketAddress)
+      const vault = await ethers.getContractAt('IVault', vaultAddress)
 
-      // Commit VAA for market?
+      // Commit VAA for vault?
 
-      console.log('[Settle Markets]    Settling', users.length, 'users to settle in market', marketAddress)
+      console.log('[Settle Vaults]    Settling', users.length, 'users to settle in vault', vaultAddress)
 
       let batchedUsers
       while (users.length > 0) {
-        // batch multicalls to handle markets with large numbers of users
+        // batch multicalls to handle vaults with large numbers of users
         batchedUsers = users.splice(0, batchSize)
         console.log(
-          '[Settle Markets]      batch contains',
+          '[Settle Vaults]      batch contains',
           batchedUsers.length,
           'users',
           users.length,
           'users remaining',
         )
 
-        const multicallPayload = settleMarketUsersPayload(market, batchedUsers)
+        const multicallPayload = settleVaultUsersPayload(vault, batchedUsers)
         const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(
           multicallPayload,
         )
@@ -65,12 +65,12 @@ export default task('settle-markets', 'Settles users across all markets')
 
         const successfulSettleCalls = result.reduce((a, c) => (c.success ? a + 1 : a), 0)
         console.log(
-          `[Settle Markets]        ${successfulSettleCalls} successful settle calls. gas: ${gasUsage.toString()}`,
+          `[Settle Vaults]        ${successfulSettleCalls} successful settle calls. gas: ${gasUsage.toString()}`,
         )
 
         if (successfulSettleCalls === batchedUsers.length) {
           if (!args.dry) {
-            process.stdout.write('[Settle Markets]        Sending Transaction...')
+            process.stdout.write('[Settle Vaults]        Sending Transaction...')
             const tx = await multicall.aggregate3(multicallPayload)
             await tx.wait()
             process.stdout.write(`done. Hash: ${tx.hash}\n`)
@@ -84,17 +84,17 @@ export default task('settle-markets', 'Settles users across all markets')
     }
 
     const actionString = args.dry ? 'Need to call' : 'Called'
-    console.log(`[Settle Markets] ${actionString} settle on ${marketUserCount} users in ${txCount} transactions`) // 3507 total calls on Arbitrum
-    console.log('[Settle Markets] Done.')
+    console.log(`[Settle Vaults] ${actionString} settle on ${vaultUserCount} users in ${txCount} transactions`) // 3507 total calls on Arbitrum
+    console.log('[Settle Vaults] Done.')
   })
 
-// maps market addresses to a list of users who deposited into that market
-async function getMarketUsers(graphURL: string): Promise<{ [key: string]: Set<string> }> {
-  console.log('[Settle Markets]  Fetching All Market Users')
+// maps vault addresses to a list of users who deposited into that vault
+async function getVaultUsers(graphURL: string): Promise<{ [key: string]: Set<string> }> {
+  console.log('[Settle Vaults]  Fetching All Vault Users')
   const query = gql`
     query getUserDeposits($first: Int!, $skip: Int!) {
-      updateds(first: $first, skip: $skip) {
-        market
+      vaultUpdateds(first: $first, skip: $skip) {
+        vault
         account
         blockTimestamp
       }
@@ -103,33 +103,32 @@ async function getMarketUsers(graphURL: string): Promise<{ [key: string]: Set<st
 
   let numQueries = 0
   let page = 0
-  let res: { updateds: { market: string; account: string }[] } = await request(graphURL, query, {
+  let res: { vaultUpdateds: { vault: string; account: string }[] } = await request(graphURL, query, {
     first: GRAPHQL_QUERY_PAGE_SIZE,
     skip: page * GRAPHQL_QUERY_PAGE_SIZE,
   })
   const rawData = res
-  while (res.updateds.length === GRAPHQL_QUERY_PAGE_SIZE) {
+  while (res.vaultUpdateds.length === GRAPHQL_QUERY_PAGE_SIZE) {
     page += 1
     res = await request(graphURL, query, {
       first: GRAPHQL_QUERY_PAGE_SIZE,
       skip: page * GRAPHQL_QUERY_PAGE_SIZE,
     })
-    rawData.updateds = [...rawData.updateds, ...res.updateds]
+    rawData.vaultUpdateds = [...rawData.vaultUpdateds, ...res.vaultUpdateds]
     numQueries += 1
   }
 
   const result: { [key: string]: Set<string> } = {}
-  for (const raw of rawData.updateds) {
-    if (raw.market in result) result[raw.market].add(raw.account)
-    else result[raw.market] = new Set([raw.account])
+  for (const raw of rawData.vaultUpdateds) {
+    if (raw.vault in result) result[raw.vault].add(raw.account)
+    else result[raw.vault] = new Set([raw.account])
   }
-
-  console.log('[Settle Markets]  Fetched all users in', numQueries, 'queries')
+  console.log('[Settle Vaults]  Fetched all users in', numQueries, 'queries')
   return result
 }
 
 // prepares calldata to settle multiple users
-function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPayload[] {
-  const settles = users.map(user => market.interface.encodeFunctionData('settle', [user]))
-  return settles.map(callData => ({ callData, allowFailure: false, target: market.address }))
+function settleVaultUsersPayload(vault: IVault, users: string[]): MulticallPayload[] {
+  const settles = users.map(user => vault.interface.encodeFunctionData('settle', [user]))
+  return settles.map(callData => ({ callData, allowFailure: false, target: vault.address }))
 }
