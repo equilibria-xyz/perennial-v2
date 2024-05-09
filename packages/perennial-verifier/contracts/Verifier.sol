@@ -10,6 +10,7 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { Fill, FillLib } from "./types/Fill.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
+import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 
 /// @title Verifier
 /// @notice Singleton ERC712 signed message verifier for the Perennial protocol.
@@ -48,15 +49,27 @@ contract Verifier is VerifierBase, IVerifier {
         return ECDSA.recover(_hashTypedDataV4(FillLib.hash(fill)), signature);
     }
 
-    /// @notice Verifies the signature of a operator approval type
+    /// @notice Verifies the signature of a operator update type
     /// @dev Cancels the nonce after verifying the signature
-    /// @param operatorUpdate The operator approval message to verify
-    /// @param signature The signature of the account for the operator approval
+    /// @param operatorUpdate The operator update message to verify
+    /// @param signature The signature of the account for the operator update
     /// @return The address corresponding to the signature
     function verifyOperatorUpdate(OperatorUpdate calldata operatorUpdate, bytes calldata signature)
         external
         validateAndCancel(operatorUpdate.common, signature) returns (address)
     {
         return ECDSA.recover(_hashTypedDataV4(OperatorUpdateLib.hash(operatorUpdate)), signature);
+    }
+
+    /// @notice Verifies the signature of a signer update type
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param signerUpdate The signer update message to verify
+    /// @param signature The signature of the account for the signer update
+    /// @return The address corresponding to the signature
+    function verifySignerUpdate(SignerUpdate calldata signerUpdate, bytes calldata signature)
+        external
+        validateAndCancel(signerUpdate.common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(SignerUpdateLib.hash(signerUpdate)), signature);
     }
 }

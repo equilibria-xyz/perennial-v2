@@ -18,7 +18,10 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev The global protocol parameters
     ProtocolParameterStorage private _parameter;
 
-    /// @dev Mapping of allowed operators for each account
+    /// @dev Mapping of allowed protocol-wide operators
+    mapping(address => bool) public extensions;
+
+    /// @dev Mapping of allowed operators per account
     mapping(address => mapping(address => bool)) public operators;
 
     /// @dev Registry of created markets by oracle and payoff
@@ -62,6 +65,14 @@ contract MarketFactory is IMarketFactory, Factory {
     }
 
     /// @notice Updates the status of an operator for the caller
+    /// @param extension The operator to update to enable protocol-wide
+    /// @param newEnabled The new status of the operator
+    function updateExtension(address extension, bool newEnabled) external {
+        extensions[extension] = newEnabled;
+        emit ExtensionUpdated(extension, newEnabled);
+    }
+
+    /// @notice Updates the status of an operator for the caller
     /// @param operator The operator to update
     /// @param newEnabled The new status of the operator
     function updateOperator(address operator, bool newEnabled) external {
@@ -91,9 +102,28 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @param signer The signer to update
     /// @param newEnabled The new status of the opersignerator
     function updateSigner(address signer, bool newEnabled) external {
-        signers[msg.sender][signer] = newEnabled;
-        emit SignerUpdated(msg.sender, signer, newEnabled);
+        _updateSigner(msg.sender, signer, newEnabled);
     }
+
+    /// @notice Updates the status of a signer for the caller verified via a signed message
+    /// @param signerUpdate The signer update message to process
+    /// @param signature The signature of the signer update message
+    function updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) external {
+        address signer = verifier.verifySignerUpdate(signerUpdate, signature);
+        if (signer != signerUpdate.common.account) revert MarketFactoryInvalidSignerError();
+
+        _updateSigner(signerUpdate.common.account, signerUpdate.signer, signerUpdate.approved);
+    }
+
+    /// @notice Updates the status of a signer for the caller
+    /// @param account The account to update the operator for
+    /// @param signer The signer to update
+    /// @param newEnabled The new status of the opersignerator
+    function _updateSigner(address account, address signer, bool newEnabled) private {
+        signers[account][signer] = newEnabled;
+        emit SignerUpdated(account, signer, newEnabled);
+    }
+
 
     /// @notice Updates the referral fee for a referrer
     /// @param referrer The referrer to update

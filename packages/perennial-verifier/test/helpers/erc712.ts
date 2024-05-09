@@ -5,6 +5,7 @@ import {
   GroupCancellationStruct,
   IntentStruct,
   OperatorUpdateStruct,
+  SignerUpdateStruct,
 } from '../../types/generated/contracts/Verifier'
 import { IVerifier, Verifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
@@ -129,4 +130,27 @@ export async function signOperatorUpdate(
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, operatorUpdate)
+}
+
+export async function signSignerUpdate(
+  signer: SignerWithAddress,
+  verifier: Verifier | FakeContract<IVerifier>,
+  signerUpdate: SignerUpdateStruct,
+): Promise<string> {
+  const types = {
+    Common: [
+      { name: 'account', type: 'address' },
+      { name: 'domain', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'group', type: 'uint256' },
+      { name: 'expiry', type: 'uint256' },
+    ],
+    SignerUpdate: [
+      { name: 'signer', type: 'address' },
+      { name: 'approved', type: 'bool' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, signerUpdate)
 }

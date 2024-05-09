@@ -16375,6 +16375,84 @@ describe('Market', () => {
         })
       })
 
+      context('extension', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(operator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        })
+
+        it('opens the position when extension', async () => {
+          factory.extensions.whenCalledWith(operator.address).returns(true)
+          await expect(
+            market
+              .connect(operator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              operator.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              POSITION,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 0,
+            collateral: COLLATERAL,
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_1.timestamp,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
+            currentId: 1,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_1.timestamp,
+          })
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
+            ...DEFAULT_VERSION,
+            price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+        })
+
+        it('reverts when not extension', async () => {
+          factory.extensions.whenCalledWith(operator.address).returns(false)
+          factory.operators.whenCalledWith(user.address, operator.address).returns(false)
+          await expect(
+            market
+              .connect(operator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+          ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
+        })
+      })
+
       context('operator', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(operator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
