@@ -75,7 +75,14 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
-    function updateSignerWithSignature(SignerUpdate calldata signerUpdate_,  bytes calldata signature_) external {
+    function updateSignerWithSignature(
+        SignerUpdate calldata signerUpdate_, 
+        bytes calldata signature_
+    ) virtual external {
+        _updateSignerWithSignature(signerUpdate_, signature_);
+    }
+
+    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate_,  bytes calldata signature_) internal {
         // ensure the message was signed only by the owner, not an existing delegate
         address messageSigner = verifier.verifySignerUpdate(signerUpdate_, signature_);
         address owner = signerUpdate_.action.common.account;
@@ -83,17 +90,18 @@ contract Controller is Instance, IController {
         if (messageSigner != owner) revert InvalidSignerError();
 
         signers[account][signerUpdate_.signer] = signerUpdate_.approved;
-        // TODO: draw fee
         emit SignerUpdated(account, signerUpdate_.signer, signerUpdate_.approved);
     }
 
     /// @inheritdoc IController
-    function withdrawWithSignature(Withdrawal calldata withdrawal_, bytes calldata signature_) external {
+    function withdrawWithSignature(Withdrawal calldata withdrawal_, bytes calldata signature_) virtual external {
+        _withdrawWithSignature(withdrawal_, signature_);
+    }
+
+    function _withdrawWithSignature(Withdrawal calldata withdrawal_, bytes calldata signature_) internal {
         // ensure the message was signed by the owner or a delegated signer
         address signer = verifier.verifyWithdrawal(withdrawal_, signature_);
         IAccount account = IAccount(_ensureValidSigner(withdrawal_.action.common.account, signer));
-
-        // TODO: draw fee
 
         // call the account's implementation to push to owner
         account.withdraw(withdrawal_.token, withdrawal_.amount);

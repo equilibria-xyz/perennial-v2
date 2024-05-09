@@ -53,10 +53,11 @@ describe('Controller', () => {
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signatureCreate)
-    // get the address from event arguments rather than making an extra RPC call
+    // verify the address from event arguments
     const creationArgs = (await tx.wait()).events?.find(e => e.event === 'AccountDeployed')
       ?.args as any as AccountDeployedEventObject
-    return creationArgs.account
+    expect(creationArgs.account).to.equal(accountAddress)
+    return accountAddress
   }
 
   // create a serial nonce for testing purposes; real users may choose a nonce however they please

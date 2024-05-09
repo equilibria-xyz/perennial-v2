@@ -10,18 +10,19 @@ import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Controller } from "./Controller.sol";
-import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
+import { DeployAccount } from "./types/DeployAccount.sol";
+import { SignerUpdate } from "./types/SignerUpdate.sol";
+import { Withdrawal } from "./types/Withdrawal.sol";
 
 import "hardhat/console.sol";
 
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
-    // TODO: do we really need separate Keep config for each message type?
-    KeepConfig public keepConfigDeploy;
+    KeepConfig public keepConfig;
 
     constructor(
-        KeepConfig memory keepConfigDeploy_
+        KeepConfig memory keepConfig_
     ) {
-        keepConfigDeploy = keepConfigDeploy_;
+        keepConfig = keepConfig_;
     }
 
     /// @notice Configures message verification and keeper compensation
@@ -45,7 +46,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     ) 
         override external 
         keep(
-            keepConfigDeploy, 
+            keepConfig, 
             abi.encode(deployAccount_, signature_), 
             0, 
             abi.encode(deployAccount_.action.account, deployAccount_.action.maxFee)
@@ -56,14 +57,50 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         account.approveController(Token18.unwrap(keeperToken()));
     }
 
+    /// @inheritdoc IController
+    function updateSignerWithSignature(
+        SignerUpdate calldata signerUpdate_, 
+        bytes calldata signature_
+    ) 
+        override external
+        keep(
+            keepConfig, 
+            abi.encode(signerUpdate_, signature_), 
+            0, 
+            abi.encode(signerUpdate_.action.account, signerUpdate_.action.maxFee)
+        )
+    {
+        _updateSignerWithSignature(signerUpdate_, signature_);
+    }
+
+    /// @inheritdoc IController
+    function withdrawWithSignature(
+        Withdrawal calldata withdrawal_, 
+        bytes calldata signature_
+    ) 
+        override external 
+        keep(
+            keepConfig, 
+            abi.encode(withdrawal_, signature_), 
+            0, 
+            abi.encode(withdrawal_.action.account, withdrawal_.action.maxFee)
+        )
+    {
+        _withdrawWithSignature(withdrawal_, signature_);
+    }
+
+    /// @dev Transfers funds from collateral account to controller, and limits compensation 
+    /// to the user-defined maxFee in the Action message
+    /// @param amount Calculated keeper fee
+    /// @param data Encoded address of collateral account and UFixed6 user-specified maximum fee
+    /// @return raisedKeeperFee_ Amount pulled from controller to keeper
     function _raiseKeeperFee(
         UFixed18 amount,
         bytes memory data
-    ) internal override returns (UFixed18) {
+    ) internal override returns (UFixed18 raisedKeeperFee_) {
         (address account, uint256 maxFee) = abi.decode(data, (address, uint256));
         // maxFee is a UFixed6; convert to 18-decimal precision
-        UFixed18 raisedKeeperFee = amount.min(UFixed18.wrap(maxFee * 1e12));
-        keeperToken().pull(account, raisedKeeperFee);
-        return raisedKeeperFee;
+        raisedKeeperFee_ = amount.min(UFixed18.wrap(maxFee * 1e12));
+        keeperToken().pull(account, raisedKeeperFee_);
     }
 }

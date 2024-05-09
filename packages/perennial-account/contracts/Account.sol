@@ -45,7 +45,7 @@ contract Account is IAccount{
             revert TokenNotSupportedError();
     }
 
-    function _getTokenDecimals(address token_) private returns (uint8 tokenDecimals_) {
+    function _getTokenDecimals(address token_) private view returns (uint8 tokenDecimals_) {
         try IERC20Metadata(token_).decimals() returns (uint8 decimals_) {
             tokenDecimals_ = decimals_;
         } catch {
