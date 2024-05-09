@@ -138,8 +138,6 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       // await expect(market.settle(ethers.constants.AddressZero)).to.not.be.reverted
 
       const global = await market.global()
-      console.log('🚀 ~ it ~ global:', beforeGlobals[i])
-      console.log('🚀 ~ it ~ global:', global)
       expect(global.latestPrice).to.be.equal(beforeGlobals[i].latestPrice)
       expect(global.latestId).to.be.equal(beforeGlobals[i].latestId)
       expect(global.currentId).to.be.equal(beforeGlobals[i].currentId)
