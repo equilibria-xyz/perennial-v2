@@ -6,7 +6,14 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { IController, Verifier, Verifier__factory } from '../../types/generated'
-import { signAction, signCommon, signDeployAccount, signSignerUpdate, signWithdrawal } from '../helpers/erc712'
+import {
+  signAction,
+  signCommon,
+  signDeployAccount,
+  signMarketTransfer,
+  signSignerUpdate,
+  signWithdrawal,
+} from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
@@ -131,6 +138,21 @@ describe('Verifier', () => {
     const signerResult = await verifier
       .connect(controllerSigner)
       .callStatic.verifySignerUpdate(updateSignerMessage, signature)
+    expect(signerResult).to.eq(userA.address)
+  })
+
+  it('verifies marketTransfer messages', async () => {
+    const market = await smock.fake('IMarket')
+    const marketTransferMessage = {
+      market: market.address,
+      amount: constants.MaxInt256,
+      ...createAction(userA.address),
+    }
+    const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+    const signerResult = await verifier
+      .connect(controllerSigner)
+      .callStatic.verifyMarketTransfer(marketTransferMessage, signature)
     expect(signerResult).to.eq(userA.address)
   })
 

@@ -5,8 +5,7 @@ import { Action, ActionLib } from "./Action.sol";
 
 // TODO: rename to be a noun rather than a verb
 struct DeployAccount {
-    /// @dev Common information for collateral account actions;
-    /// set action.common.account to the user address for which the collateral account should be deployed
+    /// @dev Common information for collateral account actions
     Action action;
 }
 using DeployAccountLib for DeployAccount global;

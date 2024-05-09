@@ -16,6 +16,7 @@ import { Withdrawal } from "./types/Withdrawal.sol";
 
 import "hardhat/console.sol";
 
+/// @notice Controller which compensates keepers for processing messages on Arbitrum L2.
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     KeepConfig public keepConfig;
 

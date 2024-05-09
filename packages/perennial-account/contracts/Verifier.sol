@@ -9,6 +9,7 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
+import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Verifier
@@ -31,6 +32,14 @@ contract Verifier is VerifierBase, IVerifier {
         validateAndCancel(deployAccount.action.common, signature) returns (address)
     {
         return ECDSA.recover(_hashTypedDataV4(DeployAccountLib.hash(deployAccount)), signature);
+    }
+
+    /// @inheritdoc IVerifier
+    function verifyMarketTransfer(MarketTransfer calldata marketTransfer, bytes calldata signature) 
+        external 
+        validateAndCancel(marketTransfer.action.common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(MarketTransferLib.hash(marketTransfer)), signature);
     }
 
     /// @inheritdoc IVerifier

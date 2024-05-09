@@ -8,8 +8,7 @@ struct SignerUpdate {
     address signer;
     /// @dev True to assign/enable, false to disable
     bool approved;
-    /// @dev Common information for collateral account actions;
-    /// set action.common.account to the owner whose delegated signer should be updated
+    /// @dev Common information for collateral account actions
     Action action;
 }
 using SignerUpdateLib for SignerUpdate global;

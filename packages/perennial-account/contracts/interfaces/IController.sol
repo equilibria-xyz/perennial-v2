@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { DeployAccount } from "../types/DeployAccount.sol";
+import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
@@ -35,6 +36,11 @@ interface IController {
     /// @param deployAccount Message requesting creation of a collateral account
     /// @param signature ERC712 message signature
     function deployAccountWithSignature(DeployAccount calldata deployAccount, bytes calldata signature) external;
+
+    /// @notice Transfers tokens between a collateral account and a specified Perennial Market
+    /// @param marketTransfer Message requesting a deposit to or withdrawal from the Market
+    /// @param signature ERC712 message signature
+    function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature) external;
 
     /// @notice Updates the status of a delegated signer for the caller's collateral account
     /// @param signer The signer to update

@@ -9,8 +9,7 @@ struct Withdrawal {
     address token;
     /// @dev Amount to withdraw; set to UFixed6.MAX for full withdrawal
     UFixed6 amount;
-    /// @dev Common information for collateral account actions;
-    /// set action.common.account to the owner of the collateral account
+    /// @dev Common information for collateral account actions
     Action action;
 }
 using WithdrawalLib for Withdrawal global;

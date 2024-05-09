@@ -8,6 +8,7 @@ import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
+import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
@@ -91,6 +92,20 @@ contract Controller is Instance, IController {
 
         signers[account][signerUpdate_.signer] = signerUpdate_.approved;
         emit SignerUpdated(account, signerUpdate_.signer, signerUpdate_.approved);
+    }
+
+    /// @inheritdoc IController
+    function marketTransferWithSignature(MarketTransfer calldata marketTransfer_, bytes calldata signature_) virtual external {
+        _marketTransferWithSignature(marketTransfer_, signature_);
+    }
+
+    function _marketTransferWithSignature(MarketTransfer calldata marketTransfer_, bytes calldata signature_) internal {
+        // ensure the message was signed by the owner or a delegated signer
+        address signer = verifier.verifyMarketTransfer(marketTransfer_, signature_);
+        IAccount account = IAccount(_ensureValidSigner(marketTransfer_.action.common.account, signer));
+
+        // TODO: query the token from the IMarket.token, then call update with magic numbers for three position params
+
     }
 
     /// @inheritdoc IController
