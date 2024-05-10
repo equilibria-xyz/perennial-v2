@@ -14,8 +14,6 @@ import { DeployAccount } from "./types/DeployAccount.sol";
 import { SignerUpdate } from "./types/SignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
-import "hardhat/console.sol";
-
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     KeepConfig public keepConfig;
 

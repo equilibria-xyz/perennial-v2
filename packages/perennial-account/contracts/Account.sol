@@ -8,7 +8,6 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
-import "hardhat/console.sol";
 
 // TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
 // _Ownable_ does not let someone other than the sender assign the owner.
