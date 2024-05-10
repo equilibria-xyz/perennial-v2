@@ -45,6 +45,6 @@ contract Coordinator is ICoordinator, Ownable {
     /// @param riskParameter The new risk parameter
     function updateRiskParameter(IMarket market, RiskParameter calldata riskParameter) external {
         if (msg.sender != coordinator) revert NotCoordinator();
-        market.updateRiskParameter(riskParameter);
+        market.updateRiskParameter(riskParameter, false);
     }
 }

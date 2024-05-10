@@ -147,6 +147,6 @@ interface IMarket is IInstance {
     function riskParameter() external view returns (RiskParameter memory);
     function updateOracle(IOracleProvider newOracle) external;
     function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
-    function updateRiskParameter(RiskParameter memory newRiskParameter) external;
+    function updateRiskParameter(RiskParameter memory newRiskParameter, bool isMigration) external;
     function claimFee() external;
 }
