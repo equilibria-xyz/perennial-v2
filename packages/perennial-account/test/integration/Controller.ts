@@ -14,10 +14,16 @@ import {
   Controller__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
+  IMarket,
+  IOracleProvider__factory,
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
-import { signDeployAccount, signWithdrawal } from '../helpers/erc712'
+import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
+import { createMarket, deployProtocolForOracle } from '../helpers/setupHelpers'
+import { IOracleFactory__factory, OracleFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { IMarketFactory, Market } from '@equilibria/perennial-v2/types/generated'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const { ethers } = HRE
 
@@ -42,7 +48,7 @@ describe('Controller', () => {
     accountAddress: Address,
     userAddress: Address,
     feeOverride = utils.parseEther('14'),
-    expiresInSeconds = 16,
+    expiresInSeconds = 60,
   ) {
     return {
       action: {
@@ -96,6 +102,69 @@ describe('Controller', () => {
   beforeEach(async () => {
     currentTime = BigNumber.from(await currentBlockTimestamp())
     await loadFixture(fixture)
+  })
+
+  describe('#transfer', () => {
+    const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
+    const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
+    // const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
+    const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
+
+    let marketFactory: IMarketFactory
+    let market: Market // TODO: import types from the right places to use IMarket interface here
+
+    const marketFixture = async () => {
+      await loadFixture(fixture)
+      // create the market factory
+      const oracleFactory = OracleFactory__factory.connect(ORACLE_FACTORY, owner)
+      marketFactory = await deployProtocolForOracle(owner, oracleFactory, ORACLE_FACTORY_OWNER)
+
+      // create a market
+      const oracle = IOracleProvider__factory.connect(ETH_USD_ORACLE, owner)
+      market = await createMarket(owner, marketFactory, dsu, oracle)
+      // only need this to commit prices
+      // const keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
+    }
+
+    beforeEach(async () => {
+      await loadFixture(marketFixture)
+      // fund userA's collateral account with 20k USDC
+      await dsu.connect(userA).transfer(accountA.address, parse6decimal('20000'))
+      // approve the collateral account as operator
+      await marketFactory.connect(userA).updateOperator(accountA.address, true)
+    })
+
+    it('can transfer funds to a market from a signed message', async () => {
+      // sign a message to deposit 6k from the collateral account to the market
+      const transferAmount = parse6decimal('6000')
+      const marketTransferMessage = {
+        market: market.address,
+        amount: transferAmount,
+        ...createAction(accountA.address, userA.address),
+      }
+      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+      // perform transfer
+      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, market.address, transferAmount.mul(1e12)) // scale to token precision
+        .to.emit(market, 'OrderCreated')
+        .withArgs(userA.address, anyValue) // TODO: verify the expected order
+
+      // TODO: verify balances
+    })
+
+    /*it('can transfer max amount', async () => {
+      // TODO: implement
+    })
+
+    it('can withdraw funds from a market', async () => {
+      // TODO: implement
+    })
+
+    it ('can withdraw max amount', async () => {
+      // TODO: implement
+    })*/
   })
 
   describe('#withdrawal', () => {

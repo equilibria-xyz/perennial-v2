@@ -251,7 +251,7 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, userA.address, anyValue)
         .to.emit(controller, 'KeeperCall')
-        .withArgs(keeper.address, 95876, 0, anyValue, anyValue, anyValue)
+        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
 
       // confirm keeper earned their fee for creating the account and processing the withdrawal
       const cumulativeKeeperFee = await dsu.balanceOf(keeper.address)

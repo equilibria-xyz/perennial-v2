@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 
-import { IAccount } from "./interfaces/IAccount.sol";
+import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
@@ -104,8 +104,8 @@ contract Controller is Instance, IController {
         address signer = verifier.verifyMarketTransfer(marketTransfer_, signature_);
         IAccount account = IAccount(_ensureValidSigner(marketTransfer_.action.common.account, signer));
 
-        // TODO: query the token from the IMarket.token, then call update with magic numbers for three position params
-
+        IMarket market = IMarket(marketTransfer_.market);
+        account.marketTransfer(market, marketTransfer_.amount);
     }
 
     /// @inheritdoc IController

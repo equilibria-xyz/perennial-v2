@@ -1,36 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 
-import { IAccount } from "./interfaces/IAccount.sol";
+import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import "hardhat/console.sol";
 
 // TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
 // _Ownable_ does not let someone other than the sender assign the owner.
 // Consider making Ownable._updateOwner overridable to work around this.
 contract Account is IAccount{
+    UFixed6 private constant UNCHANGED_POSITION = UFixed6Lib.MAX;
+
     address public owner;
     address public controller;
 
     constructor(address owner_, address controller_) {
         owner = owner_;
         controller = controller_;
-    }
-
-    /// @inheritdoc IAccount
-    function withdraw(address token_, UFixed6 amount_) external ownerOrController {
-        uint8 tokenDecimals = _getTokenDecimals(token_);
-        if (tokenDecimals == 18)
-            _withdraw18(Token18.wrap(token_), amount_);
-        else if (tokenDecimals == 6)
-            _withdraw6(Token6.wrap(token_), amount_);
-        else // revert if token is not 18 or 6 decimals
-            revert TokenNotSupportedError();
     }
 
     /// @inheritdoc IAccount
@@ -45,6 +37,27 @@ contract Account is IAccount{
             revert TokenNotSupportedError();
     }
 
+    /// @inheritdoc IAccount
+    function marketTransfer(IMarket market_, Fixed6 amount_) external ownerOrController {
+        // TODO: seems silly to check decimals here, because Market is currently always 18-decimal
+        uint8 tokenDecimals = _getTokenDecimals(Token18.unwrap(market_.token()));
+        if (tokenDecimals == 18)
+            _marketTransfer18(market_, amount_);
+        else // Market currently only supports 18-decimal collateral
+            revert TokenNotSupportedError();
+    }
+
+    /// @inheritdoc IAccount
+    function withdraw(address token_, UFixed6 amount_) external ownerOrController {
+        uint8 tokenDecimals = _getTokenDecimals(token_);
+        if (tokenDecimals == 18)
+            _withdraw18(Token18.wrap(token_), amount_);
+        else if (tokenDecimals == 6)
+            _withdraw6(Token6.wrap(token_), amount_);
+        else // revert if token is not 18 or 6 decimals
+            revert TokenNotSupportedError();
+    }
+
     function _getTokenDecimals(address token_) private view returns (uint8 tokenDecimals_) {
         try IERC20Metadata(token_).decimals() returns (uint8 decimals_) {
             tokenDecimals_ = decimals_;
@@ -52,6 +65,15 @@ contract Account is IAccount{
             // revert if token contract does not implement optional `decimals` method
             revert TokenNotSupportedError();
         }
+    }
+
+    function _marketTransfer18(IMarket market_, Fixed6 amount_) private {
+        // implicitly approve the market to spend our collateral token
+        IERC20 token = IERC20(Token18.unwrap(market_.token()));
+        if (token.allowance(address(this), address(market_)) != type(uint256).max)
+            market_.token().approve(address(market_));
+        // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
+        market_.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount_, false);
     }
 
     function _withdraw18(Token18 token_, UFixed6 amount_) private {
