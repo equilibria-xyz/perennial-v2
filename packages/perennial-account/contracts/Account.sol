@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 
@@ -26,11 +26,11 @@ contract Account is IAccount{
     }
 
     /// @inheritdoc IAccount
+    /// @dev Controller is initialized at construction and cannot be changed.
     function approveController(address token_) external ownerOrController {
         uint8 tokenDecimals = _getTokenDecimals(token_);
-        if (tokenDecimals == 18) {
+        if (tokenDecimals == 18)
             Token18.wrap(token_).approve(controller);
-        }
         else if (tokenDecimals == 6)
              Token6.wrap(token_).approve(controller);
         else // revert if token is not 18 or 6 decimals
@@ -38,13 +38,10 @@ contract Account is IAccount{
     }
 
     /// @inheritdoc IAccount
+    /// @dev If Market ever supports non-18-decimal tokens, this method could be expanded 
+    /// to handle them appropriately.
     function marketTransfer(IMarket market_, Fixed6 amount_) external ownerOrController {
-        // TODO: seems silly to check decimals here, because Market is currently always 18-decimal
-        uint8 tokenDecimals = _getTokenDecimals(Token18.unwrap(market_.token()));
-        if (tokenDecimals == 18)
-            _marketTransfer18(market_, amount_);
-        else // Market currently only supports 18-decimal collateral
-            revert TokenNotSupportedError();
+        _marketTransfer18(market_, amount_);
     }
 
     /// @inheritdoc IAccount
@@ -72,6 +69,7 @@ contract Account is IAccount{
         IERC20 token = IERC20(Token18.unwrap(market_.token()));
         if (token.allowance(address(this), address(market_)) != type(uint256).max)
             market_.token().approve(address(market_));
+
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
         market_.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount_, false);
     }

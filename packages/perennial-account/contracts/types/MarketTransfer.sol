@@ -7,8 +7,7 @@ import { Action, ActionLib } from "./Action.sol";
 struct MarketTransfer {
     /// @dev Identifies the market to which funds should be sent and token to transfer
     address market;
-    /// @dev Amount to deposit (positive) or withdraw (negative); 
-    /// set to Fixed6.MAX or Fixed6.MIN to deposit/withdraw full balance
+    /// @dev Amount to deposit (positive) or withdraw (negative)
     Fixed6 amount;
     /// @dev Common information for collateral account actions
     Action action;

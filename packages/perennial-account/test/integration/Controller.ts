@@ -113,6 +113,28 @@ describe('Controller', () => {
     let marketFactory: IMarketFactory
     let market: Market // TODO: import types from the right places to use IMarket interface here
 
+    /*function expectedOrderWithCollateral(amount: BigNumber) {
+      return {
+        timestamp: anyValue,
+        orders: anyValue,
+        collateral: amount,
+        makerPos: anyValue,
+        makerNeg: anyValue,
+        longPos: anyValue,
+        longNeg: anyValue,
+        shortPos: anyValue,
+        shortNeg: anyValue,
+        protection: anyValue,
+        makerReferral: anyValue,
+        takerReferral: anyValue
+      }
+    }*/
+
+    async function expectMarketCollateralBalance(user: SignerWithAddress, amount: BigNumber) {
+      const local = await market.locals(user.address)
+      expect(local.collateral).to.equal(amount)
+    }
+
     const marketFixture = async () => {
       await loadFixture(fixture)
       // create the market factory
@@ -128,13 +150,11 @@ describe('Controller', () => {
 
     beforeEach(async () => {
       await loadFixture(marketFixture)
-      // fund userA's collateral account with 20k USDC
-      await dsu.connect(userA).transfer(accountA.address, parse6decimal('20000'))
       // approve the collateral account as operator
       await marketFactory.connect(userA).updateOperator(accountA.address, true)
     })
 
-    it('can transfer funds to a market from a signed message', async () => {
+    it('can deposit funds to a market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
       const transferAmount = parse6decimal('6000')
       const marketTransferMessage = {
@@ -149,22 +169,44 @@ describe('Controller', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, transferAmount.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue) // TODO: verify the expected order
+        .withArgs(userA.address, anyValue)
 
-      // TODO: verify balances
-    })
-
-    /*it('can transfer max amount', async () => {
-      // TODO: implement
+      // verify balances
+      await expectMarketCollateralBalance(userA, transferAmount)
+      expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('9000')) // 15k-6k
     })
 
     it('can withdraw funds from a market', async () => {
-      // TODO: implement
-    })
+      // deposit 10k
+      let marketTransferMessage = {
+        market: market.address,
+        amount: parse6decimal('10000'),
+        ...createAction(accountA.address, userA.address),
+      }
+      let signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
 
-    it ('can withdraw max amount', async () => {
-      // TODO: implement
-    })*/
+      // sign a message to withdraw 3k from the collateral account to the market
+      const transferAmount = parse6decimal('-3000')
+      marketTransferMessage = {
+        market: market.address,
+        amount: transferAmount,
+        ...createAction(accountA.address, userA.address),
+      }
+      signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+      // perform transfer
+      // FIXME: reverts with MarketInsufficientMarginError
+      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(market.address, accountA.address, transferAmount.mul(1e12)) // scale to token precision
+        .to.emit(market, 'OrderCreated')
+        .withArgs(userA.address, anyValue)
+
+      // verify balances
+      await expectMarketCollateralBalance(userA, parse6decimal('7000')) // 10k-3k
+      expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('8000')) // 15k-10k+3k
+    })
   })
 
   describe('#withdrawal', () => {
