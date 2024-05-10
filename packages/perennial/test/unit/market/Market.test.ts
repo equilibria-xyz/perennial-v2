@@ -563,7 +563,7 @@ describe('Market', () => {
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition)
-      await market.connect(owner).updateRiskParameter(riskParameter)
+      await market.connect(owner).updateRiskParameter(riskParameter, false)
     })
 
     describe('#updateOracle', async () => {
@@ -687,7 +687,7 @@ describe('Market', () => {
       }
 
       it('updates the parameters (owner)', async () => {
-        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter)).to.emit(
+        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter, false)).to.emit(
           market,
           'RiskParameterUpdated',
         )
@@ -722,7 +722,7 @@ describe('Market', () => {
 
       it('updates the parameters (coordinator)', async () => {
         await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
-        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter, false)).to.emit(
           market,
           'RiskParameterUpdated',
         )
@@ -783,7 +783,7 @@ describe('Market', () => {
 
         // test the risk parameter update
         await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
-        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter, false)).to.emit(
           market,
           'RiskParameterUpdated',
         )
@@ -978,7 +978,7 @@ describe('Market', () => {
         })
 
         // update risk parameters, introducing exposure
-        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter)).to.emit(
+        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter, false)).to.emit(
           market,
           'RiskParameterUpdated',
         )
@@ -1034,10 +1034,9 @@ describe('Market', () => {
       })
 
       it('reverts if not owner or coordinator', async () => {
-        await expect(market.connect(user).updateRiskParameter(defaultRiskParameter)).to.be.revertedWithCustomError(
-          market,
-          'MarketNotCoordinatorError',
-        )
+        await expect(
+          market.connect(user).updateRiskParameter(defaultRiskParameter, false),
+        ).to.be.revertedWithCustomError(market, 'MarketNotCoordinatorError')
       })
     })
 
@@ -2244,7 +2243,7 @@ describe('Market', () => {
             riskParameterMakerFee.linearFee = parse6decimal('0.005')
             riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
             riskParameter.makerFee = riskParameterMakerFee
-            await market.updateRiskParameter(riskParameter)
+            await market.updateRiskParameter(riskParameter, false)
 
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.settlementFee = parse6decimal('0.50')
@@ -2841,7 +2840,7 @@ describe('Market', () => {
               riskParameterMakerFee.linearFee = parse6decimal('0.005')
               riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
               riskParameter.makerFee = riskParameterMakerFee
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
@@ -3565,7 +3564,7 @@ describe('Market', () => {
               riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
               riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
               riskParameter.takerFee = riskParameterTakerFee
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
@@ -3696,7 +3695,7 @@ describe('Market', () => {
               riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
               riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
               riskParameter.takerFee = riskParameterTakerFee
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
@@ -4295,7 +4294,7 @@ describe('Market', () => {
                 const riskParameterTakerFee = { ...riskParameter.takerFee }
                 riskParameterTakerFee.scale = POSITION.div(4)
                 riskParameter.takerFee = riskParameterTakerFee
-                await market.updateRiskParameter(riskParameter)
+                await market.updateRiskParameter(riskParameter, false)
 
                 await market
                   .connect(user)
@@ -4527,7 +4526,7 @@ describe('Market', () => {
                 riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
                 riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
                 riskParameter.takerFee = riskParameterTakerFee
-                await market.updateRiskParameter(riskParameter)
+                await market.updateRiskParameter(riskParameter, false)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
@@ -5495,7 +5494,7 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.liquidationFee = parse6decimal('100')
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
               await settle(market, user)
               await settle(market, userB)
@@ -5908,7 +5907,7 @@ describe('Market', () => {
             it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -6755,7 +6754,7 @@ describe('Market', () => {
             it('opens the position and settles later', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.staleAfter = BigNumber.from(9600)
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
               await expect(
                 market
@@ -6868,7 +6867,7 @@ describe('Market', () => {
               riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
               riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
               riskParameter.takerFee = riskParameterTakerFee
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
@@ -7002,7 +7001,7 @@ describe('Market', () => {
               riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
               riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
               riskParameter.takerFee = riskParameterTakerFee
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
@@ -7607,7 +7606,7 @@ describe('Market', () => {
                 const riskParameterTakerFee = { ...riskParameter.takerFee }
                 riskParameterTakerFee.scale = POSITION.div(4)
                 riskParameter.takerFee = riskParameterTakerFee
-                await market.updateRiskParameter(riskParameter)
+                await market.updateRiskParameter(riskParameter, false)
 
                 await market
                   .connect(user)
@@ -7842,7 +7841,7 @@ describe('Market', () => {
                 riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
                 riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
                 riskParameter.takerFee = riskParameterTakerFee
-                await market.updateRiskParameter(riskParameter)
+                await market.updateRiskParameter(riskParameter, false)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
@@ -8340,7 +8339,7 @@ describe('Market', () => {
             beforeEach(async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.margin = parse6decimal('0.31')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('390')).returns(true)
               await market
@@ -9214,7 +9213,7 @@ describe('Market', () => {
             it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -9543,7 +9542,7 @@ describe('Market', () => {
             riskParameterMakerFee.proportionalFee = parse6decimal('0.004')
             riskParameter.takerFee = riskParmeterTakerFee
             riskParameter.makerFee = riskParameterMakerFee
-            await market.updateRiskParameter(riskParameter)
+            await market.updateRiskParameter(riskParameter, false)
 
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.settlementFee = parse6decimal('0.50')
@@ -9675,7 +9674,7 @@ describe('Market', () => {
           const riskParameterTakerFee = { ...riskParameter.takerFee }
           riskParameterTakerFee.scale = POSITION
           riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
         })
 
         context('position delta', async () => {
@@ -10351,7 +10350,7 @@ describe('Market', () => {
               riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
               riskParameterTakerFee.adiabaticFee = parse6decimal('0.004')
               riskParameter.takerFee = riskParameterTakerFee
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
@@ -11767,7 +11766,7 @@ describe('Market', () => {
                 riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
                 riskParameterTakerFee.adiabaticFee = parse6decimal('0.004')
                 riskParameter.takerFee = riskParameterTakerFee
-                await market.updateRiskParameter(riskParameter)
+                await market.updateRiskParameter(riskParameter, false)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
@@ -12581,7 +12580,7 @@ describe('Market', () => {
               await market
                 .connect(owner)
                 .updateParameter(beneficiary.address, coordinator.address, await market.parameter())
-              await expect(market.connect(coordinator).updateRiskParameter(adiabaticRiskParameter)).to.emit(
+              await expect(market.connect(coordinator).updateRiskParameter(adiabaticRiskParameter, false)).to.emit(
                 market,
                 'RiskParameterUpdated',
               )
@@ -13448,7 +13447,7 @@ describe('Market', () => {
             it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -13827,7 +13826,7 @@ describe('Market', () => {
         it('reverts if over maker limit', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.makerLimit = POSITION.div(2)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
           await expect(
             market
               .connect(user)
@@ -13838,7 +13837,7 @@ describe('Market', () => {
         it('reverts if under efficiency limit', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.efficiencyLimit = parse6decimal('0.6')
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
@@ -14051,7 +14050,7 @@ describe('Market', () => {
 
         it('reverts if price is stale', async () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
-          await market.connect(owner).updateRiskParameter(riskParameter)
+          await market.connect(owner).updateRiskParameter(riskParameter, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
@@ -14083,7 +14082,7 @@ describe('Market', () => {
 
         it('reverts if sender is not account', async () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
-          await market.connect(owner).updateRiskParameter(riskParameter)
+          await market.connect(owner).updateRiskParameter(riskParameter, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
@@ -14163,7 +14162,7 @@ describe('Market', () => {
         it('reverts when the position is over-closed', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -14517,7 +14516,7 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.5')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               await expect(
                 market
@@ -14540,7 +14539,7 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.3')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               await expect(
                 market
@@ -14616,7 +14615,7 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.5')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               await expect(
                 market
@@ -14639,7 +14638,7 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.3')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               await expect(
                 market
@@ -14881,7 +14880,7 @@ describe('Market', () => {
         beforeEach(async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
@@ -15617,7 +15616,7 @@ describe('Market', () => {
           riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
           riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
           riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -15766,7 +15765,7 @@ describe('Market', () => {
           riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
           riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
           riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -15974,7 +15973,7 @@ describe('Market', () => {
           riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
           riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
           riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -16170,7 +16169,7 @@ describe('Market', () => {
           riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
           riskParameter.takerFee = riskParameterTakerFee
           riskParameter.staleAfter = BigNumber.from(9600)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -16360,7 +16359,7 @@ describe('Market', () => {
           riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
           riskParameter.takerFee = riskParameterTakerFee
           riskParameter.staleAfter = BigNumber.from(9600)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -16850,7 +16849,7 @@ describe('Market', () => {
         it('flips funding when makerReceiveOnly', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.makerReceiveOnly = true
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -17799,7 +17798,7 @@ describe('Market', () => {
         it('closes full position on MAX - 1 (pending)', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           await market
             .connect(userB)
@@ -17970,7 +17969,7 @@ describe('Market', () => {
         it('closes partial position on MAX - 1', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           await market
             .connect(userB)
@@ -18149,7 +18148,7 @@ describe('Market', () => {
           const riskParameterTakerFee = { ...riskParameter.takerFee }
           riskParameterTakerFee.scale = parse6decimal('15')
           riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
@@ -18264,7 +18263,7 @@ describe('Market', () => {
             const riskParameterTakerFee = { ...riskParameter.takerFee }
             riskParameterTakerFee.scale = parse6decimal('1')
             riskParameter.takerFee = riskParameterTakerFee
-            await market.updateRiskParameter(riskParameter)
+            await market.updateRiskParameter(riskParameter, false)
 
             await market
               .connect(user)
@@ -18392,7 +18391,7 @@ describe('Market', () => {
             const riskParameterTakerFee = { ...riskParameter.takerFee }
             riskParameterTakerFee.scale = parse6decimal('1')
             riskParameter.takerFee = riskParameterTakerFee
-            await market.updateRiskParameter(riskParameter)
+            await market.updateRiskParameter(riskParameter, false)
 
             await market
               .connect(user)
@@ -18700,7 +18699,7 @@ describe('Market', () => {
           riskParameterMakerFee.linearFee = parse6decimal('0.005')
           riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
           riskParameter.makerFee = riskParameterMakerFee
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -18817,7 +18816,7 @@ describe('Market', () => {
           riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
           riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
           riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -18968,7 +18967,7 @@ describe('Market', () => {
           riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
           riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
           riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
