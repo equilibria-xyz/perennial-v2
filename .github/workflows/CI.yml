@@ -104,6 +104,73 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  
+  # [ACCOUNT]
+  account-unit-test:
+    name: '[Collateral Account] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+        run: |
+          yarn workspace @equilibria/perennial-v2-account run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: '[Vault] Unit Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Vault] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial-account/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  account-integration-test:
+    name: '[Collateral Account] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-account run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: '[Collateral Account] Integration Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Collateral Account] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-account/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
   # [ORACLE]
   oracle-unit-test:
