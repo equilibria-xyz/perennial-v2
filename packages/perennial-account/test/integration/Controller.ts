@@ -184,7 +184,7 @@ describe('Controller', () => {
         ...createAction(accountA.address, userA.address),
       }
       let signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-      controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
+      await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
 
       // sign a message to withdraw 3k from the collateral account to the market
       const transferAmount = parse6decimal('-3000')
@@ -196,10 +196,9 @@ describe('Controller', () => {
       signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
       // perform transfer
-      // FIXME: reverts with MarketInsufficientMarginError
       await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
         .to.emit(dsu, 'Transfer')
-        .withArgs(market.address, accountA.address, transferAmount.mul(1e12)) // scale to token precision
+        .withArgs(market.address, accountA.address, transferAmount.mul(-1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
         .withArgs(userA.address, anyValue)
 
