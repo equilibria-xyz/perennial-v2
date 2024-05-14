@@ -187,7 +187,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             }
         }
         // ETH must not remain in this contract at rest
-        Address.sendValue(payable(account), address(this).balance);
+        Address.sendValue(payable(msg.sender), address(this).balance);
     }
 
     /// @notice Updates market on behalf of account
