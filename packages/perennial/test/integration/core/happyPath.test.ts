@@ -107,7 +107,7 @@ describe('Happy Path', () => {
     const marketAddress = await marketFactory.callStatic.create(definition)
     await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
-    await market.connect(owner).updateRiskParameter(riskParameter)
+    await market.connect(owner).updateRiskParameter(riskParameter, false)
     await market.connect(owner).updateParameter(beneficiaryB.address, AddressZero, parameter)
   })
 
@@ -506,7 +506,7 @@ describe('Happy Path', () => {
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    await market.updateRiskParameter(riskParameter)
+    await market.updateRiskParameter(riskParameter, false)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
@@ -661,7 +661,7 @@ describe('Happy Path', () => {
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    await market.updateRiskParameter(riskParameter)
+    await market.updateRiskParameter(riskParameter, false)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
@@ -988,7 +988,7 @@ describe('Happy Path', () => {
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    await market.updateRiskParameter(riskParameter)
+    await market.updateRiskParameter(riskParameter, false)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
@@ -1029,7 +1029,7 @@ describe('Happy Path', () => {
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    await market.updateRiskParameter(riskParameter)
+    await market.updateRiskParameter(riskParameter, false)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
@@ -1118,7 +1118,7 @@ describe('Happy Path', () => {
 
     const market = await createMarket(instanceVars)
     await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
-    await market.updateRiskParameter(riskParameter)
+    await market.updateRiskParameter(riskParameter, false)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1278,7 +1278,7 @@ describe('Happy Path', () => {
 
     const market = await createMarket(instanceVars)
     await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
-    await market.updateRiskParameter(riskParameter)
+    await market.updateRiskParameter(riskParameter, false)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
