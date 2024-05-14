@@ -185,7 +185,7 @@ describe('Fees', () => {
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
       riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
+      await market.updateRiskParameter(riskParams, false)
 
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
@@ -204,7 +204,7 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await settle(market, user)
 
-      await market.updateRiskParameter(previousRiskParams)
+      await market.updateRiskParameter(previousRiskParams, false)
       await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
       // Settle the market with a new oracle version
@@ -274,7 +274,7 @@ describe('Fees', () => {
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
       riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
+      await market.updateRiskParameter(riskParams, false)
 
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
@@ -382,7 +382,7 @@ describe('Fees', () => {
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
       riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
+      await market.updateRiskParameter(riskParams, false)
 
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
@@ -519,21 +519,24 @@ describe('Fees', () => {
     it('charges take fees on long close', async () => {
       const riskParams = await market.riskParameter()
       const marketParams = await market.parameter()
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
+      await market.updateRiskParameter(
+        {
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
         },
-        takerFee: {
-          ...riskParams.takerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-      })
+        false,
+      )
       await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
         fundingFee: BigNumber.from('0'),
@@ -580,20 +583,23 @@ describe('Fees', () => {
       await updateNoOp(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
+      await market.updateRiskParameter(
+        {
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+          takerFee: {
+            ...riskParams.takerFee,
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
         },
-        takerFee: {
-          ...riskParams.takerFee,
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-      })
+        false,
+      )
       await market
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
@@ -694,7 +700,7 @@ describe('Fees', () => {
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
       riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
+      await market.updateRiskParameter(riskParams, false)
 
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
@@ -802,7 +808,7 @@ describe('Fees', () => {
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
       riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
+      await market.updateRiskParameter(riskParams, false)
 
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
@@ -939,21 +945,24 @@ describe('Fees', () => {
     it('charges take fees on short close', async () => {
       const riskParams = await market.riskParameter()
       const marketParams = await market.parameter()
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
+      await market.updateRiskParameter(
+        {
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
         },
-        takerFee: {
-          ...riskParams.takerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-      })
+        false,
+      )
       await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
         fundingFee: BigNumber.from('0'),
@@ -1000,20 +1009,23 @@ describe('Fees', () => {
       await updateNoOp(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
+      await market.updateRiskParameter(
+        {
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+          takerFee: {
+            ...riskParams.takerFee,
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
         },
-        takerFee: {
-          ...riskParams.takerFee,
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-      })
+        false,
+      )
       await market
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
@@ -1115,21 +1127,24 @@ describe('Fees', () => {
 
       beforeEach(async () => {
         const riskParams = { ...(await market.riskParameter()) }
-        await market.updateRiskParameter({
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
+        await market.updateRiskParameter(
+          {
+            ...riskParams,
+            makerFee: {
+              ...riskParams.makerFee,
+              linearFee: BigNumber.from('0'),
+              proportionalFee: BigNumber.from('0'),
+              adiabaticFee: BigNumber.from('0'),
+            },
+            takerFee: {
+              ...riskParams.takerFee,
+              linearFee: BigNumber.from('0'),
+              proportionalFee: parse6decimal('0.01'),
+              adiabaticFee: BigNumber.from('0'),
+            },
           },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: parse6decimal('0.01'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-        })
+          false,
+        )
 
         const { user, userB, userC, dsu } = instanceVars
 
@@ -1219,21 +1234,24 @@ describe('Fees', () => {
 
       beforeEach(async () => {
         const riskParams = { ...(await market.riskParameter()) }
-        await market.updateRiskParameter({
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
+        await market.updateRiskParameter(
+          {
+            ...riskParams,
+            makerFee: {
+              ...riskParams.makerFee,
+              linearFee: BigNumber.from('0'),
+              proportionalFee: BigNumber.from('0'),
+              adiabaticFee: BigNumber.from('0'),
+            },
+            takerFee: {
+              ...riskParams.takerFee,
+              linearFee: BigNumber.from('0'),
+              proportionalFee: BigNumber.from('0'),
+              adiabaticFee: parse6decimal('0.02'),
+            },
           },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: parse6decimal('0.02'),
-          },
-        })
+          false,
+        )
 
         const { user, userB, userC, dsu } = instanceVars
 
@@ -1317,14 +1335,17 @@ describe('Fees', () => {
 
         // Enable position fee to test refund
         const riskParams = await market.riskParameter()
-        await market.updateRiskParameter({
-          ...riskParams,
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: parse6decimal('0.01'),
-            adiabaticFee: parse6decimal('0.02'),
+        await market.updateRiskParameter(
+          {
+            ...riskParams,
+            takerFee: {
+              ...riskParams.takerFee,
+              linearFee: parse6decimal('0.01'),
+              adiabaticFee: parse6decimal('0.02'),
+            },
           },
-        })
+          false,
+        )
         // Bring skew from -100% to 0% -> total impact change of -100%
         await market
           .connect(userC)
@@ -1363,14 +1384,17 @@ describe('Fees', () => {
 
         // Enable position fee to test refund
         const riskParams = await market.riskParameter()
-        await market.updateRiskParameter({
-          ...riskParams,
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: parse6decimal('0.01'),
-            adiabaticFee: parse6decimal('0.04'),
+        await market.updateRiskParameter(
+          {
+            ...riskParams,
+            takerFee: {
+              ...riskParams.takerFee,
+              linearFee: parse6decimal('0.01'),
+              adiabaticFee: parse6decimal('0.04'),
+            },
           },
-        })
+          false,
+        )
         // Bring skew from -100% to 0% -> total impact change of -100%
         await market
           .connect(userC)
@@ -1399,21 +1423,24 @@ describe('Fees', () => {
       beforeEach(async () => {
         const riskParams = await market.riskParameter()
         const marketParams = await market.parameter()
-        await market.updateRiskParameter({
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
+        await market.updateRiskParameter(
+          {
+            ...riskParams,
+            makerFee: {
+              ...riskParams.makerFee,
+              linearFee: BigNumber.from('0'),
+              proportionalFee: BigNumber.from('0'),
+              adiabaticFee: BigNumber.from('0'),
+            },
+            takerFee: {
+              ...riskParams.takerFee,
+              linearFee: BigNumber.from('0'),
+              proportionalFee: BigNumber.from('0'),
+              adiabaticFee: BigNumber.from('0'),
+            },
           },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-        })
+          false,
+        )
 
         const { user, userB, userC, dsu } = instanceVars
 
@@ -1520,27 +1547,30 @@ describe('Fees', () => {
 
     beforeEach(async () => {
       const riskParams = await market.riskParameter()
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
+      await market.updateRiskParameter(
+        {
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+          utilizationCurve: {
+            minRate: parse6decimal('0.01'),
+            maxRate: parse6decimal('0.01'),
+            targetRate: parse6decimal('0.01'),
+            targetUtilization: parse6decimal('1'),
+          },
         },
-        takerFee: {
-          ...riskParams.takerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-        utilizationCurve: {
-          minRate: parse6decimal('0.01'),
-          maxRate: parse6decimal('0.01'),
-          targetRate: parse6decimal('0.01'),
-          targetUtilization: parse6decimal('1'),
-        },
-      })
+        false,
+      )
 
       const { user, userB, userC, dsu } = instanceVars
 
@@ -1640,26 +1670,29 @@ describe('Fees', () => {
 
     beforeEach(async () => {
       const riskParams = await market.riskParameter()
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
+      await market.updateRiskParameter(
+        {
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+          pController: {
+            k: parse6decimal('10'),
+            min: parse6decimal('-1.20'),
+            max: parse6decimal('1.20'),
+          },
         },
-        takerFee: {
-          ...riskParams.takerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-        pController: {
-          k: parse6decimal('10'),
-          min: parse6decimal('-1.20'),
-          max: parse6decimal('1.20'),
-        },
-      })
+        false,
+      )
 
       const { user, userB, userC, dsu } = instanceVars
 
