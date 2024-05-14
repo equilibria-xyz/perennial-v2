@@ -460,7 +460,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param market Market to settle
     /// @param account Account to settle
     function _marketSettle(IMarket market, address account) private {
-        _marketWithdraw(market, account, UFixed6Lib.ZERO);
+        market.settle(account);
     }
 
     /// @notice Target market must be created by MarketFactory
