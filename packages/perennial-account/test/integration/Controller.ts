@@ -269,7 +269,7 @@ describe('Controller', () => {
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
       ).to.be.revertedWithCustomError(accountA, 'PositionNotZero')
-      // .to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+
       await expectMarketCollateralBalance(userA, parse6decimal('7000'))
     })
   })

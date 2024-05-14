@@ -79,11 +79,7 @@ contract Account is IAccount{
             Fixed6 balance = market_.locals(owner).collateral;
             if (balance.sign() != 1) revert NoCollateral(address(market_));
             // ensure user has no position
-            // TODO: consider gas cost of this check and whether it is worth the revert reason
-            if (!(position.maker.isZero() && position.long.isZero() && position.short.isZero()))
-                revert PositionNotZero(address(market_));
-            // TODO: Assuming we don't need to check pending orders here because the withdrawal would fail regardless.
-            // TODO: could save some gas by creating an efficient Fixed6.mulNegOne method
+            // TODO: could save some gas by creating an efficient Fixed6.negative method
             amount_ = balance.mul(Fixed6Lib.NEG_ONE);
         }
 
