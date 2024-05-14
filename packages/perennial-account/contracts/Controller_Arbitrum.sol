@@ -11,6 +11,7 @@ import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Controller } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
+import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { SignerUpdate } from "./types/SignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
@@ -54,6 +55,22 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         IAccount account = _deployAccountWithSignature(deployAccount_, signature_);
         // approve controller to spend the account's keeper token
         account.approveController(Token18.unwrap(keeperToken()));
+    }
+
+    /// @inheritdoc IController
+    function marketTransferWithSignature(
+        MarketTransfer calldata marketTransfer_, 
+        bytes calldata signature_
+    )
+        override external
+        keep(
+            keepConfig, 
+            abi.encode(marketTransfer_, signature_), 
+            0, 
+            abi.encode(marketTransfer_.action.account, marketTransfer_.action.maxFee)
+        )
+    {
+        _marketTransferWithSignature(marketTransfer_, signature_);
     }
 
     /// @inheritdoc IController

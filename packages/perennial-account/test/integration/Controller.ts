@@ -16,28 +16,19 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
-  IOracleProvider__factory,
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
-import {
-  IKeeperOracle,
-  KeeperOracle__factory,
-  OracleFactory__factory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
-import { advanceToPrice, createMarket, deployProtocolForOracle } from '../helpers/setupHelpers'
+import { advanceToPrice } from '../helpers/setupHelpers'
+import { createMarketFactory, createMarketForOracle } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, compatible with Market
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Market has 466k at height 208460709
-
-const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
-const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
-const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
-const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
 
 describe('Controller', () => {
   let dsu: IERC20Metadata
@@ -136,15 +127,10 @@ describe('Controller', () => {
     await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature)
     accountA = Account__factory.connect(accountAddressA, userA)
 
-    // create the market factory
-    const oracleFactory = OracleFactory__factory.connect(ORACLE_FACTORY, owner)
-    marketFactory = await deployProtocolForOracle(owner, oracleFactory, ORACLE_FACTORY_OWNER)
-
     // create a market
-    const oracle = IOracleProvider__factory.connect(ETH_USD_ORACLE, owner)
-    market = await createMarket(owner, marketFactory, dsu, oracle)
-    // need this to commit prices
-    keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
+    marketFactory = await createMarketFactory(owner)
+    let oracle: IOracleProvider
+    ;[market, oracle, keeperOracle] = await createMarketForOracle(owner, marketFactory, dsu)
     lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
 
     // approve the collateral account as operator
@@ -268,7 +254,7 @@ describe('Controller', () => {
       // ensure transfer reverts
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
-      ).to.be.revertedWithCustomError(accountA, 'PositionNotZero')
+      ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
 
       await expectMarketCollateralBalance(userA, parse6decimal('7000'))
     })
