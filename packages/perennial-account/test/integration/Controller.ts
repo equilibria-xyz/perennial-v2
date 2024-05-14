@@ -1,5 +1,6 @@
-import { expect } from 'chai'
 import HRE from 'hardhat'
+import { expect } from 'chai'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -19,12 +20,14 @@ import {
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
-import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
-import { createMarket, deployProtocolForOracle } from '../helpers/setupHelpers'
-import { IOracleFactory__factory, OracleFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
+import {
+  IKeeperOracle,
+  KeeperOracle__factory,
+  OracleFactory__factory,
+} from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { impersonateWithBalance } from '../../../common/testutil/impersonate'
+import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
+import { advanceToPrice, createMarket, deployProtocolForOracle } from '../helpers/setupHelpers'
 
 const { ethers } = HRE
 
@@ -33,22 +36,23 @@ const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Market has 46
 
 const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
 const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
-// const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
+const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
 const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
 
 describe('Controller', () => {
   let dsu: IERC20Metadata
   let controller: Controller
   let verifier: Verifier
-  // let verifierSigner: SignerWithAddress
   let marketFactory: IMarketFactory
   let market: IMarket
+  let keeperOracle: IKeeperOracle
   let accountA: Account
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
   let lastNonce = 0
+  let lastPrice: BigNumber
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
@@ -73,6 +77,18 @@ describe('Controller', () => {
     }
   }
 
+  // updates the oracle (optionally changing price) and settles the market
+  async function advanceAndSettle(user: SignerWithAddress, timestamp = currentTime, price = lastPrice) {
+    await advanceToPrice(keeperOracle, timestamp, price)
+    await market.settle(user.address)
+  }
+
+  // ensures user has expected amount of collateral in a market
+  async function expectMarketCollateralBalance(user: SignerWithAddress, amount: BigNumber) {
+    const local = await market.locals(user.address)
+    expect(local.collateral).to.equal(amount)
+  }
+
   // funds specified wallet with 50k collateral
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
     const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
@@ -84,6 +100,20 @@ describe('Controller', () => {
   function nextNonce(): BigNumber {
     lastNonce += 1
     return BigNumber.from(lastNonce)
+  }
+
+  // updates the market and returns the version timestamp
+  async function changePosition(
+    user: SignerWithAddress,
+    newMaker = constants.MaxUint256,
+    newLong = constants.MaxUint256,
+    newShort = constants.MaxUint256,
+  ): Promise<BigNumber> {
+    const tx = await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, newMaker, newLong, newShort, 0, false)
+    const created = (await tx.wait()).events?.find(e => e.event === 'Updated')!.args!.version
+    return created
   }
 
   const fixture = async () => {
@@ -113,8 +143,9 @@ describe('Controller', () => {
     // create a market
     const oracle = IOracleProvider__factory.connect(ETH_USD_ORACLE, owner)
     market = await createMarket(owner, marketFactory, dsu, oracle)
-    // only need this to commit prices
-    // const keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
+    // need this to commit prices
+    keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
+    lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
 
     // approve the collateral account as operator
     await marketFactory.connect(userA).updateOperator(accountA.address, true)
@@ -126,11 +157,6 @@ describe('Controller', () => {
   })
 
   describe('#transfer', () => {
-    async function expectMarketCollateralBalance(user: SignerWithAddress, amount: BigNumber) {
-      const local = await market.locals(user.address)
-      expect(local.collateral).to.equal(amount)
-    }
-
     it('can deposit funds to a market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
       const transferAmount = parse6decimal('6000')
@@ -213,6 +239,38 @@ describe('Controller', () => {
       // verify balances
       await expectMarketCollateralBalance(userA, constants.Zero)
       expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('15000'))
+    })
+
+    it('cannot fully withdraw with position', async () => {
+      // deposit 7k
+      const depositAmount = parse6decimal('7000')
+      let marketTransferMessage = {
+        market: market.address,
+        amount: depositAmount,
+        ...createAction(accountA.address, userA.address),
+      }
+      let signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
+
+      // create a maker position
+      currentTime = await changePosition(userA, parse6decimal('1.5'))
+      await advanceAndSettle(userA)
+      expect((await market.positions(userA.address)).maker).to.equal(parse6decimal('1.5'))
+
+      // sign a message to fully withdraw from the market
+      marketTransferMessage = {
+        market: market.address,
+        amount: constants.MinInt256,
+        ...createAction(accountA.address, userA.address),
+      }
+      signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+      // ensure transfer reverts
+      await expect(
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
+      ).to.be.revertedWithCustomError(accountA, 'PositionNotZero')
+      // .to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+      await expectMarketCollateralBalance(userA, parse6decimal('7000'))
     })
   })
 

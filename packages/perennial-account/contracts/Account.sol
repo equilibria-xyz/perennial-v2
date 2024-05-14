@@ -74,7 +74,6 @@ contract Account is IAccount{
 
         // handle magic number for full withdrawal
         if (amount_.eq(Fixed6Lib.MIN)){
-            console.log("Account attempting full withdrawal");
             Position memory position = market_.positions(owner);
             // ensure user has a positive collateral balance to withdraw
             Fixed6 balance = market_.locals(owner).collateral;
@@ -86,7 +85,6 @@ contract Account is IAccount{
             // TODO: Assuming we don't need to check pending orders here because the withdrawal would fail regardless.
             // TODO: could save some gas by creating an efficient Fixed6.mulNegOne method
             amount_ = balance.mul(Fixed6Lib.NEG_ONE);
-            console.log("Account set withdrawal amount to %s", UFixed6.unwrap(amount_.abs()));
         }
 
         // TODO: handle magic number for full deposit?

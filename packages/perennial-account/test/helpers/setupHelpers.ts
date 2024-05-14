@@ -1,7 +1,8 @@
+import HRE from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { utils, constants } from 'ethers'
-import { impersonate } from '../../../common/testutil'
+import { BigNumber, ContractTransaction, constants, utils } from 'ethers'
+import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 
 import { IERC20Metadata, Verifier__factory } from '../../types/generated'
@@ -25,7 +26,15 @@ import {
   VersionStorageLib__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
-import { OracleFactory, OracleFactory__factory, IMarketFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+import {
+  OracleFactory,
+  OracleFactory__factory,
+  IMarketFactory,
+  IKeeperFactory,
+  IKeeperOracle,
+} from '@equilibria/perennial-v2-oracle/types/generated'
+import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
+import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 
 // Deploys an empty market used by the factory as a template for creating new markets
 async function deployMarketImplementation(owner: SignerWithAddress, verifierAddress: Address): Promise<Market> {
@@ -114,11 +123,12 @@ export async function deployProtocolForOracle(
 
   // Impersonate the owner of the oracle factory to authorize it for the newly-deployed market factory
   oracleFactory = new OracleFactory__factory(owner).attach(oracleFactory.address)
-  const oracleFactoryOwner = await impersonate.impersonateWithBalance(oracleFactoryOwnerAddress, utils.parseEther('10'))
+  const oracleFactoryOwner = await impersonateWithBalance(oracleFactoryOwnerAddress, utils.parseEther('10'))
   await oracleFactory.connect(oracleFactoryOwner).authorize(marketFactory.address)
   return marketFactory
 }
 
+// Using a provided factory, create a new market and set some reasonable initial parameters
 export async function createMarket(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
@@ -189,4 +199,32 @@ export async function createMarket(
   await market.updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
 
   return market
+}
+
+// Simulates an oracle update from KeeperOracle.
+// If timestamp matches a requested version, callbacks implicitly settle the market.
+export async function advanceToPrice(
+  keeperOracle: IKeeperOracle,
+  timestamp: BigNumber,
+  price: BigNumber,
+): Promise<number> {
+  const keeperFactoryAddress = await keeperOracle.factory()
+  const oracleFactory = await impersonateWithBalance(keeperFactoryAddress, utils.parseEther('10'))
+
+  // a keeper cannot commit a future price, so advance past the block
+  const currentBlockTime = BigNumber.from(await currentBlockTimestamp())
+  if (currentBlockTime < timestamp) await increaseTo(timestamp.toNumber() + 2)
+
+  // create a version with the desired parameters and commit to the KeeperOracle
+  const oracleVersion: OracleVersionStruct = {
+    timestamp: timestamp,
+    price: price,
+    valid: true,
+  }
+  const tx: ContractTransaction = await keeperOracle.connect(oracleFactory).commit(oracleVersion, {
+    maxFeePerGas: 100000000,
+  })
+
+  // inform the caller of the current timestamp
+  return (await HRE.ethers.provider.getBlock(tx.blockNumber!)).timestamp
 }
