@@ -4,7 +4,7 @@ import { utils, constants } from 'ethers'
 import { impersonate } from '../../../common/testutil'
 import { parse6decimal } from '../../../common/testutil/types'
 
-import { IERC20Metadata } from '../../types/generated'
+import { IERC20Metadata, Verifier__factory } from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -28,7 +28,7 @@ import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennia
 import { OracleFactory, OracleFactory__factory, IMarketFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 // Deploys an empty market used by the factory as a template for creating new markets
-async function deployMarketImplementation(owner: SignerWithAddress): Promise<Market> {
+async function deployMarketImplementation(owner: SignerWithAddress, verifierAddress: Address): Promise<Market> {
   const marketImpl = await new Market__factory(
     {
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
@@ -53,7 +53,7 @@ async function deployMarketImplementation(owner: SignerWithAddress): Promise<Mar
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy()
+  ).deploy(verifierAddress)
   return marketImpl
 }
 
@@ -62,10 +62,15 @@ async function deployMarketFactory(
   owner: SignerWithAddress,
   pauser: SignerWithAddress,
   oracleFactoryAddress: Address,
+  verifierAddress: Address,
   marketImplAddress: Address,
 ): Promise<MarketFactory> {
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactoryAddress, marketImplAddress)
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(
+    oracleFactoryAddress,
+    verifierAddress,
+    marketImplAddress,
+  )
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
     proxyAdmin.address,
@@ -97,8 +102,15 @@ export async function deployProtocolForOracle(
   oracleFactoryOwnerAddress: Address,
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
-  const marketImpl = await deployMarketImplementation(owner)
-  const marketFactory = await deployMarketFactory(owner, owner, oracleFactory.address, marketImpl.address)
+  const verifier = await new Verifier__factory(owner).deploy()
+  const marketImpl = await deployMarketImplementation(owner, verifier.address)
+  const marketFactory = await deployMarketFactory(
+    owner,
+    owner,
+    oracleFactory.address,
+    verifier.address,
+    marketImpl.address,
+  )
 
   // Impersonate the owner of the oracle factory to authorize it for the newly-deployed market factory
   oracleFactory = new OracleFactory__factory(owner).attach(oracleFactory.address)
@@ -160,12 +172,11 @@ export async function createMarket(
     interestFee: parse6decimal('0.1'),
     oracleFee: 0,
     riskFee: 0,
-    positionFee: 0,
+    makerFee: 0,
+    takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
     settlementFee: 0,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
     closed: false,
     settle: false,
     ...marketParamOverrides,
@@ -175,7 +186,7 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateRiskParameter(riskParameter)
-  await market.updateParameter(owner.address, constants.AddressZero, marketParameter)
+  await market.updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
 
   return market
 }

@@ -22,19 +22,27 @@ import {
 import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
 import { createMarket, deployProtocolForOracle } from '../helpers/setupHelpers'
 import { IOracleFactory__factory, OracleFactory__factory } from '@equilibria/perennial-v2-oracle/types/generated'
-import { IMarketFactory, Market } from '@equilibria/perennial-v2/types/generated'
+import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 
 const { ethers } = HRE
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, compatible with Market
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Market has 466k at height 208460709
 
+const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
+const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
+// const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
+const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
+
 describe('Controller', () => {
   let dsu: IERC20Metadata
   let controller: Controller
   let verifier: Verifier
-  let verifierSigner: SignerWithAddress
+  // let verifierSigner: SignerWithAddress
+  let marketFactory: IMarketFactory
+  let market: IMarket
   let accountA: Account
   let owner: SignerWithAddress
   let userA: SignerWithAddress
@@ -84,7 +92,7 @@ describe('Controller', () => {
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
     controller = await new Controller__factory(owner).deploy()
     verifier = await new Verifier__factory(owner).deploy()
-    verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
+    // verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
     await controller.initialize(verifier.address)
 
     // create a collateral account for userA with 15k collateral in it
@@ -97,6 +105,19 @@ describe('Controller', () => {
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
     await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature)
     accountA = Account__factory.connect(accountAddressA, userA)
+
+    // create the market factory
+    const oracleFactory = OracleFactory__factory.connect(ORACLE_FACTORY, owner)
+    marketFactory = await deployProtocolForOracle(owner, oracleFactory, ORACLE_FACTORY_OWNER)
+
+    // create a market
+    const oracle = IOracleProvider__factory.connect(ETH_USD_ORACLE, owner)
+    market = await createMarket(owner, marketFactory, dsu, oracle)
+    // only need this to commit prices
+    // const keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
+
+    // approve the collateral account as operator
+    await marketFactory.connect(userA).updateOperator(accountA.address, true)
   }
 
   beforeEach(async () => {
@@ -105,54 +126,10 @@ describe('Controller', () => {
   })
 
   describe('#transfer', () => {
-    const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
-    const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
-    // const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
-    const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
-
-    let marketFactory: IMarketFactory
-    let market: Market // TODO: import types from the right places to use IMarket interface here
-
-    /*function expectedOrderWithCollateral(amount: BigNumber) {
-      return {
-        timestamp: anyValue,
-        orders: anyValue,
-        collateral: amount,
-        makerPos: anyValue,
-        makerNeg: anyValue,
-        longPos: anyValue,
-        longNeg: anyValue,
-        shortPos: anyValue,
-        shortNeg: anyValue,
-        protection: anyValue,
-        makerReferral: anyValue,
-        takerReferral: anyValue
-      }
-    }*/
-
     async function expectMarketCollateralBalance(user: SignerWithAddress, amount: BigNumber) {
       const local = await market.locals(user.address)
       expect(local.collateral).to.equal(amount)
     }
-
-    const marketFixture = async () => {
-      await loadFixture(fixture)
-      // create the market factory
-      const oracleFactory = OracleFactory__factory.connect(ORACLE_FACTORY, owner)
-      marketFactory = await deployProtocolForOracle(owner, oracleFactory, ORACLE_FACTORY_OWNER)
-
-      // create a market
-      const oracle = IOracleProvider__factory.connect(ETH_USD_ORACLE, owner)
-      market = await createMarket(owner, marketFactory, dsu, oracle)
-      // only need this to commit prices
-      // const keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
-    }
-
-    beforeEach(async () => {
-      await loadFixture(marketFixture)
-      // approve the collateral account as operator
-      await marketFactory.connect(userA).updateOperator(accountA.address, true)
-    })
 
     it('can deposit funds to a market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
@@ -186,7 +163,7 @@ describe('Controller', () => {
       let signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
       await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
 
-      // sign a message to withdraw 3k from the collateral account to the market
+      // sign a message to withdraw 3k from the the market
       const transferAmount = parse6decimal('-3000')
       marketTransferMessage = {
         market: market.address,
@@ -205,6 +182,37 @@ describe('Controller', () => {
       // verify balances
       await expectMarketCollateralBalance(userA, parse6decimal('7000')) // 10k-3k
       expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('8000')) // 15k-10k+3k
+    })
+
+    it('can fully withdraw from a market', async () => {
+      // deposit 8k
+      const depositAmount = parse6decimal('8000')
+      let marketTransferMessage = {
+        market: market.address,
+        amount: depositAmount,
+        ...createAction(accountA.address, userA.address),
+      }
+      let signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
+
+      // sign a message to fully withdraw from the market
+      marketTransferMessage = {
+        market: market.address,
+        amount: constants.MinInt256,
+        ...createAction(accountA.address, userA.address),
+      }
+      signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+      // perform transfer
+      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(market.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
+        .to.emit(market, 'OrderCreated')
+        .withArgs(userA.address, anyValue)
+
+      // verify balances
+      await expectMarketCollateralBalance(userA, constants.Zero)
+      expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('15000'))
     })
   })
 

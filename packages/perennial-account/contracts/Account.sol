@@ -8,7 +8,9 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 
-import { IAccount, IMarket } from "./interfaces/IAccount.sol";
+import { IAccount } from "./interfaces/IAccount.sol";
+import { IMarket, Position} from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+
 import "hardhat/console.sol";
 
 // TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
@@ -70,7 +72,27 @@ contract Account is IAccount{
         if (token.allowance(address(this), address(market_)) != type(uint256).max)
             market_.token().approve(address(market_));
 
+        // handle magic number for full withdrawal
+        if (amount_.eq(Fixed6Lib.MIN)){
+            console.log("Account attempting full withdrawal");
+            Position memory position = market_.positions(owner);
+            // ensure user has a positive collateral balance to withdraw
+            Fixed6 balance = market_.locals(owner).collateral;
+            if (balance.sign() != 1) revert NoCollateral(address(market_));
+            // ensure user has no position
+            // TODO: consider gas cost of this check and whether it is worth the revert reason
+            if (!(position.maker.isZero() && position.long.isZero() && position.short.isZero()))
+                revert PositionNotZero(address(market_));
+            // TODO: Assuming we don't need to check pending orders here because the withdrawal would fail regardless.
+            // TODO: could save some gas by creating an efficient Fixed6.mulNegOne method
+            amount_ = balance.mul(Fixed6Lib.NEG_ONE);
+            console.log("Account set withdrawal amount to %s", UFixed6.unwrap(amount_.abs()));
+        }
+
+        // TODO: handle magic number for full deposit?
+
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
+        console.log("Account attempting to update market %s with collateral %s", address(market_), UFixed6.unwrap(amount_.abs()));
         market_.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount_, false);
     }
 

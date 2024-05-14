@@ -6,13 +6,21 @@ import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 interface IAccount {
-    // sig: 0x2fda6ab7
-    /// @custom:error Token is not 6- or 18- decimals, or does not offer a .decimals() function
-    error TokenNotSupportedError();
+    // sig: 0x2e4e92db
+    /// @custom:error Account owner cannot fully withdraw because they have no collateral balance
+    error NoCollateral(address);
 
     // sig: 0x458a16af
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error NotAuthorizedError(address);
+
+    // sig: 0x888e3c99
+    /// @custom:error Account owner must have zero position to fully withdraw from market
+    error PositionNotZero(address);
+
+    // sig: 0x2fda6ab7
+    /// @custom:error Token is not 6- or 18- decimals, or does not offer a .decimals() function
+    error TokenNotSupportedError();
 
     /// @notice Called by controller during account creation, needed for keeper compensation
     /// @dev Due to Kept limitations, this will always be a Token18
