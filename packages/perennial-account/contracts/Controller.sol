@@ -96,16 +96,18 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function marketTransferWithSignature(MarketTransfer calldata marketTransfer_, bytes calldata signature_) virtual external {
-        _marketTransferWithSignature(marketTransfer_, signature_);
-    }
-
-    function _marketTransferWithSignature(MarketTransfer calldata marketTransfer_, bytes calldata signature_) internal {
-        // ensure the message was signed by the owner or a delegated signer
-        address signer = verifier.verifyMarketTransfer(marketTransfer_, signature_);
-        IAccount account = IAccount(_ensureValidSigner(marketTransfer_.action.common.account, signer));
-
+        IAccount account = _verifyMarketTransfer(marketTransfer_, signature_);
         IMarket market = IMarket(marketTransfer_.market);
         account.marketTransfer(market, marketTransfer_.amount);
+    }
+
+    function _verifyMarketTransfer(
+        MarketTransfer calldata marketTransfer_, 
+        bytes calldata signature_
+    ) internal returns (IAccount account_) {
+        // ensure the message was signed by the owner or a delegated signer
+        address signer = verifier.verifyMarketTransfer(marketTransfer_, signature_);
+        account_ = IAccount(_ensureValidSigner(marketTransfer_.action.common.account, signer));        
     }
 
     /// @inheritdoc IController

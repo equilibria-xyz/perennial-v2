@@ -5,7 +5,11 @@ import {
     AggregatorV3Interface, 
     Kept_Arbitrum
 } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18 } from "@equilibria/root/token/types/Token18.sol";
+import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
@@ -63,14 +67,21 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         bytes calldata signature_
     )
         override external
-        keep(
-            keepConfig, 
-            abi.encode(marketTransfer_, signature_), 
-            0, 
-            abi.encode(marketTransfer_.action.account, marketTransfer_.action.maxFee)
-        )
     {
-        _marketTransferWithSignature(marketTransfer_, signature_);
+        IAccount account = _verifyMarketTransfer(marketTransfer_, signature_);
+        IMarket market = IMarket(marketTransfer_.market);
+        Fixed6 amount = marketTransfer_.amount;
+        bytes memory data = abi.encode(marketTransfer_.action.account, marketTransfer_.action.maxFee);
+
+        // if we're depositing collateral to the market, pay the keeper before transferring funds
+        if (amount.gte(Fixed6Lib.ZERO)) {
+            _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+            account.marketTransfer(market, amount);
+        // otherwise handle the keeper fee normally, after withdrawing to the collateral account
+        } else {
+            account.marketTransfer(market, amount);
+            _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        }
     }
 
     /// @inheritdoc IController

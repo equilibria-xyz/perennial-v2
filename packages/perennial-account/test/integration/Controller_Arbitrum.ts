@@ -153,7 +153,6 @@ describe('Controller_Arbitrum', () => {
 
   after(async () => {
     // reset to avoid impact to other tests
-    console.log('resetting baseFeePerGas to 1')
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
   })
 
@@ -290,9 +289,34 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
-    it('collects fee for depositing all funds to market', async () => {
-      // TODO: implement
-      // expect(await dsu.balanceOf(accountA.address)).to.equal(0)
+    it('collects fee when depositing all funds to market', async () => {
+      // sign a message to deposit everything from the collateral account to the market
+      const marketTransferMessage = {
+        market: market.address,
+        amount: constants.MaxInt256,
+        ...createAction(accountA.address, userA.address),
+      }
+      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+      // perform transfer
+      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, market.address, anyValue) // scale to token precision
+        .to.emit(market, 'OrderCreated')
+        .withArgs(userA.address, anyValue)
+        .to.emit(controller, 'KeeperCall')
+        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+      // ensure the transfer worked
+      expect((await market.locals(userA.address)).collateral).to.be.within(
+        parse6decimal('12999'),
+        parse6decimal('13000'),
+      )
+      // ensure the collateral account is empty
+      expect(await dsu.balanceOf(accountA.address)).to.be.lessThan(1e12) // dust from UFixed6 precision
+
+      // confirm keeper earned their fee
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
     it('collects fee for withdrawing some funds from market', async () => {
@@ -320,7 +344,11 @@ describe('Controller_Arbitrum', () => {
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
       // perform transfer
-      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+      await expect(
+        controller
+          .connect(keeper)
+          .marketTransferWithSignature(marketTransferMessage, signature, { gasLimit: 1_000_000 }),
+      )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
@@ -358,7 +386,11 @@ describe('Controller_Arbitrum', () => {
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
       // perform transfer
-      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+      await expect(
+        controller
+          .connect(keeper)
+          .marketTransferWithSignature(marketTransferMessage, signature, { gasLimit: 1_000_000 }),
+      )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, deposit.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')

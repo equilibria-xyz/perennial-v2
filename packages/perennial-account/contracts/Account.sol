@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IERC20, IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+// TODO: just use IERC20Metadata, we don't use IERC20 anywhere else
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
@@ -9,9 +10,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
-import { IMarket, Position} from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-
-import "hardhat/console.sol";
+import { IMarket, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 // TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
 // _Ownable_ does not let someone other than the sender assign the owner.
@@ -68,25 +67,26 @@ contract Account is IAccount{
 
     function _marketTransfer18(IMarket market_, Fixed6 amount_) private {
         // implicitly approve the market to spend our collateral token
-        IERC20 token = IERC20(Token18.unwrap(market_.token()));
+        IERC20Metadata token = IERC20Metadata(Token18.unwrap(market_.token()));
         if (token.allowance(address(this), address(market_)) != type(uint256).max)
             market_.token().approve(address(market_));
 
         // handle magic number for full withdrawal
         if (amount_.eq(Fixed6Lib.MIN)){
-            Position memory position = market_.positions(owner);
             // ensure user has a positive collateral balance to withdraw
             Fixed6 balance = market_.locals(owner).collateral;
             if (balance.sign() != 1) revert NoCollateral(address(market_));
             // ensure user has no position
-            // TODO: could save some gas by creating an efficient Fixed6.negative method
+            // TODO: save some gas by creating an efficient Fixed6.negative method
             amount_ = balance.mul(Fixed6Lib.NEG_ONE);
+        // handle magic number for full deposit
+        } else if (amount_.eq(Fixed6Lib.MAX)){
+            UFixed18 balance = UFixed18.wrap(token.balanceOf(address(this)));
+            amount_ = Fixed6Lib.from(UFixed6Lib.from(balance));
         }
 
-        // TODO: handle magic number for full deposit?
-
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
-        console.log("Account attempting to update market %s with collateral %s", address(market_), UFixed6.unwrap(amount_.abs()));
+        // console.log("Account attempting to update market %s with collateral %s", address(market_), UFixed6.unwrap(amount_.abs()));
         market_.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount_, false);
     }
 
