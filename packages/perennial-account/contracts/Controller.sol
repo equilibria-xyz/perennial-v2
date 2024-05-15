@@ -31,12 +31,20 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
-    function getAccountAddress(address user_) external view returns (address) {
-        return _getAccountAddress(user_);
+    function getAccountAddress(address user_) public view returns (address) {
+        // generate bytecode for an account created for the specified owner
+        bytes memory bytecode = abi.encodePacked(
+            type(Account).creationCode, abi.encode(user_), abi.encode(address(this)));
+        // calculate the hash for that bytecode
+        bytes32 hash = keccak256(
+            abi.encodePacked(bytes1(0xff), address(this), SALT, keccak256(bytecode))
+        );
+        // cast last 20 bytes of hash to address
+        return address(uint160(uint256(hash)));
     }
 
     /// @inheritdoc IController
-    function deployAccount() external returns (address accountAddress_) {
+    function deployAccount() public returns (address accountAddress_) {
         Account account = new Account{salt: SALT}(msg.sender, address(this));
         accountAddress_ = address(account);
         emit AccountDeployed(msg.sender, accountAddress_);
@@ -67,8 +75,8 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
-    function updateSigner(address signer_, bool newEnabled_) external {
-        address account = _getAccountAddress(msg.sender);
+    function updateSigner(address signer_, bool newEnabled_) public {
+        address account = getAccountAddress(msg.sender);
         signers[account][signer_] = newEnabled_;
         emit SignerUpdated(account, signer_, newEnabled_);
     }
@@ -85,7 +93,7 @@ contract Controller is Instance, IController {
         // ensure the message was signed only by the owner, not an existing delegate
         address messageSigner = verifier.verifySignerUpdate(signerUpdate_, signature_);
         address owner = signerUpdate_.action.common.account;
-        address account = _getAccountAddress(owner);
+        address account = getAccountAddress(owner);
         if (messageSigner != owner) revert InvalidSignerError();
 
         signers[account][signerUpdate_.signer] = signerUpdate_.approved;
@@ -108,21 +116,7 @@ contract Controller is Instance, IController {
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner_, address signer_) private view returns (address accountAddress_) {
-        accountAddress_ = _getAccountAddress(owner_);
+        accountAddress_ = getAccountAddress(owner_);
         if (signer_ != owner_ && !signers[accountAddress_][signer_]) revert InvalidSignerError();
-    }
-
-    /// @dev calculates the create2 deterministic address of a user's collateral account
-    /// @param user_ EOA of the user owning a collateral account
-    function _getAccountAddress(address user_) private view returns (address) {
-        // generate bytecode for an account created for the specified owner
-        bytes memory bytecode = abi.encodePacked(
-            type(Account).creationCode, abi.encode(user_), abi.encode(address(this)));
-        // calculate the hash for that bytecode
-        bytes32 hash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), SALT, keccak256(bytecode))
-        );
-        // cast last 20 bytes of hash to address
-        return address(uint160(uint256(hash)));
     }
 }
