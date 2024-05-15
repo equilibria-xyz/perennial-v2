@@ -12,7 +12,7 @@ import { IAccount } from "./interfaces/IAccount.sol";
 // TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
 // _Ownable_ does not let someone other than the sender assign the owner.
 // Consider making Ownable._updateOwner overridable to work around this.
-contract Account is IAccount{
+contract Account is IAccount {
     address public owner;
     address public controller;
 

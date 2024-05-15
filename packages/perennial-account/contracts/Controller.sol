@@ -13,7 +13,7 @@ import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 contract Controller is Instance, IController {
     // used for deterministic address creation through create2
-    bytes32 constant SALT = keccak256("Perrenial V2 Collateral Account");
+    bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
     /// @dev Contract used to validate messages were signed by the sender
     IVerifier public verifier;
@@ -35,7 +35,6 @@ contract Controller is Instance, IController {
         return _getAccountAddress(user_);
     }
 
-    // TODO: remove; Kevin wants this to be message-only
     /// @inheritdoc IController
     function deployAccount() external returns (address accountAddress_) {
         Account account = new Account{salt: SALT}(msg.sender, address(this));
