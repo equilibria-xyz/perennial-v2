@@ -44,9 +44,8 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
-    function deployAccount() public returns (address accountAddress) {
-        IAccount account = _createAccount(msg.sender);
-        accountAddress = address(account);
+    function deployAccount() public returns (IAccount) {
+        return _createAccount(msg.sender);
     }
 
     /// @inheritdoc IController
@@ -73,7 +72,7 @@ contract Controller is Instance, IController {
 
     function _createAccount(address owner) internal returns (IAccount account) {
         account = new Account{salt: SALT}(owner, address(this));
-        emit AccountDeployed(owner, address(account));
+        emit AccountDeployed(owner, account);
     }
 
     /// @inheritdoc IController

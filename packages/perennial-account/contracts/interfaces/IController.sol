@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { IAccount } from "../interfaces/IAccount.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
@@ -10,7 +11,7 @@ interface IController {
     /// @notice Emitted when a collateral account is deployed
     /// @param user EOA for which the collateral account was created
     /// @param account contract address of the collateral account
-    event AccountDeployed(address indexed user, address indexed account);
+    event AccountDeployed(address indexed user, IAccount indexed account);
 
     /// @notice Emitted when a delegated signer for a collateral account is assigned, enabled, or disabled
     /// @param account contract address of the collateral account
@@ -29,7 +30,7 @@ interface IController {
 
     // TODO: remove this; only updating the signer may be done from a TX
     /// @notice Deploys the collateral account for msg.sender and returns the address of the account
-    function deployAccount() external returns (address);
+    function deployAccount() external returns (IAccount);
 
     /// @notice Deploys a collateral account via a signed message 
     /// @param deployAccount Message requesting creation of a collateral account
