@@ -9,9 +9,8 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 
 import { IAccount } from "./interfaces/IAccount.sol";
 
-// TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
-// _Ownable_ does not let someone other than the sender assign the owner.
-// Consider making Ownable._updateOwner overridable to work around this.
+/// @title Account
+/// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 contract Account is IAccount {
     address public owner;
     address public controller;

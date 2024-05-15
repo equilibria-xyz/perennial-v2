@@ -11,6 +11,8 @@ import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
+/// @title Controller
+/// @notice Facilitates unpermissioned actions between collateral accounts and markets
 contract Controller is Instance, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");

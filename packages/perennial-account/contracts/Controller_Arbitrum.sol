@@ -14,6 +14,8 @@ import { DeployAccount } from "./types/DeployAccount.sol";
 import { SignerUpdate } from "./types/SignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
+/// @title Controller_Arbitrum
+/// @notice Controller which compensates keepers for processing messages on Arbitrum
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     KeepConfig public keepConfig;
 
