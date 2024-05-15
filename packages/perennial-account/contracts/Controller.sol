@@ -47,7 +47,6 @@ contract Controller is Instance, IController {
     function deployAccount() public returns (address accountAddress_) {
         IAccount account = _createAccount(msg.sender);
         accountAddress_ = address(account);
-        emit AccountDeployed(msg.sender, accountAddress_);
     }
 
     /// @inheritdoc IController
@@ -70,12 +69,11 @@ contract Controller is Instance, IController {
         // check signer after account creation to avoid cost of recalculating address
         address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
         if (signer != owner && !signers[address(account_)][signer]) revert InvalidSignerError();
-
-        emit AccountDeployed(owner, address(account_));
     }
 
     function _createAccount(address owner) internal returns (IAccount account_) {
-        return new Account{salt: SALT}(owner, address(this));
+        account_ = new Account{salt: SALT}(owner, address(this));
+        emit AccountDeployed(owner, address(account_));
     }
 
     /// @inheritdoc IController
