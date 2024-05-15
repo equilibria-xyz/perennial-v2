@@ -22,49 +22,49 @@ contract Account is IAccount {
     }
 
     /// @inheritdoc IAccount
-    function withdraw(address token_, UFixed6 amount_) external ownerOrController {
-        uint8 tokenDecimals = _getTokenDecimals(token_);
+    function withdraw(address token, UFixed6 amount) external ownerOrController {
+        uint8 tokenDecimals = _getTokenDecimals(token);
         if (tokenDecimals == 18)
-            _withdraw18(Token18.wrap(token_), amount_);
+            _withdraw18(Token18.wrap(token), amount);
         else if (tokenDecimals == 6)
-            _withdraw6(Token6.wrap(token_), amount_);
+            _withdraw6(Token6.wrap(token), amount);
         else // revert if token is not 18 or 6 decimals
             revert TokenNotSupportedError();
     }
 
     /// @inheritdoc IAccount
-    function approveController(address token_) external ownerOrController {
-        uint8 tokenDecimals = _getTokenDecimals(token_);
+    function approveController(address token) external ownerOrController {
+        uint8 tokenDecimals = _getTokenDecimals(token);
         if (tokenDecimals == 18) {
-            Token18.wrap(token_).approve(controller);
+            Token18.wrap(token).approve(controller);
         }
         else if (tokenDecimals == 6)
-             Token6.wrap(token_).approve(controller);
+             Token6.wrap(token).approve(controller);
         else // revert if token is not 18 or 6 decimals
             revert TokenNotSupportedError();
     }
 
-    function _getTokenDecimals(address token_) private view returns (uint8 tokenDecimals_) {
-        try IERC20Metadata(token_).decimals() returns (uint8 decimals_) {
-            tokenDecimals_ = decimals_;
+    function _getTokenDecimals(address token) private view returns (uint8 tokenDecimals) {
+        try IERC20Metadata(token).decimals() returns (uint8 decimals) {
+            tokenDecimals = decimals;
         } catch {
             // revert if token contract does not implement optional `decimals` method
             revert TokenNotSupportedError();
         }
     }
 
-    function _withdraw18(Token18 token_, UFixed6 amount_) private {
+    function _withdraw18(Token18 token, UFixed6 amount) private {
         // if user requested max withdrawal, withdraw the balance, otherwise convert amount to token precision
-        UFixed18 amount = amount_.eq(UFixed6Lib.MAX) ? token_.balanceOf() : UFixed18Lib.from(amount_);
+        UFixed18 withdrawal = amount.eq(UFixed6Lib.MAX) ? token.balanceOf() : UFixed18Lib.from(amount);
         // send funds back to the owner
-        token_.push(owner, amount);
+        token.push(owner, withdrawal);
     }
 
-    function _withdraw6(Token6 token_, UFixed6 amount_) private {
+    function _withdraw6(Token6 token, UFixed6 amount) private {
         // if user requested max withdrawal, withdraw the balance, otherwise withdraw specified amount
-        UFixed6 amount = amount_.eq(UFixed6Lib.MAX) ? token_.balanceOf() : amount_;
+        UFixed6 withdrawal = amount.eq(UFixed6Lib.MAX) ? token.balanceOf() : amount;
         // send funds back to the owner
-        token_.push(owner, amount);
+        token.push(owner, withdrawal);
     }
 
     /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller

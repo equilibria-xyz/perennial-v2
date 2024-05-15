@@ -40,65 +40,65 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     /// @inheritdoc IController
     function deployAccountWithSignature(
         DeployAccount calldata deployAccount_, 
-        bytes calldata signature_
+        bytes calldata signature
     ) 
         override external 
         keep(
             keepConfig, 
-            abi.encode(deployAccount_, signature_), 
+            abi.encode(deployAccount_, signature), 
             0, 
             abi.encode(deployAccount_.action.account, deployAccount_.action.maxFee)
         )
     {
-        IAccount account = _deployAccountWithSignature(deployAccount_, signature_);
+        IAccount account = _deployAccountWithSignature(deployAccount_, signature);
         // approve controller to spend the account's keeper token
         account.approveController(Token18.unwrap(keeperToken()));
     }
 
     /// @inheritdoc IController
     function updateSignerWithSignature(
-        SignerUpdate calldata signerUpdate_, 
-        bytes calldata signature_
+        SignerUpdate calldata signerUpdate, 
+        bytes calldata signature
     ) 
         override external
         keep(
             keepConfig, 
-            abi.encode(signerUpdate_, signature_), 
+            abi.encode(signerUpdate, signature), 
             0, 
-            abi.encode(signerUpdate_.action.account, signerUpdate_.action.maxFee)
+            abi.encode(signerUpdate.action.account, signerUpdate.action.maxFee)
         )
     {
-        _updateSignerWithSignature(signerUpdate_, signature_);
+        _updateSignerWithSignature(signerUpdate, signature);
     }
 
     /// @inheritdoc IController
     function withdrawWithSignature(
-        Withdrawal calldata withdrawal_, 
-        bytes calldata signature_
+        Withdrawal calldata withdrawal, 
+        bytes calldata signature
     ) 
         override external 
         keep(
             keepConfig, 
-            abi.encode(withdrawal_, signature_), 
+            abi.encode(withdrawal, signature), 
             0, 
-            abi.encode(withdrawal_.action.account, withdrawal_.action.maxFee)
+            abi.encode(withdrawal.action.account, withdrawal.action.maxFee)
         )
     {
-        _withdrawWithSignature(withdrawal_, signature_);
+        _withdrawWithSignature(withdrawal, signature);
     }
 
     /// @dev Transfers funds from collateral account to controller, and limits compensation 
     /// to the user-defined maxFee in the Action message
     /// @param amount Calculated keeper fee
     /// @param data Encoded address of collateral account and UFixed6 user-specified maximum fee
-    /// @return raisedKeeperFee_ Amount pulled from controller to keeper
+    /// @return raisedKeeperFee Amount pulled from controller to keeper
     function _raiseKeeperFee(
         UFixed18 amount,
         bytes memory data
-    ) internal override returns (UFixed18 raisedKeeperFee_) {
+    ) internal override returns (UFixed18 raisedKeeperFee) {
         (address account, uint256 maxFee) = abi.decode(data, (address, uint256));
         // maxFee is a UFixed6; convert to 18-decimal precision
-        raisedKeeperFee_ = amount.min(UFixed18.wrap(maxFee * 1e12));
-        keeperToken().pull(account, raisedKeeperFee_);
+        raisedKeeperFee = amount.min(UFixed18.wrap(maxFee * 1e12));
+        keeperToken().pull(account, raisedKeeperFee);
     }
 }
