@@ -8,6 +8,7 @@ import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
+/// @notice ERC712 signed message verifier for the Perennial V2 Collateral Accounts package.
 interface IVerifier is IVerifierBase {
     /// @notice Verifies the signature of no-op action message
     /// @dev Cancels the nonce after verifying the signature

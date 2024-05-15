@@ -12,9 +12,11 @@ import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
+/// @title Controller
+/// @notice Facilitates unpermissioned actions between collateral accounts and markets
 contract Controller is Instance, IController {
     // used for deterministic address creation through create2
-    bytes32 constant SALT = keccak256("Perrenial V2 Collateral Account");
+    bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
     /// @dev Contract used to validate messages were signed by the sender
     IVerifier public verifier;
@@ -32,115 +34,109 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
-    function getAccountAddress(address user_) external view returns (address) {
-        return _getAccountAddress(user_);
-    }
-
-    // TODO: remove; Kevin wants this to be message-only
-    /// @inheritdoc IController
-    function deployAccount() external returns (address accountAddress_) {
-        Account account = new Account{salt: SALT}(msg.sender, address(this));
-        accountAddress_ = address(account);
-        emit AccountDeployed(msg.sender, accountAddress_);
-    }
-
-    /// @inheritdoc IController
-    function deployAccountWithSignature(
-        DeployAccount calldata deployAccount_, 
-        bytes calldata signature_
-    ) virtual external {
-        _deployAccountWithSignature(deployAccount_, signature_);
-    }
-
-    function _deployAccountWithSignature(
-        DeployAccount calldata deployAccount_, 
-        bytes calldata signature_
-    ) internal returns (Account _account)
-    {
-        // create the account
-        address owner = deployAccount_.action.common.account;
-        _account = new Account{salt: SALT}(owner, address(this));
-
-        // check signer after account creation to avoid cost of recalculating address
-        address signer = verifier.verifyDeployAccount(deployAccount_, signature_);
-        if (signer != owner && !signers[address(_account)][signer]) revert InvalidSignerError();
-
-        emit AccountDeployed(owner, address(_account));
-    }
-
-    /// @inheritdoc IController
-    function updateSigner(address signer_, bool newEnabled_) external {
-        address account = _getAccountAddress(msg.sender);
-        signers[account][signer_] = newEnabled_;
-        emit SignerUpdated(account, signer_, newEnabled_);
-    }
-
-    /// @inheritdoc IController
-    function updateSignerWithSignature(
-        SignerUpdate calldata signerUpdate_, 
-        bytes calldata signature_
-    ) virtual external {
-        _updateSignerWithSignature(signerUpdate_, signature_);
-    }
-
-    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate_,  bytes calldata signature_) internal {
-        // ensure the message was signed only by the owner, not an existing delegate
-        address messageSigner = verifier.verifySignerUpdate(signerUpdate_, signature_);
-        address owner = signerUpdate_.action.common.account;
-        address account = _getAccountAddress(owner);
-        if (messageSigner != owner) revert InvalidSignerError();
-
-        signers[account][signerUpdate_.signer] = signerUpdate_.approved;
-        emit SignerUpdated(account, signerUpdate_.signer, signerUpdate_.approved);
-    }
-
-    /// @inheritdoc IController
-    function marketTransferWithSignature(MarketTransfer calldata marketTransfer_, bytes calldata signature_) virtual external {
-        IAccount account = _verifyMarketTransfer(marketTransfer_, signature_);
-        IMarket market = IMarket(marketTransfer_.market);
-        account.marketTransfer(market, marketTransfer_.amount);
-    }
-
-    function _verifyMarketTransfer(
-        MarketTransfer calldata marketTransfer_, 
-        bytes calldata signature_
-    ) internal returns (IAccount account_) {
-        // ensure the message was signed by the owner or a delegated signer
-        address signer = verifier.verifyMarketTransfer(marketTransfer_, signature_);
-        account_ = IAccount(_ensureValidSigner(marketTransfer_.action.common.account, signer));        
-    }
-
-    /// @inheritdoc IController
-    function withdrawWithSignature(Withdrawal calldata withdrawal_, bytes calldata signature_) virtual external {
-        _withdrawWithSignature(withdrawal_, signature_);
-    }
-
-    function _withdrawWithSignature(Withdrawal calldata withdrawal_, bytes calldata signature_) internal {
-        // ensure the message was signed by the owner or a delegated signer
-        address signer = verifier.verifyWithdrawal(withdrawal_, signature_);
-        IAccount account = IAccount(_ensureValidSigner(withdrawal_.action.common.account, signer));
-
-        // call the account's implementation to push to owner
-        account.withdraw(withdrawal_.token, withdrawal_.amount);
-    }
-
-    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
-    function _ensureValidSigner(address owner_, address signer_) private view returns (address accountAddress_) {
-        accountAddress_ = _getAccountAddress(owner_);
-        if (signer_ != owner_ && !signers[accountAddress_][signer_]) revert InvalidSignerError();
-    }
-
-    /// @dev calculates the create2 deterministic address of a user's collateral account
-    /// @param user_ EOA of the user owning a collateral account
-    function _getAccountAddress(address user_) private view returns (address) {
+    function getAccountAddress(address user) public view returns (address) {
         // generate bytecode for an account created for the specified owner
         bytes memory bytecode = abi.encodePacked(
-            type(Account).creationCode, abi.encode(user_), abi.encode(address(this)));
+            type(Account).creationCode, abi.encode(user), abi.encode(address(this)));
         // calculate the hash for that bytecode
         bytes32 hash = keccak256(
             abi.encodePacked(bytes1(0xff), address(this), SALT, keccak256(bytecode))
         );
         // cast last 20 bytes of hash to address
         return address(uint160(uint256(hash)));
+    }
+
+    /// @inheritdoc IController
+    function deployAccount() public returns (IAccount) {
+        return _createAccount(msg.sender);
+    }
+
+    /// @inheritdoc IController
+    function deployAccountWithSignature(
+        DeployAccount calldata deployAccount_, 
+        bytes calldata signature
+    ) virtual external {
+        _deployAccountWithSignature(deployAccount_, signature);
+    }
+
+    function _deployAccountWithSignature(
+        DeployAccount calldata deployAccount_, 
+        bytes calldata signature
+    ) internal returns (IAccount account)
+    {
+        // create the account
+        address owner = deployAccount_.action.common.account;
+        account = _createAccount(owner);
+
+        // check signer after account creation to avoid cost of recalculating address
+        address signer = verifier.verifyDeployAccount(deployAccount_, signature);
+        if (signer != owner && !signers[address(account)][signer]) revert InvalidSignerError();
+    }
+
+    function _createAccount(address owner) internal returns (IAccount account) {
+        account = new Account{salt: SALT}(owner, address(this));
+        emit AccountDeployed(owner, account);
+    }
+
+    /// @inheritdoc IController
+    function updateSigner(address signer, bool newEnabled) public {
+        address account = getAccountAddress(msg.sender);
+        signers[account][signer] = newEnabled;
+        emit SignerUpdated(account, signer, newEnabled);
+    }
+
+    /// @inheritdoc IController
+    function updateSignerWithSignature(
+        SignerUpdate calldata signerUpdate, 
+        bytes calldata signature
+    ) virtual external {
+        _updateSignerWithSignature(signerUpdate, signature);
+    }
+
+    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate,  bytes calldata signature) internal {
+        // ensure the message was signed only by the owner, not an existing delegate
+        address messageSigner = verifier.verifySignerUpdate(signerUpdate, signature);
+        address owner = signerUpdate.action.common.account;
+        address account = getAccountAddress(owner);
+        if (messageSigner != owner) revert InvalidSignerError();
+
+        signers[account][signerUpdate.signer] = signerUpdate.approved;
+        emit SignerUpdated(account, signerUpdate.signer, signerUpdate.approved);
+    }
+
+    /// @inheritdoc IController
+    function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature) virtual external {
+        IAccount account = _verifyMarketTransfer(marketTransfer, signature);
+        IMarket market = IMarket(marketTransfer.market);
+        account.marketTransfer(market, marketTransfer.amount);
+    }
+
+    function _verifyMarketTransfer(
+        MarketTransfer calldata marketTransfer, 
+        bytes calldata signature
+    ) internal returns (IAccount account_) {
+        // ensure the message was signed by the owner or a delegated signer
+        address signer = verifier.verifyMarketTransfer(marketTransfer, signature);
+        account_ = IAccount(_ensureValidSigner(marketTransfer.action.common.account, signer));        
+    }
+
+    /// @inheritdoc IController
+    function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) virtual external {
+        _withdrawWithSignature(withdrawal, signature);
+    }
+
+    function _withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) internal {
+        // ensure the message was signed by the owner or a delegated signer
+        address signer = verifier.verifyWithdrawal(withdrawal, signature);
+        IAccount account = IAccount(_ensureValidSigner(withdrawal.action.common.account, signer));
+
+        // call the account's implementation to push to owner
+        account.withdraw(withdrawal.token, withdrawal.amount);
+    }
+
+    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
+    function _ensureValidSigner(address owner, address signer) private view returns (address accountAddress) {
+        accountAddress = getAccountAddress(owner);
+        if (signer != owner && !signers[accountAddress][signer]) revert InvalidSignerError();
     }
 }

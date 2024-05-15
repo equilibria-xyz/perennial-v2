@@ -5,6 +5,7 @@ import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
+/// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 interface IAccount {
     // sig: 0x2e4e92db
     /// @custom:error Account owner cannot fully withdraw because they have no collateral balance
@@ -20,7 +21,7 @@ interface IAccount {
 
     /// @notice Called by controller during account creation, needed for keeper compensation
     /// @dev Due to Kept limitations, this will always be a Token18
-    function approveController(address token_) external;
+    function approveController(address token) external;
 
     /// @notice used for transferring and rebalancing collateral
     /// @param market market to transfer funds to/from, which identifies the token

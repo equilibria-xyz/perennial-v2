@@ -12,10 +12,9 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IMarket, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
-// TODO: _Instance_ relies on owner of the factory, which doesn't apply here.
-// _Ownable_ does not let someone other than the sender assign the owner.
-// Consider making Ownable._updateOwner overridable to work around this.
-contract Account is IAccount{
+/// @title Account
+/// @notice Collateral Accounts allow users to manage collateral across Perennial markets
+contract Account is IAccount {
     UFixed6 private constant UNCHANGED_POSITION = UFixed6Lib.MAX;
 
     address public owner;
@@ -28,12 +27,12 @@ contract Account is IAccount{
 
     /// @inheritdoc IAccount
     /// @dev Controller is initialized at construction and cannot be changed.
-    function approveController(address token_) external ownerOrController {
-        uint8 tokenDecimals = _getTokenDecimals(token_);
+    function approveController(address token) external ownerOrController {
+        uint8 tokenDecimals = _getTokenDecimals(token);
         if (tokenDecimals == 18)
-            Token18.wrap(token_).approve(controller);
+            Token18.wrap(token).approve(controller);
         else if (tokenDecimals == 6)
-             Token6.wrap(token_).approve(controller);
+            Token6.wrap(token).approve(controller);
         else // revert if token is not 18 or 6 decimals
             revert TokenNotSupportedError();
     }
@@ -41,67 +40,67 @@ contract Account is IAccount{
     /// @inheritdoc IAccount
     /// @dev If Market ever supports non-18-decimal tokens, this method could be expanded 
     /// to handle them appropriately.
-    function marketTransfer(IMarket market_, Fixed6 amount_) external ownerOrController {
-        _marketTransfer18(market_, amount_);
+    function marketTransfer(IMarket market, Fixed6 amount) external ownerOrController {
+        _marketTransfer18(market, amount);
     }
 
     /// @inheritdoc IAccount
-    function withdraw(address token_, UFixed6 amount_) external ownerOrController {
-        uint8 tokenDecimals = _getTokenDecimals(token_);
+    function withdraw(address token, UFixed6 amount) external ownerOrController {
+        uint8 tokenDecimals = _getTokenDecimals(token);
         if (tokenDecimals == 18)
-            _withdraw18(Token18.wrap(token_), amount_);
+            _withdraw18(Token18.wrap(token), amount);
         else if (tokenDecimals == 6)
-            _withdraw6(Token6.wrap(token_), amount_);
+            _withdraw6(Token6.wrap(token), amount);
         else // revert if token is not 18 or 6 decimals
             revert TokenNotSupportedError();
     }
 
-    function _getTokenDecimals(address token_) private view returns (uint8 tokenDecimals_) {
-        try IERC20Metadata(token_).decimals() returns (uint8 decimals_) {
-            tokenDecimals_ = decimals_;
+    function _getTokenDecimals(address token) private view returns (uint8 tokenDecimals) {
+        try IERC20Metadata(token).decimals() returns (uint8 decimals) {
+            tokenDecimals = decimals;
         } catch {
             // revert if token contract does not implement optional `decimals` method
             revert TokenNotSupportedError();
         }
     }
 
-    function _marketTransfer18(IMarket market_, Fixed6 amount_) private {
+    function _marketTransfer18(IMarket market, Fixed6 amount) private {
         // implicitly approve the market to spend our collateral token
-        IERC20Metadata token = IERC20Metadata(Token18.unwrap(market_.token()));
-        if (token.allowance(address(this), address(market_)) != type(uint256).max)
-            market_.token().approve(address(market_));
+        IERC20Metadata token = IERC20Metadata(Token18.unwrap(market.token()));
+        if (token.allowance(address(this), address(market)) != type(uint256).max)
+            market.token().approve(address(market));
 
         // handle magic number for full withdrawal
-        if (amount_.eq(Fixed6Lib.MIN)){
+        if (amount.eq(Fixed6Lib.MIN)){
             // ensure user has a positive collateral balance to withdraw
-            Fixed6 balance = market_.locals(owner).collateral;
-            if (balance.sign() != 1) revert NoCollateral(address(market_));
+            Fixed6 balance = market.locals(owner).collateral;
+            if (balance.sign() != 1) revert NoCollateral(address(market));
             // ensure user has no position
             // TODO: save some gas by creating an efficient Fixed6.negative method
-            amount_ = balance.mul(Fixed6Lib.NEG_ONE);
+            amount = balance.mul(Fixed6Lib.NEG_ONE);
         // handle magic number for full deposit
-        } else if (amount_.eq(Fixed6Lib.MAX)){
+        } else if (amount.eq(Fixed6Lib.MAX)){
             UFixed18 balance = UFixed18.wrap(token.balanceOf(address(this)));
-            amount_ = Fixed6Lib.from(UFixed6Lib.from(balance));
+            amount = Fixed6Lib.from(UFixed6Lib.from(balance));
         }
 
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
         // console.log("Account attempting to update market %s with collateral %s", address(market_), UFixed6.unwrap(amount_.abs()));
-        market_.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount_, false);
+        market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
     }
 
-    function _withdraw18(Token18 token_, UFixed6 amount_) private {
+    function _withdraw18(Token18 token, UFixed6 amount) private {
         // if user requested max withdrawal, withdraw the balance, otherwise convert amount to token precision
-        UFixed18 amount = amount_.eq(UFixed6Lib.MAX) ? token_.balanceOf() : UFixed18Lib.from(amount_);
+        UFixed18 withdrawal = amount.eq(UFixed6Lib.MAX) ? token.balanceOf() : UFixed18Lib.from(amount);
         // send funds back to the owner
-        token_.push(owner, amount);
+        token.push(owner, withdrawal);
     }
 
-    function _withdraw6(Token6 token_, UFixed6 amount_) private {
+    function _withdraw6(Token6 token, UFixed6 amount) private {
         // if user requested max withdrawal, withdraw the balance, otherwise withdraw specified amount
-        UFixed6 amount = amount_.eq(UFixed6Lib.MAX) ? token_.balanceOf() : amount_;
+        UFixed6 withdrawal = amount.eq(UFixed6Lib.MAX) ? token.balanceOf() : amount;
         // send funds back to the owner
-        token_.push(owner, amount);
+        token.push(owner, withdrawal);
     }
 
     /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller
