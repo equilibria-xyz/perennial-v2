@@ -70,16 +70,15 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     {
         IAccount account = _verifyMarketTransfer(marketTransfer_, signature_);
         IMarket market = IMarket(marketTransfer_.market);
-        Fixed6 amount = marketTransfer_.amount;
         bytes memory data = abi.encode(marketTransfer_.action.account, marketTransfer_.action.maxFee);
 
         // if we're depositing collateral to the market, pay the keeper before transferring funds
-        if (amount.gte(Fixed6Lib.ZERO)) {
+        if (marketTransfer_.amount.gte(Fixed6Lib.ZERO)) {
             _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
-            account.marketTransfer(market, amount);
+            account.marketTransfer(market, marketTransfer_.amount);
         // otherwise handle the keeper fee normally, after withdrawing to the collateral account
         } else {
-            account.marketTransfer(market, amount);
+            account.marketTransfer(market, marketTransfer_.amount);
             _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
         }
     }
@@ -106,13 +105,9 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         bytes calldata signature_
     ) 
         override external 
-        keep(
-            keepConfig, 
-            abi.encode(withdrawal_, signature_), 
-            0, 
-            abi.encode(withdrawal_.action.account, withdrawal_.action.maxFee)
-        )
     {
+        bytes memory data = abi.encode(withdrawal_.action.account, withdrawal_.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
         _withdrawWithSignature(withdrawal_, signature_);
     }
 

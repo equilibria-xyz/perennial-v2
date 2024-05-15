@@ -14,10 +14,6 @@ interface IAccount {
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error NotAuthorizedError(address);
 
-    // sig: 0x888e3c99
-    /// @custom:error Account owner must have zero position to fully withdraw from market
-    error PositionNotZero(address);
-
     // sig: 0x2fda6ab7
     /// @custom:error Token is not 6- or 18- decimals, or does not offer a .decimals() function
     error TokenNotSupportedError();

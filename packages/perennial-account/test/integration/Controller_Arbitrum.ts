@@ -402,6 +402,7 @@ describe('Controller_Arbitrum', () => {
       // confirm keeper earned their fee
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      console.log('keeper was paid', keeperFeePaid.toString(), 'for full withdrawal')
     })
   })
 
@@ -419,7 +420,7 @@ describe('Controller_Arbitrum', () => {
       // configure userB as delegated signer
       await controller.connect(userA).updateSigner(userB.address, true, { maxFeePerGas: 100000000 })
 
-      // delegate signs message for full withdrawal
+      // delegate signs message for partial withdrawal
       const withdrawalAmount = parse6decimal('7000')
       const withdrawalMessage = {
         token: dsu.address,
@@ -444,6 +445,40 @@ describe('Controller_Arbitrum', () => {
       // confirm userA withdrew their funds and keeper fee was paid from the collateral account
       expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('10000').sub(cumulativeKeeperFee))
       expect(await dsu.balanceOf(userA.address)).to.equal(userBalanceBefore.add(withdrawalAmount.mul(1e12)))
+    })
+
+    it('collects fee for full withdrawal', async () => {
+      const userBalanceBefore = await dsu.balanceOf(userA.address)
+      const accountBalanceBefore = await dsu.balanceOf(accountA.address)
+      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+      // sign a message to withdraw all funds from the account
+      const withdrawalMessage = {
+        token: dsu.address,
+        amount: constants.MaxUint256,
+        ...createAction(accountA.address, userA.address),
+      }
+      const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
+
+      // perform withdrawal and check balances
+      await expect(
+        controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, { maxFeePerGas: 100000000 }),
+      )
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, userA.address, anyValue)
+        .to.emit(controller, 'KeeperCall')
+        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+      // collateral account should be empty
+      expect(await dsu.balanceOf(accountA.address)).to.equal(0)
+      // user should have their initial balance, plus what was in their collateral account, minus keeper fees
+      const expectedUserBalance = userBalanceBefore.add(accountBalanceBefore)
+      expect(await dsu.balanceOf(userA.address)).to.be.within(
+        expectedUserBalance.sub(utils.parseEther('1')),
+        expectedUserBalance,
+      )
+
+      // confirm keeper earned their fee
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
   })
 })
