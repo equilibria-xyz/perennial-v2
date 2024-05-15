@@ -29,7 +29,6 @@ interface IController {
     /// @param user Identifies the EOA for which a collateral account is desired
     function getAccountAddress(address user) external view returns (address);
 
-    // TODO: remove this; only updating the signer may be done from a TX
     /// @notice Deploys the collateral account for msg.sender and returns the address of the account
     function deployAccount() external returns (IAccount);
 

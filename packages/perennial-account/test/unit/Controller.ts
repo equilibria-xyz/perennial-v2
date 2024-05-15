@@ -128,6 +128,19 @@ describe('Controller', () => {
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
     })
+
+    it('third party cannot create account on owners behalf', async () => {
+      // create a message to create collateral account for userA but sign it as userB
+      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
+      const deployAccountMessage = {
+        ...createAction(accountAddressCalculated, userA.address),
+      }
+      const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
+
+      await expect(
+        controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
+      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+    })
   })
 
   describe('#delegation', () => {
@@ -232,6 +245,30 @@ describe('Controller', () => {
       expect(signerResult).to.not.eq(userA.address)
 
       // ensure assignment fails
+      await expect(
+        controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
+      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+    })
+
+    it('cannot disable a delegate from an unauthorized signer', async () => {
+      // create the collateral account
+      await createCollateralAccount(userA)
+
+      // userA assigns userB as delegated signer for their collateral account
+      await expect(controller.connect(userA).updateSigner(userB.address, true))
+        .to.emit(controller, 'SignerUpdated')
+        .withArgs(accountAddressA, userB.address, true)
+      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+
+      // keeper signs a message disabling userB's delegation rights to userA's collateral account
+      const updateSignerMessage = {
+        signer: userB.address,
+        approved: false,
+        ...createAction(accountAddressA, userA.address),
+      }
+      const signature = await signSignerUpdate(keeper, verifier, updateSignerMessage)
+
+      // ensure update fails
       await expect(
         controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
       ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
