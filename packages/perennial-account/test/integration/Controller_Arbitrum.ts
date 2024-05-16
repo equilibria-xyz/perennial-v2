@@ -17,12 +17,11 @@ import {
   Controller_Arbitrum__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
-  IMarket,
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
 import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
-import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
+import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signSignerUpdate, signWithdrawal } from '../helpers/erc712'
 import { createMarketFactory, createMarketForOracle } from '../helpers/arbitrumHelpers'
 
@@ -256,14 +255,48 @@ describe('Controller_Arbitrum', () => {
   })
 
   describe('#transfer', async () => {
+    const INITIAL_DEPOSIT_6 = parse6decimal('13000')
+    const INITIAL_DEPOSIT_18 = INITIAL_DEPOSIT_6.mul(1e12)
     let accountA: Account
     let keeperBalanceBefore: BigNumber
 
     beforeEach(async () => {
       // deploy collateral account for userA
-      accountA = await createCollateralAccount(userA, utils.parseEther('13000'))
+      accountA = await createCollateralAccount(userA, INITIAL_DEPOSIT_18)
       keeperBalanceBefore = await dsu.balanceOf(keeper.address)
     })
+
+    afterEach(async () => {
+      // confirm keeper earned their fee
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+    })
+
+    async function depositAll() {
+      // sign a message to deposit everything from the collateral account to the market
+      const marketTransferMessage = {
+        market: market.address,
+        amount: constants.MaxInt256,
+        ...createAction(accountA.address, userA.address),
+      }
+      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+      // perform transfer
+      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, market.address, anyValue) // scale to token precision
+        .to.emit(market, 'OrderCreated')
+        .withArgs(userA.address, anyValue)
+        .to.emit(controller, 'KeeperCall')
+        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+      // ensure the transfer worked
+      expect((await market.locals(userA.address)).collateral).to.be.within(
+        INITIAL_DEPOSIT_6.sub(parse6decimal('1')), // 12999
+        INITIAL_DEPOSIT_6, // 13000
+      )
+      // ensure the collateral account is empty
+      expect(await dsu.balanceOf(accountA.address)).to.be.lessThan(1e12) // dust from UFixed6 precision
+    }
 
     it('collects fee for depositing some funds to market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
@@ -283,40 +316,10 @@ describe('Controller_Arbitrum', () => {
         .withArgs(userA.address, anyValue)
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-
-      // confirm keeper earned their fee for depositing collateral
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
     it('collects fee when depositing all funds to market', async () => {
-      // sign a message to deposit everything from the collateral account to the market
-      const marketTransferMessage = {
-        market: market.address,
-        amount: constants.MaxInt256,
-        ...createAction(accountA.address, userA.address),
-      }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-
-      // perform transfer
-      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(accountA.address, market.address, anyValue) // scale to token precision
-        .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
-        .to.emit(controller, 'KeeperCall')
-        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-      // ensure the transfer worked
-      expect((await market.locals(userA.address)).collateral).to.be.within(
-        parse6decimal('12999'),
-        parse6decimal('13000'),
-      )
-      // ensure the collateral account is empty
-      expect(await dsu.balanceOf(accountA.address)).to.be.lessThan(1e12) // dust from UFixed6 precision
-
-      // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      await depositAll()
     })
 
     it('collects fee for withdrawing some funds from market', async () => {
@@ -356,13 +359,9 @@ describe('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(parse6decimal('10000')) // 12k-2k
-
-      // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
-    it('collects fee for withdrawing all funds from market', async () => {
+    it('collects fee for withdrawing native deposit from market', async () => {
       // user directly deposits collateral to the market
       const deposit = parse6decimal('13000')
       await market
@@ -404,14 +403,56 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
       console.log('keeper was paid', keeperFeePaid.toString(), 'for full withdrawal')
     })
+
+    it('collects fee for withdrawing funds into empty collateral account', async () => {
+      // deposit everything possible
+      await depositAll()
+      // withdraw dust so it cannot be used to pay the keeper
+      await accountA.withdraw(dsu.address, constants.MaxUint256)
+      expect(await dsu.balanceOf(accountA.address)).to.equal(0)
+
+      // sign a message to withdraw 3k from the market back into the collateral account
+      const withdrawal = parse6decimal('-3000')
+      const marketTransferMessage = {
+        market: market.address,
+        amount: withdrawal,
+        ...createAction(accountA.address, userA.address),
+      }
+      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+      // perform transfer
+      await expect(
+        controller
+          .connect(keeper)
+          .marketTransferWithSignature(marketTransferMessage, signature, { gasLimit: 1_000_000 }),
+      )
+        .to.emit(dsu, 'Transfer')
+        .withArgs(market.address, accountA.address, anyValue)
+        .to.emit(market, 'OrderCreated')
+        .withArgs(userA.address, anyValue)
+        .to.emit(controller, 'KeeperCall')
+        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+      expect((await market.locals(userA.address)).collateral).to.be.within(
+        parse6decimal('9999'),
+        parse6decimal('10000'),
+      ) // 13k-3k
+    })
   })
 
   describe('#withdrawal', async () => {
     let accountA: Account
+    let keeperBalanceBefore: BigNumber
 
     beforeEach(async () => {
       // deploy collateral account for userA
       accountA = await createCollateralAccount(userA, utils.parseEther('17000'))
+      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+    })
+
+    afterEach(async () => {
+      // confirm keeper earned their fee
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
     it('collects fee for partial withdrawal from a delegated signer', async () => {
@@ -438,11 +479,8 @@ describe('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
 
-      // confirm keeper earned their fee for creating the account and processing the withdrawal
-      const cumulativeKeeperFee = await dsu.balanceOf(keeper.address)
-      expect(cumulativeKeeperFee).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
-
       // confirm userA withdrew their funds and keeper fee was paid from the collateral account
+      const cumulativeKeeperFee = await dsu.balanceOf(keeper.address)
       expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('10000').sub(cumulativeKeeperFee))
       expect(await dsu.balanceOf(userA.address)).to.equal(userBalanceBefore.add(withdrawalAmount.mul(1e12)))
     })
@@ -475,10 +513,6 @@ describe('Controller_Arbitrum', () => {
         expectedUserBalance.sub(utils.parseEther('1')),
         expectedUserBalance,
       )
-
-      // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
   })
 })

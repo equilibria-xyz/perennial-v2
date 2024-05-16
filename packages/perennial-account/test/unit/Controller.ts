@@ -27,13 +27,13 @@ describe('Controller', () => {
   function createAction(
     accountAddress: Address,
     userAddress: Address,
-    feeOverride = utils.parseEther('12'),
-    expiresInSeconds = 6,
+    maxFee = utils.parseEther('0.3'),
+    expiresInSeconds = 12,
   ) {
     return {
       action: {
         account: accountAddress,
-        maxFee: feeOverride,
+        maxFee: maxFee,
         common: {
           account: userAddress,
           domain: controller.address,

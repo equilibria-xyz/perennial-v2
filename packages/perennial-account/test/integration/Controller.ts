@@ -15,12 +15,11 @@ import {
   Controller__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
-  IMarket,
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
 import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
-import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
+import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice } from '../helpers/setupHelpers'
 import { createMarketFactory, createMarketForOracle } from '../helpers/arbitrumHelpers'

@@ -53,14 +53,18 @@ describe('Account', () => {
     // fund userA with some DSU and USDC
     await fundWallet(userA)
 
+    // create an empty account
     const accountAddress = await controller.connect(userA).callStatic.deployAccount()
     await controller.connect(userA).deployAccount()
     account = Account__factory.connect(accountAddress, userA)
   }
 
+  beforeEach(async () => {
+    await loadFixture(fixture)
+  })
+
   describe('#6-decimal token support', () => {
     beforeEach(async () => {
-      await loadFixture(fixture)
       // fund userA's collateral account with 20k USDC
       await usdc.connect(userA).transfer(account.address, parse6decimal('20000'))
     })
@@ -92,10 +96,12 @@ describe('Account', () => {
   })
 
   describe('#18-decimal token support', () => {
+    const INITIAL_DEPOSIT_6 = parse6decimal('10000')
+    const INITIAL_DEPOSIT_18 = INITIAL_DEPOSIT_6.mul(1e12)
+
     beforeEach(async () => {
-      await loadFixture(fixture)
       // fund userA's collateral account with 10k DSU
-      await dsu.connect(userA).transfer(account.address, utils.parseEther('10000'))
+      await dsu.connect(userA).transfer(account.address, INITIAL_DEPOSIT_18)
     })
 
     it('allows owner to make a partial withdrawal', async () => {
@@ -121,6 +127,18 @@ describe('Account', () => {
         .withArgs(account.address, userA.address, balanceBefore)
 
       expect(await dsu.balanceOf(account.address)).to.equal(constants.Zero)
+    })
+
+    it('can fully withdraw dust amounts', async () => {
+      // deposit a dust amount into the account
+      const dust = utils.parseEther('0.000000555')
+      await dsu.connect(userA).transfer(account.address, dust)
+      // perform a full withdrawal
+      await expect(account.withdraw(dsu.address, constants.MaxUint256))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(account.address, userA.address, INITIAL_DEPOSIT_18.add(dust))
+
+      expect(await dsu.balanceOf(account.address)).equals(0)
     })
   })
 
