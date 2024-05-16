@@ -46,7 +46,7 @@ export const DEFAULT_RISK_PARAMETERS = {
   },
   makerLimit: utils.parseUnits('1', 6),
   efficiencyLimit: utils.parseUnits('0.5', 6),
-  liquidationFee: utils.parseUnits('0.05', 6),
+  liquidationFee: utils.parseUnits('5', 6),
   utilizationCurve: {
     minRate: 0,
     maxRate: utils.parseUnits('0.155', 6),

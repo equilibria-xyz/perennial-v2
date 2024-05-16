@@ -9,61 +9,77 @@ const PYTH_ENDPOINT = 'https://hermes.pyth.network'
 export default task('commit-price', 'Commits a price for the given price ids')
   .addParam('priceids', 'The price ids to commit (comma separated)', '', types.string)
   .addFlag('dry', 'Do not commit prices, print out calldata instead')
-  .setAction(async ({ priceids: priceIds_, dry }: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
-    if (!priceIds_) throw new Error('No Price ID provided')
-    const priceIds = priceIds_.split(',')
-    if (!priceIds.length) throw new Error('No Price ID provided')
+  .addOptionalParam('timestamp', 'The timestamp to query for prices', undefined, types.int)
+  .addOptionalParam('factoryaddress', 'The address of the keeper oracle factory', undefined, types.string)
+  .setAction(
+    async ({ priceids: priceIds_, timestamp, dry, factoryaddress }: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
+      if (!priceIds_) throw new Error('No Price ID provided')
+      const priceIds = priceIds_.split(',')
+      if (!priceIds.length) throw new Error('No Price ID provided')
 
-    const {
-      ethers,
-      deployments: { get },
-    } = HRE
+      const {
+        ethers,
+        deployments: { get },
+      } = HRE
 
-    const commitments: { action: number; args: string }[] = []
+      const commitments: { action: number; args: string }[] = []
 
-    for (const priceId of priceIds) {
-      const pythFactory = await ethers.getContractAt('IKeeperFactory', (await get('PythFactory')).address)
+      for (const priceId of priceIds) {
+        const pythFactory = await ethers.getContractAt(
+          'IKeeperFactory',
+          factoryaddress ?? (await get('PythFactory')).address,
+        )
 
-      const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
-      const [minValidTime] = await Promise.all([pythFactory.callStatic.validFrom()])
+        const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
+        const [minValidTime] = await Promise.all([pythFactory.callStatic.validFrom()])
 
-      const vaa = await getRecentVaa({
-        pyth,
-        feedIds: [{ providerId: priceId, minValidTime: minValidTime.toBigInt() }],
-      })
+        const vaa = await getRecentVaa({
+          pyth,
+          feedIds: [{ providerId: priceId, minValidTime: minValidTime.toBigInt() }],
+          timestamp,
+        })
 
-      commitments.push(
-        buildCommitPrice({
-          ...vaa[0],
-          oracleProviderFactory: pythFactory.address,
-          value: 1n,
-          ids: [priceId],
-          version: BigInt(vaa[0].publishTime) - minValidTime.toBigInt(),
-          revertOnFailure: false,
-        }),
-      )
-    }
+        commitments.push(
+          buildCommitPrice({
+            ...vaa[0],
+            oracleProviderFactory: pythFactory.address,
+            value: 1n,
+            ids: [priceId],
+            version: BigInt(vaa[0].publishTime) - minValidTime.toBigInt(),
+            revertOnFailure: false,
+          }),
+        )
+      }
 
-    const multiInvoker = await ethers.getContractAt('IMultiInvoker', (await get('MultiInvoker')).address)
+      const multiInvoker = await ethers.getContractAt('IMultiInvoker', (await get('MultiInvoker')).address)
 
-    if (dry) {
-      console.log('Dry run, not committing. Calldata')
-      console.log(multiInvoker.interface.encodeFunctionData('invoke', [commitments]))
-    } else {
-      console.log('Committing VAAs')
-      const { hash } = await multiInvoker.invoke(commitments, { value: commitments.length })
-      console.log('VAA committed. Hash:', hash)
-    }
-  })
+      if (dry) {
+        console.log('Dry run, not committing. Calldata')
+        console.log(multiInvoker.interface.encodeFunctionData('invoke', [commitments]))
+        return true
+      } else {
+        console.log('Committing VAAs')
+        const { hash } = await multiInvoker.invoke(commitments, { value: commitments.length })
+        console.log('VAA committed. Hash:', hash)
+        return hash
+      }
+    },
+  )
 
 const getRecentVaa = async ({
   pyth,
   feedIds,
+  timestamp,
 }: {
   pyth: EvmPriceServiceConnection
   feedIds: { providerId: string; minValidTime: bigint }[]
+  timestamp?: number
 }) => {
-  const priceFeeds = await pyth.getLatestPriceFeeds(feedIds.map(({ providerId }) => providerId))
+  if (timestamp && feedIds.length > 1) throw new Error('Cannot query multiple feeds with a timestamp')
+
+  const priceFeeds = timestamp
+    ? [await pyth.getPriceFeed(feedIds[0].providerId, timestamp)]
+    : await pyth.getLatestPriceFeeds(feedIds.map(({ providerId }) => providerId))
   if (!priceFeeds) throw new Error('No price feeds found')
 
   return priceFeeds.map(priceFeed => {

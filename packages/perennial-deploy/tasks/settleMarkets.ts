@@ -7,16 +7,19 @@ import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUti
 import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
 
 const GRAPHQL_QUERY_PAGE_SIZE = 1000
-const SETTLE_MULTICALL_BATCH_SIZE = 100
+const SETTLE_MULTICALL_BATCH_SIZE = 150
 
 export default task('settle-markets', 'Settles users across all markets')
   .addFlag('dry', 'Count number of users and transactions required to settle')
+  .addOptionalParam('markets', 'Comma separate list of markets to settle', undefined, types.string)
+  .addOptionalParam('offset', 'The offset to start fetching users from', 0, types.int)
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Settle Markets] Running Settle Markets Task')
     const {
       ethers,
-      deployments: { getNetworkName },
+      deployments: { get, getNetworkName },
+      run,
     } = HRE
 
     const batchSize = args.batchsize
@@ -35,13 +38,23 @@ export default task('settle-markets', 'Settles users across all markets')
     let marketUserCount = 0
     let txCount = 0
 
+    const pythFactory = await ethers.getContractAt('PythFactory', (await get('PythFactory')).address)
+    const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
+    const underlyingIds = await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))
+
+    console.log('[Settle Markets] Committing prices for underlying ids', underlyingIds.join(','))
+    await run('commit-price', { priceids: underlyingIds.join(','), dry: args.dry })
+
     for (const marketAddress in marketUsers) {
-      const users = [...marketUsers[marketAddress].values()]
+      if (args.markets && !args.markets.toLowerCase().split(',').includes(marketAddress.toLowerCase())) {
+        console.log('[Settle Markets]    Skipping market', marketAddress)
+        continue
+      }
+
+      const users = [...marketUsers[marketAddress].values()].slice(args.offset)
       marketUserCount += users.length
 
       const market = await ethers.getContractAt('IMarket', marketAddress)
-
-      // Commit VAA for market?
 
       console.log('[Settle Markets]    Settling', users.length, 'users to settle in market', marketAddress)
 
@@ -71,7 +84,7 @@ export default task('settle-markets', 'Settles users across all markets')
         if (successfulSettleCalls === batchedUsers.length) {
           if (!args.dry) {
             process.stdout.write('[Settle Markets]        Sending Transaction...')
-            const tx = await multicall.aggregate3(multicallPayload)
+            const tx = await multicall.aggregate3(multicallPayload, { gasLimit: gasUsage.mul(2) })
             await tx.wait()
             process.stdout.write(`done. Hash: ${tx.hash}\n`)
           }

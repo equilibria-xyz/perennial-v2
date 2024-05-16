@@ -7,7 +7,7 @@ import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUti
 import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
 
 const GRAPHQL_QUERY_PAGE_SIZE = 1000
-const SETTLE_MULTICALL_BATCH_SIZE = 100
+const SETTLE_MULTICALL_BATCH_SIZE = 150
 
 export default task('settle-vaults', 'Settles users across all vaults')
   .addFlag('dry', 'Count number of users and transactions required to settle')
@@ -71,7 +71,7 @@ export default task('settle-vaults', 'Settles users across all vaults')
         if (successfulSettleCalls === batchedUsers.length) {
           if (!args.dry) {
             process.stdout.write('[Settle Vaults]        Sending Transaction...')
-            const tx = await multicall.aggregate3(multicallPayload)
+            const tx = await multicall.aggregate3(multicallPayload, { gasLimit: gasUsage.mul(2) })
             await tx.wait()
             process.stdout.write(`done. Hash: ${tx.hash}\n`)
           }

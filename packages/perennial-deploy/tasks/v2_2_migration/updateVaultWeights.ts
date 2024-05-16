@@ -6,11 +6,12 @@ import { PopulatedTransaction } from 'ethers'
 export default task('2_2_update-vault-weights', 'Updates vault weights so that they sum to UFixed6.ONE')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
   .addFlag('timelock', 'Print timelock transaction payload')
+  .addFlag('prevabi', 'Use v2.1.1 Vault ABI')
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[v2.2 Update Vault Weights] Running Update Vault Weights Task')
     const {
       ethers,
-      deployments: { get },
+      deployments: { get, getArtifact },
     } = HRE
 
     const vaultFactory = await ethers.getContractAt('IVaultFactory', (await get('VaultFactory')).address)
@@ -47,10 +48,22 @@ export default task('2_2_update-vault-weights', 'Updates vault weights so that t
           .join(',')}`,
       )
 
-      await addPayload(
-        () => vault.populateTransaction.updateWeights(newWeights),
-        `Update Vault Weights: ${vault.address} to ${newWeights.map(w => w.toString()).join(',')}`,
-      )
+      if (args.prevabi) {
+        const prevVaultAbi = (await getArtifact('VaultV2_1_1')).abi
+        const prevVault = (await ethers.getContractAt(prevVaultAbi, vault.address)).connect(ownerSigner)
+        for (let i = 0; i < newWeights.length; i++) {
+          if (newWeights[i].eq(currentWeights[i])) continue
+          await addPayload(
+            () => prevVault.populateTransaction.updateMarket(i, newWeights[i], 1e6),
+            `Update Vault Weight: ${vault.address} to ${newWeights[i].toString()}`,
+          )
+        }
+      } else {
+        await addPayload(
+          () => vault.populateTransaction.updateWeights(newWeights),
+          `Update Vault Weights: ${vault.address} to ${newWeights.map(w => w.toString()).join(',')}`,
+        )
+      }
     }
 
     if (args.timelock) {
