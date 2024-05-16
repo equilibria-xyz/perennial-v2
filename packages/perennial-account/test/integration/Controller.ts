@@ -107,6 +107,14 @@ describe('Controller', () => {
     return created
   }
 
+  async function createAccount(user: SignerWithAddress): Promise<Account> {
+    // create an account for userB
+    const tx = await controller.connect(user).deployAccount()
+    const creationArgs = (await tx.wait()).events?.find(e => e.event === 'AccountDeployed')
+      ?.args as any as AccountDeployedEventObject
+    return Account__factory.connect(creationArgs.account, user)
+  }
+
   const fixture = async () => {
     // set up users and deploy artifacts
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
@@ -131,6 +139,7 @@ describe('Controller', () => {
     marketFactory = await createMarketFactory(owner)
     let oracle: IOracleProvider
     ;[market, oracle, keeperOracle] = await createMarketForOracle(owner, marketFactory, dsu)
+    console.log('created market', market.address)
     lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
 
     // approve the collateral account as operator
@@ -143,22 +152,42 @@ describe('Controller', () => {
   })
 
   describe('#transfer', () => {
-    it('can deposit funds to a market', async () => {
-      // sign a message to deposit 6k from the collateral account to the market
-      const transferAmount = parse6decimal('6000')
+    async function transfer(amount: BigNumber, user: SignerWithAddress, signer = user) {
       const marketTransferMessage = {
         market: market.address,
-        amount: transferAmount,
-        ...createAction(accountA.address, userA.address),
+        amount: amount,
+        ...createAction(accountA.address, user.address),
       }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      const signature = await signMarketTransfer(user, verifier, marketTransferMessage)
+
+      // determine expected event parameters
+      let expectedFrom: Address, expectedTo: Address, expectedAmount: BigNumber
+      if (amount.gt(constants.Zero)) {
+        // deposits transfer from collateral account into market
+        expectedFrom = accountA.address
+        expectedTo = market.address
+        if (amount === constants.MaxInt256) expectedAmount = await dsu.balanceOf(accountA.address)
+        else expectedAmount = amount.mul(1e12)
+      } else {
+        // withdrawals transfer from market into account
+        expectedFrom = market.address
+        expectedTo = accountA.address
+        if (amount === constants.MinInt256) expectedAmount = (await market.locals(user.address)).collateral.mul(1e12)
+        else expectedAmount = amount.mul(-1e12)
+      }
 
       // perform transfer
       await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
         .to.emit(dsu, 'Transfer')
-        .withArgs(accountA.address, market.address, transferAmount.mul(1e12)) // scale to token precision
+        .withArgs(expectedFrom, expectedTo, expectedAmount)
         .to.emit(market, 'OrderCreated')
         .withArgs(userA.address, anyValue)
+    }
+
+    it('can deposit funds to a market', async () => {
+      // sign a message to deposit 6k from the collateral account to the market
+      const transferAmount = parse6decimal('6000')
+      await transfer(transferAmount, userA)
 
       // verify balances
       await expectMarketCollateralBalance(userA, transferAmount)
@@ -166,30 +195,12 @@ describe('Controller', () => {
     })
 
     it('can withdraw funds from a market', async () => {
-      // deposit 10k
-      let marketTransferMessage = {
-        market: market.address,
-        amount: parse6decimal('10000'),
-        ...createAction(accountA.address, userA.address),
-      }
-      let signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-      await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
+      // perform an initial deposit
+      await transfer(parse6decimal('10000'), userA)
 
-      // sign a message to withdraw 3k from the the market
+      // withdraw 3k from the the market
       const transferAmount = parse6decimal('-3000')
-      marketTransferMessage = {
-        market: market.address,
-        amount: transferAmount,
-        ...createAction(accountA.address, userA.address),
-      }
-      signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-
-      // perform transfer
-      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(market.address, accountA.address, transferAmount.mul(-1e12)) // scale to token precision
-        .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
+      await transfer(transferAmount, userA)
 
       // verify balances
       await expectMarketCollateralBalance(userA, parse6decimal('7000')) // 10k-3k
@@ -199,28 +210,10 @@ describe('Controller', () => {
     it('can fully withdraw from a market', async () => {
       // deposit 8k
       const depositAmount = parse6decimal('8000')
-      let marketTransferMessage = {
-        market: market.address,
-        amount: depositAmount,
-        ...createAction(accountA.address, userA.address),
-      }
-      let signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-      await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
+      await transfer(depositAmount, userA)
 
       // sign a message to fully withdraw from the market
-      marketTransferMessage = {
-        market: market.address,
-        amount: constants.MinInt256,
-        ...createAction(accountA.address, userA.address),
-      }
-      signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-
-      // perform transfer
-      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(market.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
-        .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
+      await transfer(constants.MinInt256, userA)
 
       // verify balances
       await expectMarketCollateralBalance(userA, constants.Zero)
@@ -230,13 +223,7 @@ describe('Controller', () => {
     it('cannot fully withdraw with position', async () => {
       // deposit 7k
       const depositAmount = parse6decimal('7000')
-      let marketTransferMessage = {
-        market: market.address,
-        amount: depositAmount,
-        ...createAction(accountA.address, userA.address),
-      }
-      let signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-      await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature)
+      await transfer(depositAmount, userA)
 
       // create a maker position
       currentTime = await changePosition(userA, parse6decimal('1.5'))
@@ -244,12 +231,12 @@ describe('Controller', () => {
       expect((await market.positions(userA.address)).maker).to.equal(parse6decimal('1.5'))
 
       // sign a message to fully withdraw from the market
-      marketTransferMessage = {
+      const marketTransferMessage = {
         market: market.address,
         amount: constants.MinInt256,
         ...createAction(accountA.address, userA.address),
       }
-      signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
       // ensure transfer reverts
       await expect(
@@ -257,6 +244,47 @@ describe('Controller', () => {
       ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
 
       await expectMarketCollateralBalance(userA, parse6decimal('7000'))
+    })
+
+    it('rejects withdrawal from unauthorized signer', async () => {
+      // deposit 6k
+      await transfer(parse6decimal('6000'), userA)
+
+      // unauthorized user signs transfer message
+      expect(await controller.signers(accountA.address, userB.address)).to.be.false
+      const marketTransferMessage = {
+        market: market.address,
+        amount: constants.MinInt256,
+        ...createAction(accountA.address, userA.address),
+      }
+      const signature = await signMarketTransfer(userB, verifier, marketTransferMessage)
+
+      // ensure withdrawal fails
+      await expect(
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
+      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+    })
+
+    it('rejects transfers from the wrong account', async () => {
+      // userA deposits 5k from their account into a market
+      await transfer(parse6decimal('5000'), userA)
+
+      // userB creates an empty account
+      const accountB = await createAccount(userB)
+
+      // userB attempts to transfer userA's funds from the market to their own account
+      expect(await controller.signers(accountA.address, userB.address)).to.be.false
+      const marketTransferMessage = {
+        market: market.address,
+        amount: constants.MinInt256,
+        ...createAction(accountB.address, userA.address),
+      }
+      const signature = await signMarketTransfer(userB, verifier, marketTransferMessage)
+
+      // ensure withdrawal fails
+      await expect(
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
+      ).to.be.revertedWithCustomError(controller, 'WrongAccountError')
     })
   })
 
@@ -321,10 +349,7 @@ describe('Controller', () => {
 
     it('rejects withdrawals for the wrong account', async () => {
       // create an account for userB
-      const tx = await controller.connect(userB).deployAccount()
-      const creationArgs = (await tx.wait()).events?.find(e => e.event === 'AccountDeployed')
-        ?.args as any as AccountDeployedEventObject
-      const accountB = Account__factory.connect(creationArgs.account, userB)
+      const accountB = await createAccount(userB)
 
       // fund the account
       await fundWallet(userB)
