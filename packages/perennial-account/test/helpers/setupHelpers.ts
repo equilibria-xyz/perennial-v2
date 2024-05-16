@@ -4,14 +4,17 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, ContractTransaction, constants, utils } from 'ethers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
+import { smock } from '@defi-wonderland/smock'
 
-import { IERC20Metadata, Verifier__factory } from '../../types/generated'
+import { IERC20Metadata } from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
   GlobalStorageLib__factory,
+  IMarket,
   InvariantLib__factory,
   IOracleProvider,
+  IVerifier,
   Market,
   Market__factory,
   MarketFactory,
@@ -30,7 +33,6 @@ import {
   OracleFactory,
   OracleFactory__factory,
   IMarketFactory,
-  IKeeperFactory,
   IKeeperOracle,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
@@ -111,7 +113,7 @@ export async function deployProtocolForOracle(
   oracleFactoryOwnerAddress: Address,
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
-  const verifier = await new Verifier__factory(owner).deploy()
+  const verifier = await smock.fake<IVerifier>('IVerifier')
   const marketImpl = await deployMarketImplementation(owner, verifier.address)
   const marketFactory = await deployMarketFactory(
     owner,
@@ -136,7 +138,7 @@ export async function createMarket(
   oracle: IOracleProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
-): Promise<Market> {
+): Promise<IMarket> {
   const definition = {
     token: dsu.address,
     oracle: oracle.address,

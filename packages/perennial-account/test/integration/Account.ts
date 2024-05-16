@@ -24,7 +24,7 @@ const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Mar
 
 const WBTC_ADDRESS = '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f' // Wrapped Bitcoin (8 decimals)
 
-describe.skip('Account', () => {
+describe('Account', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller
