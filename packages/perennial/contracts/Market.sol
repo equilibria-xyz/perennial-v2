@@ -72,7 +72,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The local aggregate pending order for each account
     mapping(address => OrderStorageLocal) private _pendings;
 
-    /// @dev The local checkpoint for each id for each account
+    /// @dev The local checkpoint for each version for each account
     mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
 
     /// @dev The liquidator for each id for each account
