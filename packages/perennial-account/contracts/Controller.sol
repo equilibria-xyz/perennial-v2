@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 
@@ -7,6 +7,7 @@ import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
+import { Action } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
@@ -117,7 +118,7 @@ contract Controller is Instance, IController {
     ) internal returns (IAccount account_) {
         // ensure the message was signed by the owner or a delegated signer
         address signer = verifier.verifyMarketTransfer(marketTransfer, signature);
-        account_ = IAccount(_ensureValidSigner(marketTransfer.action.common.account, signer));        
+        account_ = IAccount(_validateMessage(marketTransfer.action, signer));        
     }
 
     /// @inheritdoc IController
@@ -128,15 +129,19 @@ contract Controller is Instance, IController {
     function _withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) internal {
         // ensure the message was signed by the owner or a delegated signer
         address signer = verifier.verifyWithdrawal(withdrawal, signature);
-        IAccount account = IAccount(_ensureValidSigner(withdrawal.action.common.account, signer));
+        IAccount account = IAccount(_validateMessage(withdrawal.action, signer));
 
         // call the account's implementation to push to owner
         account.withdraw(withdrawal.token, withdrawal.amount);
     }
 
-    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
-    function _ensureValidSigner(address owner, address signer) private view returns (address accountAddress) {
-        accountAddress = getAccountAddress(owner);
-        if (signer != owner && !signers[accountAddress][signer]) revert InvalidSignerError();
+    /// @dev calculates the account address and reverts if it does not match the account in the message, 
+    /// or if user is unauthorized to sign transactions for the owner
+    /// @param action Action struct from the message, indicating the account and owner addresses
+    /// @param signer Verified EIP-712 signature of the message, which should be from owner or a delegate
+    function _validateMessage(Action calldata action, address signer) private view returns (address accountAddress) {
+        accountAddress = getAccountAddress(action.common.account);
+        if (accountAddress != action.account) revert WrongAccountError();
+        if (signer != action.common.account && !signers[accountAddress][signer]) revert InvalidSignerError();
     }
 }

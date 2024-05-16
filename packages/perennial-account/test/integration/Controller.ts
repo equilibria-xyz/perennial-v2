@@ -24,6 +24,7 @@ import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice } from '../helpers/setupHelpers'
 import { createMarketFactory, createMarketForOracle } from '../helpers/arbitrumHelpers'
+import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 
 const { ethers } = HRE
 
@@ -317,6 +318,31 @@ describe('Controller', () => {
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
       ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+    })
+
+    it('rejects withdrawals for the wrong account', async () => {
+      // create an account for userB
+      const tx = await controller.connect(userB).deployAccount()
+      const creationArgs = (await tx.wait()).events?.find(e => e.event === 'AccountDeployed')
+        ?.args as any as AccountDeployedEventObject
+      const accountB = Account__factory.connect(creationArgs.account, userB)
+
+      // fund the account
+      await fundWallet(userB)
+      await dsu.connect(userB).transfer(accountB.address, utils.parseEther('30000'))
+
+      // sign message requesting userA withdraw from accountB
+      const withdrawalMessage = {
+        token: dsu.address,
+        amount: parse6decimal('2000'),
+        ...createAction(accountB.address, userA.address),
+      }
+      const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
+
+      // ensure withdrawal fails
+      await expect(
+        controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
+      ).to.be.revertedWithCustomError(controller, 'WrongAccountError')
     })
   })
 })

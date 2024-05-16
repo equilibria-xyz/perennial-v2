@@ -24,6 +24,10 @@ interface IController {
     /// @custom:error Signer is not authorized to interact with the specified collateral account
     error InvalidSignerError();
 
+    // sig: 0x7991d323
+    /// @custom:error Account address (Action.account) is not for the specified owner (Action.Common.account)
+    error WrongAccountError();
+
     /// @notice Returns the deterministic address of the collateral account for a user, 
     /// regardless of whether or not it exists.
     /// @param user Identifies the EOA for which a collateral account is desired
