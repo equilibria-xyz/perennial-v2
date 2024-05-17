@@ -364,7 +364,7 @@ testOracles.forEach(testOracle => {
         oracle: oracle.address,
       })
       await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
-      await market.updateRiskParameter(riskParameter)
+      await market.updateRiskParameter(riskParameter, false)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(chainlinkOracleFactory.address, utils.parseEther('10'))
@@ -855,6 +855,9 @@ testOracles.forEach(testOracle => {
       it('can update multiple from batched update', async () => {
         await time.increaseTo(BATCH_STARTING_TIME - 1)
 
+        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+
         await chainlinkOracleFactory
           .connect(user)
           .commit([CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_BTC_USD_PRICE_FEED], BATCH_STARTING_TIME, REPORT_BATCH, {
@@ -874,6 +877,11 @@ testOracles.forEach(testOracle => {
         const [latestIndexBtc] = await keeperOracleBtc.status()
         expect(latestIndexBtc.valid).to.be.true
         expect(latestIndexBtc.price).to.equal(btcPrice)
+
+        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+        // Even though there are two updates, only one was requested so we
+        // should only receive half of the fee.
+        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.1'), utils.parseEther('0.15'))
       })
     })
 

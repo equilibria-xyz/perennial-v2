@@ -23,21 +23,43 @@ struct VersionAccumulationResult {
     Fixed6 adiabaticExposureMaker;
     Fixed6 adiabaticExposureMarket;
 
+    /// @dev Funding accrued by makers
     Fixed6 fundingMaker;
+
+    /// @dev Funding accrued by longs
     Fixed6 fundingLong;
+
+    /// @dev Funding accrued by shorts
     Fixed6 fundingShort;
+
+    /// @dev Funding received by the protocol
     UFixed6 fundingFee;
 
+    /// @dev Interest accrued by makers
     Fixed6 interestMaker;
+
+    /// @dev Interest accrued by longs
     Fixed6 interestLong;
+
+    /// @dev Interest accrued by shorts
     Fixed6 interestShort;
+
+    /// @dev Interest received by the protocol
     UFixed6 interestFee;
 
+    /// @dev Price-based profit/loss accrued by makers
     Fixed6 pnlMaker;
+
+    /// @dev Price-based profit/loss accrued by longs
     Fixed6 pnlLong;
+
+    /// @dev Price-based profit/loss accrued by shorts
     Fixed6 pnlShort;
 
+    /// @dev Total settlement fee charged
     UFixed6 settlementFee;
+
+    /// @dev Snapshot of the riskParameter.liquidationFee at the version (0 if not valid)
     UFixed6 liquidationFee;
 }
 
@@ -71,6 +93,7 @@ library VersionLib {
 
         // record oracle version
         (next.valid, next.price) = (context.toOracleVersion.valid, context.toOracleVersion.price);
+        nextGlobal.latestPrice = context.toOracleVersion.price;
 
         // accumulate settlement fee
         result.settlementFee = _accumulateSettlementFee(next, context);

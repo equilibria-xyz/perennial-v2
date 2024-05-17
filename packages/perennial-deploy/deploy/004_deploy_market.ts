@@ -33,6 +33,7 @@ const DEFAULT_MARKET_PARAMETER = {
   maxPendingLocal: 6,
   settlementFee: utils.parseUnits('1.5', 6),
   closed: false,
+  settle: false,
 }
 
 const DEFAULT_RISK_PARAMETERS = {

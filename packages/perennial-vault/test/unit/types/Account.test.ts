@@ -27,7 +27,8 @@ const EMPTY_CHECKPOINT: CheckpointStruct = {
   assets: 0,
   tradeFee: 0,
   settlementFee: 0,
-  orders: 0,
+  deposits: 0,
+  redemptions: 0,
   timestamp: 0,
 }
 

@@ -22,6 +22,15 @@ $ yarn compile
 
 This also generates the Typechain types
 
+### Tasks
+#### get-vaa
+Retrieves and decodes a Pyth Validator Action Approval (VAA) for a specific price feed. Useful for testing PythFactory and KeeperOracle.
+
+Example invocation:
+```sh
+npx hardhat get-vaa --price-feed 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace --timestamp 1711425600
+```
+
 ### Test
 
 Run the Mocha tests:

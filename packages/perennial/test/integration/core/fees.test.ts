@@ -24,7 +24,9 @@ import {
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
 
-export const PRICE = utils.parseEther('3374.655169')
+export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
+
+export const PRICE = parse6decimal('113.882975')
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
 export const TIMESTAMP_2 = 1631113819
@@ -42,7 +44,7 @@ const RISK_PARAMS = {
   makerFee: {
     linearFee: parse6decimal('0.09'),
     proportionalFee: parse6decimal('0.08'),
-    adiabaticFee: parse6decimal('0.16'),
+    adiabaticFee: 0,
     scale: parse6decimal('10'),
   },
   utilizationCurve: {
@@ -71,7 +73,7 @@ describe('Fees', () => {
   let market: Market
 
   const nextWithConstantPrice = async () => {
-    return instanceVars.chainlink.nextWithPriceModification(() => PRICE)
+    return instanceVars.chainlink.nextWithPriceModification(() => UNDERLYING_PRICE)
   }
 
   const fixture = async () => {
@@ -164,6 +166,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -258,6 +261,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -278,8 +282,7 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const marketParams = { ...(await market.parameter()) }
-      marketParams.makerFee = BigNumber.from('0')
+      const marketParams = { ...(await market.parameter()), makerFee: BigNumber.from('0') }
       await market.updateParameter(AddressZero, AddressZero, marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
@@ -360,6 +363,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -405,8 +409,7 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const marketParams = { ...(await market.parameter()) }
-      marketParams.makerFee = BigNumber.from('0')
+      const marketParams = { ...(await market.parameter()), makerFee: BigNumber.from('0') }
       await market.updateParameter(AddressZero, AddressZero, marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
@@ -490,6 +493,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -673,6 +677,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -744,8 +749,7 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const marketParams = { ...(await market.parameter()) }
-      marketParams.makerFee = BigNumber.from('0')
+      const marketParams = { ...(await market.parameter()), makerFee: BigNumber.from('0') }
       await market.updateParameter(AddressZero, AddressZero, marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
@@ -826,6 +830,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -871,8 +876,7 @@ describe('Fees', () => {
       riskParams.makerFee = riskParamsMakerFee
       await market.updateRiskParameter(riskParams)
 
-      const marketParams = { ...(await market.parameter()) }
-      marketParams.makerFee = BigNumber.from('0')
+      const marketParams = { ...(await market.parameter()), makerFee: BigNumber.from('0') }
       await market.updateParameter(AddressZero, AddressZero, marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
@@ -956,6 +960,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -1138,6 +1143,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(3), {
@@ -1576,6 +1582,7 @@ describe('Fees', () => {
           currentId: 3,
           latestId: 2,
           oracleFee: expectedSettlementFee,
+          latestPrice: PRICE,
         })
       })
 
@@ -1615,6 +1622,7 @@ describe('Fees', () => {
           currentId: 2,
           latestId: 2,
           oracleFee: expectedSettlementFee,
+          latestPrice: PRICE,
         })
       })
     })
@@ -2135,6 +2143,100 @@ describe('Fees', () => {
       await expect(market.connect(user).claimFee())
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, expectedClaimableTakerReferral)
+    })
+
+    it('allows for a new referrer on new orders', async () => {
+      const { user, userB, userC } = instanceVars
+
+      // user creates a non-referred maker position to facilitate a taker order
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](
+          user.address,
+          POSITION.mul(2),
+          0,
+          0,
+          COLLATERAL.mul(2),
+          false,
+        )
+
+      // userC creates a short position referred by userB
+      await market
+        .connect(userC)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          userC.address,
+          0,
+          0,
+          POSITION,
+          COLLATERAL.mul(2),
+          false,
+          userB.address,
+        )
+      const currentId = (await market.locals(userC.address)).currentId
+      const expectedReferral = parse6decimal('0.12').mul(3) // referralFee * position
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 2,
+        makerPos: POSITION.mul(2),
+        shortPos: POSITION,
+        collateral: COLLATERAL.mul(4),
+        takerReferral: expectedReferral,
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+      await updateNoOp(market, userC) // update userC to clear values
+      expect(await market.referrers(userC.address, currentId)).to.equal(userB.address)
+      expect((await market.locals(userC.address)).currentId).to.equal(currentId.add(1))
+
+      // ensure the proper amount of the base fee is claimable by the referrer
+      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
+      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.36 / 3 = 2.049893
+      const expectedClaimable = parse6decimal('2.049893')
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 0,
+        latestId: 0,
+        claimable: expectedClaimable,
+      })
+      await expect(market.connect(userB).claimFee())
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(userB.address, expectedClaimable)
+
+      // userC closes a short position referred by user
+      await market
+        .connect(userC)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](userC.address, 0, 0, 0, 0, false, user.address)
+
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+      await settle(market, userC)
+
+      // ensure the proper amount of the base fee is claimable by the referrer
+      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
+      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.45 / 3 = 2.562367
+      const expectedCloseClaimable = parse6decimal('2.562367')
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: '1143713328',
+        claimable: expectedCloseClaimable,
+      })
+      await expect(market.connect(user).claimFee())
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(user.address, expectedCloseClaimable)
+      expect(await market.referrers(userC.address, currentId.add(1))).to.equal(user.address)
+
+      await nextWithConstantPrice()
+      // userC opens a short position referred by no one
+      await market
+        .connect(userC)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, 0, false)
+      await nextWithConstantPrice()
+      expect(await market.referrers(userC.address, currentId.add(2))).to.equal(constants.AddressZero)
     })
   })
 })
