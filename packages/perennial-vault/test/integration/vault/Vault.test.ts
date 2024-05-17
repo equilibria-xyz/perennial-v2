@@ -1414,27 +1414,21 @@ describe('Vault', () => {
 
     it('multiple users w/ makerFee', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter(
-        {
-          ...riskParameters,
-          makerFee: {
-            ...riskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter(
-        {
-          ...btcRiskParameters,
-          makerFee: {
-            ...btcRiskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await btcMarket.updateRiskParameter({
+        ...btcRiskParameters,
+        makerFee: {
+          ...btcRiskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1536,27 +1530,21 @@ describe('Vault', () => {
 
     it('multiple users w/ makerFee + settlement fee', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter(
-        {
-          ...riskParameters,
-          makerFee: {
-            ...riskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter(
-        {
-          ...btcRiskParameters,
-          makerFee: {
-            ...btcRiskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await btcMarket.updateRiskParameter({
+        ...btcRiskParameters,
+        makerFee: {
+          ...btcRiskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
 
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }
@@ -1684,7 +1672,6 @@ describe('Vault', () => {
           ...riskParameters.makerFee,
           linearFee: parse6decimal('0.001'),
           proportionalFee: parse6decimal('0.002'),
-          adiabaticFee: parse6decimal('0.1'),
         },
       })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
@@ -1694,7 +1681,6 @@ describe('Vault', () => {
           ...btcRiskParameters.makerFee,
           linearFee: parse6decimal('0.001'),
           proportionalFee: parse6decimal('0.002'),
-          adiabaticFee: parse6decimal('0.1'),
         },
       })
 
@@ -1851,16 +1837,13 @@ describe('Vault', () => {
 
     it('simple deposits and redemptions w/ factory initial amount (with fees)', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter(
-        {
-          ...riskParameters,
-          makerFee: {
-            ...riskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
 
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }
@@ -1900,27 +1883,21 @@ describe('Vault', () => {
 
     it('zero address settle w/ settlement fee', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter(
-        {
-          ...riskParameters,
-          makerFee: {
-            ...riskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter(
-        {
-          ...btcRiskParameters,
-          makerFee: {
-            ...btcRiskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await btcMarket.updateRiskParameter({
+        ...btcRiskParameters,
+        makerFee: {
+          ...btcRiskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
 
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }

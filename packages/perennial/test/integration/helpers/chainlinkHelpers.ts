@@ -25,7 +25,7 @@ export class ChainlinkContext {
   private initialRoundId: BigNumber
   private latestRoundId: BigNumber
   private currentRoundId: BigNumber
-  public payoff: Payoff
+  public payoff: Payoff | undefined
   public delay: number
   private decimals!: number
   private readonly base: string
@@ -35,7 +35,7 @@ export class ChainlinkContext {
   public oracleFactory!: FakeContract<IOracleFactory>
   public oracle!: FakeContract<IOracleProvider>
 
-  constructor(base: string, quote: string, payoff: Payoff, delay: number) {
+  constructor(base: string, quote: string, payoff: Payoff | undefined, delay: number) {
     const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
     this.base = base
     this.quote = quote
@@ -115,8 +115,9 @@ export class ChainlinkContext {
     let priceAfterPayoff = this.payoff !== undefined ? await this.payoff.provider.payoff(price) : price
 
     // adjust decimals
-    if (this.payoff.decimals > 0) priceAfterPayoff = priceAfterPayoff.mul(BigNumber.from(10).pow(this.payoff.decimals))
-    if (this.payoff.decimals < 0)
+    if (this.payoff && this.payoff.decimals > 0)
+      priceAfterPayoff = priceAfterPayoff.mul(BigNumber.from(10).pow(this.payoff.decimals))
+    if (this.payoff && this.payoff.decimals < 0)
       priceAfterPayoff = priceAfterPayoff.div(BigNumber.from(10).pow(this.payoff.decimals * -1))
 
     return priceAfterPayoff.div(1e12)

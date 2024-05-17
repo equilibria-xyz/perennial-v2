@@ -267,7 +267,7 @@ export async function createMarket(
   await marketFactory.create(definition)
 
   const market = Market__factory.connect(marketAddress, owner)
-  await market.updateRiskParameter(riskParameter, false)
+  await market.updateRiskParameter(riskParameter)
   await market.updateParameter(beneficiaryB.address, constants.AddressZero, marketParameter)
 
   return market
