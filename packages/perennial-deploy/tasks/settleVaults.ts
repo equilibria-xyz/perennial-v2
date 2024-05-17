@@ -14,6 +14,7 @@ export default task('settle-vaults', 'Settles users across all vaults')
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
   .addOptionalParam('buffergas', 'The buffer gas to add to the estimate', 1, types.int)
   .addOptionalParam('timestamp', 'Timestamp to commit prices for', undefined, types.int)
+  .addOptionalParam('factoryaddress', 'Address of the PythFactory contract', undefined, types.string)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Settle Vaults] Running Settle Vaults Task')
     const {
@@ -30,11 +31,22 @@ export default task('settle-vaults', 'Settles users across all vaults')
       return 1
     }
 
-    const pythFactory = await ethers.getContractAt('PythFactory', (await get('PythFactory')).address)
+    const pythFactory = await ethers.getContractAt(
+      'PythFactory',
+      args.factoryaddress ?? (await get('PythFactory')).address,
+    )
     const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
     const underlyingIds = [
       ...new Set(await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))),
     ]
+
+    console.log('[Settle Vaults] Committing prices for underlying ids', underlyingIds.join(','))
+    await run('commit-price', {
+      priceids: underlyingIds.join(','),
+      dry: args.dry,
+      timestamp: args.timestamp,
+      factoryaddress: args.factoryaddress,
+    })
 
     const multicall = new ethers.Contract(MulticallAddress, MulticallABI, ethers.provider).connect(
       (await ethers.getSigners())[0],
@@ -50,9 +62,6 @@ export default task('settle-vaults', 'Settles users across all vaults')
     }, {} as { [key: string]: Set<string> })
     let vaultUserCount = 0
     let txCount = 0
-
-    console.log('[Settle Vaults] Committing prices for underlying ids', underlyingIds.join(','))
-    await run('commit-price', { priceids: underlyingIds.join(','), dry: args.dry, timestamp: args.timestamp })
 
     for (const vaultAddress in vaultUsers) {
       const users = [...vaultUsers[vaultAddress].values()]

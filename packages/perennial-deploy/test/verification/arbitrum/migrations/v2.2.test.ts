@@ -108,35 +108,27 @@ describe('Verify Arbitrum v2.2 Migration', () => {
 
     await increase(1000)
 
-    await commitPriceForIds(
-      [
-        '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
-        '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5',
-        '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
-        '0x5de33a9112c2b700b8d30b8a3402c103578ccfa2765696471cc672bd5cf6ac52',
-        '0x09f7c1d7dfbb7df2b8fe3d3d87ee94a2259d212da4f30c1f0540d066dfa44723',
-        '0x2f2d17abbc1e781bd87b4a5d52c8b2856886f5c482fa3593cebf6795040ab0b6',
-        '0x8ac0c70fff57e9aefdf5edf44b51d62c2d433653cbb2cf5cc06bb115af04d221',
-        '0x2f95862b045670cd22bee3114c39763a4a08beeb663b145d283c31d7d1101c4f',
-        '0xec5d399846a9209f3fe5881d70aae9268c94339ff9817e8d18ff19fa05eea1c8',
-        '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
-        '0x0a0408d619e9380abad35060f9192039ed5042fa6f82301d0e48bb52be830996',
-      ],
-      (await currentBlockTimestamp()) + 1,
-      '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E',
-    )
-
     // Settle all users using hardhat task
     if (!SkipSettleAccounts) {
       console.log('---- Settling Market Users ----')
-      await run('settle-markets', { batchsize: 30, prevabi: true, timestamp: await currentBlockTimestamp() })
+      await run('settle-markets', {
+        batchsize: 30,
+        prevabi: true,
+        timestamp: await currentBlockTimestamp(),
+        factoryaddress: '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E',
+      })
       console.log('---- Done ----\n')
     }
 
     // Settle all users in vaults using hardhat task
     if (!SkipSettleVaults) {
       console.log('---- Settling Vault Users ----')
-      await run('settle-vaults', { batchsize: 30, prevabi: true, timestamp: await currentBlockTimestamp() })
+      await run('settle-vaults', {
+        batchsize: 30,
+        prevabi: true,
+        timestamp: await currentBlockTimestamp(),
+        factoryaddress: '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E',
+      })
       console.log('---- Done ----\n')
     }
 

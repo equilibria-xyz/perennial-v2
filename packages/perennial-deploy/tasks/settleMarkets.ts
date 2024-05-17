@@ -15,6 +15,7 @@ export default task('settle-markets', 'Settles users across all markets')
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
   .addOptionalParam('buffergas', 'The buffer gas to add to the estimate', 1, types.int)
   .addOptionalParam('timestamp', 'Timestamp to commit prices for', undefined, types.int)
+  .addOptionalParam('factoryaddress', 'Address of the PythFactory contract', undefined, types.string)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Settle Markets] Running Settle Markets Task')
     const {
@@ -35,6 +36,23 @@ export default task('settle-markets', 'Settles users across all markets')
       (await ethers.getSigners())[0],
     )
 
+    const pythFactory = await ethers.getContractAt(
+      'PythFactory',
+      args.factoryaddress ?? (await get('PythFactory')).address,
+    )
+    const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
+    const underlyingIds = [
+      ...new Set(await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))),
+    ]
+
+    console.log('[Settle Markets] Committing prices for underlying ids', underlyingIds.join(','))
+    await run('commit-price', {
+      priceids: underlyingIds.join(','),
+      dry: args.dry,
+      timestamp: args.timestamp,
+      factoryaddress: args.factoryaddress,
+    })
+
     console.log('[Settle Markets]  Fetching Users to Settle')
     const requireSettles: { market: string; address: string }[] = await run('verify-ids', { prevabi: args.prevabi })
     const marketUsers = requireSettles.reduce((acc, { market, address }) => {
@@ -45,15 +63,6 @@ export default task('settle-markets', 'Settles users across all markets')
 
     let marketUserCount = 0
     let txCount = 0
-
-    const pythFactory = await ethers.getContractAt('PythFactory', (await get('PythFactory')).address)
-    const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
-    const underlyingIds = [
-      ...new Set(await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))),
-    ]
-
-    console.log('[Settle Markets] Committing prices for underlying ids', underlyingIds.join(','))
-    await run('commit-price', { priceids: underlyingIds.join(','), dry: args.dry, timestamp: args.timestamp })
 
     for (const marketAddress in marketUsers) {
       if (args.markets && !args.markets.toLowerCase().split(',').includes(marketAddress.toLowerCase())) {
