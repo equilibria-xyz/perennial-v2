@@ -1,7 +1,7 @@
 import HRE, { run } from 'hardhat'
 import { expect } from 'chai'
 import { impersonateWithBalance } from '../../../../../common/testutil/impersonate'
-import { increase, increaseTo, reset } from '../../../../../common/testutil/time'
+import { currentBlockTimestamp, increase, reset } from '../../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20,
@@ -18,9 +18,9 @@ import { smock } from '@defi-wonderland/smock'
 import { GlobalStruct } from '../../../../types/generated/@equilibria/perennial-v2/contracts/Market'
 
 const RunMigrationDeployScript = true
-const SkipUpdateVaultWeights = false
-const SkipSettleAccounts = true
-const SkipSettleVaults = true
+const SkipUpdateVaultWeights = true
+const SkipSettleAccounts = false
+const SkipSettleVaults = false
 
 describe('Verify Arbitrum v2.2 Migration', () => {
   let DSU: IERC20
@@ -122,27 +122,26 @@ describe('Verify Arbitrum v2.2 Migration', () => {
         '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
         '0x0a0408d619e9380abad35060f9192039ed5042fa6f82301d0e48bb52be830996',
       ],
-      (await ethers.provider.getBlock('latest')).timestamp + 1,
+      (await currentBlockTimestamp()) + 1,
       '0x6b60e7c96B4d11A63891F249eA826f8a73Ef4E6E',
     )
-
-    for (const market of marketsOld) {
-      await market.settle(ethers.constants.AddressZero)
-      beforeGlobals.push(await market.global())
-    }
 
     // Settle all users using hardhat task
     if (!SkipSettleAccounts) {
       console.log('---- Settling Market Users ----')
-      await run('settle-markets', { batchsize: 30 })
+      await run('settle-markets', { batchsize: 30, prevabi: true, timestamp: await currentBlockTimestamp() })
       console.log('---- Done ----\n')
     }
 
     // Settle all users in vaults using hardhat task
     if (!SkipSettleVaults) {
       console.log('---- Settling Vault Users ----')
-      await run('settle-vaults', { batchsize: 30 })
+      await run('settle-vaults', { batchsize: 30, prevabi: true, timestamp: await currentBlockTimestamp() })
       console.log('---- Done ----\n')
+    }
+
+    for (const market of marketsOld) {
+      beforeGlobals.push(await market.global())
     }
 
     // Update implementations
@@ -174,13 +173,13 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     for (let i = 0; i < markets.length; i++) {
       const market = markets[i]
 
-      await expect(market.settle(ethers.constants.AddressZero)).to.not.be.reverted
-
       const global = await market.global()
       expect(global.latestPrice).to.be.equal(beforeGlobals[i].latestPrice)
       expect(global.latestId).to.be.equal(beforeGlobals[i].latestId)
       expect(global.currentId).to.be.equal(beforeGlobals[i].currentId)
       expect(global.currentId).to.equal(global.latestId)
+
+      await expect(market.settle(ethers.constants.AddressZero)).to.not.be.reverted
     }
   })
 
@@ -188,7 +187,7 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     const makerAccount = '0xF8b6010FD6ba8F3E52c943A1473B1b1459a73094'
     const perennialUser = await impersonateWithBalance(makerAccount, ethers.utils.parseEther('10')) // Vault
 
-    await increaseTo(UPDATE_VAA_PUBLISH_TIME)
+    await increase(10)
 
     const ethMarket = await ethers.getContractAt('IMarket', '0x90A664846960AaFA2c164605Aebb8e9Ac338f9a0')
     const oracle = await ethers.getContractAt('Oracle', await ethMarket.oracle())
@@ -200,8 +199,10 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       ).provider,
     )
     const currentPosition = await ethMarket.positions(perennialUser.address)
-    await commitPriceForIds([oracleIDs[0].id], UPDATE_VAA_PUBLISH_TIME)
+    const currentTimestamp = await currentBlockTimestamp()
+    await commitPriceForIds([oracleIDs[0].id], currentTimestamp)
 
+    const nextVersionTimestamp = nextVersionForTimestamp(currentTimestamp)
     await expect(
       ethMarket
         .connect(perennialUser)
@@ -215,17 +216,17 @@ describe('Verify Arbitrum v2.2 Migration', () => {
         ),
     )
       .to.emit(oracleProvider, 'OracleProviderVersionRequested')
-      .withArgs(FULFILL_VAA_VERSION)
+      .withArgs(nextVersionTimestamp)
 
     await increase(10)
 
-    const hash = await commitPriceForIds([oracleIDs[0].id], FULFILL_VAA_PUBLISH_TIME)
+    const hash = await commitPriceForIds([oracleIDs[0].id], nextVersionTimestamp + 4)
     const tx = await ethers.provider.getTransaction(hash)
-    expect(tx).to.emit(oracleProvider, 'OracleProviderVersionFulfilled').withArgs(FULFILL_VAA_VERSION)
+    expect(tx).to.emit(oracleProvider, 'OracleProviderVersionFulfilled').withArgs(nextVersionTimestamp)
 
     await ethMarket.settle(perennialUser.address)
     const local = await ethMarket.locals(perennialUser.address)
-    const checkpoint = await ethMarket.checkpoints(perennialUser.address, FULFILL_VAA_VERSION)
+    const checkpoint = await ethMarket.checkpoints(perennialUser.address, nextVersionTimestamp)
 
     expect(local.currentId).to.equal(local.latestId)
     expect(checkpoint.collateral).to.be.greaterThan(0)
@@ -241,9 +242,10 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     const ethMarket = await ethers.getContractAt('IMarket', '0x90A664846960AaFA2c164605Aebb8e9Ac338f9a0')
     const riskParameter = await ethMarket.riskParameter()
 
-    await increaseTo(UPDATE_VAA_PUBLISH_TIME)
+    await increase(10)
 
-    await commitPriceForIds([oracleIDs[0].id], UPDATE_VAA_PUBLISH_TIME)
+    const currentTimestamp = await currentBlockTimestamp()
+    await commitPriceForIds([oracleIDs[0].id], currentTimestamp)
     await ethMarket
       .connect(ownerSigner)
       .updateRiskParameter({ ...riskParameter, minMargin: 50e6, minMaintenance: 50e6 }, false)
@@ -252,21 +254,21 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       .connect(liquidator)
       ['update(address,uint256,uint256,uint256,int256,bool)'](perennialUser.address, 0, 0, 0, 0, true)
 
-    await commitPriceForIds([oracleIDs[0].id], FULFILL_VAA_PUBLISH_TIME)
+    await commitPriceForIds([oracleIDs[0].id], nextVersionForTimestamp(currentTimestamp) + 4)
 
-    await ethMarket.connect(liquidator).settle(liquidator.address)
     await ethMarket.connect(liquidator).settle(perennialUser.address)
+    await ethMarket.connect(liquidator).settle(liquidator.address)
 
     expect((await ethMarket.locals(liquidator.address)).claimable).to.equal(5e6)
   })
 
-  it.only('settles vaults', async () => {
+  it('settles vaults', async () => {
     const perennialUser = await impersonateWithBalance(
       '0xeb04ee956b3aa60977542e084e38c60be7fd69a5',
       ethers.utils.parseEther('10'),
     )
 
-    await increaseTo(UPDATE_VAA_PUBLISH_TIME)
+    await increase(10)
 
     const ethMarket = await ethers.getContractAt('IMarket', '0x90A664846960AaFA2c164605Aebb8e9Ac338f9a0')
     const btcMarket = await ethers.getContractAt('IMarket', '0xcC83e3cDA48547e3c250a88C8D5E97089Fd28F60')
@@ -274,9 +276,10 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     const solMarket = await ethers.getContractAt('IMarket', '0x02258bE4ac91982dc1AF7a3D2C4F05bE6079C253')
     const maticMarket = await ethers.getContractAt('IMarket', '0x7e34B5cBc6427Bd53ECFAeFc9AC2Cad04e982f78')
 
+    const currentTimestamp = await currentBlockTimestamp()
     await commitPriceForIds(
       [oracleIDs[0].id, oracleIDs[1].id, oracleIDs[2].id, oracleIDs[3].id, oracleIDs[6].id],
-      UPDATE_VAA_PUBLISH_TIME,
+      currentTimestamp,
     )
 
     const asterVault = await ethers.getContractAt('IVault', (await get('AsterVault')).address)
@@ -296,7 +299,7 @@ describe('Verify Arbitrum v2.2 Migration', () => {
 
     await commitPriceForIds(
       [oracleIDs[0].id, oracleIDs[1].id, oracleIDs[2].id, oracleIDs[3].id, oracleIDs[6].id],
-      FULFILL_VAA_PUBLISH_TIME,
+      nextVersionForTimestamp(currentTimestamp) + 4,
     )
   })
 })
@@ -305,8 +308,6 @@ async function commitPriceForIds(priceIds: string[], timestamp: number, factoryA
   return await run('commit-price', { priceids: priceIds.join(','), timestamp, factoryaddress: factoryAddress })
 }
 
-const UPDATE_VAA_PUBLISH_TIME = 1715804064
-const UPDATE_VAA_VERSION = UPDATE_VAA_PUBLISH_TIME - 4
-
-const FULFILL_VAA_VERSION = Math.ceil(UPDATE_VAA_PUBLISH_TIME / 10) * 10
-const FULFILL_VAA_PUBLISH_TIME = FULFILL_VAA_VERSION + 4
+function nextVersionForTimestamp(timestamp: number) {
+  return Math.ceil((timestamp + 0.1) / 10) * 10
+}

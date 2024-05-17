@@ -11,9 +11,10 @@ const SETTLE_MULTICALL_BATCH_SIZE = 150
 
 export default task('settle-markets', 'Settles users across all markets')
   .addFlag('dry', 'Count number of users and transactions required to settle')
-  .addOptionalParam('markets', 'Comma separate list of markets to settle', undefined, types.string)
-  .addOptionalParam('offset', 'The offset to start fetching users from', 0, types.int)
+  .addFlag('prevabi', 'Use previous ABIs for contract interaction')
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
+  .addOptionalParam('buffergas', 'The buffer gas to add to the estimate', 1, types.int)
+  .addOptionalParam('timestamp', 'Timestamp to commit prices for', undefined, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Settle Markets] Running Settle Markets Task')
     const {
@@ -34,16 +35,25 @@ export default task('settle-markets', 'Settles users across all markets')
       (await ethers.getSigners())[0],
     )
 
-    const marketUsers = await getMarketUsers(graphURL)
+    console.log('[Settle Markets]  Fetching Users to Settle')
+    const requireSettles: { market: string; address: string }[] = await run('verify-ids', { prevabi: args.prevabi })
+    const marketUsers = requireSettles.reduce((acc, { market, address }) => {
+      if (acc[market]) acc[market].add(address)
+      else acc[market] = new Set([address])
+      return acc
+    }, {} as { [key: string]: Set<string> })
+
     let marketUserCount = 0
     let txCount = 0
 
     const pythFactory = await ethers.getContractAt('PythFactory', (await get('PythFactory')).address)
     const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
-    const underlyingIds = await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))
+    const underlyingIds = [
+      ...new Set(await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))),
+    ]
 
     console.log('[Settle Markets] Committing prices for underlying ids', underlyingIds.join(','))
-    await run('commit-price', { priceids: underlyingIds.join(','), dry: args.dry })
+    await run('commit-price', { priceids: underlyingIds.join(','), dry: args.dry, timestamp: args.timestamp })
 
     for (const marketAddress in marketUsers) {
       if (args.markets && !args.markets.toLowerCase().split(',').includes(marketAddress.toLowerCase())) {
@@ -84,7 +94,7 @@ export default task('settle-markets', 'Settles users across all markets')
         if (successfulSettleCalls === batchedUsers.length) {
           if (!args.dry) {
             process.stdout.write('[Settle Markets]        Sending Transaction...')
-            const tx = await multicall.aggregate3(multicallPayload, { gasLimit: gasUsage.mul(2) })
+            const tx = await multicall.aggregate3(multicallPayload, { gasLimit: gasUsage.mul(args.buffergas) })
             await tx.wait()
             process.stdout.write(`done. Hash: ${tx.hash}\n`)
           }
@@ -101,44 +111,42 @@ export default task('settle-markets', 'Settles users across all markets')
     console.log('[Settle Markets] Done.')
   })
 
-// maps market addresses to a list of users who deposited into that market
-async function getMarketUsers(graphURL: string): Promise<{ [key: string]: Set<string> }> {
-  console.log('[Settle Markets]  Fetching All Market Users')
+export async function getAllMarketUsers(
+  graphURL: string,
+): Promise<{ result: { [key: string]: Set<string> }; numQueries: number }> {
   const query = gql`
-    query getUserDeposits($first: Int!, $skip: Int!) {
-      updateds(first: $first, skip: $skip) {
+    query getAllUsers($first: Int!, $skip: Int!) {
+      marketAccountPositions(first: $first, skip: $skip) {
         market
         account
-        blockTimestamp
       }
     }
   `
 
   let numQueries = 0
   let page = 0
-  let res: { updateds: { market: string; account: string }[] } = await request(graphURL, query, {
+  let res: { marketAccountPositions: { market: string; account: string }[] } = await request(graphURL, query, {
     first: GRAPHQL_QUERY_PAGE_SIZE,
     skip: page * GRAPHQL_QUERY_PAGE_SIZE,
   })
   const rawData = res
-  while (res.updateds.length === GRAPHQL_QUERY_PAGE_SIZE) {
+  while (res.marketAccountPositions.length === GRAPHQL_QUERY_PAGE_SIZE) {
     page += 1
     res = await request(graphURL, query, {
       first: GRAPHQL_QUERY_PAGE_SIZE,
       skip: page * GRAPHQL_QUERY_PAGE_SIZE,
     })
-    rawData.updateds = [...rawData.updateds, ...res.updateds]
+    rawData.marketAccountPositions = [...rawData.marketAccountPositions, ...res.marketAccountPositions]
     numQueries += 1
   }
 
   const result: { [key: string]: Set<string> } = {}
-  for (const raw of rawData.updateds) {
+  for (const raw of rawData.marketAccountPositions) {
     if (raw.market in result) result[raw.market].add(raw.account)
     else result[raw.market] = new Set([raw.account])
   }
 
-  console.log('[Settle Markets]  Fetched all users in', numQueries, 'queries')
-  return result
+  return { result, numQueries }
 }
 
 // prepares calldata to settle multiple users

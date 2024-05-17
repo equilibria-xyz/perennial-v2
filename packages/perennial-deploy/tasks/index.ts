@@ -7,6 +7,8 @@ export * from './settleVaults'
 export * from './subgraphUtils'
 export * from './verifyProxies'
 export * from './checkVaultShares'
+export * from './verifyIDs'
+export * from './verifyVaultIDs'
 
 export * from './v2_2_migration/upgradeImpls'
 export * from './v2_2_migration/setupOracles'

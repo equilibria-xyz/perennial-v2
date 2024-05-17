@@ -12,11 +12,14 @@ const SETTLE_MULTICALL_BATCH_SIZE = 150
 export default task('settle-vaults', 'Settles users across all vaults')
   .addFlag('dry', 'Count number of users and transactions required to settle')
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
+  .addOptionalParam('buffergas', 'The buffer gas to add to the estimate', 1, types.int)
+  .addOptionalParam('timestamp', 'Timestamp to commit prices for', undefined, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Settle Vaults] Running Settle Vaults Task')
     const {
       ethers,
-      deployments: { getNetworkName },
+      deployments: { get, getNetworkName },
+      run,
     } = HRE
 
     const batchSize = args.batchsize
@@ -27,13 +30,29 @@ export default task('settle-vaults', 'Settles users across all vaults')
       return 1
     }
 
+    const pythFactory = await ethers.getContractAt('PythFactory', (await get('PythFactory')).address)
+    const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
+    const underlyingIds = [
+      ...new Set(await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))),
+    ]
+
     const multicall = new ethers.Contract(MulticallAddress, MulticallABI, ethers.provider).connect(
       (await ethers.getSigners())[0],
     )
 
-    const vaultUsers = await getVaultUsers(graphURL)
+    const requireSettles: { vault: string; address: string }[] = await run('verify-vault-ids', {
+      prevabi: args.prevabi,
+    })
+    const vaultUsers = requireSettles.reduce((acc, { vault, address }) => {
+      if (acc[vault]) acc[vault].add(address)
+      else acc[vault] = new Set([address])
+      return acc
+    }, {} as { [key: string]: Set<string> })
     let vaultUserCount = 0
     let txCount = 0
+
+    console.log('[Settle Vaults] Committing prices for underlying ids', underlyingIds.join(','))
+    await run('commit-price', { priceids: underlyingIds.join(','), dry: args.dry, timestamp: args.timestamp })
 
     for (const vaultAddress in vaultUsers) {
       const users = [...vaultUsers[vaultAddress].values()]
@@ -71,7 +90,7 @@ export default task('settle-vaults', 'Settles users across all vaults')
         if (successfulSettleCalls === batchedUsers.length) {
           if (!args.dry) {
             process.stdout.write('[Settle Vaults]        Sending Transaction...')
-            const tx = await multicall.aggregate3(multicallPayload, { gasLimit: gasUsage.mul(2) })
+            const tx = await multicall.aggregate3(multicallPayload, { gasLimit: gasUsage.mul(args.buffergas) })
             await tx.wait()
             process.stdout.write(`done. Hash: ${tx.hash}\n`)
           }
@@ -89,7 +108,7 @@ export default task('settle-vaults', 'Settles users across all vaults')
   })
 
 // maps vault addresses to a list of users who deposited into that vault
-async function getVaultUsers(graphURL: string): Promise<{ [key: string]: Set<string> }> {
+export async function getAllVaultUsers(graphURL: string): Promise<{ [key: string]: Set<string> }> {
   console.log('[Settle Vaults]  Fetching All Vault Users')
   const query = gql`
     query getUserDeposits($first: Int!, $skip: Int!) {

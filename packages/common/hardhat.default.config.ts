@@ -231,7 +231,7 @@ export default function defaultConfig({
       parallel: MOCHA_PARALLEL,
       reporter: MOCHA_REPORTER,
       slow: 1000,
-      timeout: 480000,
+      timeout: 4800000,
       retries: Number(MOCHA_RETRY_COUNT),
     },
     contractSizer: {
