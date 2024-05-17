@@ -5,21 +5,17 @@ import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 interface IAccount {
-    // sig: 0x2fda6ab7
-    /// @custom:error Token is not 6- or 18- decimals, or does not offer a .decimals() function
-    error TokenNotSupportedError();
-
     // sig: 0x458a16af
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error NotAuthorizedError(address);
 
-    /// @notice Called by controller during account creation, needed for keeper compensation
-    /// @dev Due to Kept limitations, this will always be a Token18
-    function approveController(address token) external;
+    /// @notice Transfer DSU or USDC collateral from msg.sender to this account
+    /// @param amount Quantity of tokens to transfer in 6-decimal precision
+    /// @param wrap Determines whether to pull USDC (true) or DSU (false)
+    function deposit(UFixed6 amount, bool wrap) external;
 
-    // TODO: consider adding withdrawalTarget parameter
-    /// @notice Transfers funds from this contract to owner of this collateral account
-    /// @param token identifies which collateral to withdraw
-    /// @param amount amount to withdraw in 6-decimal precision; set to UFixed6.MAX for full withdrawal
-    function withdraw(address token, UFixed6 amount) external;
+    /// @notice Transfer USDC collateral from this account to the owner
+    /// @param amount Quantity of tokens to transfer in 6-decimal precision; set to UFixed6.MAX for full withdrawal
+    /// @param unwrap If amount exceeds USDC balance and this is true, DSU will be unwrapped as necessary to facilitate withdrawal
+    function withdraw(UFixed6 amount, bool unwrap) external;
 }

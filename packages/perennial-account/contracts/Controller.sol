@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
+import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
@@ -17,8 +21,20 @@ contract Controller is Instance, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
+    /// @dev USDC stablecoin address
+    Token6 public USDC; // solhint-disable-line var-name-mixedcase
+
+    /// @dev DSU address
+    Token18 public DSU; // solhint-disable-line var-name-mixedcase
+
     /// @dev Contract used to validate messages were signed by the sender
     IVerifier public verifier;
+
+    /// @dev DSU Batcher address
+    IBatcher public batcher;
+
+    /// @dev DSU Reserve address
+    IEmptySetReserve public reserve;
 
     // TODO: consider mapping owner address rather than collateral account address
     /// @dev Mapping of allowed signers for each collateral account
@@ -27,16 +43,36 @@ contract Controller is Instance, IController {
 
     /// @notice Configures the EIP-712 message verifier used by this controller
     /// @param verifier_ Contract used to validate messages were signed by the sender
-    function initialize(IVerifier verifier_) external initializer(1) {
+    /// @param usdc_ USDC token address
+    /// @param dsu_ DSU token address
+    /// @param batcher_ DSU Batcher address, used by Account
+    /// @param reserve_ DSU Reserve address, used by Account
+    function initialize(
+        IVerifier verifier_,
+        Token6 usdc_,
+        Token18 dsu_,
+        IBatcher batcher_,
+        IEmptySetReserve reserve_
+    ) external initializer(1) {
         __Instance__initialize();
         verifier = verifier_;
+        USDC = usdc_;
+        DSU = dsu_;
+        batcher = batcher_;
+        reserve = reserve_;
     }
 
     /// @inheritdoc IController
     function getAccountAddress(address user) public view returns (address) {
         // generate bytecode for an account created for the specified owner
         bytes memory bytecode = abi.encodePacked(
-            type(Account).creationCode, abi.encode(user), abi.encode(address(this)));
+            type(Account).creationCode, 
+            abi.encode(user), 
+            abi.encode(address(this)),
+            abi.encode(USDC),
+            abi.encode(DSU),
+            abi.encode(batcher),
+            abi.encode(reserve));
         // calculate the hash for that bytecode
         bytes32 hash = keccak256(
             abi.encodePacked(bytes1(0xff), address(this), SALT, keccak256(bytecode))
@@ -73,7 +109,14 @@ contract Controller is Instance, IController {
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
-        account = new Account{salt: SALT}(owner, address(this));
+        account = new Account{salt: SALT}(
+            owner, 
+            address(this),
+            USDC,
+            DSU,
+            batcher,
+            reserve
+        );
         emit AccountDeployed(owner, account);
     }
 
@@ -114,7 +157,8 @@ contract Controller is Instance, IController {
         IAccount account = IAccount(_ensureValidSigner(withdrawal.action.common.account, signer));
 
         // call the account's implementation to push to owner
-        account.withdraw(withdrawal.token, withdrawal.amount);
+        // TODO: update message
+        // account.withdraw(withdrawal.amount, withdrawal.unwrap);
     }
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner

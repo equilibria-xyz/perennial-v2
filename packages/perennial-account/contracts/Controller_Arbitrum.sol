@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
+import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
+import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import {
     AggregatorV3Interface, 
     Kept_Arbitrum
 } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18, UFixed18 } from "@equilibria/root/token/types/Token18.sol";
+
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
@@ -27,16 +31,26 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
 
     /// @notice Configures message verification and keeper compensation
     /// @param verifier_ Contract used to validate EIP-712 message signatures
+    /// @param usdc_ USDC token address
+    /// @param dsu_ DSU token address
+    /// @param batcher_ DSU Batcher address, used by Account
+    /// @param reserve_ DSU Reserve address, used by Account
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
-    /// @param keeperToken_ 18-decimal USD-pegged stable used to compensate keepers
     function initialize(
         IVerifier verifier_,
-        AggregatorV3Interface chainlinkFeed_,
-        Token18 keeperToken_
+        Token6 usdc_,
+        Token18 dsu_,
+        IBatcher batcher_,
+        IEmptySetReserve reserve_,
+        AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
         __Instance__initialize();
-        __Kept__initialize(chainlinkFeed_, keeperToken_);
+        __Kept__initialize(chainlinkFeed_, dsu_);
         verifier = verifier_;
+        USDC = usdc_;
+        DSU = dsu_;
+        batcher = batcher_;
+        reserve = reserve_;
     }
 
     /// @inheritdoc IController
@@ -52,9 +66,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
             abi.encode(deployAccount_.action.account, deployAccount_.action.maxFee)
         )
     {
-        IAccount account = _deployAccountWithSignature(deployAccount_, signature);
-        // approve controller to spend the account's keeper token
-        account.approveController(Token18.unwrap(keeperToken()));
+        _deployAccountWithSignature(deployAccount_, signature);
     }
 
     /// @inheritdoc IController

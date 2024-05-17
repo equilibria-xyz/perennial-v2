@@ -4,11 +4,20 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
-import { Controller, Controller__factory, Verifier, Verifier__factory } from '../../types/generated'
+import {
+  Controller,
+  Controller__factory,
+  IBatcher,
+  IERC20,
+  IEmptySetReserve,
+  Verifier,
+  Verifier__factory,
+} from '../../types/generated'
 import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 import { signDeployAccount, signSignerUpdate } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
+import { smock } from '@defi-wonderland/smock'
 
 const { ethers } = HRE
 
@@ -71,7 +80,12 @@ describe('Controller', () => {
     controller = await new Controller__factory(owner).deploy()
     verifier = await new Verifier__factory(owner).deploy()
     verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
-    await controller.initialize(verifier.address)
+
+    const usdc = await smock.fake<IERC20>('IERC20')
+    const dsu = await smock.fake<IERC20>('IERC20')
+    const batcher = await smock.fake<IBatcher>('IBatcher')
+    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
+    await controller.initialize(verifier.address, usdc.address, dsu.address, batcher.address, reserve.address)
   }
 
   beforeEach(async () => {
