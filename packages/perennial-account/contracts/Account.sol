@@ -11,6 +11,8 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 
 import { IAccount } from "./interfaces/IAccount.sol";
 
+import "hardhat/console.sol";
+
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 contract Account is IAccount {
@@ -48,6 +50,14 @@ contract Account is IAccount {
         reserve = reserve_;
 
         dsu_.approve(controller_);
+
+        // approve DSU facilities to wrap and unwrap USDC for this account
+        if (address(batcher) != address(0)) {
+            dsu_.approve(address(batcher));
+            usdc_.approve(address(batcher));
+        }
+        dsu_.approve(address(reserve));
+        usdc_.approve(address(reserve));
     }
 
     /// @inheritdoc IAccount
@@ -64,9 +74,16 @@ contract Account is IAccount {
     function withdraw(UFixed6 amount, bool unwrap) external ownerOrController {
         UFixed6 usdcBalance = USDC.balanceOf();
         if (unwrap && usdcBalance.lt(amount)) {
-            _unwrap(UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf()));
+            UFixed18 unwrapAmount = UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
+            console.log('Account::withdraw attempting to unwrap %s DSU', UFixed18.unwrap(unwrapAmount));
+            _unwrap(unwrapAmount);
         }
-        USDC.push(owner, amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount);
+        UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
+        console.log('Account::withdraw attempting to push %s USDC; balance is %s', 
+            UFixed6.unwrap(pushAmount),
+            UFixed6.unwrap(USDC.balanceOf())
+        );
+        USDC.push(owner, pushAmount);
     }
 
     /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the batcher or reserve
@@ -86,8 +103,10 @@ contract Account is IAccount {
     function _unwrap(UFixed18 amount) internal {
         // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
+            console.log("Account::_unwrap is calling reserve.redeem for %s", UFixed18.unwrap(amount));
             reserve.redeem(amount);
         } else {
+            console.log("Account::_unwrap is using batcher");
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, address(this));
         }

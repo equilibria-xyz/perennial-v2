@@ -81,6 +81,7 @@ describe('Controller', () => {
     verifier = await new Verifier__factory(owner).deploy()
     verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
 
+    // TODO: move to setupHelpers module, which doesn't exist in this branch
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const batcher = await smock.fake<IBatcher>('IBatcher')

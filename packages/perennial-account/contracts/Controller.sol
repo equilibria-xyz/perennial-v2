@@ -157,8 +157,7 @@ contract Controller is Instance, IController {
         IAccount account = IAccount(_ensureValidSigner(withdrawal.action.common.account, signer));
 
         // call the account's implementation to push to owner
-        // TODO: update message
-        // account.withdraw(withdrawal.amount, withdrawal.unwrap);
+        account.withdraw(withdrawal.amount, withdrawal.unwrap);
     }
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner

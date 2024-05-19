@@ -29,6 +29,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Vault factory to validate vault approvals
     IFactory public immutable vaultFactory;
 
+    // TODO: per Kevin, this is only for L1's and I shouldn't worry about it yet
     /// @dev Batcher address
     IBatcher public immutable batcher;
 

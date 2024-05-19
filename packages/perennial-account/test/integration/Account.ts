@@ -12,17 +12,21 @@ import {
   Controller__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
+  Verifier__factory,
 } from '../../types/generated'
 
 const { ethers } = HRE
 
+// TODO: using these temporarily until DSU migrates to native USDC
+const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum bridged USDC
+const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d' // Binance hot wallet has 55mm USDC.e at height 208460709
 const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC (not USDC.e), a 6-decimal token
 const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid deposit bridge has 340mm USDC at height 208460709
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
-
-const WBTC_ADDRESS = '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f' // Wrapped Bitcoin (8 decimals)
+const DSU_BATCHER = constants.AddressZero // TODO: production MultiInvoker doesn't use this; why?
+const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
 describe('Account', () => {
   let dsu: IERC20Metadata
@@ -35,9 +39,9 @@ describe('Account', () => {
 
   // funds specified wallet with 50k DSU and 100k USDC
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
-    const usdcOwner = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
+    const usdcOwner = await impersonate.impersonateWithBalance(USDCe_HOLDER, utils.parseEther('10'))
     // if block height was changed, holder or amounts may need adjustment
-    expect(await usdc.balanceOf(USDC_HOLDER)).to.be.greaterThan(parse6decimal('100000'))
+    expect(await usdc.balanceOf(USDCe_HOLDER)).to.be.greaterThan(parse6decimal('100000'))
     await usdc.connect(usdcOwner).transfer(wallet.address, parse6decimal('100000'))
     const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
     expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(utils.parseEther('50000'))
@@ -47,94 +51,92 @@ describe('Account', () => {
   const fixture = async () => {
     ;[owner, userA, userB] = await ethers.getSigners()
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-    usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
+    usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
     controller = await new Controller__factory(owner).deploy()
 
-    // fund userA with some DSU and USDC
+    // TODO: move to arbitrumHelpers module, which doesn't exist in this branch
+    const verifier = await new Verifier__factory(owner).deploy()
+    await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_BATCHER, DSU_RESERVE)
+
+    // fund users with some DSU and USDC
     await fundWallet(userA)
+    await fundWallet(userB)
 
     const accountAddress = await controller.connect(userA).callStatic.deployAccount()
     await controller.connect(userA).deployAccount()
     account = Account__factory.connect(accountAddress, userA)
   }
 
-  describe('#6-decimal token support', () => {
-    beforeEach(async () => {
-      await loadFixture(fixture)
-      // fund userA's collateral account with 20k USDC
-      await usdc.connect(userA).transfer(account.address, parse6decimal('20000'))
+  beforeEach(async () => {
+    await loadFixture(fixture)
+  })
+
+  describe('#DSU support', () => {
+    it('owner can deposit DSU', async () => {
+      const depositAmount = parse6decimal('500')
+      await dsu.connect(userA).approve(account.address, depositAmount.mul(1e12))
+
+      await expect(account.deposit(depositAmount, false))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(userA.address, account.address, depositAmount.mul(1e12))
+
+      expect(await dsu.balanceOf(account.address)).to.equal(depositAmount.mul(1e12))
     })
 
-    it('allows owner to make a partial withdrawal', async () => {
-      const partialWithdrawal = parse6decimal('5020')
-      expect(await account.owner()).to.equal(userA.address)
-      const balanceBefore = await usdc.balanceOf(account.address)
-      expect(balanceBefore).to.be.greaterThanOrEqual(partialWithdrawal)
+    it('anyone can deposit DSU', async () => {
+      const depositAmount = parse6decimal('6')
+      await dsu.connect(userB).approve(account.address, depositAmount.mul(1e12))
 
-      await expect(account.withdraw(usdc.address, partialWithdrawal))
-        .to.emit(usdc, 'Transfer')
-        .withArgs(account.address, userA.address, partialWithdrawal)
+      await expect(account.connect(userB).deposit(depositAmount, false))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(userB.address, account.address, depositAmount.mul(1e12))
 
-      const balanceAfter = await usdc.balanceOf(account.address)
-      expect(balanceAfter).to.equal(balanceBefore.sub(partialWithdrawal))
-    })
-
-    it('allows owner to make a full withdrawal', async () => {
-      const balanceBefore = await usdc.balanceOf(account.address)
-      expect(balanceBefore).to.be.greaterThan(constants.Zero)
-
-      await expect(account.withdraw(usdc.address, constants.MaxUint256))
-        .to.emit(usdc, 'Transfer')
-        .withArgs(account.address, userA.address, balanceBefore)
-
-      expect(await usdc.balanceOf(account.address)).to.equal(constants.Zero)
+      expect(await dsu.balanceOf(account.address)).to.equal(depositAmount.mul(1e12))
     })
   })
 
-  describe('#18-decimal token support', () => {
-    beforeEach(async () => {
-      await loadFixture(fixture)
-      // fund userA's collateral account with 10k DSU
-      await dsu.connect(userA).transfer(account.address, utils.parseEther('10000'))
+  describe('#USDC support', () => {
+    it('can natively deposit USDC and withdraw USDC', async () => {
+      const depositAmount = parse6decimal('7000')
+      await usdc.connect(userA).transfer(account.address, depositAmount)
+      expect(await usdc.balanceOf(account.address)).to.equal(depositAmount)
+
+      await expect(account.withdraw(depositAmount, false))
+        .to.emit(usdc, 'Transfer')
+        .withArgs(account.address, userA.address, depositAmount)
+      expect(await usdc.balanceOf(account.address)).to.equal(0)
     })
 
-    it('allows owner to make a partial withdrawal', async () => {
-      const partialWithdrawal = utils.parseEther('923')
-      expect(await account.owner()).to.equal(userA.address)
-      const balanceBefore = await dsu.balanceOf(account.address)
-      expect(balanceBefore).to.be.greaterThanOrEqual(partialWithdrawal)
+    it('can natively deposit DSU and withdraw as USDC', async () => {
+      const depositAmount = utils.parseEther('8000')
+      await dsu.connect(userA).transfer(account.address, depositAmount)
+      expect(await dsu.balanceOf(account.address)).to.equal(depositAmount)
 
-      await expect(account.withdraw(dsu.address, parse6decimal('923')))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(account.address, userA.address, partialWithdrawal)
-
-      const balanceAfter = await dsu.balanceOf(account.address)
-      expect(balanceAfter).to.equal(balanceBefore.sub(partialWithdrawal))
+      expect(depositAmount.div(1e12)).to.equal(parse6decimal('8000'))
+      await expect(account.withdraw(depositAmount.div(1e12), true))
+        .to.emit(usdc, 'Transfer')
+        .withArgs(account.address, userA.address, parse6decimal('8000'))
+      expect(await dsu.balanceOf(account.address)).to.equal(0)
     })
 
-    it('allows owner to make a full withdrawal', async () => {
-      const balanceBefore = await dsu.balanceOf(account.address)
-      expect(balanceBefore).to.be.greaterThan(constants.Zero)
+    it('can withdraw all USDC without unwrapping DSU', async () => {
+      await usdc.connect(userA).transfer(account.address, parse6decimal('400'))
+      await dsu.connect(userA).transfer(account.address, utils.parseEther('300'))
 
-      await expect(account.withdraw(dsu.address, constants.MaxUint256))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(account.address, userA.address, balanceBefore)
-
-      expect(await dsu.balanceOf(account.address)).to.equal(constants.Zero)
+      await expect(account.withdraw(parse6decimal('400'), false))
+        .to.emit(usdc, 'Transfer')
+        .withArgs(account.address, userA.address, parse6decimal('400'))
+      expect(await usdc.balanceOf(account.address)).to.equal(0)
+      expect(await dsu.balanceOf(account.address)).to.equal(utils.parseEther('300'))
     })
-  })
 
-  describe('#negative tests', () => {
-    it('rejects withdrawal of token with unsupported decimals', async () => {
-      const wbtc = IERC20Metadata__factory.connect(WBTC_ADDRESS, owner)
-      await expect(account.withdraw(wbtc.address, BigNumber.from(0.0213 * 1e6))).to.be.revertedWithCustomError(
-        account,
-        'TokenNotSupportedError',
-      )
+    it('can unwrap and withdraw everything', async () => {
+      await usdc.connect(userA).transfer(account.address, parse6decimal('400'))
+      await dsu.connect(userA).transfer(account.address, utils.parseEther('300'))
     })
 
     it('reverts if someone other than the owner attempts a withdrawal', async () => {
-      await expect(account.connect(userB).withdraw(usdc.address, parse6decimal('100'))).to.be.revertedWithCustomError(
+      await expect(account.connect(userB).withdraw(parse6decimal('400'), false)).to.be.revertedWithCustomError(
         account,
         'NotAuthorizedError',
       )

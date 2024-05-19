@@ -137,8 +137,8 @@ describe('Verifier', () => {
   it('verifies withdrawal messages', async () => {
     const usdc = await smock.fake('IERC20')
     const withdrawalMessage = {
-      token: usdc.address,
       amount: parse6decimal('55.5'),
+      unwrap: false,
       ...createAction(userA.address),
     }
     const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
