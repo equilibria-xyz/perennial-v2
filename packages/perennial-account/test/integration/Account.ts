@@ -17,16 +17,15 @@ import {
 
 const { ethers } = HRE
 
+const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
+const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
+const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+
 // TODO: using these temporarily until DSU migrates to native USDC
 const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum bridged USDC
 const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d' // Binance hot wallet has 55mm USDC.e at height 208460709
 const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC (not USDC.e), a 6-decimal token
 const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid deposit bridge has 340mm USDC at height 208460709
-
-const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
-const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
-const DSU_BATCHER = constants.AddressZero // TODO: production MultiInvoker doesn't use this; why?
-const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
 describe('Account', () => {
   let dsu: IERC20Metadata
@@ -56,7 +55,7 @@ describe('Account', () => {
 
     // TODO: move to arbitrumHelpers module, which doesn't exist in this branch
     const verifier = await new Verifier__factory(owner).deploy()
-    await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_BATCHER, DSU_RESERVE)
+    await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_RESERVE)
 
     // fund users with some DSU and USDC
     await fundWallet(userA)

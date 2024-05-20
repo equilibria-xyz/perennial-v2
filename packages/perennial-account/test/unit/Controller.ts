@@ -84,9 +84,8 @@ describe('Controller', () => {
     // TODO: move to setupHelpers module, which doesn't exist in this branch
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
-    const batcher = await smock.fake<IBatcher>('IBatcher')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    await controller.initialize(verifier.address, usdc.address, dsu.address, batcher.address, reserve.address)
+    await controller.initialize(verifier.address, usdc.address, dsu.address, reserve.address)
   }
 
   beforeEach(async () => {

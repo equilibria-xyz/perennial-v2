@@ -28,9 +28,6 @@ contract Account is IAccount {
     /// @dev DSU address
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
-    /// @dev DSU Batcher address
-    IBatcher public immutable batcher;
-
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
@@ -39,23 +36,17 @@ contract Account is IAccount {
         address controller_,
         Token6 usdc_,
         Token18 dsu_,
-        IBatcher batcher_,
         IEmptySetReserve reserve_
     ) {
         owner = owner_;
         controller = controller_;
         USDC = usdc_;
         DSU = dsu_;
-        batcher = batcher_;
         reserve = reserve_;
 
         dsu_.approve(controller_);
 
         // approve DSU facilities to wrap and unwrap USDC for this account
-        if (address(batcher) != address(0)) {
-            dsu_.approve(address(batcher));
-            usdc_.approve(address(batcher));
-        }
         dsu_.approve(address(reserve));
         usdc_.approve(address(reserve));
     }
@@ -89,27 +80,15 @@ contract Account is IAccount {
     /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the batcher or reserve
     /// @param amount Amount of USDC to wrap
     function _wrap(UFixed18 amount) internal {
-        // If the batcher is 0 or  doesn't have enough for this wrap, go directly to the reserve
-        if (address(batcher) == address(0) || amount.gt(DSU.balanceOf(address(batcher)))) {
-            reserve.mint(amount);
-        } else {
-            // Wrap the USDC into DSU and return to the receiver
-            batcher.wrap(amount, address(this));
-        }
+        // if (amount.gt(DSU.balanceOf(address(batcher)))) {
+        reserve.mint(amount);
     }
 
     /// @notice Helper function to unwrap `amount` DSU into USDC and send to `receiver`
     /// @param amount Amount of DSU to unwrap
     function _unwrap(UFixed18 amount) internal {
-        // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
-        if (address(batcher) == address(0) || amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
-            console.log("Account::_unwrap is calling reserve.redeem for %s", UFixed18.unwrap(amount));
-            reserve.redeem(amount);
-        } else {
-            console.log("Account::_unwrap is using batcher");
-            // Unwrap the DSU into USDC and return to the receiver
-            batcher.unwrap(amount, address(this));
-        }
+        // if (amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
+        reserve.redeem(amount);
     }
 
     /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller

@@ -45,20 +45,17 @@ contract Controller is Instance, IController {
     /// @param verifier_ Contract used to validate messages were signed by the sender
     /// @param usdc_ USDC token address
     /// @param dsu_ DSU token address
-    /// @param batcher_ DSU Batcher address, used by Account
     /// @param reserve_ DSU Reserve address, used by Account
     function initialize(
         IVerifier verifier_,
         Token6 usdc_,
         Token18 dsu_,
-        IBatcher batcher_,
         IEmptySetReserve reserve_
     ) external initializer(1) {
         __Instance__initialize();
         verifier = verifier_;
         USDC = usdc_;
         DSU = dsu_;
-        batcher = batcher_;
         reserve = reserve_;
     }
 
@@ -71,7 +68,6 @@ contract Controller is Instance, IController {
             abi.encode(address(this)),
             abi.encode(USDC),
             abi.encode(DSU),
-            abi.encode(batcher),
             abi.encode(reserve));
         // calculate the hash for that bytecode
         bytes32 hash = keccak256(
@@ -114,7 +110,6 @@ contract Controller is Instance, IController {
             address(this),
             USDC,
             DSU,
-            batcher,
             reserve
         );
         emit AccountDeployed(owner, account);
