@@ -7,7 +7,6 @@ import { BigNumber, constants, utils } from 'ethers'
 import {
   Controller,
   Controller__factory,
-  IBatcher,
   IERC20,
   IEmptySetReserve,
   Verifier,

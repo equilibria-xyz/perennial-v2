@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
@@ -11,7 +10,7 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 
 import { IAccount } from "./interfaces/IAccount.sol";
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
@@ -70,28 +69,26 @@ contract Account is IAccount {
                 unwrapAmount = DSU.balanceOf();
             else
                 unwrapAmount = UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
-            console.log('Account::withdraw attempting to unwrap %s DSU', UFixed18.unwrap(unwrapAmount));
+            // console.log('Account::withdraw attempting to unwrap %s DSU', UFixed18.unwrap(unwrapAmount));
             _unwrap(unwrapAmount);
         }
         UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
-        console.log('Account::withdraw attempting to push %s USDC; balance is %s', 
-            UFixed6.unwrap(pushAmount),
-            UFixed6.unwrap(USDC.balanceOf())
-        );
+        // console.log('Account::withdraw attempting to push %s USDC; balance is %s', 
+        //     UFixed6.unwrap(pushAmount),
+        //     UFixed6.unwrap(USDC.balanceOf())
+        // );
         USDC.push(owner, pushAmount);
     }
 
-    /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the batcher or reserve
+    /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the reserve
     /// @param amount Amount of USDC to wrap
     function _wrap(UFixed18 amount) internal {
-        // if (amount.gt(DSU.balanceOf(address(batcher)))) {
         reserve.mint(amount);
     }
 
     /// @notice Helper function to unwrap `amount` DSU into USDC and send to `receiver`
     /// @param amount Amount of DSU to unwrap
     function _unwrap(UFixed18 amount) internal {
-        // if (amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
         reserve.redeem(amount);
     }
 

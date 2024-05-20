@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
@@ -29,9 +28,6 @@ contract Controller is Instance, IController {
 
     /// @dev Contract used to validate messages were signed by the sender
     IVerifier public verifier;
-
-    /// @dev DSU Batcher address
-    IBatcher public batcher;
 
     /// @dev DSU Reserve address
     IEmptySetReserve public reserve;
