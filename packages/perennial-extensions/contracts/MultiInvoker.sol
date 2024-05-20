@@ -216,7 +216,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // collateral is transferred here as DSU then an optional interface fee is charged from it
         if (collateral.sign() == 1) _deposit(account, collateral.abs(), wrap);
 
-        market.update(account, newMaker, newLong, newShort, collateral, false);
+        market.update(
+            account,
+            newMaker,
+            newLong,
+            newShort,
+            collateral,
+            false,
+            interfaceFee1.receiver == address(0) ? interfaceFee2.receiver : interfaceFee1.receiver
+        );
 
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
         if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);

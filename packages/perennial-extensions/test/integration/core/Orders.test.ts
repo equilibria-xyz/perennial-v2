@@ -491,7 +491,7 @@ describe('Orders', () => {
             anyValue,
             -50e6,
             false,
-            constants.AddressZero,
+            userB.address,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
           .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: false })

@@ -179,7 +179,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             usdc.transfer.whenCalledWith(user.address, collateral).returns(true)
 
             vault.update.returns(true)
-            market['update(address,uint256,uint256,uint256,int256,bool)'].returns(true)
+            market['update(address,uint256,uint256,uint256,int256,bool,address)'].returns(true)
           }
 
           beforeEach(async () => {
@@ -191,13 +191,14 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               .reverted
 
             expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, collateral.mul(1e12))
-            expect(market['update(address,uint256,uint256,uint256,int256,bool)']).to.have.been.calledWith(
+            expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
               user.address,
               MAX_UINT,
               MAX_UINT,
               MAX_UINT,
               collateral,
               false,
+              constants.AddressZero,
             )
           })
 
@@ -234,13 +235,14 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               .be.reverted
 
             expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
-            expect(market['update(address,uint256,uint256,uint256,int256,bool)']).to.have.been.calledWith(
+            expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
               user.address,
               MAX_UINT,
               MAX_UINT,
               MAX_UINT,
               collateral.mul(-1),
               false,
+              constants.AddressZero,
             )
           })
 
@@ -550,6 +552,89 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               .withArgs(user.address, market.address, [feeAmt, owner.address, true])
 
             expect(usdc.transfer).to.have.been.calledWith(owner.address, feeAmt)
+          })
+
+          it('sets subtractive fee referrer as interface1.receiver if set', async () => {
+            usdc.transferFrom.returns(true)
+            dsu.transferFrom.returns(true)
+            dsu.transfer.returns(true)
+            usdc.transfer.returns(true)
+
+            const feeAmt = collateral.div(10)
+
+            await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
+              .reverted
+
+            await expect(
+              invoke(
+                buildUpdateMarket({
+                  market: market.address,
+                  collateral: collateral.sub(feeAmt).mul(-1),
+                  interfaceFee1: {
+                    receiver: owner.address,
+                    amount: feeAmt,
+                    unwrap: true,
+                  },
+                }),
+              ),
+            )
+              .to.emit(multiInvoker, 'InterfaceFeeCharged')
+              .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+
+            expect(usdc.transfer).to.have.been.calledWith(owner.address, feeAmt)
+            expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
+              user.address,
+              MAX_UINT,
+              MAX_UINT,
+              MAX_UINT,
+              collateral.sub(feeAmt).mul(-1),
+              false,
+              owner.address,
+            )
+          })
+
+          it('sets subtractive fee referrer as interfaceFee2.receiver if interfaceFee1.receiver is not set', async () => {
+            usdc.transferFrom.returns(true)
+            dsu.transferFrom.returns(true)
+            dsu.transfer.returns(true)
+            usdc.transfer.returns(true)
+
+            const feeAmt = collateral.div(10)
+
+            await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
+              .reverted
+
+            await expect(
+              invoke(
+                buildUpdateMarket({
+                  market: market.address,
+                  collateral: collateral.sub(feeAmt).mul(-1),
+                  interfaceFee1: {
+                    receiver: constants.AddressZero,
+                    amount: 0,
+                    unwrap: false,
+                  },
+                  interfaceFee2: {
+                    receiver: user2.address,
+                    amount: feeAmt,
+                    unwrap: true,
+                  },
+                }),
+              ),
+            )
+              .to.emit(multiInvoker, 'InterfaceFeeCharged')
+              .withArgs(user.address, market.address, [feeAmt, user2.address, true])
+
+            expect(usdc.transfer).to.have.been.calledWith(user2.address, feeAmt)
+            expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
+              user.address,
+              MAX_UINT,
+              MAX_UINT,
+              MAX_UINT,
+              collateral.sub(feeAmt).mul(-1),
+              false,
+              user2.address,
+            )
           })
 
           describe('ETH return', async () => {
@@ -1199,6 +1284,16 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                 .to.emit(multiInvoker, 'OrderExecuted')
                 .to.emit(multiInvoker, 'KeeperCall')
                 .to.emit(multiInvoker, 'InterfaceFeeCharged')
+
+              expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
+                user.address,
+                0,
+                position.mul(2),
+                position,
+                0,
+                false,
+                owner.address,
+              )
             })
 
             it('executes a withdrawal trigger order', async () => {
