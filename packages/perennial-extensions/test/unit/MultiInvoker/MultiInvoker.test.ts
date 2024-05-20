@@ -18,7 +18,7 @@ import {
   IOracleProvider,
   IMultiInvoker,
 } from '../../../types/generated'
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { loadFixture, setBalance } from '@nomicfoundation/hardhat-network-helpers'
 import {
   buildUpdateMarket,
   buildUpdateVault,
@@ -147,18 +147,20 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
       {
         context: 'From user',
         setup: async () => true,
+        sender: () => user,
         invoke: async (args: IMultiInvoker.InvocationStruct[]) =>
           multiInvoker.connect(user)['invoke((uint8,bytes)[])'](args),
       },
       {
         context: 'From delegate',
         setup: async () => multiInvoker.connect(user).updateOperator(user2.address, true),
+        sender: () => user2,
         invoke: async (args: IMultiInvoker.InvocationStruct[]) =>
           multiInvoker.connect(user2)['invoke(address,(uint8,bytes)[])'](user.address, args),
       },
     ]
 
-    testCases.forEach(({ context: contextStr, setup, invoke }) => {
+    testCases.forEach(({ context: contextStr, setup, invoke, sender }) => {
       context(contextStr, () => {
         beforeEach(async () => {
           await setup()
@@ -548,6 +550,16 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               .withArgs(user.address, market.address, [feeAmt, owner.address, true])
 
             expect(usdc.transfer).to.have.been.calledWith(owner.address, feeAmt)
+          })
+
+          describe('ETH return', async () => {
+            it('returns excess ETH in contract to msg.sender on invoke', async () => {
+              const ethValue = utils.parseEther('1.01')
+              await setBalance(multiInvoker.address, ethValue)
+
+              await expect(invoke([])).to.changeEtherBalance(sender(), ethValue)
+              expect(await HRE.ethers.provider.getBalance(multiInvoker.address)).to.equal(0)
+            })
           })
         })
 
