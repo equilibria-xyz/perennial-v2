@@ -71,7 +71,7 @@ describe('Account', () => {
   })
 
   after(async () => {
-    // return user funds to prevent impacting other tests
+    // return user funds to avoid impacting other tests
     await usdc.connect(userA).transfer(USDCe_HOLDER, await usdc.balanceOf(userA.address))
     // TODO: centralize this logic in helpers, perform for both tokens and both users
   })
@@ -125,27 +125,70 @@ describe('Account', () => {
     })
 
     it('can withdraw all USDC without unwrapping DSU', async () => {
-      await usdc.connect(userA).transfer(account.address, parse6decimal('400'))
       await dsu.connect(userA).transfer(account.address, utils.parseEther('300'))
+      await usdc.connect(userA).transfer(account.address, parse6decimal('400'))
 
       await expect(account.withdraw(parse6decimal('400'), false))
         .to.emit(usdc, 'Transfer')
         .withArgs(account.address, userA.address, parse6decimal('400'))
-      expect(await usdc.balanceOf(account.address)).to.equal(0)
       expect(await dsu.balanceOf(account.address)).to.equal(utils.parseEther('300'))
+      expect(await usdc.balanceOf(account.address)).to.equal(0)
     })
 
     it('can unwrap and withdraw everything', async () => {
-      await usdc.connect(userA).transfer(account.address, parse6decimal('400'))
-      await dsu.connect(userA).transfer(account.address, utils.parseEther('300'))
+      await dsu.connect(userA).transfer(account.address, utils.parseEther('100'))
+      await usdc.connect(userA).transfer(account.address, parse6decimal('200'))
+
+      await expect(account.withdraw(parse6decimal('300'), true))
+        .to.emit(usdc, 'Transfer')
+        .withArgs(account.address, userA.address, parse6decimal('300'))
+      expect(await dsu.balanceOf(account.address)).to.equal(0)
+      expect(await usdc.balanceOf(account.address)).to.equal(0)
+    })
+
+    it('unwraps only when necessary', async () => {
+      await dsu.connect(userA).transfer(account.address, utils.parseEther('600'))
+      await usdc.connect(userA).transfer(account.address, parse6decimal('700'))
+
+      // should not unwrap when withdrawing less USDC than the account's balance
+      await expect(account.withdraw(parse6decimal('500'), true))
+        .to.emit(usdc, 'Transfer')
+        .withArgs(account.address, userA.address, parse6decimal('500'))
+      expect(await dsu.balanceOf(account.address)).to.equal(utils.parseEther('600'))
+      expect(await usdc.balanceOf(account.address)).to.equal(parse6decimal('200'))
+
+      // should unwrap when withdrawing more than the account's balance (now 200 USDC)
+      await expect(account.withdraw(parse6decimal('300'), true))
+        .to.emit(usdc, 'Transfer')
+        .withArgs(account.address, userA.address, parse6decimal('300'))
+      expect(await dsu.balanceOf(account.address)).to.equal(utils.parseEther('500'))
+      expect(await usdc.balanceOf(account.address)).to.equal(0)
     })
 
     it('transfer fails if insufficient balance when not unwrapping', async () => {
-      // TODO: implement
+      await dsu.connect(userA).transfer(account.address, utils.parseEther('100'))
+      expect(await usdc.balanceOf(account.address)).to.equal(0)
+
+      // ensure withdrawal fails when there is no unwrapped USDC
+      await expect(account.withdraw(parse6decimal('100'), false)).to.be.revertedWith(
+        'ERC20: transfer amount exceeds balance',
+      )
+
+      // and when there is some, but not enough to facilitate the withdrawal
+      await usdc.connect(userA).transfer(account.address, parse6decimal('50'))
+      await expect(account.withdraw(parse6decimal('100'), false)).to.be.revertedWith(
+        'ERC20: transfer amount exceeds balance',
+      )
     })
 
     it('transfer fails if insufficient balance when unwrapping', async () => {
-      // TODO: implement
+      await dsu.connect(userA).transfer(account.address, utils.parseEther('100'))
+      expect(await usdc.balanceOf(account.address)).to.equal(0)
+
+      // ensure withdrawal fails when there is unsufficient DSU to unwrap
+      await expect(account.withdraw(parse6decimal('150'), true)).to.be.revertedWith(
+        'ERC20: transfer amount exceeds balance',
+      )
     })
 
     it('reverts if someone other than the owner attempts a withdrawal', async () => {

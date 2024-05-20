@@ -272,7 +272,6 @@ describe('Controller_Arbitrum', () => {
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 
       // perform withdrawal and check balance
-      // FIXME: second KeeperCall arg is normally 95876 but under coverage is 102174
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, { maxFeePerGas: 100000000 }),
       )
