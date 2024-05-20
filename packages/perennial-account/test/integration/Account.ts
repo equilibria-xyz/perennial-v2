@@ -70,6 +70,12 @@ describe('Account', () => {
     await loadFixture(fixture)
   })
 
+  after(async () => {
+    // return user funds to prevent impacting other tests
+    await usdc.connect(userA).transfer(USDCe_HOLDER, await usdc.balanceOf(userA.address))
+    // TODO: centralize this logic in helpers, perform for both tokens and both users
+  })
+
   describe('#DSU support', () => {
     it('owner can deposit DSU', async () => {
       const depositAmount = parse6decimal('500')
@@ -132,6 +138,14 @@ describe('Account', () => {
     it('can unwrap and withdraw everything', async () => {
       await usdc.connect(userA).transfer(account.address, parse6decimal('400'))
       await dsu.connect(userA).transfer(account.address, utils.parseEther('300'))
+    })
+
+    it('transfer fails if insufficient balance when not unwrapping', async () => {
+      // TODO: implement
+    })
+
+    it('transfer fails if insufficient balance when unwrapping', async () => {
+      // TODO: implement
     })
 
     it('reverts if someone other than the owner attempts a withdrawal', async () => {

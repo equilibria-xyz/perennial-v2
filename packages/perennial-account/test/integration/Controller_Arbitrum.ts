@@ -27,12 +27,15 @@ const { ethers } = HRE
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, compatible with Market
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Market has 466k at height 208460709
+const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum bridged USDC
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 const DEFAULT_MAX_FEE = utils.parseEther('0.5')
 
 describe('Controller_Arbitrum', () => {
   let dsu: IERC20Metadata
+  let usdc: IERC20Metadata
   let controller: Controller_Arbitrum
   let verifier: Verifier
   let verifierSigner: SignerWithAddress
@@ -101,6 +104,7 @@ describe('Controller_Arbitrum', () => {
     // set up users and deploy artifacts
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+    usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
     const keepConfig = {
       multiplierBase: 0,
       bufferBase: 1_000_000,
@@ -110,7 +114,13 @@ describe('Controller_Arbitrum', () => {
     controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig)
     verifier = await new Verifier__factory(owner).deploy()
     verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
-    await controller['initialize(address,address,address)'](verifier.address, CHAINLINK_ETH_USD_FEED, dsu.address)
+    await controller['initialize(address,address,address,address,address)'](
+      verifier.address,
+      usdc.address,
+      dsu.address,
+      DSU_RESERVE,
+      CHAINLINK_ETH_USD_FEED,
+    )
     // fund userA
     await fundWallet(userA)
   }
@@ -247,7 +257,7 @@ describe('Controller_Arbitrum', () => {
     })
 
     it('collects fee for partial withdrawal from a delegated signer', async () => {
-      const userBalanceBefore = await dsu.balanceOf(userA.address)
+      const userBalanceBefore = await usdc.balanceOf(userA.address)
 
       // configure userB as delegated signer
       await controller.connect(userA).updateSigner(userB.address, true, { maxFeePerGas: 100000000 })
@@ -255,8 +265,8 @@ describe('Controller_Arbitrum', () => {
       // delegate signs message for full withdrawal
       const withdrawalAmount = parse6decimal('7000')
       const withdrawalMessage = {
-        token: dsu.address,
         amount: withdrawalAmount,
+        unwrap: true,
         ...createAction(accountA.address, userA.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
@@ -266,7 +276,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, { maxFeePerGas: 100000000 }),
       )
-        .to.emit(dsu, 'Transfer')
+        .to.emit(usdc, 'Transfer')
         .withArgs(accountA.address, userA.address, anyValue)
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
@@ -277,7 +287,7 @@ describe('Controller_Arbitrum', () => {
 
       // confirm userA withdrew their funds and keeper fee was paid from the collateral account
       expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('10000').sub(cumulativeKeeperFee))
-      expect(await dsu.balanceOf(userA.address)).to.equal(userBalanceBefore.add(withdrawalAmount.mul(1e12)))
+      expect(await usdc.balanceOf(userA.address)).to.equal(userBalanceBefore.add(withdrawalAmount))
     })
   })
 })

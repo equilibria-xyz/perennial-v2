@@ -65,7 +65,11 @@ contract Account is IAccount {
     function withdraw(UFixed6 amount, bool unwrap) external ownerOrController {
         UFixed6 usdcBalance = USDC.balanceOf();
         if (unwrap && usdcBalance.lt(amount)) {
-            UFixed18 unwrapAmount = UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
+            UFixed18 unwrapAmount;
+            if (amount.eq(UFixed6Lib.MAX))
+                unwrapAmount = DSU.balanceOf();
+            else
+                unwrapAmount = UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
             console.log('Account::withdraw attempting to unwrap %s DSU', UFixed18.unwrap(unwrapAmount));
             _unwrap(unwrapAmount);
         }

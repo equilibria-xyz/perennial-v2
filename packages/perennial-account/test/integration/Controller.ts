@@ -23,9 +23,12 @@ const { ethers } = HRE
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, compatible with Market
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Market has 466k at height 208460709
+const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum bridged USDC
 
 describe('Controller', () => {
   let dsu: IERC20Metadata
+  let usdc: IERC20Metadata
   let controller: Controller
   let verifier: Verifier
   let verifierSigner: SignerWithAddress
@@ -76,10 +79,11 @@ describe('Controller', () => {
     // set up users and deploy artifacts
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+    usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
     controller = await new Controller__factory(owner).deploy()
     verifier = await new Verifier__factory(owner).deploy()
     verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
-    await controller.initialize(verifier.address)
+    await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_RESERVE)
 
     // create a collateral account for userA with 15k collateral in it
     await fundWallet(userA)
@@ -99,45 +103,46 @@ describe('Controller', () => {
   })
 
   describe('#withdrawal', () => {
-    it('can withdraw funds from a signed message', async () => {
-      const balanceBefore = await dsu.balanceOf(accountA.address)
-
+    it('can unwrap and partially withdraw funds from a signed message', async () => {
       // sign message to perform a partial withdrawal
       const withdrawalAmount = parse6decimal('6000')
       const withdrawalMessage = {
-        token: dsu.address,
         amount: withdrawalAmount,
+        unwrap: true,
         ...createAction(accountA.address, userA.address),
       }
       const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 
       // perform withdrawal and check balance
       await expect(controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(accountA.address, userA.address, withdrawalAmount.mul(1e12)) // scale to token precision
-      const balanceAfter = await dsu.balanceOf(accountA.address)
-      expect(balanceAfter).to.equal(balanceBefore.sub(withdrawalAmount.mul(1e12)))
+        .to.emit(usdc, 'Transfer')
+        .withArgs(accountA.address, userA.address, withdrawalAmount)
+
+      // ensure owner was credited the USDC and account's DSU was debited
+      expect(await usdc.balanceOf(userA.address)).to.equal(withdrawalAmount)
+      expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('9000')) // 15k-9k
+      expect(await usdc.balanceOf(accountA.address)).to.equal(0) // no USDC was deposited
     })
 
-    it('can withdraw from a delegated signer', async () => {
-      const balanceBefore = await dsu.balanceOf(accountA.address)
-
+    it('can fully withdraw from a delegated signer', async () => {
       // configure userB as delegated signer
       await controller.connect(userA).updateSigner(userB.address, true)
 
       // delegate signs message for full withdrawal
       const withdrawalMessage = {
-        token: dsu.address,
         amount: constants.MaxUint256,
+        unwrap: true,
         ...createAction(accountA.address, userA.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 
       // perform withdrawal and check balance
-      await expect(controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(accountA.address, userA.address, balanceBefore)
-      expect(await dsu.balanceOf(accountA.address)).to.equal(constants.Zero)
+      await expect(controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature)).to.not.be.reverted
+
+      // ensure owner was credit all the USDC and account is empty
+      expect(await usdc.balanceOf(userA.address)).to.equal(parse6decimal('15000'))
+      expect(await dsu.balanceOf(accountA.address)).to.equal(0) // all DSU was withdrawan
+      expect(await usdc.balanceOf(accountA.address)).to.equal(0) // no USDC was deposited
     })
 
     it('rejects withdrawals from unauthorized signer', async () => {
@@ -145,8 +150,8 @@ describe('Controller', () => {
 
       // unauthorized user signs message for withdrawal
       const withdrawalMessage = {
-        token: dsu.address,
         amount: parse6decimal('2000'),
+        unwrap: false,
         ...createAction(accountA.address, userA.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)

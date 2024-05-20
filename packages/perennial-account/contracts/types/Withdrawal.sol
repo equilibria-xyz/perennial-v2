@@ -5,9 +5,9 @@ import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Action, ActionLib } from "./Action.sol";
 
 struct Withdrawal {
-    /// @dev Amount to withdraw; set to UFixed6.MAX for full withdrawal
+    /// @dev Quantity to transfer from account to owner; set to UFixed6.MAX for full withdrawal
     UFixed6 amount;
-    /// @dev True to withdraw as USDC, false to withdraw as DSU
+    /// @dev True unwrap DSU to USDC as needed to satisfy specified withdrawal amount
     bool unwrap;
     /// @dev Common information for collateral account actions;
     /// set action.common.account to the owner of the collateral account
