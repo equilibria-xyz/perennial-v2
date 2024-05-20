@@ -32,7 +32,7 @@ import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
 import { BigNumber } from 'ethers'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 
 use(smock.matchers)
@@ -644,6 +644,61 @@ describe('Invoke', () => {
 
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
           expect((await dsu.balanceOf(userB.address)).sub(balanceBefore2)).to.eq(feeAmt2.mul(1e12))
+        })
+
+        it('sets subtractive fee referrer as interface1.receiver if set', async () => {
+          const { owner, user, usdc, dsu } = instanceVars
+
+          await usdc.connect(user).approve(multiInvoker.address, collateral)
+          await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+          await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+          await expect(
+            invoke(
+              buildUpdateMarket({
+                market: market.address,
+                collateral: collateral,
+                maker: parse6decimal('0.01'),
+                interfaceFee1: {
+                  amount: 0,
+                  receiver: owner.address,
+                  unwrap: true,
+                },
+              }),
+            ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(anyValue, user.address, anyUint, anyUint, anyUint, anyUint, anyValue, false, owner.address)
+        })
+
+        it('sets subtractive fee referrer as interfaceFee2.receiver if interfaceFee1.receiver is not set', async () => {
+          const { user, userB, usdc, dsu } = instanceVars
+
+          await usdc.connect(user).approve(multiInvoker.address, collateral)
+          await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+          await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+          await expect(
+            invoke(
+              buildUpdateMarket({
+                market: market.address,
+                collateral: collateral,
+                maker: parse6decimal('0.01'),
+                interfaceFee1: {
+                  amount: 0,
+                  receiver: ethers.constants.AddressZero,
+                  unwrap: false,
+                },
+                interfaceFee2: {
+                  amount: 0,
+                  receiver: userB.address,
+                  unwrap: false,
+                },
+              }),
+            ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(anyValue, user.address, anyUint, anyUint, anyUint, anyUint, anyValue, false, userB.address)
         })
 
         it('Only allows updates to factory created markets', async () => {
