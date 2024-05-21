@@ -37,14 +37,15 @@ interface IMultiInvoker {
         bytes args;
     }
 
+    event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
     event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
     event OrderPlaced(address indexed account, IMarket indexed market, uint256 indexed nonce, TriggerOrder order);
     event OrderExecuted(address indexed account, IMarket indexed market, uint256 nonce);
     event OrderCancelled(address indexed account, IMarket indexed market, uint256 nonce);
     event InterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
 
-    // sig: 0x217b1699
-    error MultiInvokerBadSenderError();
+    // sig: 0x42ecdedb
+    error MultiInvokerUnauthorizedError();
     // sig: 0x88d67968
     error MultiInvokerOrderMustBeSingleSidedError();
     // sig: 0xbccd78e7
@@ -56,6 +57,9 @@ interface IMultiInvoker {
     // sig: 0x6f462962
     error MultiInvokerCantExecuteError();
 
+    function updateOperator(address operator, bool newEnabled) external;
+    function operators(address account, address operator) external view returns (bool);
+    function invoke(address account, Invocation[] calldata invocations) external payable;
     function invoke(Invocation[] calldata invocations) external payable;
     function marketFactory() external view returns (IFactory);
     function vaultFactory() external view returns (IFactory);
