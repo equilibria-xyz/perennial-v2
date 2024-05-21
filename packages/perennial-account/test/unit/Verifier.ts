@@ -29,7 +29,6 @@ describe('Verifier', () => {
   function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
     return {
       action: {
-        account: accountAddress,
         maxFee: feeOverride,
         common: {
           account: userAddress,

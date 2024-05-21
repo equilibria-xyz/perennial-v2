@@ -32,9 +32,8 @@ contract Controller is Instance, IController {
     /// @dev DSU Reserve address
     IEmptySetReserve public reserve;
 
-    // TODO: consider mapping owner address rather than collateral account address
-    /// @dev Mapping of allowed signers for each collateral account
-    /// collateral account => delegate => enabled flag
+    /// @dev Mapping of allowed signers for each account owner
+    /// owner => delegate => enabled flag
     mapping(address => mapping(address => bool)) public signers;
 
     /// @notice Configures the EIP-712 message verifier used by this controller
@@ -91,13 +90,12 @@ contract Controller is Instance, IController {
         bytes calldata signature
     ) internal returns (IAccount account)
     {
-        // create the account
         address owner = deployAccount_.action.common.account;
-        account = _createAccount(owner);
-
-        // check signer after account creation to avoid cost of recalculating address
         address signer = verifier.verifyDeployAccount(deployAccount_, signature);
-        if (signer != owner && !signers[address(account)][signer]) revert InvalidSignerError();
+        _ensureValidSigner(owner, signer);
+
+        // create the account
+        account = _createAccount(owner);
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
@@ -113,9 +111,8 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function updateSigner(address signer, bool newEnabled) public {
-        address account = getAccountAddress(msg.sender);
-        signers[account][signer] = newEnabled;
-        emit SignerUpdated(account, signer, newEnabled);
+        signers[msg.sender][signer] = newEnabled;
+        emit SignerUpdated(msg.sender, signer, newEnabled);
     }
 
     /// @inheritdoc IController
@@ -130,30 +127,28 @@ contract Controller is Instance, IController {
         // ensure the message was signed only by the owner, not an existing delegate
         address messageSigner = verifier.verifySignerUpdate(signerUpdate, signature);
         address owner = signerUpdate.action.common.account;
-        address account = getAccountAddress(owner);
         if (messageSigner != owner) revert InvalidSignerError();
 
-        signers[account][signerUpdate.signer] = signerUpdate.approved;
-        emit SignerUpdated(account, signerUpdate.signer, signerUpdate.approved);
+        signers[owner][signerUpdate.signer] = signerUpdate.approved;
+        emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
     }
 
     /// @inheritdoc IController
     function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) virtual external {
-        _withdrawWithSignature(withdrawal, signature);
+        IAccount account = IAccount(getAccountAddress(withdrawal.action.common.account));
+        _withdrawWithSignature(account, withdrawal, signature);
     }
 
-    function _withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) internal {
+    function _withdrawWithSignature(IAccount account, Withdrawal calldata withdrawal, bytes calldata signature) internal {
         // ensure the message was signed by the owner or a delegated signer
         address signer = verifier.verifyWithdrawal(withdrawal, signature);
-        IAccount account = IAccount(_ensureValidSigner(withdrawal.action.common.account, signer));
-
+        _ensureValidSigner(withdrawal.action.common.account, signer);
         // call the account's implementation to push to owner
         account.withdraw(withdrawal.amount, withdrawal.unwrap);
     }
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
-    function _ensureValidSigner(address owner, address signer) private view returns (address accountAddress) {
-        accountAddress = getAccountAddress(owner);
-        if (signer != owner && !signers[accountAddress][signer]) revert InvalidSignerError();
+    function _ensureValidSigner(address owner, address signer) private view {
+        if (signer != owner && !signers[owner][signer]) revert InvalidSignerError();
     }
 }

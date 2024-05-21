@@ -21,7 +21,7 @@ library WithdrawalLib {
     /// @dev used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
         "Withdrawal(uint256 amount,bool unwrap,Action action)"
-        "Action(address account,uint256 maxFee,Common common)"
+        "Action(uint256 maxFee,Common common)"
         "Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 

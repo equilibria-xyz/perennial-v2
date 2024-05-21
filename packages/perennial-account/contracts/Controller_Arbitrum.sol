@@ -53,48 +53,34 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     function deployAccountWithSignature(
         DeployAccount calldata deployAccount_, 
         bytes calldata signature
-    ) 
-        override external 
-        keep(
-            keepConfig, 
-            abi.encode(deployAccount_, signature), 
-            0, 
-            abi.encode(deployAccount_.action.account, deployAccount_.action.maxFee)
-        )
-    {
-        _deployAccountWithSignature(deployAccount_, signature);
+    ) override external {
+        IAccount account = _deployAccountWithSignature(deployAccount_, signature);
+        bytes memory data = abi.encode(address(account), deployAccount_.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @inheritdoc IController
     function updateSignerWithSignature(
         SignerUpdate calldata signerUpdate, 
         bytes calldata signature
-    ) 
-        override external
-        keep(
-            keepConfig, 
-            abi.encode(signerUpdate, signature), 
-            0, 
-            abi.encode(signerUpdate.action.account, signerUpdate.action.maxFee)
-        )
-    {
+    ) override external {
         _updateSignerWithSignature(signerUpdate, signature);
+        // for this message, account address is only needed for keeper compensation
+        address account = getAccountAddress(signerUpdate.action.common.account);
+        bytes memory data = abi.encode(address(account), signerUpdate.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @inheritdoc IController
     function withdrawWithSignature(
         Withdrawal calldata withdrawal, 
         bytes calldata signature
-    ) 
-        override external 
-        keep(
-            keepConfig, 
-            abi.encode(withdrawal, signature), 
-            0, 
-            abi.encode(withdrawal.action.account, withdrawal.action.maxFee)
-        )
-    {
-        _withdrawWithSignature(withdrawal, signature);
+    ) override external {
+        address account = getAccountAddress(withdrawal.action.common.account);
+        // levy fee prior to withdrawal
+        bytes memory data = abi.encode(account, withdrawal.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        _withdrawWithSignature(IAccount(account), withdrawal, signature);
     }
 
     /// @dev Transfers funds from collateral account to controller, and limits compensation 

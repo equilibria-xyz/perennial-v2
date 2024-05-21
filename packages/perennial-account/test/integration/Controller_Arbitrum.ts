@@ -48,15 +48,9 @@ describe('Controller_Arbitrum', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(
-    accountAddress: Address,
-    userAddress: Address,
-    feeOverride = DEFAULT_MAX_FEE,
-    expiresInSeconds = 16,
-  ) {
+  function createAction(userAddress: Address, feeOverride = DEFAULT_MAX_FEE, expiresInSeconds = 16) {
     return {
       action: {
-        account: accountAddress,
         maxFee: feeOverride,
         common: {
           account: userAddress,
@@ -74,7 +68,7 @@ describe('Controller_Arbitrum', () => {
     const accountAddress = await controller.getAccountAddress(user.address)
     await dsu.connect(userA).transfer(accountAddress, amount, { maxFeePerGas: 100000000 })
     const deployAccountMessage = {
-      ...createAction(accountAddress, user.address),
+      ...createAction(user.address),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller
@@ -157,7 +151,7 @@ describe('Controller_Arbitrum', () => {
 
       // sign a message to deploy the account
       const deployAccountMessage = {
-        ...createAction(accountAddressA, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -179,7 +173,7 @@ describe('Controller_Arbitrum', () => {
       // sign a message with maxFee smaller than the calculated keeper fee (~0.0033215)
       const maxFee = parse6decimal('0.000789')
       const deployAccountMessage = {
-        ...createAction(accountAddressA, userA.address, maxFee),
+        ...createAction(userA.address, maxFee),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -213,7 +207,7 @@ describe('Controller_Arbitrum', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(accountAddressA, userA.address),
+        ...createAction(userA.address),
       }
 
       // assign the delegate
@@ -229,7 +223,7 @@ describe('Controller_Arbitrum', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(accountAddressA, userA.address),
+        ...createAction(userA.address),
       }
 
       // assign the delegate
@@ -240,8 +234,8 @@ describe('Controller_Arbitrum', () => {
           .updateSignerWithSignature(updateSignerMessage, signature, { maxFeePerGas: 100000000 }),
       )
         .to.emit(controller, 'SignerUpdated')
-        .withArgs(accountAddressA, userB.address, true)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+        .withArgs(userA.address, userB.address, true)
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
 
       const keeperFee = await dsu.balanceOf(keeper.address)
       expect(keeperFee).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
@@ -267,7 +261,7 @@ describe('Controller_Arbitrum', () => {
       const withdrawalMessage = {
         amount: withdrawalAmount,
         unwrap: true,
-        ...createAction(accountA.address, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 
