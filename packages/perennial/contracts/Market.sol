@@ -503,15 +503,17 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeGlobal = _guarantee[context.global.currentId].read();
         updateContext.guaranteeLocal = _guarantees[context.account][context.local.currentId].read();
 
-        // load external actors
+        // load order metadata
+        updateContext.liquidator = liquidators[context.account][context.local.currentId];
+        updateContext.orderReferrer = orderReferrers[context.account][context.local.currentId];
+        updateContext.guaranteeReferrer = guaranteeReferrers[context.account][context.local.currentId];
+
+        // load factory metadata
         updateContext.operator = context.account == msg.sender
             || IMarketFactory(address(factory())).extensions(msg.sender)
             || IMarketFactory(address(factory())).operators(context.account, msg.sender);
         updateContext.signer = context.account == signer
             || IMarketFactory(address(factory())).signers(context.account, signer);
-        updateContext.liquidator = liquidators[context.account][context.local.currentId];
-        updateContext.orderReferrer = orderReferrers[context.account][context.local.currentId];
-        updateContext.guaranteeReferrer = guaranteeReferrers[context.account][context.local.currentId];
         updateContext.orderReferralFee = IMarketFactory(address(factory())).referralFees(orderReferrer);
         updateContext.guaranteeReferralFee = guaranteeReferralFee;
     }
@@ -551,6 +553,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
             updateContext.orderLocal.next(context.currentTimestamp);
             updateContext.guaranteeLocal.next();
+            updateContext.liquidator = address(0);
+            updateContext.orderReferrer = address(0);
+            updateContext.guaranteeReferrer = address(0);
             context.local.currentId++;
         }
         if (context.currentTimestamp > updateContext.orderGlobal.timestamp) {
