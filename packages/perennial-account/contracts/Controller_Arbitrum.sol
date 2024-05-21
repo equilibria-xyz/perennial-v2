@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
+import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import {
     AggregatorV3Interface, 
     Kept_Arbitrum
 } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18, UFixed18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
@@ -32,54 +34,50 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
 
     /// @notice Configures message verification and keeper compensation
     /// @param verifier_ Contract used to validate EIP-712 message signatures
+    /// @param usdc_ USDC token address
+    /// @param dsu_ DSU token address
+    /// @param reserve_ DSU Reserve address, used by Account
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
-    /// @param keeperToken_ 18-decimal USD-pegged stable used to compensate keepers
     function initialize(
         IVerifier verifier_,
-        AggregatorV3Interface chainlinkFeed_,
-        Token18 keeperToken_
+        Token6 usdc_,
+        Token18 dsu_,
+        IEmptySetReserve reserve_,
+        AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
         __Instance__initialize();
-        __Kept__initialize(chainlinkFeed_, keeperToken_);
+        __Kept__initialize(chainlinkFeed_, dsu_);
         verifier = verifier_;
+        USDC = usdc_;
+        DSU = dsu_;
+        reserve = reserve_;
     }
 
     /// @inheritdoc IController
     function deployAccountWithSignature(
         DeployAccount calldata deployAccount_, 
         bytes calldata signature
-    ) 
-        override external 
-        keep(
-            keepConfig, 
-            abi.encode(deployAccount_, signature), 
-            0, 
-            abi.encode(deployAccount_.action.account, deployAccount_.action.maxFee)
-        )
-    {
+    ) override external {
         IAccount account = _deployAccountWithSignature(deployAccount_, signature);
-        // approve controller to spend the account's keeper token
-        account.approveController(Token18.unwrap(keeperToken()));
+        bytes memory data = abi.encode(address(account), deployAccount_.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @inheritdoc IController
     function marketTransferWithSignature(
-        MarketTransfer calldata marketTransfer_, 
-        bytes calldata signature_
-    )
-        override external
-    {
-        IAccount account = _verifyMarketTransfer(marketTransfer_, signature_);
-        IMarket market = IMarket(marketTransfer_.market);
-        bytes memory data = abi.encode(marketTransfer_.action.account, marketTransfer_.action.maxFee);
+        MarketTransfer calldata marketTransfer, 
+        bytes calldata signature
+    ) override external {
+        IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
+        bytes memory data = abi.encode(account, marketTransfer.action.maxFee);
 
         // if we're depositing collateral to the market, pay the keeper before transferring funds
-        if (marketTransfer_.amount.gte(Fixed6Lib.ZERO)) {
+        if (marketTransfer.amount.gte(Fixed6Lib.ZERO)) {
             _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
-            account.marketTransfer(market, marketTransfer_.amount);
+            _marketTransferWithSignature(account, marketTransfer, signature);
         // otherwise handle the keeper fee normally, after withdrawing to the collateral account
         } else {
-            account.marketTransfer(market, marketTransfer_.amount);
+            _marketTransferWithSignature(account, marketTransfer, signature);
             _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
         }
     }
@@ -88,28 +86,24 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     function updateSignerWithSignature(
         SignerUpdate calldata signerUpdate, 
         bytes calldata signature
-    ) 
-        override external
-        keep(
-            keepConfig, 
-            abi.encode(signerUpdate, signature), 
-            0, 
-            abi.encode(signerUpdate.action.account, signerUpdate.action.maxFee)
-        )
-    {
+    ) override external {
         _updateSignerWithSignature(signerUpdate, signature);
+        // for this message, account address is only needed for keeper compensation
+        address account = getAccountAddress(signerUpdate.action.common.account);
+        bytes memory data = abi.encode(address(account), signerUpdate.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @inheritdoc IController
     function withdrawWithSignature(
         Withdrawal calldata withdrawal, 
         bytes calldata signature
-    ) 
-        override external 
-    {
-        bytes memory data = abi.encode(withdrawal.action.account, withdrawal.action.maxFee);
+    ) override external {
+        address account = getAccountAddress(withdrawal.action.common.account);
+        // levy fee prior to withdrawal
+        bytes memory data = abi.encode(account, withdrawal.action.maxFee);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
-        _withdrawWithSignature(withdrawal, signature);
+        _withdrawWithSignature(IAccount(account), withdrawal, signature);
     }
 
     /// @dev Transfers funds from collateral account to controller, and limits compensation 

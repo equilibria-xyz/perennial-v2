@@ -30,7 +30,6 @@ const commonType = {
 
 const actionType = {
   Action: [
-    { name: 'account', type: 'address' },
     { name: 'maxFee', type: 'uint256' },
     { name: 'common', type: 'Common' },
   ],
@@ -113,8 +112,8 @@ export async function signWithdrawal(
 ): Promise<string> {
   const types = {
     Withdrawal: [
-      { name: 'token', type: 'address' },
       { name: 'amount', type: 'uint256' },
+      { name: 'unwrap', type: 'bool' },
       { name: 'action', type: 'Action' },
     ],
     ...actionType,

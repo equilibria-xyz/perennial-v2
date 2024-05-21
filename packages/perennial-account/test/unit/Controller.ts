@@ -4,11 +4,19 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
-import { Controller, Controller__factory, Verifier, Verifier__factory } from '../../types/generated'
+import {
+  Controller,
+  Controller__factory,
+  IERC20,
+  IEmptySetReserve,
+  Verifier,
+  Verifier__factory,
+} from '../../types/generated'
 import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 import { signDeployAccount, signSignerUpdate } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
+import { smock } from '@defi-wonderland/smock'
 
 const { ethers } = HRE
 
@@ -24,15 +32,9 @@ describe('Controller', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(
-    accountAddress: Address,
-    userAddress: Address,
-    maxFee = utils.parseEther('0.3'),
-    expiresInSeconds = 12,
-  ) {
+  function createAction(userAddress: Address, maxFee = utils.parseEther('0.3'), expiresInSeconds = 12) {
     return {
       action: {
-        account: accountAddress,
         maxFee: maxFee,
         common: {
           account: userAddress,
@@ -47,15 +49,15 @@ describe('Controller', () => {
 
   // deploys a collateral account for the specified user and returns the address
   async function createCollateralAccount(user: SignerWithAddress): Promise<Address> {
-    const accountAddress = await controller.getAccountAddress(user.address)
     const deployAccountMessage = {
-      ...createAction(accountAddress, user.address),
+      ...createAction(user.address),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signatureCreate)
     // verify the address from event arguments
     const creationArgs = (await tx.wait()).events?.find(e => e.event === 'AccountDeployed')
       ?.args as any as AccountDeployedEventObject
+    const accountAddress = await controller.getAccountAddress(user.address)
     expect(creationArgs.account).to.equal(accountAddress)
     return accountAddress
   }
@@ -71,7 +73,12 @@ describe('Controller', () => {
     controller = await new Controller__factory(owner).deploy()
     verifier = await new Verifier__factory(owner).deploy()
     verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
-    await controller.initialize(verifier.address)
+
+    // TODO: move to setupHelpers module, which doesn't exist in this branch
+    const usdc = await smock.fake<IERC20>('IERC20')
+    const dsu = await smock.fake<IERC20>('IERC20')
+    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
+    await controller.initialize(verifier.address, usdc.address, dsu.address, reserve.address)
   }
 
   beforeEach(async () => {
@@ -100,13 +107,13 @@ describe('Controller', () => {
     })
 
     it('creates collateral accounts from a signed message', async () => {
-      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       const deployAccountMessage = {
-        ...createAction(accountAddressCalculated, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
       // deploy and confirm address of the account matches calculated expectation
+      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature))
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
@@ -117,13 +124,13 @@ describe('Controller', () => {
       await controller.connect(userA).updateSigner(userB.address, true)
 
       // create a message to create collateral account for userA but sign it as userB
-      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       const deployAccountMessage = {
-        ...createAction(accountAddressCalculated, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
 
       // create the account
+      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature))
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
@@ -131,9 +138,8 @@ describe('Controller', () => {
 
     it('third party cannot create account on owners behalf', async () => {
       // create a message to create collateral account for userA but sign it as userB
-      const accountAddressCalculated = await controller.getAccountAddress(userA.address)
       const deployAccountMessage = {
-        ...createAction(accountAddressCalculated, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
 
@@ -159,33 +165,33 @@ describe('Controller', () => {
       // userA assigns userB as delegated signer for their collateral account
       await expect(controller.connect(userA).updateSigner(userB.address, true))
         .to.emit(controller, 'SignerUpdated')
-        .withArgs(accountAddressA, userB.address, true)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+        .withArgs(userA.address, userB.address, true)
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
 
       // no-op update should neither revert nor change state
       await expect(controller.connect(userA).updateSigner(userB.address, true))
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
 
       // userA disables userB's delegatation rights
       await expect(controller.connect(userA).updateSigner(userB.address, false))
         .to.emit(controller, 'SignerUpdated')
-        .withArgs(accountAddressA, userB.address, false)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.false
+        .withArgs(userA.address, userB.address, false)
+      expect(await controller.signers(userA.address, userB.address)).to.be.false
 
       // no-op update should neither revert nor change state
       await expect(controller.connect(userA).updateSigner(userB.address, false))
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.false
+      expect(await controller.signers(userA.address, userB.address)).to.be.false
 
       // userA re-enables userB's delegation rights
       await expect(controller.connect(userA).updateSigner(userB.address, true))
         .to.emit(controller, 'SignerUpdated')
-        .withArgs(accountAddressA, userB.address, true)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+        .withArgs(userA.address, userB.address, true)
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
     })
 
     it('can assign a delegate from a signed message', async () => {
       // validate initial state
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.false
+      expect(await controller.signers(userA.address, userB.address)).to.be.false
 
       // create the collateral account
       const accountAddress = await createCollateralAccount(userA)
@@ -195,15 +201,15 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(accountAddressA, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
       // assign the delegate
       await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
         .to.emit(controller, 'SignerUpdated')
-        .withArgs(accountAddressA, userB.address, true)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+        .withArgs(userA.address, userB.address, true)
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
     })
 
     it('can assign a delegate before collateral account was created', async () => {
@@ -211,20 +217,20 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(accountAddressA, userA.address),
+        ...createAction(userA.address),
       }
 
       // assign the delegate
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
       await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
         .to.emit(controller, 'SignerUpdated')
-        .withArgs(accountAddressA, userB.address, true)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+        .withArgs(userA.address, userB.address, true)
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
     })
 
     it('cannot assign a delegate from an unauthorized signer', async () => {
       // validate initial state
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.false
+      expect(await controller.signers(userA.address, userB.address)).to.be.false
 
       // create the collateral account
       await createCollateralAccount(userA)
@@ -233,7 +239,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(accountAddressA, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signSignerUpdate(userB, verifier, updateSignerMessage)
 
@@ -257,14 +263,14 @@ describe('Controller', () => {
       // userA assigns userB as delegated signer for their collateral account
       await expect(controller.connect(userA).updateSigner(userB.address, true))
         .to.emit(controller, 'SignerUpdated')
-        .withArgs(accountAddressA, userB.address, true)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+        .withArgs(userA.address, userB.address, true)
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
 
       // keeper signs a message disabling userB's delegation rights to userA's collateral account
       const updateSignerMessage = {
         signer: userB.address,
         approved: false,
-        ...createAction(accountAddressA, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signSignerUpdate(keeper, verifier, updateSignerMessage)
 
@@ -278,21 +284,21 @@ describe('Controller', () => {
       // set up initial state
       await createCollateralAccount(userA)
       await controller.connect(userA).updateSigner(userB.address, true)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.true
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
 
       // userA signs a message assigning userB's delegation rights
       const updateSignerMessage = {
         signer: userB.address,
         approved: false,
-        ...createAction(accountAddressA, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
       // disable the delegate
       await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
         .to.emit(controller, 'SignerUpdated')
-        .withArgs(accountAddressA, userB.address, false)
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.false
+        .withArgs(userA.address, userB.address, false)
+      expect(await controller.signers(userA.address, userB.address)).to.be.false
     })
   })
 })
