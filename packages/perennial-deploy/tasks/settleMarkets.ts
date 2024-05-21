@@ -45,7 +45,12 @@ export default task('settle-markets', 'Settles users across all markets')
       ...new Set(await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))),
     ]
 
-    console.log('[Settle Markets] Committing prices for underlying ids', underlyingIds.join(','))
+    console.log(
+      '[Settle Markets] Committing prices for underlying ids',
+      underlyingIds.join(','),
+      'timestamp:',
+      args.timestamp,
+    )
     await run('commit-price', {
       priceids: underlyingIds.join(','),
       dry: args.dry,

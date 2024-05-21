@@ -18,7 +18,6 @@ import { smock } from '@defi-wonderland/smock'
 import { GlobalStruct } from '../../../../types/generated/@equilibria/perennial-v2/contracts/Market'
 
 const RunMigrationDeployScript = true
-const SkipUpdateVaultWeights = true
 const SkipSettleAccounts = false
 const SkipSettleVaults = false
 
@@ -90,10 +89,6 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     const marketsOld = await Promise.all(marketsAddrs.map(a => ethers.getContractAt(v2_1_1Artifact.abi, a)))
 
     console.log('---- Running Pre-Migration Tasks ----')
-    // Update vault we ights so they add up to 1e6
-    if (!SkipUpdateVaultWeights) {
-      await run('2_2_update-vault-weights', { prevabi: true })
-    }
     // Register pyth factory with oracle factory
     // During migration this will already be done
     await oracleFactory.register(pythFactory.address)
@@ -106,7 +101,7 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     await run('change-markets-mode', { settle: true, prevabi: true })
     console.log('---- Done ----\n')
 
-    await increase(1000)
+    await increase(10)
 
     // Settle all users using hardhat task
     if (!SkipSettleAccounts) {
@@ -255,6 +250,7 @@ describe('Verify Arbitrum v2.2 Migration', () => {
   })
 
   it('settles vaults', async () => {
+    // await run('check-vault-shares')
     const perennialUser = await impersonateWithBalance(
       '0xeb04ee956b3aa60977542e084e38c60be7fd69a5',
       ethers.utils.parseEther('10'),
