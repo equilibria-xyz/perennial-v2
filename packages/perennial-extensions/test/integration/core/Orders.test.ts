@@ -481,7 +481,7 @@ describe('Orders', () => {
           .to.emit(multiInvoker, 'OrderExecuted')
           .withArgs(user.address, market.address, 1)
           .to.emit(multiInvoker, 'KeeperCall')
-          .to.emit(market, 'Updated')
+          .to.emit(market, 'Updated') // Collateral change
           .withArgs(
             multiInvoker.address,
             user.address,
@@ -490,6 +490,18 @@ describe('Orders', () => {
             anyValue,
             anyValue,
             -50e6,
+            false,
+            constants.AddressZero,
+          )
+          .to.emit(market, 'Updated') // Position change
+          .withArgs(
+            multiInvoker.address,
+            user.address,
+            anyValue,
+            anyValue,
+            userPosition,
+            anyValue,
+            0,
             false,
             userB.address,
           )
@@ -530,7 +542,7 @@ describe('Orders', () => {
           .to.emit(multiInvoker, 'OrderExecuted')
           .withArgs(user.address, market.address, 1)
           .to.emit(multiInvoker, 'KeeperCall')
-          .to.emit(market, 'Updated')
+          .to.emit(market, 'Updated') // Collateral change
           .withArgs(
             multiInvoker.address,
             user.address,
@@ -541,6 +553,18 @@ describe('Orders', () => {
             -50e6,
             false,
             constants.AddressZero,
+          )
+          .to.emit(market, 'Updated') // Position change
+          .withArgs(
+            multiInvoker.address,
+            user.address,
+            anyValue,
+            anyValue,
+            userPosition,
+            anyValue,
+            0,
+            false,
+            userB.address,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
           .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
