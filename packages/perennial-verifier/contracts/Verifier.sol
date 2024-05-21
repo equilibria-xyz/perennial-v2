@@ -7,6 +7,8 @@ import { Common, CommonLib } from "./types/Common.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { Fill, FillLib } from "./types/Fill.sol";
 import { GroupCancellation, GroupCancellationLib } from "./types/GroupCancellation.sol";
+import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
+import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 
 /// @title Verifier
@@ -73,6 +75,30 @@ contract Verifier is IVerifier, EIP712 {
         validateAndCancel(groupCancellation.common, signature) returns (address)
     {
         return ECDSA.recover(_hashTypedDataV4(GroupCancellationLib.hash(groupCancellation)), signature);
+    }
+
+    /// @notice Verifies the signature of a operator update type
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param operatorUpdate The operator update message to verify
+    /// @param signature The signature of the account for the operator update
+    /// @return The address corresponding to the signature
+    function verifyOperatorUpdate(OperatorUpdate calldata operatorUpdate, bytes calldata signature)
+        external
+        validateAndCancel(operatorUpdate.common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(OperatorUpdateLib.hash(operatorUpdate)), signature);
+    }
+
+    /// @notice Verifies the signature of a signer update type
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param signerUpdate The signer update message to verify
+    /// @param signature The signature of the account for the signer update
+    /// @return The address corresponding to the signature
+    function verifySignerUpdate(SignerUpdate calldata signerUpdate, bytes calldata signature)
+        external
+        validateAndCancel(signerUpdate.common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(SignerUpdateLib.hash(signerUpdate)), signature);
     }
 
     /// @notice Cancels a nonce

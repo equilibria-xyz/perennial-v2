@@ -307,7 +307,11 @@ testOracles.forEach(testOracle => {
         },
         owner,
       ).deploy(verifierImpl.address)
-      marketFactory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+      marketFactory = await new MarketFactory__factory(owner).deploy(
+        oracleFactory.address,
+        verifierImpl.address,
+        marketImpl.address,
+      )
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         protocolFee: parse6decimal('0.50'),
