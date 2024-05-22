@@ -64,6 +64,7 @@ library ProtocolParameterStorageLib {
     function validate(ProtocolParameter memory self) internal pure {
         if (self.protocolFee.gt(self.maxCut)) revert ProtocolParameterStorageInvalidError();
         if (self.maxCut.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
+        if (self.referralFee.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
     }
 
     function validateAndStore(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
@@ -74,7 +75,6 @@ library ProtocolParameterStorageLib {
         if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max / 2))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
-        if (newValue.referralFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.protocolFee)),

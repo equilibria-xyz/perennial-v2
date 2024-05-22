@@ -23,6 +23,8 @@ interface IMarketFactory is IFactory {
     error FactoryAlreadyRegisteredError();
     // sig: 0x6928a80f
     error MarketFactoryInvalidSignerError();
+    // sig: 0x199d4b3e
+    error MarketFactoryInvalidReferralFeeError();
 
     // sig: 0x4dc1bc59
     error ProtocolParameterStorageInvalidError();

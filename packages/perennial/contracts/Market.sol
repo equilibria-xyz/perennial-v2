@@ -125,6 +125,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
     function update(Intent calldata intent, bytes memory signature) external {
+        if (intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
+
         address signer = verifier.verifyIntent(intent, signature);
 
         _updateIntent(
