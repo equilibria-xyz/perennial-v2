@@ -137,7 +137,7 @@ interface IMarket is IInstance {
     function pendingOrder(uint256 id) external view returns (Order memory);
     function pending() external view returns (Order memory);
     function global() external view returns (Global memory);
-    function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);
+    function checkpoints(address account, uint256 version) external view returns (Checkpoint memory);
     function liquidators(address account, uint256 id) external view returns (address);
     function referrers(address account, uint256 id) external view returns (address);
     function settle(address account) external;
