@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
+import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
@@ -65,12 +66,8 @@ contract Controller is Instance, IController {
             abi.encode(USDC),
             abi.encode(DSU),
             abi.encode(reserve));
-        // calculate the hash for that bytecode
-        bytes32 hash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), SALT, keccak256(bytecode))
-        );
-        // cast last 20 bytes of hash to address
-        return address(uint160(uint256(hash)));
+        // calculate the hash for that bytecode and compute the address
+        return Create2.computeAddress(SALT, keccak256(bytecode));
     }
 
     /// @inheritdoc IController
@@ -89,8 +86,7 @@ contract Controller is Instance, IController {
     function _deployAccountWithSignature(
         DeployAccount calldata deployAccount_, 
         bytes calldata signature
-    ) internal returns (IAccount account)
-    {
+    ) internal returns (IAccount account) {
         address owner = deployAccount_.action.common.account;
         address signer = verifier.verifyDeployAccount(deployAccount_, signature);
         _ensureValidSigner(owner, signer);
@@ -100,13 +96,7 @@ contract Controller is Instance, IController {
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
-        account = new Account{salt: SALT}(
-            owner, 
-            address(this),
-            USDC,
-            DSU,
-            reserve
-        );
+        account = new Account{salt: SALT}(owner, address(this), USDC, DSU, reserve);
         emit AccountDeployed(owner, account);
     }
 
