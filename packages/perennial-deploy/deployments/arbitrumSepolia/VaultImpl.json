@@ -13,6 +13,11 @@
     },
     {
       "inputs": [],
+      "name": "CheckpointSingleSidedError",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "CheckpointStorageInvalidError",
       "type": "error"
     },

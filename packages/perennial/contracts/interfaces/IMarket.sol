@@ -137,7 +137,7 @@ interface IMarket is IInstance {
     function pendingOrder(uint256 id) external view returns (Order memory);
     function pending() external view returns (Order memory);
     function global() external view returns (Global memory);
-    function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);
+    function checkpoints(address account, uint256 version) external view returns (Checkpoint memory);
     function liquidators(address account, uint256 id) external view returns (address);
     function referrers(address account, uint256 id) external view returns (address);
     function settle(address account) external;
@@ -147,6 +147,6 @@ interface IMarket is IInstance {
     function riskParameter() external view returns (RiskParameter memory);
     function updateOracle(IOracleProvider newOracle) external;
     function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
-    function updateRiskParameter(RiskParameter memory newRiskParameter) external;
+    function updateRiskParameter(RiskParameter memory newRiskParameter, bool isMigration) external;
     function claimFee() external;
 }

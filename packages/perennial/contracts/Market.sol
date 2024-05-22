@@ -72,7 +72,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The local aggregate pending order for each account
     mapping(address => OrderStorageLocal) private _pendings;
 
-    /// @dev The local checkpoint for each id for each account
+    /// @dev The local checkpoint for each version for each account
     mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
 
     /// @dev The liquidator for each id for each account
@@ -173,24 +173,35 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
-    function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
-
-        // credit impact update fee to the protocol account
+    function updateRiskParameter(RiskParameter memory newRiskParameter, bool isMigration) external onlyCoordinator {
+        // v2.2 migration note - storage layout backwards compatible
+        // only .exposure added, which correctly defaults to 0
         Global memory newGlobal = _global.read();
+
+        // v2.2 migration note - storage layout backwards compatible
+        // .long, .short, .maker preserved in place which are the only fields utilized here
         Position memory latestPosition = _position.read();
-        RiskParameter memory latestRiskParameter = _riskParameter.read();
-        OracleVersion memory latestVersion = oracle.at(latestPosition.timestamp);
 
+        RiskParameter memory latestRiskParameter;
+        if (isMigration) {
+            // v2.2 migration note - kick off adiabatic parameters with non-zero scale
+            // .adiabaticFee parameter of zero will correctly result in a latest exposure of zero no matter the skew
+            (latestRiskParameter.makerFee.scale, latestRiskParameter.takerFee.scale) = (UFixed6Lib.ONE, UFixed6Lib.ONE);
+        } else {
+            latestRiskParameter = _riskParameter.read();
+        }
+
+        // Accrue the PnL from the change in exposure of the adiabatic fee due to parameter change
         Fixed6 updateFee = latestRiskParameter.makerFee
-            .update(newRiskParameter.makerFee, latestPosition.maker, latestVersion.price.abs())
+            .update(newRiskParameter.makerFee, latestPosition.maker, newGlobal.latestPrice.abs())
             .add(latestRiskParameter.takerFee
-                .update(newRiskParameter.takerFee, latestPosition.skew(), latestVersion.price.abs()));
-
+                .update(newRiskParameter.takerFee, latestPosition.skew(), newGlobal.latestPrice.abs()));
         newGlobal.exposure = newGlobal.exposure.sub(updateFee);
-        _global.store(newGlobal);
 
         // update
+        _global.store(newGlobal);
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
+
         emit RiskParameterUpdated(newRiskParameter);
     }
 

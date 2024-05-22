@@ -77,7 +77,9 @@ async function getMarketList(marketFactory: IMarketFactory) {
   )
 }
 
-async function getMarketBeneficiaryAndCoordinator(market: IMarket) {
+export async function getMarketBeneficiaryAndCoordinator(
+  market: IMarket,
+): Promise<{ beneficiary: string; coordinator: string }> {
   const beneficiary = (await market.queryFilter(market.filters.BeneficiaryUpdated(), 0, 'latest')).sort(
     (a, b) => b.blockNumber - a.blockNumber,
   )[0]

@@ -309,7 +309,7 @@ testOracles.forEach(testOracle => {
         oracle: oracle.address,
       })
       await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
-      await market.updateRiskParameter(riskParameter)
+      await market.updateRiskParameter(riskParameter, false)
 
       market2 = Market__factory.connect(
         await marketFactory.callStatic.create({
@@ -323,7 +323,7 @@ testOracles.forEach(testOracle => {
         oracle: oracle2.address,
       })
       await market2.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
-      await market2.updateRiskParameter(riskParameter)
+      await market2.updateRiskParameter(riskParameter, false)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))
