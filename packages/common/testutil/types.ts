@@ -38,6 +38,7 @@ export interface Guarantee {
   takerPos: BigNumberish
   takerNeg: BigNumberish
   notional: BigNumberish
+  takerFee: BigNumberish
   referral: BigNumberish
 }
 
@@ -112,6 +113,7 @@ export function expectGuaranteeEq(a: Guarantee, b: Guarantee): void {
   expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
   expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
   expect(a.notional).to.equal(b.notional, 'Order:Notional')
+  expect(a.takerFee).to.equal(b.takerFee, 'Order:TakerFee')
   expect(a.referral).to.equal(b.referral, 'Order:Referral')
 }
 
@@ -233,6 +235,7 @@ export const DEFAULT_GUARANTEE: Guarantee = {
   takerPos: 0,
   takerNeg: 0,
   notional: 0,
+  takerFee: 0,
   referral: 0,
 }
 
