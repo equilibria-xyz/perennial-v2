@@ -1,4 +1,5 @@
 import HRE, { run } from 'hardhat'
+import { BigNumber } from 'ethers'
 import { expect } from 'chai'
 import { impersonateWithBalance } from '../../../../../common/testutil/impersonate'
 import { currentBlockTimestamp, increase, reset } from '../../../../../common/testutil/time'
@@ -21,6 +22,8 @@ const RunMigrationDeployScript = true
 const SkipSettleAccounts = false
 const SkipSettleVaults = false
 
+const liquidatorAddress = '0xB092493412FCae3432487Efb33204F7B4FeF12ff'
+
 describe('Verify Arbitrum v2.2 Migration', () => {
   let DSU: IERC20
   let USDC: IERC20
@@ -36,7 +39,8 @@ describe('Verify Arbitrum v2.2 Migration', () => {
   let marketsAddrs: string[]
   let markets: IMarket[]
 
-  const beforeGlobals: GlobalStruct[] = []
+  const beforeGlobals: { [key: string]: GlobalStruct } = {}
+  const liqCollateralBefore: { [key: string]: BigNumber } = {}
 
   const { deployments, ethers } = HRE
   const { fixture, get } = deployments
@@ -128,7 +132,10 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     }
 
     for (const market of marketsOld) {
-      beforeGlobals.push(await market.global())
+      beforeGlobals[market.address] = await market.global()
+      const liqLocal = await market.locals(liquidatorAddress)
+      console.log('🚀 ~ before ~ liqLocal:', liqLocal)
+      liqCollateralBefore[market.address] = liqLocal.collateral
     }
 
     // Update implementations
@@ -161,9 +168,9 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       const market = markets[i]
 
       const global = await market.global()
-      expect(global.latestPrice).to.be.equal(beforeGlobals[i].latestPrice)
-      expect(global.latestId).to.be.equal(beforeGlobals[i].latestId)
-      expect(global.currentId).to.be.equal(beforeGlobals[i].currentId)
+      expect(global.latestPrice).to.be.equal(beforeGlobals[market.address].latestPrice)
+      expect(global.latestId).to.be.equal(beforeGlobals[market.address].latestId)
+      expect(global.currentId).to.be.equal(beforeGlobals[market.address].currentId)
       expect(global.currentId).to.equal(global.latestId)
 
       await expect(market.settle(ethers.constants.AddressZero)).to.not.be.reverted
@@ -217,6 +224,36 @@ describe('Verify Arbitrum v2.2 Migration', () => {
 
     expect(local.currentId).to.equal(local.latestId)
     expect(checkpoint.collateral).to.be.greaterThan(0)
+  })
+
+  it('transitions checkpoint for liquidator', async () => {
+    const liquidatorSigner = await impersonateWithBalance(liquidatorAddress, ethers.utils.parseEther('10'))
+
+    await increase(10)
+
+    const ethMarket = await ethers.getContractAt('IMarket', '0x90A664846960AaFA2c164605Aebb8e9Ac338f9a0')
+    const btcMarket = await ethers.getContractAt('IMarket', '0xcC83e3cDA48547e3c250a88C8D5E97089Fd28F60')
+    const currentTimestamp = await currentBlockTimestamp()
+    await commitPriceForIds([oracleIDs[0].id, oracleIDs[1].id], currentTimestamp)
+
+    const nextVersionTimestamp = nextVersionForTimestamp(currentTimestamp)
+    await ethMarket
+      .connect(liquidatorSigner)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](liquidatorSigner.address, 0, 0, 0, 0, false)
+    await btcMarket
+      .connect(liquidatorSigner)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](liquidatorSigner.address, 0, 0, 0, 0, false)
+
+    await increase(10)
+
+    await commitPriceForIds([oracleIDs[0].id, oracleIDs[1].id], nextVersionTimestamp + 4)
+
+    await ethMarket.settle(liquidatorSigner.address)
+    await btcMarket.settle(liquidatorSigner.address)
+    const ethCheckpoint = await ethMarket.checkpoints(liquidatorSigner.address, nextVersionTimestamp)
+    const btcCheckpoint = await btcMarket.checkpoints(liquidatorSigner.address, nextVersionTimestamp)
+    expect(liqCollateralBefore[ethMarket.address]).to.be.equal(ethCheckpoint.collateral)
+    expect(liqCollateralBefore[btcMarket.address]).to.be.equal(btcCheckpoint.collateral)
   })
 
   it('liquidates', async () => {
