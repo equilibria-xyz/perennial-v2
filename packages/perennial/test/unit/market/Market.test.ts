@@ -15961,17 +15961,17 @@ describe('Market', () => {
               .connect(operator)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
           )
-            .to.emit(market, 'Updated')
+            .to.emit(market, 'OrderCreated')
             .withArgs(
-              operator.address,
               user.address,
-              ORACLE_VERSION_2.timestamp,
-              POSITION,
-              0,
-              0,
-              COLLATERAL,
-              false,
-              constants.AddressZero,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                makerPos: POSITION,
+                collateral: COLLATERAL,
+              },
+              { ...DEFAULT_GUARANTEE },
             )
 
           expectLocalEq(await market.locals(user.address), {
