@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
@@ -64,12 +65,8 @@ contract Controller is Instance, IController {
             abi.encode(USDC),
             abi.encode(DSU),
             abi.encode(reserve));
-        // calculate the hash for that bytecode
-        bytes32 hash = keccak256(
-            abi.encodePacked(bytes1(0xff), address(this), SALT, keccak256(bytecode))
-        );
-        // cast last 20 bytes of hash to address
-        return address(uint160(uint256(hash)));
+        // calculate the hash for that bytecode and compute the address
+        return Create2.computeAddress(SALT, keccak256(bytecode));
     }
 
     /// @inheritdoc IController
