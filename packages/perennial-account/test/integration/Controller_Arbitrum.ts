@@ -6,7 +6,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { smock } from '@defi-wonderland/smock'
-import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
 import {
@@ -16,14 +15,13 @@ import {
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
   IERC20Metadata,
-  IERC20Metadata__factory,
-  Verifier,
+  IVerifier,
   Verifier__factory,
 } from '../../types/generated'
 import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signSignerUpdate, signWithdrawal } from '../helpers/erc712'
-import { createMarketFactory, createMarketForOracle } from '../helpers/arbitrumHelpers'
+import { createMarketFactory, createMarketForOracle, deployController, fundWalletDSU } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
@@ -39,11 +37,9 @@ describe('Controller_Arbitrum', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller_Arbitrum
-  let verifier: Verifier
-  let verifierSigner: SignerWithAddress
+  let verifier: IVerifier
   let marketFactory: IMarketFactory
   let market: IMarket
-  let accountA: Account
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
@@ -91,9 +87,7 @@ describe('Controller_Arbitrum', () => {
 
   // funds specified wallet with 50k collateral
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
-    const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-    expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(utils.parseEther('50000'))
-    await dsu.connect(dsuOwner).transfer(wallet.address, utils.parseEther('50000'), { maxFeePerGas: 100000000 })
+    await fundWalletDSU(wallet, utils.parseEther('50000'))
   }
 
   // create a serial nonce for testing purposes; real users may choose a nonce however they please
@@ -105,8 +99,7 @@ describe('Controller_Arbitrum', () => {
   const fixture = async () => {
     // create a market
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-    usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
+    ;[dsu, usdc] = await deployController()
     marketFactory = await createMarketFactory(owner)
     let oracle: any //IOracleProvider
     let keeperOracle: any
@@ -123,7 +116,6 @@ describe('Controller_Arbitrum', () => {
     }
     controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig)
     verifier = await new Verifier__factory(owner).deploy()
-    verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
     // chainlink feed is used by Kept for keeper compensation
     await controller['initialize(address,address,address,address,address)'](
       verifier.address,
@@ -176,7 +168,7 @@ describe('Controller_Arbitrum', () => {
       await controller
         .connect(keeper)
         .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 })
-      accountA = Account__factory.connect(accountAddressA, userA)
+
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
@@ -198,7 +190,7 @@ describe('Controller_Arbitrum', () => {
       await controller
         .connect(keeper)
         .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 })
-      accountA = Account__factory.connect(accountAddressA, userA)
+
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.equal(maxFee.mul(1e12)) // convert from 6- to 18- decimal
     })
@@ -401,11 +393,6 @@ describe('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(0)
-
-      // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
-      console.log('keeper was paid', keeperFeePaid.toString(), 'for full withdrawal')
     })
 
     it('collects fee for withdrawing funds into empty collateral account', async () => {

@@ -5,37 +5,29 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import {
-  Account,
-  Account__factory,
-  Controller,
-  Controller__factory,
-  IERC20Metadata,
-  IERC20Metadata__factory,
-  Verifier,
-  Verifier__factory,
-} from '../../types/generated'
+import { Account, Account__factory, Controller, IERC20Metadata, IVerifier } from '../../types/generated'
+import { IVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
 import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice } from '../helpers/setupHelpers'
-import { createMarketFactory, createMarketForOracle, fundWalletUSDC } from '../helpers/arbitrumHelpers'
+import {
+  createMarketFactory,
+  createMarketForOracle,
+  deployController,
+  fundWalletDSU,
+  fundWalletUSDC,
+} from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
-const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, compatible with Market
-const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Market has 466k at height 208460709
-const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
-const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum bridged USDC
-
-describe('Controller', () => {
+describe('ControllerBase', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller
-  let verifier: Verifier
+  let verifier: IVerifier
   let marketFactory: IMarketFactory
   let market: IMarket
   let keeperOracle: IKeeperOracle
@@ -78,9 +70,7 @@ describe('Controller', () => {
 
   // funds specified wallet with 50k collateral
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
-    const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-    expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(utils.parseEther('50000'))
-    await dsu.connect(dsuOwner).transfer(wallet.address, utils.parseEther('50000'))
+    await fundWalletDSU(wallet, utils.parseEther('50000'))
   }
 
   // create a serial nonce for testing purposes; real users may choose a nonce however they please
@@ -106,11 +96,8 @@ describe('Controller', () => {
   const fixture = async () => {
     // set up users and deploy artifacts
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
-    dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-    controller = await new Controller__factory(owner).deploy()
-    verifier = await new Verifier__factory(owner).deploy()
-    await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_RESERVE)
+    ;[dsu, usdc, controller] = await deployController()
+    verifier = IVerifier__factory.connect(await controller.verifier(), owner)
 
     // create a collateral account for userA with 15k collateral in it
     await fundWallet(userA)
@@ -127,7 +114,6 @@ describe('Controller', () => {
     marketFactory = await createMarketFactory(owner)
     let oracle: IOracleProvider
     ;[market, oracle, keeperOracle] = await createMarketForOracle(owner, marketFactory, dsu)
-    console.log('created market', market.address)
     lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
 
     // approve the collateral account as operator

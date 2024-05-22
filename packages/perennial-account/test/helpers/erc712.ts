@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ActionStruct, CommonStruct } from '../../types/generated/contracts/Verifier'
-import { IVerifier, Verifier } from '../../types/generated'
+import { IVerifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
 import {
   DeployAccountStruct,
@@ -9,7 +9,7 @@ import {
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
 
-export function erc721Domain(verifier: Verifier | FakeContract<IVerifier>) {
+export function erc721Domain(verifier: IVerifier | FakeContract<IVerifier>) {
   return {
     name: 'Perennial V2 Collateral Accounts',
     version: '1.0.0',
@@ -37,7 +37,7 @@ const actionType = {
 
 export async function signCommon(
   signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
+  verifier: IVerifier | FakeContract<IVerifier>,
   common: CommonStruct,
 ): Promise<string> {
   return await signer._signTypedData(erc721Domain(verifier), commonType, common)
@@ -45,7 +45,7 @@ export async function signCommon(
 
 export async function signAction(
   signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
+  verifier: IVerifier | FakeContract<IVerifier>,
   action: ActionStruct,
 ): Promise<string> {
   const types = {
@@ -57,7 +57,7 @@ export async function signAction(
 
 export async function signDeployAccount(
   signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
+  verifier: IVerifier | FakeContract<IVerifier>,
   message: DeployAccountStruct,
 ): Promise<string> {
   const types = {
@@ -71,7 +71,7 @@ export async function signDeployAccount(
 
 export async function signSignerUpdate(
   signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
+  verifier: IVerifier | FakeContract<IVerifier>,
   message: SignerUpdateStruct,
 ): Promise<string> {
   const types = {
@@ -89,7 +89,7 @@ export async function signSignerUpdate(
 
 export async function signMarketTransfer(
   signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
+  verifier: IVerifier | FakeContract<IVerifier>,
   message: MarketTransferStruct,
 ): Promise<string> {
   const types = {
@@ -107,7 +107,7 @@ export async function signMarketTransfer(
 
 export async function signWithdrawal(
   signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
+  verifier: IVerifier | FakeContract<IVerifier>,
   message: WithdrawalStruct,
 ): Promise<string> {
   const types = {

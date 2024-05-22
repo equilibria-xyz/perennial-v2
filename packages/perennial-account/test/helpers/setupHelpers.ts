@@ -2,7 +2,7 @@ import HRE, { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, ContractTransaction, constants, utils } from 'ethers'
-import { impersonate, impersonateWithBalance } from '../../../common/testutil/impersonate'
+import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 
@@ -109,7 +109,9 @@ export async function deployProtocolForOracle(
   oracleFactoryOwnerAddress: Address,
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
-  const verifier = await smock.fake<IVerifier>('IVerifier')
+  const verifier = await smock.fake<IVerifier>(
+    '@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol:IVerifier',
+  )
   const marketImpl = await deployMarketImplementation(owner, verifier.address)
   const marketFactory = await deployMarketFactory(
     owner,

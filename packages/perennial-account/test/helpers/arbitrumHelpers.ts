@@ -9,14 +9,16 @@ import {
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { createMarket, deployProtocolForOracle } from './setupHelpers'
 import {
+  Controller,
+  Controller__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
   IOracleProvider,
   IOracleProvider__factory,
+  Verifier__factory,
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
-import { parse6decimal } from '../../../common/testutil/types'
 import { ethers } from 'hardhat'
 
 const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
@@ -53,6 +55,18 @@ export async function createMarketForOracle(
   // tests use this to commit prices and settle the market
   const keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
   return [market, oracle, keeperOracle]
+}
+
+// connects to Arbitrum stablecoins and deploys a controller configured for them
+export async function deployController(): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
+  const [owner] = await ethers.getSigners()
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
+  const controller = await new Controller__factory(owner).deploy()
+
+  const verifier = await new Verifier__factory(owner).deploy()
+  await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_RESERVE)
+  return [dsu, usdc, controller]
 }
 
 export async function fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber): Promise<undefined> {

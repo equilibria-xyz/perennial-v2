@@ -3,30 +3,18 @@ import HRE from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { impersonate } from '../../../common/testutil'
 import { parse6decimal } from '../../../common/testutil/types'
-import {
-  Account,
-  Account__factory,
-  Controller,
-  Controller__factory,
-  IERC20Metadata,
-  IERC20Metadata__factory,
-  Verifier__factory,
-} from '../../types/generated'
-import { fundWalletDSU, fundWalletUSDC } from '../helpers/arbitrumHelpers'
+import { Account, Account__factory, IController, IERC20Metadata } from '../../types/generated'
+import { deployController, fundWalletDSU, fundWalletUSDC } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
-const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
-const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
-const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8'
 const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d'
 
 describe('Account', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
-  let controller: Controller
+  let controller: IController
   let account: Account
   let owner: SignerWithAddress
   let userA: SignerWithAddress
@@ -40,13 +28,7 @@ describe('Account', () => {
 
   const fixture = async () => {
     ;[owner, userA, userB] = await ethers.getSigners()
-    dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-    usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
-    controller = await new Controller__factory(owner).deploy()
-
-    // TODO: move to arbitrumHelpers module, which doesn't exist in this branch
-    const verifier = await new Verifier__factory(owner).deploy()
-    await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_RESERVE)
+    ;[dsu, usdc, controller] = await deployController()
 
     // fund users with some DSU and USDC
     await fundWallet(userA)
