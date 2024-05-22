@@ -85,26 +85,29 @@ library CheckpointLib {
         Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (UFixed6 tradeFee, UFixed6 subtractiveFee, UFixed6 solverFee) {
+        UFixed6 takerTotal = order.takerTotal().sub(guarantee.takerFee);
+
         UFixed6 makerFee = Fixed6Lib.ZERO
             .sub(toVersion.makerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
             .abs();
         UFixed6 takerFee = Fixed6Lib.ZERO
-            .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()))
+            .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerTotal))
             .abs();
 
         UFixed6 makerSubtractiveFee = order.makerTotal().isZero() ?
             UFixed6Lib.ZERO :
             makerFee.muldiv(order.makerReferral, order.makerTotal());
-        UFixed6 takerSubtractiveFee = order.takerTotal().isZero() ?
+        UFixed6 takerSubtractiveFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            takerFee.muldiv(order.takerReferral, order.takerTotal());
+            takerFee.muldiv(order.takerReferral, takerTotal);
 
-        solverFee = order.takerTotal().isZero() ?
+        solverFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            takerFee.muldiv(guarantee.referral, order.takerTotal());
+            takerFee.muldiv(guarantee.referral, takerTotal);
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
+
     }
 
     /// @notice Accumulate price offset for the next position

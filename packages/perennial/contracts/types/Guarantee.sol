@@ -17,6 +17,9 @@ struct Guarantee {
     /// @dev The negative skew (close long / open short) guarantee size
     UFixed6 takerNeg;
 
+    /// @dev The magnitude of the guarantee that is applicable to the fee
+    UFixed6 takerFee;
+
     /// @dev The referral fee multiplied by the size applicable to the referral (local only)
     UFixed6 referral;
 }
@@ -39,27 +42,28 @@ library GuaranteeLib {
     /// @notice Invalidates the guarantee
     /// @param self The guarantee object to update
     function invalidate(Guarantee memory self) internal pure {
-        (self.takerPos, self.takerNeg, self.notional, self.referral) =
-            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, UFixed6Lib.ZERO);
+        (self.takerPos, self.takerNeg, self.notional, self.takerFee, self.referral) =
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
     /// @notice Creates a new guarantee from an order
     /// @param order The order to create the guarantee from
     /// @param priceOverride The price override
     /// @param referralFee The referral fee percentage
-    /// @param settlementFee Whether the order will still be charged the settlement fee
+    /// @param chargeFee Whether the order will still be charged the fee
     /// @return newGuarantee The resulting guarantee
     function from(
         Order memory order,
         Fixed6 priceOverride,
         UFixed6 referralFee,
-        bool settlementFee
+        bool chargeFee
     ) internal pure returns (Guarantee memory newGuarantee) {
         // maker orders and one intent order per fill will be required to pay the settlement fee
-        if (!order.takerTotal().isZero() && !settlementFee) newGuarantee.orders = order.orders;
+        if (!order.takerTotal().isZero() && !chargeFee) newGuarantee.orders = order.orders;
 
         (newGuarantee.takerPos, newGuarantee.takerNeg) =
             (order.longPos.add(order.shortNeg), order.longNeg.add(order.shortPos));
+        newGuarantee.takerFee = chargeFee ? UFixed6Lib.ZERO : order.takerTotal();
 
         newGuarantee.notional = taker(newGuarantee).mul(priceOverride);
         newGuarantee.referral = order.takerReferral.mul(referralFee);
@@ -84,10 +88,11 @@ library GuaranteeLib {
     /// @param guarantee The new guarantee
     function add(Guarantee memory self, Guarantee memory guarantee) internal pure {
         self.orders = self.orders + guarantee.orders;
-        (self.takerPos, self.takerNeg, self.notional, self.referral) = (
+        (self.notional, self.takerPos, self.takerNeg, self.takerFee, self.referral) = (
+            self.notional.add(guarantee.notional),
             self.takerPos.add(guarantee.takerPos),
             self.takerNeg.add(guarantee.takerNeg),
-            self.notional.add(guarantee.notional),
+            self.takerFee.add(guarantee.takerFee),
             self.referral.add(guarantee.referral)
         );
     }
@@ -100,6 +105,7 @@ library GuaranteeLib {
 ///         uint32 orders;
 ///         uint64 takerPos;
 ///         uint64 takerNeg;
+///         uint64 takerFee;
 ///     }
 ///
 library GuaranteeStorageGlobalLib {
@@ -110,6 +116,7 @@ library GuaranteeStorageGlobalLib {
             Fixed6Lib.ZERO,
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6Lib.ZERO
         );
     }
@@ -120,7 +127,8 @@ library GuaranteeStorageGlobalLib {
         uint256 encoded0 =
             uint256(newValue.orders << (256 - 32)) >> (256 - 32) |
             uint256(UFixed6.unwrap(newValue.takerPos) << (256 - 64)) >> (256 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.takerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -138,6 +146,7 @@ library GuaranteeStorageGlobalLib {
 ///         uint64 takerNeg;
 ///
 ///         /* slot 1 */
+///         uint64 takerFee;
 ///         uint64 referral;
 ///     }
 ///
@@ -149,7 +158,8 @@ library GuaranteeStorageLocalLib {
             Fixed6.wrap(int256(slot0 << (256 - 32 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 64 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64))
+            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64))
         );
     }
 
@@ -166,7 +176,8 @@ library GuaranteeStorageLocalLib {
             uint256(UFixed6.unwrap(newValue.takerPos) << (256 - 64)) >> (256 - 32 - 64 - 64) |
             uint256(UFixed6.unwrap(newValue.takerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
         uint256 encode1 =
-            uint256(UFixed6.unwrap(newValue.referral) << (256 - 64)) >> (256 - 64);
+            uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 64)) >> (256 - 64) |
+            uint256(UFixed6.unwrap(newValue.referral) << (256 - 64)) >> (256 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -183,5 +194,6 @@ library GuaranteeStorageLib {
         if (newValue.orders > type(uint32).max) revert GuaranteeStorageInvalidError();
         if (newValue.takerPos.gt(UFixed6.wrap(type(uint64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
         if (newValue.takerNeg.gt(UFixed6.wrap(type(uint64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        if (newValue.takerFee.gt(UFixed6.wrap(type(uint64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
     }
 }
