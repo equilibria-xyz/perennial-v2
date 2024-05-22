@@ -14,18 +14,14 @@ import {
   IERC20Metadata__factory,
   Verifier__factory,
 } from '../../types/generated'
+import { fundWalletDSU, fundWalletUSDC } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
-const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
 const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
-
-// TODO: using these temporarily until DSU migrates to native USDC
-const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum bridged USDC
-const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d' // Binance hot wallet has 55mm USDC.e at height 208460709
-const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC (not USDC.e), a 6-decimal token
-const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid deposit bridge has 340mm USDC at height 208460709
+const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8'
+const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d'
 
 describe('Account', () => {
   let dsu: IERC20Metadata
@@ -38,13 +34,8 @@ describe('Account', () => {
 
   // funds specified wallet with 50k DSU and 100k USDC
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
-    const usdcOwner = await impersonate.impersonateWithBalance(USDCe_HOLDER, utils.parseEther('10'))
-    // if block height was changed, holder or amounts may need adjustment
-    expect(await usdc.balanceOf(USDCe_HOLDER)).to.be.greaterThan(parse6decimal('100000'))
-    await usdc.connect(usdcOwner).transfer(wallet.address, parse6decimal('100000'))
-    const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-    expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(utils.parseEther('50000'))
-    await dsu.connect(dsuOwner).transfer(wallet.address, utils.parseEther('50000'))
+    await fundWalletDSU(wallet, utils.parseEther('50000'))
+    await fundWalletUSDC(wallet, parse6decimal('100000'))
   }
 
   const fixture = async () => {

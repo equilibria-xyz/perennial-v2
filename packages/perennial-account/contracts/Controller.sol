@@ -10,7 +10,6 @@ import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
-import { Action } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
@@ -121,6 +120,8 @@ contract Controller is Instance, IController {
         // ensure the message was signed by the owner or a delegated signer
         address signer = verifier.verifyMarketTransfer(marketTransfer, signature);
         _ensureValidSigner(marketTransfer.action.common.account, signer);
+
+        // TODO: revert if market's token is not DSU
 
         IMarket market = IMarket(marketTransfer.market);
         account.marketTransfer(market, marketTransfer.amount);

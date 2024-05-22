@@ -22,8 +22,7 @@ import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice } from '../helpers/setupHelpers'
-import { createMarketFactory, createMarketForOracle } from '../helpers/arbitrumHelpers'
-import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
+import { createMarketFactory, createMarketForOracle, fundWalletUSDC } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
@@ -104,14 +103,6 @@ describe('Controller', () => {
     return created
   }
 
-  async function createAccount(user: SignerWithAddress): Promise<Account> {
-    // create an account for userB
-    const tx = await controller.connect(user).deployAccount()
-    const creationArgs = (await tx.wait()).events?.find(e => e.event === 'AccountDeployed')
-      ?.args as any as AccountDeployedEventObject
-    return Account__factory.connect(creationArgs.account, user)
-  }
-
   const fixture = async () => {
     // set up users and deploy artifacts
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
@@ -189,6 +180,25 @@ describe('Controller', () => {
       // verify balances
       await expectMarketCollateralBalance(userA, transferAmount)
       expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('9000')) // 15k-6k
+    })
+
+    it('implicitly unwraps funds to deposit to a market', async () => {
+      // account starts with 15k DSU
+      expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('15000'))
+      // deposit 5k USDC into the account
+      const depositAmount = parse6decimal('5000')
+      await fundWalletUSDC(userA, depositAmount)
+      await usdc.connect(userA).transfer(accountA.address, depositAmount)
+      expect(await usdc.balanceOf(accountA.address)).to.equal(depositAmount)
+
+      // deposit all 20k into the market
+      const transferAmount = parse6decimal('20000')
+      await transfer(transferAmount, userA)
+
+      // verify balances
+      await expectMarketCollateralBalance(userA, parse6decimal('20000'))
+      expect(await dsu.balanceOf(accountA.address)).to.equal(0)
+      expect(await usdc.balanceOf(accountA.address)).to.equal(0)
     })
 
     it('can withdraw funds from a market', async () => {

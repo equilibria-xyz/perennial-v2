@@ -258,8 +258,7 @@ describe('Controller_Arbitrum', () => {
     })
   })
 
-  // TODO: update implementation
-  describe.skip('#transfer', async () => {
+  describe('#transfer', async () => {
     const INITIAL_DEPOSIT_6 = parse6decimal('13000')
     const INITIAL_DEPOSIT_18 = INITIAL_DEPOSIT_6.mul(1e12)
     let accountA: Account
@@ -413,7 +412,7 @@ describe('Controller_Arbitrum', () => {
       // deposit everything possible
       await depositAll()
       // withdraw dust so it cannot be used to pay the keeper
-      await accountA.withdraw(dsu.address, constants.MaxUint256)
+      await accountA.withdraw(constants.MaxUint256, true)
       expect(await dsu.balanceOf(accountA.address)).to.equal(0)
 
       // sign a message to withdraw 3k from the market back into the collateral account

@@ -1,3 +1,5 @@
+import { expect } from 'chai'
+import { BigNumber, utils } from 'ethers'
 import {
   IKeeperOracle,
   IMarketFactory,
@@ -6,12 +8,31 @@ import {
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { createMarket, deployProtocolForOracle } from './setupHelpers'
-import { IERC20Metadata, IMarket, IOracleProvider, IOracleProvider__factory } from '../../types/generated'
+import {
+  IERC20Metadata,
+  IERC20Metadata__factory,
+  IMarket,
+  IOracleProvider,
+  IOracleProvider__factory,
+} from '../../types/generated'
+import { impersonate } from '../../../common/testutil'
+import { parse6decimal } from '../../../common/testutil/types'
+import { ethers } from 'hardhat'
 
 const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
 const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
 const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
 const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
+
+const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
+const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
+const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+
+// TODO: using these temporarily until DSU migrates to native USDC
+const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum bridged USDC
+const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d' // Binance hot wallet has 55mm USDC.e at height 208460709
+const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC (not USDC.e), a 6-decimal token
+const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid deposit bridge has 340mm USDC at height 208460709
 
 // deploys protocol using a forked Arbitrum oracle
 export async function createMarketFactory(owner: SignerWithAddress): Promise<IMarketFactory> {
@@ -32,4 +53,22 @@ export async function createMarketForOracle(
   // tests use this to commit prices and settle the market
   const keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
   return [market, oracle, keeperOracle]
+}
+
+export async function fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber): Promise<undefined> {
+  const [owner] = await ethers.getSigners()
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+
+  const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
+  expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
+  await dsu.connect(dsuOwner).transfer(wallet.address, amount)
+}
+
+export async function fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber): Promise<undefined> {
+  const [owner] = await ethers.getSigners()
+  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
+
+  const usdcOwner = await impersonate.impersonateWithBalance(USDCe_HOLDER, utils.parseEther('10'))
+  expect(await usdc.balanceOf(USDCe_HOLDER)).to.be.greaterThan(amount)
+  await usdc.connect(usdcOwner).transfer(wallet.address, amount)
 }

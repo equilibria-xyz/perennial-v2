@@ -63,15 +63,14 @@ contract Account is IAccount {
         }
     }
 
-    // TODO: add a wrap parameter, support wrapping USDC balance to DSU when amount > DSU balance
     /// @inheritdoc IAccount
     /// @dev If Market ever supports non-18-decimal tokens, this method could be expanded 
     /// to handle them appropriately.
     function marketTransfer(IMarket market, Fixed6 amount) external ownerOrController {
-        // implicitly approve the market to spend our collateral token
-        IERC20Metadata token = IERC20Metadata(Token18.unwrap(market.token()));
-        if (token.allowance(address(this), address(market)) != type(uint256).max)
-            market.token().approve(address(market));
+        // implicitly approve this market to spend our DSU
+        uint256 allowance = IERC20Metadata(Token18.unwrap(DSU)).allowance(address(this), address(market));
+        if (allowance != type(uint256).max)
+            DSU.approve(address(market));
 
         // handle magic number for full withdrawal
         if (amount.eq(Fixed6Lib.MIN)){
@@ -79,12 +78,22 @@ contract Account is IAccount {
             Fixed6 balance = market.locals(owner).collateral;
             if (balance.sign() != 1) revert NoCollateral(address(market));
             // ensure user has no position
-            // TODO: save some gas by creating an efficient Fixed6.negative method
             amount = balance.mul(Fixed6Lib.NEG_ONE);
         // handle magic number for full deposit
         } else if (amount.eq(Fixed6Lib.MAX)){
-            UFixed18 balance = UFixed18.wrap(token.balanceOf(address(this)));
+            UFixed6 usdcBalance = USDC.balanceOf();
+            if (!usdcBalance.eq(UFixed6Lib.ZERO))
+                _wrap(UFixed18Lib.from(usdcBalance));
+            UFixed18 balance = DSU.balanceOf();
             amount = Fixed6Lib.from(UFixed6Lib.from(balance));
+        // if account does not have enough DSU for the deposit, wrap everything
+        } else if (amount.gt(Fixed6Lib.ZERO)) {
+            UFixed6 dsuBalance6 = UFixed6Lib.from(DSU.balanceOf());
+            if (UFixed6Lib.from(amount).gt(dsuBalance6)) {
+                UFixed6 usdcBalance = USDC.balanceOf();
+                if (!usdcBalance.eq(UFixed6Lib.ZERO))
+                    _wrap(UFixed18Lib.from(usdcBalance));
+            }
         }
 
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
@@ -101,14 +110,9 @@ contract Account is IAccount {
                 unwrapAmount = DSU.balanceOf();
             else
                 unwrapAmount = UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
-            // console.log('Account::withdraw attempting to unwrap %s DSU', UFixed18.unwrap(unwrapAmount));
             _unwrap(unwrapAmount);
         }
         UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
-        // console.log('Account::withdraw attempting to push %s USDC; balance is %s', 
-        //     UFixed6.unwrap(pushAmount),
-        //     UFixed6.unwrap(USDC.balanceOf())
-        // );
         USDC.push(owner, pushAmount);
     }
 
@@ -126,7 +130,7 @@ contract Account is IAccount {
 
     /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller
     modifier ownerOrController {
-        if (msg.sender != owner && msg.sender != controller) revert NotAuthorizedError(msg.sender);
+        if (msg.sender != owner && msg.sender != controller) revert NotAuthorizedError();
         _;
     }
 }

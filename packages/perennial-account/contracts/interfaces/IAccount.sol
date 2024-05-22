@@ -9,11 +9,12 @@ import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.s
 interface IAccount {
     // sig: 0x2e4e92db
     /// @custom:error Account owner cannot fully withdraw because they have no collateral balance
-    error NoCollateral(address);
+    /// @param market address of the market
+    error NoCollateral(address market);
 
-    // sig: 0x458a16af
+    // sig: 0xf36f319e
     /// @custom:error Only the owner or the collateral account controller may withdraw
-    error NotAuthorizedError(address);
+    error NotAuthorizedError();
 
     /// @notice Transfer DSU or USDC collateral from msg.sender to this account
     /// @param amount Quantity of tokens to transfer in 6-decimal precision

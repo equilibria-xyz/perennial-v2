@@ -24,6 +24,10 @@ interface IController {
     /// @custom:error Signer is not authorized to interact with the specified collateral account
     error InvalidSignerError();
 
+    // sig: ????
+    // @custom:error Attempt to interact with a Market which does not use DSU as collateral
+    // TODO: error UnsupportedMarketError();
+
     // sig: 0x7991d323
     /// @custom:error Account address (Action.account) is not for the specified owner (Action.Common.account)
     error WrongAccountError();
