@@ -111,9 +111,10 @@ contract Controller is Instance, IController {
         address signer = verifier.verifyMarketTransfer(marketTransfer, signature);
         _ensureValidSigner(marketTransfer.action.common.account, signer);
 
-        // TODO: revert if market's token is not DSU
-
+        // only Markets with DSU collateral are supported
         IMarket market = IMarket(marketTransfer.market);
+        if (!market.token().eq(DSU)) revert UnsupportedMarketError(address(market));
+
         account.marketTransfer(market, marketTransfer.amount);
     }
 

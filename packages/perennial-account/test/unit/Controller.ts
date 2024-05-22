@@ -7,23 +7,27 @@ import { BigNumber, constants, utils } from 'ethers'
 import {
   Controller,
   Controller__factory,
+  IAccount,
+  IAccount__factory,
   IERC20,
+  IERC20Metadata,
   IEmptySetReserve,
+  IMarket,
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
 import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
-import { signDeployAccount, signSignerUpdate } from '../helpers/erc712'
+import { signDeployAccount, signMarketTransfer, signSignerUpdate } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { smock } from '@defi-wonderland/smock'
+import { mockMarket } from '../helpers/setupHelpers'
 
 const { ethers } = HRE
 
 describe('Controller', () => {
   let controller: Controller
   let verifier: Verifier
-  let verifierSigner: SignerWithAddress
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
@@ -48,7 +52,7 @@ describe('Controller', () => {
   }
 
   // deploys a collateral account for the specified user and returns the address
-  async function createCollateralAccount(user: SignerWithAddress): Promise<Address> {
+  async function createCollateralAccount(user: SignerWithAddress): Promise<IAccount> {
     const deployAccountMessage = {
       ...createAction(user.address),
     }
@@ -59,7 +63,7 @@ describe('Controller', () => {
       ?.args as any as AccountDeployedEventObject
     const accountAddress = await controller.getAccountAddress(user.address)
     expect(creationArgs.account).to.equal(accountAddress)
-    return accountAddress
+    return IAccount__factory.connect(accountAddress, user)
   }
 
   // create a serial nonce for testing purposes; real users may choose a nonce however they please
@@ -72,9 +76,7 @@ describe('Controller', () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
     controller = await new Controller__factory(owner).deploy()
     verifier = await new Verifier__factory(owner).deploy()
-    verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
 
-    // TODO: move to setupHelpers module, which doesn't exist in this branch
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
@@ -151,11 +153,9 @@ describe('Controller', () => {
 
   describe('#delegation', () => {
     let accountAddressA: Address
-    let accountAddressB: Address
 
-    beforeEach(async () => {
+    before(async () => {
       accountAddressA = await controller.getAccountAddress(userA.address)
-      accountAddressB = await controller.getAccountAddress(userB.address)
     })
 
     it('can assign and disable a delegate', async () => {
@@ -193,10 +193,6 @@ describe('Controller', () => {
       // validate initial state
       expect(await controller.signers(userA.address, userB.address)).to.be.false
 
-      // create the collateral account
-      const accountAddress = await createCollateralAccount(userA)
-      expect(accountAddress).to.equal(accountAddressA)
-
       // userA signs a message assigning userB's delegation rights
       const updateSignerMessage = {
         signer: userB.address,
@@ -206,22 +202,6 @@ describe('Controller', () => {
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
       // assign the delegate
-      await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, true)
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-    })
-
-    it('can assign a delegate before collateral account was created', async () => {
-      // userA signs a message assigning userB's delegation rights
-      const updateSignerMessage = {
-        signer: userB.address,
-        approved: true,
-        ...createAction(userA.address),
-      }
-
-      // assign the delegate
-      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
       await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
         .to.emit(controller, 'SignerUpdated')
         .withArgs(userA.address, userB.address, true)
@@ -231,9 +211,6 @@ describe('Controller', () => {
     it('cannot assign a delegate from an unauthorized signer', async () => {
       // validate initial state
       expect(await controller.signers(userA.address, userB.address)).to.be.false
-
-      // create the collateral account
-      await createCollateralAccount(userA)
 
       // userB signs a message granting them delegation rights to userA's collateral account
       const updateSignerMessage = {
@@ -257,9 +234,6 @@ describe('Controller', () => {
     })
 
     it('cannot disable a delegate from an unauthorized signer', async () => {
-      // create the collateral account
-      await createCollateralAccount(userA)
-
       // userA assigns userB as delegated signer for their collateral account
       await expect(controller.connect(userA).updateSigner(userB.address, true))
         .to.emit(controller, 'SignerUpdated')
@@ -282,7 +256,6 @@ describe('Controller', () => {
 
     it('can disable a delegate from a signed message', async () => {
       // set up initial state
-      await createCollateralAccount(userA)
       await controller.connect(userA).updateSigner(userB.address, true)
       expect(await controller.signers(userA.address, userB.address)).to.be.true
 
@@ -299,6 +272,28 @@ describe('Controller', () => {
         .to.emit(controller, 'SignerUpdated')
         .withArgs(userA.address, userB.address, false)
       expect(await controller.signers(userA.address, userB.address)).to.be.false
+    })
+  })
+
+  describe('#transfer', () => {
+    it('reverts attempting to transfer to a non-DSU market', async () => {
+      // create a market with a non-DSU collateral token
+      const weth = await smock.fake<IERC20Metadata>('IERC20Metadata')
+      const market = await mockMarket(weth.address)
+
+      // create a collateral account
+      createCollateralAccount(userA)
+
+      // attempt a market transfer to the unsupported market
+      const marketTransferMessage = {
+        market: market.address,
+        amount: utils.parseEther('4'),
+        ...createAction(userA.address, utils.parseEther('0.3'), 24),
+      }
+      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      await expect(
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
+      ).to.be.revertedWithCustomError(controller, 'UnsupportedMarketError')
     })
   })
 })

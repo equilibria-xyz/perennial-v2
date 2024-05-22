@@ -1,8 +1,8 @@
-import HRE from 'hardhat'
+import HRE, { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, ContractTransaction, constants, utils } from 'ethers'
-import { impersonateWithBalance } from '../../../common/testutil/impersonate'
+import { impersonate, impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 
@@ -12,6 +12,7 @@ import {
   CheckpointStorageLib__factory,
   GlobalStorageLib__factory,
   IMarket,
+  IMarketFactory,
   InvariantLib__factory,
   IOracleProvider,
   IVerifier,
@@ -29,12 +30,7 @@ import {
   VersionStorageLib__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
-import {
-  OracleFactory,
-  OracleFactory__factory,
-  IMarketFactory,
-  IKeeperOracle,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+import { OracleFactory, OracleFactory__factory, IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
 import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 
@@ -229,4 +225,50 @@ export async function advanceToPrice(
 
   // inform the caller of the current timestamp
   return (await HRE.ethers.provider.getBlock(tx.blockNumber!)).timestamp
+}
+
+// Creates a market for a specified collateral token, which can't do much of anything
+export async function mockMarket(token: Address): Promise<IMarket> {
+  const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+  const verifier = await smock.fake<IVerifier>(
+    '@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol:IVerifier',
+  )
+  const factory = await smock.fake<IMarketFactory>('IMarketFactory')
+  const factorySigner = await impersonateWithBalance(factory.address, utils.parseEther('10'))
+
+  // deploy market
+  const [owner] = await ethers.getSigners()
+  const market = await new Market__factory(
+    {
+      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
+      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
+      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
+      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+        await new MarketParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Position.sol:PositionStorageGlobalLib': (
+        await new PositionStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Position.sol:PositionStorageLocalLib': (
+        await new PositionStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+        await new RiskParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy(verifier.address)
+
+  // initialize market
+  const marketDefinition = {
+    token: token,
+    oracle: oracle.address,
+  }
+  await market.connect(factorySigner).initialize(marketDefinition)
+  return market
 }

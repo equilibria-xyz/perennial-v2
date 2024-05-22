@@ -4,7 +4,7 @@ Collateral accounts help users manage collateral across Perennial markets on a s
 
 ## Design
 
-A single _Controller_ is deployed to a chain.  The controller serves as a factory to deploy _Account_ contracts, and manages interactions between accounts and multiple _Market_ contracts.
+A single _Controller_ is deployed to a chain.  The controller serves as a factory to deploy _Account_ contracts, and manages interactions between accounts and multiple _Market_ contracts.  Collateral accounts are only compatible with markets which use [DSU](https://www.dsu.money/) as collateral.
 
 Users send signed messages to a _Relayer_ which queues them in a centralized database.  _Keepers_ dequeue messages from the relayer, and submit them to the controller to be compensated.  Keepers also  interact with the controller to find opportunities to rebalance accounts, and are compensated for performing successful rebalances.
 
