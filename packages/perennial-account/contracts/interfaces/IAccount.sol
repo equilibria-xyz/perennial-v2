@@ -9,10 +9,9 @@ interface IAccount {
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error NotAuthorizedError(address);
 
-    /// @notice Transfer DSU or USDC collateral from msg.sender to this account
-    /// @param amount Quantity of tokens to transfer in 6-decimal precision
-    /// @param wrap Determines whether to pull USDC (true) or DSU (false)
-    function deposit(UFixed6 amount, bool wrap) external;
+    /// @notice Transfer USDC collateral from msg.sender to this account
+    /// @param amount Quantity of USDC to transfer in 6-decimal precision
+    function deposit(UFixed6 amount) external;
 
     /// @notice Transfer USDC collateral from this account to the owner
     /// @param amount Quantity of tokens to transfer in 6-decimal precision; set to UFixed6.MAX for full withdrawal

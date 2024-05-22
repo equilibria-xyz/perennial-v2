@@ -49,13 +49,8 @@ contract Account is IAccount {
     }
 
     /// @inheritdoc IAccount
-    function deposit(UFixed6 amount, bool wrap) external {
-        if (wrap) {
-            USDC.pull(msg.sender, amount);
-            _wrap(UFixed18Lib.from(amount));
-        } else {
-            DSU.pull(msg.sender, UFixed18Lib.from(amount));
-        }
+    function deposit(UFixed6 amount) external {
+        USDC.pull(msg.sender, amount);
     }
 
     /// @inheritdoc IAccount
