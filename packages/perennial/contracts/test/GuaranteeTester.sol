@@ -8,8 +8,8 @@ abstract contract GuaranteeTester {
 
     function store(Guarantee memory newGuarantee) public virtual;
 
-    function from(Order memory order, Fixed6 price, bool settlementFee) external {
-        Guarantee memory newGuarantee = GuaranteeLib.from(order, price, settlementFee);
+    function from(Order memory order, Fixed6 price, UFixed6 referralFee, bool settlementFee) external {
+        Guarantee memory newGuarantee = GuaranteeLib.from(order, price, referralFee, settlementFee);
         store(newGuarantee);
     }
 }

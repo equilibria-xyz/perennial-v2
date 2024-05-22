@@ -32,7 +32,7 @@ interface IMarketFactory is IFactory {
     function extensions(address extension) external view returns (bool);
     function operators(address account, address operator) external view returns (bool);
     function signers(address signer, address operator) external view returns (bool);
-    function referralFee(address referrer) external view returns (UFixed6);
+    function referralFees(address referrer) external view returns (UFixed6);
     function markets(IOracleProvider oracle) external view returns (IMarket);
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;

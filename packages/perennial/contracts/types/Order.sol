@@ -40,10 +40,10 @@ struct Order {
     /// @dev The protection status semaphore (local only)
     uint256 protection;
 
-    /// @dev The referral fee
+    /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 makerReferral;
 
-    /// @dev The referral fee
+    /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 takerReferral;
 }
 using OrderLib for Order global;
