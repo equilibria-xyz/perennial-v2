@@ -17,7 +17,7 @@ struct Guarantee {
     /// @dev The negative skew (close long / open short) guarantee size
     UFixed6 takerNeg;
 
-    /// @dev The magnitude of the guarentee that is applicable to the fee
+    /// @dev The magnitude of the guarantee that is applicable to the fee
     UFixed6 takerFee;
 
     /// @dev The referral fee multiplied by the size applicable to the referral (local only)

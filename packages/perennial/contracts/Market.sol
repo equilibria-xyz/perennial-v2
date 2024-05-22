@@ -175,7 +175,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load update context
         UpdateContext memory updateContext = _loadUpdateContext(context, signer, orderReferrer, guaranteeReferralFee);
 
-        (UFixed6 orderReferralFee, UFixed6 guarenteeReferralFee) = chargeFee
+        (UFixed6 processedOrderReferralFee, UFixed6 processedGuaranteeReferralFee) = chargeFee
             ? _processReferralFee(context, updateContext, orderReferrer, guaranteeReferrer)
             : (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
@@ -184,9 +184,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.currentTimestamp,
             updateContext.currentPositionLocal,
             amount,
-            orderReferralFee
+            processedOrderReferralFee
         );
-        Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, price, guarenteeReferralFee, chargeFee);
+        Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, price, processedGuaranteeReferralFee, chargeFee);
 
         // process update
         _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
@@ -244,7 +244,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
 
         // Compute referral fees
-        (UFixed6 orderReferralFee, ) = _processReferralFee(context, updateContext, referrer, address(0));
+        (UFixed6 processedOrderReferralFee, ) = _processReferralFee(context, updateContext, referrer, address(0));
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
@@ -255,7 +255,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newLong,
             newShort,
             protect,
-            orderReferralFee
+            processedOrderReferralFee
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order
 
