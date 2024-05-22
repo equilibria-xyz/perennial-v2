@@ -11,8 +11,12 @@ export default task('commit-price', 'Commits a price for the given price ids')
   .addFlag('dry', 'Do not commit prices, print out calldata instead')
   .addOptionalParam('timestamp', 'The timestamp to query for prices', undefined, types.int)
   .addOptionalParam('factoryaddress', 'The address of the keeper oracle factory', undefined, types.string)
+  .addOptionalParam('gaslimit', 'The gas limit for the transaction', undefined, types.int)
   .setAction(
-    async ({ priceids: priceIds_, timestamp, dry, factoryaddress }: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
+    async (
+      { priceids: priceIds_, timestamp, dry, factoryaddress, gaslimit }: TaskArguments,
+      HRE: HardhatRuntimeEnvironment,
+    ) => {
       if (!priceIds_) throw new Error('No Price ID provided')
       const priceIds = priceIds_.split(',')
       if (!priceIds.length) throw new Error('No Price ID provided')
@@ -24,18 +28,19 @@ export default task('commit-price', 'Commits a price for the given price ids')
 
       const commitments: { action: number; args: string }[] = []
 
+      console.log('Gathering commitments for priceIds:', priceIds.join(','))
+      const pythFactory = await ethers.getContractAt(
+        'IKeeperFactory',
+        factoryaddress ?? (await get('PythFactory')).address,
+      )
+      const minValidTime = await pythFactory.callStatic.validFrom()
       for (const priceId of priceIds) {
-        const pythFactory = await ethers.getContractAt(
-          'IKeeperFactory',
-          factoryaddress ?? (await get('PythFactory')).address,
-        )
-
         const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
-        const [minValidTime] = await Promise.all([pythFactory.callStatic.validFrom()])
+        const underlyingId = await pythFactory.callStatic.toUnderlyingId(priceId)
 
         const vaa = await getRecentVaa({
           pyth,
-          feedIds: [{ providerId: priceId, minValidTime: minValidTime.toBigInt() }],
+          feedIds: [{ providerId: underlyingId, minValidTime: minValidTime.toBigInt() }],
           timestamp,
         })
 
@@ -55,11 +60,14 @@ export default task('commit-price', 'Commits a price for the given price ids')
 
       if (dry) {
         console.log('Dry run, not committing. Calldata')
-        console.log(multiInvoker.interface.encodeFunctionData('invoke', [commitments]))
+        console.log(multiInvoker.interface.encodeFunctionData('invoke((uint8,bytes)[])', [commitments]))
         return true
       } else {
         console.log('Committing VAAs')
-        const { hash } = await multiInvoker.invoke(commitments, { value: commitments.length })
+        const { hash } = await multiInvoker['invoke((uint8,bytes)[])'](commitments, {
+          value: commitments.length,
+          gasLimit: gaslimit,
+        })
         console.log('VAA committed. Hash:', hash)
         return hash
       }

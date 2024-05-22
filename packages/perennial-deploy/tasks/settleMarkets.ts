@@ -41,25 +41,21 @@ export default task('settle-markets', 'Settles users across all markets')
       args.factoryaddress ?? (await get('PythFactory')).address,
     )
     const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
-    const underlyingIds = [
-      ...new Set(await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))),
-    ]
+    const idsToCommit = oracles.map(oracle => oracle.args.id)
 
-    console.log(
-      '[Settle Markets] Committing prices for underlying ids',
-      underlyingIds.join(','),
-      'timestamp:',
-      args.timestamp,
-    )
+    console.log('[Settle Markets] Committing prices for all oracle ids at timestamp:', args.timestamp)
     await run('commit-price', {
-      priceids: underlyingIds.join(','),
+      priceids: idsToCommit.join(','),
       dry: args.dry,
       timestamp: args.timestamp,
       factoryaddress: args.factoryaddress,
     })
 
     console.log('[Settle Markets]  Fetching Users to Settle')
-    const requireSettles: { market: string; address: string }[] = await run('verify-ids', { prevabi: args.prevabi })
+    const requireSettles: { market: string; address: string }[] = await run('verify-ids', {
+      prevabi: args.prevabi,
+      batchsize: args.batchsize,
+    })
     const marketUsers = requireSettles.reduce((acc, { market, address }) => {
       if (acc[market]) acc[market].add(address)
       else acc[market] = new Set([address])

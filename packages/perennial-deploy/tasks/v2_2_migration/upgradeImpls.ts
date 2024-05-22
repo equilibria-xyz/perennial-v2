@@ -72,7 +72,11 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
         `Update Market ${market.address} Parameter`,
       )
       await addPayload(
-        () => market.populateTransaction.updateRiskParameter({ ...DEFAULT_RISK_PARAMETERS, makerLimit: 10000e6 }, true),
+        () =>
+          market.populateTransaction.updateRiskParameter(
+            { ...DEFAULT_RISK_PARAMETERS, makerLimit: ethers.utils.parseUnits('1000000', 6) },
+            true,
+          ),
         `Update Market ${market.address} Risk Parameter`,
       )
     }

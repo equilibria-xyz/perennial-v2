@@ -7,6 +7,7 @@ import {
   ArbGasInfo,
   IERC20,
   IMarket,
+  IOracleProvider,
   MarketFactory,
   MultiInvoker,
   OracleFactory,
@@ -134,7 +135,6 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     for (const market of marketsOld) {
       beforeGlobals[market.address] = await market.global()
       const liqLocal = await market.locals(liquidatorAddress)
-      console.log('🚀 ~ before ~ liqLocal:', liqLocal)
       liqCollateralBefore[market.address] = liqLocal.collateral
     }
 
@@ -151,6 +151,8 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     console.log('---- Changing Markets Mode to Open ----')
     await run('change-markets-mode', { open: true })
     console.log('---- Done ----\n')
+
+    console.log('---- Finished Running Migration...Running Tests ----\n')
   })
 
   it('Migrates', async () => {
@@ -177,53 +179,79 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     }
   })
 
-  it('Runs full request/fulfill flow', async () => {
-    const makerAccount = '0xF8b6010FD6ba8F3E52c943A1473B1b1459a73094'
-    const perennialUser = await impersonateWithBalance(makerAccount, ethers.utils.parseEther('10')) // Vault
+  it('Runs full request/fulfill flow for each market', async () => {
+    const makerAccount = '0x66a7fDB96C583c59597de16d8b2B989231415339'
+    const perennialUser = await impersonateWithBalance(makerAccount, ethers.utils.parseEther('10'))
 
     await increase(10)
 
-    const ethMarket = await ethers.getContractAt('IMarket', '0x90A664846960AaFA2c164605Aebb8e9Ac338f9a0')
-    const oracle = await ethers.getContractAt('Oracle', await ethMarket.oracle())
-    const oracleGlobal = await oracle.global()
-    const oracleProvider = await ethers.getContractAt(
-      'IOracleProvider',
-      (
-        await oracle.oracles(oracleGlobal.current)
-      ).provider,
-    )
-    const currentPosition = await ethMarket.positions(perennialUser.address)
-    const currentTimestamp = await currentBlockTimestamp()
-    await commitPriceForIds([oracleIDs[0].id], currentTimestamp)
+    const idsToCommit = oracleIDs.map(oracle => oracle.id)
 
-    const nextVersionTimestamp = nextVersionForTimestamp(currentTimestamp)
-    await expect(
-      ethMarket
-        .connect(perennialUser)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
-          perennialUser.address,
-          currentPosition.maker.add(10),
-          0,
-          0,
-          0,
-          false,
+    const oracleProviders: IOracleProvider[] = []
+    const actions: { action: number; args: string }[] = []
+
+    for (const market of markets) {
+      const oracle = await ethers.getContractAt('Oracle', await market.oracle())
+      const oracleGlobal = await oracle.global()
+      const oracleProvider = await ethers.getContractAt(
+        'IOracleProvider',
+        (
+          await oracle.oracles(oracleGlobal.current)
+        ).provider,
+      )
+      oracleProviders.push(oracleProvider)
+
+      const currentPosition = await market.positions(perennialUser.address)
+      actions.push({
+        action: 1,
+        args: ethers.utils.defaultAbiCoder.encode(
+          [
+            'address',
+            'uint256',
+            'uint256',
+            'uint256',
+            'int256',
+            'bool',
+            'tuple(uint256,address,bool)',
+            'tuple(uint256,address,bool)',
+          ],
+          [
+            market.address,
+            currentPosition.maker.add(10),
+            0,
+            0,
+            ethers.utils.parseUnits('15', 6),
+            true,
+            [0, ethers.constants.AddressZero, false],
+            [0, ethers.constants.AddressZero, false],
+          ],
         ),
-    )
-      .to.emit(oracleProvider, 'OracleProviderVersionRequested')
-      .withArgs(nextVersionTimestamp)
+      })
+    }
 
-    await increase(10)
+    const currentTimestamp = await currentBlockTimestamp()
+    const nextVersionTimestamp = nextVersionForTimestamp(currentTimestamp)
+    await commitPriceForIds(idsToCommit, currentTimestamp, undefined, 32000000)
+    console.log('Updating position in markets')
+    await multiinvoker.connect(perennialUser)['invoke((uint8,bytes)[])'](actions)
 
-    const hash = await commitPriceForIds([oracleIDs[0].id], nextVersionTimestamp + 4)
+    await increase(20)
+
+    const hash = await commitPriceForIds(idsToCommit, nextVersionTimestamp + 4, undefined, 32000000)
     const tx = await ethers.provider.getTransaction(hash)
-    expect(tx).to.emit(oracleProvider, 'OracleProviderVersionFulfilled').withArgs(nextVersionTimestamp)
+    await tx.wait()
+    for (const oracleProvider of oracleProviders)
+      await expect(tx).to.emit(oracleProvider, 'OracleProviderVersionFulfilled')
 
-    await ethMarket.settle(perennialUser.address)
-    const local = await ethMarket.locals(perennialUser.address)
-    const checkpoint = await ethMarket.checkpoints(perennialUser.address, nextVersionTimestamp)
+    for (const market of markets) {
+      await market.settle(perennialUser.address)
+      const local = await market.locals(perennialUser.address)
+      const checkpoint = await market.checkpoints(perennialUser.address, nextVersionTimestamp)
 
-    expect(local.currentId).to.equal(local.latestId)
-    expect(checkpoint.collateral).to.be.greaterThan(0)
+      expect(local.currentId).to.equal(local.latestId)
+      expect(local.collateral).to.be.greaterThan(0)
+      expect(checkpoint.transfer).to.be.equal(ethers.utils.parseUnits('15', 6))
+    }
   })
 
   it('transitions checkpoint for liquidator', async () => {
@@ -252,8 +280,8 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     await btcMarket.settle(liquidatorSigner.address)
     const ethCheckpoint = await ethMarket.checkpoints(liquidatorSigner.address, nextVersionTimestamp)
     const btcCheckpoint = await btcMarket.checkpoints(liquidatorSigner.address, nextVersionTimestamp)
-    expect(liqCollateralBefore[ethMarket.address]).to.be.equal(ethCheckpoint.collateral)
-    expect(liqCollateralBefore[btcMarket.address]).to.be.equal(btcCheckpoint.collateral)
+    expect((await ethMarket.locals(liquidatorAddress)).collateral).to.be.equal(ethCheckpoint.collateral)
+    expect((await btcMarket.locals(liquidatorAddress)).collateral).to.be.equal(btcCheckpoint.collateral)
   })
 
   it('liquidates', async () => {
@@ -329,10 +357,15 @@ describe('Verify Arbitrum v2.2 Migration', () => {
   })
 })
 
-async function commitPriceForIds(priceIds: string[], timestamp: number, factoryAddress?: string) {
-  return await run('commit-price', { priceids: priceIds.join(','), timestamp, factoryaddress: factoryAddress })
+async function commitPriceForIds(priceIds: string[], timestamp: number, factoryAddress?: string, gasLimit?: number) {
+  return await run('commit-price', {
+    priceids: priceIds.join(','),
+    timestamp,
+    factoryaddress: factoryAddress,
+    gaslimit: gasLimit,
+  })
 }
 
 function nextVersionForTimestamp(timestamp: number) {
-  return Math.ceil((timestamp + 0.1) / 10) * 10
+  return Math.ceil((timestamp + 0.9) / 10) * 10
 }

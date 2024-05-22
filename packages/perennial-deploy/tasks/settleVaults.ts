@@ -36,13 +36,11 @@ export default task('settle-vaults', 'Settles users across all vaults')
       args.factoryaddress ?? (await get('PythFactory')).address,
     )
     const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
-    const underlyingIds = [
-      ...new Set(await Promise.all(oracles.map(async oracle => pythFactory.toUnderlyingId(oracle.args.id)))),
-    ]
+    const idsToCommit = oracles.map(oracle => oracle.args.id)
 
-    console.log('[Settle Vaults] Committing prices for underlying ids', underlyingIds.join(','))
+    console.log('[Settle Vaults] Committing prices for all oracle ids at timestamp:', args.timestamp)
     await run('commit-price', {
-      priceids: underlyingIds.join(','),
+      priceids: idsToCommit.join(','),
       dry: args.dry,
       timestamp: args.timestamp,
       factoryaddress: args.factoryaddress,
@@ -54,6 +52,7 @@ export default task('settle-vaults', 'Settles users across all vaults')
 
     const requireSettles: { vault: string; address: string }[] = await run('verify-vault-ids', {
       prevabi: args.prevabi,
+      batchsize: args.batchsize,
     })
     const vaultUsers = requireSettles.reduce((acc, { vault, address }) => {
       if (acc[vault]) acc[vault].add(address)
