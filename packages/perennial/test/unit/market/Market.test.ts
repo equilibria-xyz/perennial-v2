@@ -16182,12 +16182,16 @@ describe('Market', () => {
               ),
           )
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, {
-              ...DEFAULT_ORDER,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              orders: 1,
-              longPos: POSITION.div(2),
-            })
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+              },
+              { ...DEFAULT_GUARANTEE },
+            )
             .to.emit(market, 'OrderCreated')
             .withArgs(
               userC.address,
@@ -18292,12 +18296,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -18489,12 +18497,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -18686,12 +18698,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -18883,12 +18899,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -19095,12 +19115,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longNeg: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -19308,12 +19332,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortNeg: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -19521,12 +19549,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortPos: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -19736,12 +19768,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longPos: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -19957,12 +19993,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                longNeg: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
@@ -20178,12 +20218,16 @@ describe('Market', () => {
                 ),
             )
               .to.emit(market, 'OrderCreated')
-              .withArgs(user.address, {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                orders: 1,
-                shortNeg: POSITION.div(2),
-              })
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
+                },
+                { ...DEFAULT_GUARANTEE },
+              )
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 userC.address,
