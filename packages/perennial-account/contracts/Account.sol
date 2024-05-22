@@ -10,8 +10,6 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 
 import { IAccount } from "./interfaces/IAccount.sol";
 
-// import "hardhat/console.sol";
-
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 contract Account is IAccount {
@@ -69,14 +67,9 @@ contract Account is IAccount {
                 unwrapAmount = DSU.balanceOf();
             else
                 unwrapAmount = UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
-            // console.log('Account::withdraw attempting to unwrap %s DSU', UFixed18.unwrap(unwrapAmount));
             _unwrap(unwrapAmount);
         }
         UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
-        // console.log('Account::withdraw attempting to push %s USDC; balance is %s', 
-        //     UFixed6.unwrap(pushAmount),
-        //     UFixed6.unwrap(USDC.balanceOf())
-        // );
         USDC.push(owner, pushAmount);
     }
 

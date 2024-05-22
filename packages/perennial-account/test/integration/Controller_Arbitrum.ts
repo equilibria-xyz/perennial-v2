@@ -139,7 +139,6 @@ describe('Controller_Arbitrum', () => {
 
   after(async () => {
     // reset to avoid impact to other tests
-    console.log('resetting baseFeePerGas to 1')
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
   })
 
