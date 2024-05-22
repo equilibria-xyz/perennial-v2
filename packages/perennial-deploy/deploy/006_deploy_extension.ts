@@ -39,7 +39,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       commitBuffer,
     ],
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: false,
     log: true,
     autoMine: true,
   })
@@ -80,7 +80,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const approvalActions = approvalActions_.filter(e => e !== null) as { action: number; args: string }[]
   if (approvalActions.length > 0) {
     process.stdout.write('Approving targets...')
-    await (await multiInvoker.invoke(approvalActions)).wait()
+    await (await multiInvoker['invoke((uint8,bytes)[])'](approvalActions)).wait()
     process.stdout.write('complete\n')
   }
 }
