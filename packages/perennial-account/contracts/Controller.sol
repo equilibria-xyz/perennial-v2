@@ -88,8 +88,7 @@ contract Controller is Instance, IController {
     function _deployAccountWithSignature(
         DeployAccount calldata deployAccount_, 
         bytes calldata signature
-    ) internal returns (IAccount account)
-    {
+    ) internal returns (IAccount account) {
         address owner = deployAccount_.action.common.account;
         address signer = verifier.verifyDeployAccount(deployAccount_, signature);
         _ensureValidSigner(owner, signer);
@@ -99,13 +98,7 @@ contract Controller is Instance, IController {
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
-        account = new Account{salt: SALT}(
-            owner, 
-            address(this),
-            USDC,
-            DSU,
-            reserve
-        );
+        account = new Account{salt: SALT}(owner, address(this), USDC, DSU, reserve);
         emit AccountDeployed(owner, account);
     }
 
