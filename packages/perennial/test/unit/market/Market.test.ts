@@ -601,6 +601,9 @@ describe('Market', () => {
           .to.emit(market, 'ParameterUpdated')
           .withArgs(defaultMarketParameter)
 
+        expect(await market.beneficiary()).to.equal(beneficiary.address)
+        expect(await market.coordinator()).to.equal(coordinator.address)
+
         const marketParameter = await market.parameter()
         expect(marketParameter.fundingFee).to.equal(defaultMarketParameter.fundingFee)
         expect(marketParameter.interestFee).to.equal(defaultMarketParameter.interestFee)
