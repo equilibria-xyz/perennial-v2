@@ -239,7 +239,7 @@ describe('Verify Arbitrum v2.2 Migration', () => {
 
     const hash = await commitPriceForIds(idsToCommit, nextVersionTimestamp + 4, undefined, 32000000)
     const tx = await ethers.provider.getTransaction(hash)
-    await tx.wait()
+
     for (const oracleProvider of oracleProviders)
       await expect(tx).to.emit(oracleProvider, 'OracleProviderVersionFulfilled')
 
@@ -300,11 +300,13 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     await commitPriceForIds([oracleIDs[0].id], currentTimestamp)
     await ethMarket
       .connect(ownerSigner)
-      .updateRiskParameter({ ...riskParameter, minMargin: 50e6, minMaintenance: 50e6 }, false)
+      .updateRiskParameter({ ...riskParameter, minMargin: 500e6, minMaintenance: 500e6 }, false)
 
-    await ethMarket
-      .connect(liquidator)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](perennialUser.address, 0, 0, 0, 0, true)
+    await expect(
+      ethMarket
+        .connect(liquidator)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](perennialUser.address, 0, 0, 0, 0, true),
+    ).to.not.be.reverted
 
     await commitPriceForIds([oracleIDs[0].id], nextVersionForTimestamp(currentTimestamp) + 4)
 
@@ -358,12 +360,16 @@ describe('Verify Arbitrum v2.2 Migration', () => {
 })
 
 async function commitPriceForIds(priceIds: string[], timestamp: number, factoryAddress?: string, gasLimit?: number) {
-  return await run('commit-price', {
+  const hash = await run('commit-price', {
     priceids: priceIds.join(','),
     timestamp,
     factoryaddress: factoryAddress,
     gaslimit: gasLimit,
   })
+  const tx = await HRE.ethers.provider.getTransaction(hash)
+  await tx.wait()
+
+  return hash
 }
 
 function nextVersionForTimestamp(timestamp: number) {
