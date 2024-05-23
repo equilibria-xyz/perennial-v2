@@ -3,7 +3,6 @@ pragma solidity ^0.8.13;
 
 import { Action, ActionLib } from "./Action.sol";
 
-// TODO: rename to be a noun rather than a verb
 struct DeployAccount {
     /// @dev Common information for collateral account actions
     Action action;

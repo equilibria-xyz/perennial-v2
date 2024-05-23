@@ -5,11 +5,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, IController, IERC20Metadata } from '../../types/generated'
-import { deployController, fundWalletDSU, fundWalletUSDC } from '../helpers/arbitrumHelpers'
+import { deployController, fundWalletDSU, fundWalletUSDC, returnUSDC } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
-
-const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d'
 
 describe('Account', () => {
   let dsu: IERC20Metadata
@@ -50,8 +48,7 @@ describe('Account', () => {
 
   after(async () => {
     // return user funds to avoid impacting other tests
-    await usdc.connect(userA).transfer(USDCe_HOLDER, await usdc.balanceOf(userA.address))
-    // TODO: centralize this logic in helpers, perform for both tokens and both users
+    await returnUSDC(userA)
   })
 
   describe('#deposit and withdrawal', () => {
@@ -131,17 +128,21 @@ describe('Account', () => {
       expect(await usdc.balanceOf(account.address)).to.equal(0)
     })
 
-    // TODO: decide expected behavior, since we cannot withdraw DSU
-    it.skip('can fully withdraw dust amounts', async () => {
+    it('burns dust amounts upon withdrawal', async () => {
       // deposit a dust amount into the account
       const dust = utils.parseEther('0.000000555')
       await dsu.connect(userA).transfer(account.address, dust)
-      // perform a full withdrawal
-      await expect(account.withdraw(dsu.address, constants.MaxUint256))
+      expect(await usdc.balanceOf(account.address)).equals(constants.Zero)
+      expect(await dsu.balanceOf(account.address)).equals(dust)
+
+      // amount is below the smallest transferrable amount of USDC, so nothing is transferred
+      await expect(account.withdraw(constants.MaxUint256, true))
         .to.emit(usdc, 'Transfer')
         .withArgs(account.address, userA.address, 0)
 
-      expect(await dsu.balanceOf(account.address)).equals(0)
+      // ensure the withdrawal burned the DSU dust
+      expect(await usdc.balanceOf(account.address)).equals(constants.Zero)
+      expect(await dsu.balanceOf(account.address)).equals(constants.Zero)
     })
 
     it('transfer fails if insufficient balance when not unwrapping', async () => {

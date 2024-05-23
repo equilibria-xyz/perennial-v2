@@ -6,6 +6,8 @@ Collateral accounts help users manage collateral across Perennial markets on a s
 
 A single _Controller_ is deployed to a chain.  The controller serves as a factory to deploy _Account_ contracts, and manages interactions between accounts and multiple _Market_ contracts.  Collateral accounts are only compatible with markets which use [DSU](https://www.dsu.money/) as collateral.
 
+_Account_ offers facilities to deposit and withdraw tokens, and to transfer collateral into and out of markets. _Controller_ employs these facilities to perform actions requested by the account owner or a delegated signer, such as rebalancing collateral across markets.
+
 Users send signed messages to a _Relayer_ which queues them in a centralized database.  _Keepers_ dequeue messages from the relayer, and submit them to the controller to be compensated.  Keepers also  interact with the controller to find opportunities to rebalance accounts, and are compensated for performing successful rebalances.
 
 ## Usage
@@ -15,10 +17,19 @@ Most operations may be performed in a gasless manner using signed messages.
 
 #### Account creation
 - Call the controller to determine your address.
-- Before the account is created, transfer DSU to that address for keeper compensation.
+- Before the account is created, transfer DSU or USDC to that address for keeper compensation.
 - Send a message to the relayer requesting account creation.
 
-// TODO: document how to deposit and configure rebalancing
+#### Depositing and withdrawing funds
+- DSU or USDC may be deposited into an account using a native ERC20 transfer
+- USDC may also be deposited by executing the `deposit` function
+
+All USDC in the account is implicitly wrapped to DSU when transferring an amount greater than the account's DSU balance into a market. Funds transferred out of markets are not unwrapped until withdrawal. These behaviors minimize gas cost when rebalancing.
+
+When withdrawing funds from the account, a flag allows the caller to explicitly control unwrapping behavior.
+
+#### Rebalancing
+// TODO: document
 
 ### Keepers
 // TODO: document interactions with relayer and controller

@@ -86,3 +86,8 @@ export async function fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumbe
   expect(await usdc.balanceOf(USDCe_HOLDER)).to.be.greaterThan(amount)
   await usdc.connect(usdcOwner).transfer(wallet.address, amount)
 }
+
+export async function returnUSDC(wallet: SignerWithAddress): Promise<undefined> {
+  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, wallet)
+  await usdc.transfer(USDCe_HOLDER, await usdc.balanceOf(wallet.address))
+}

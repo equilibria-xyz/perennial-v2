@@ -12,7 +12,6 @@ import {
   IERC20,
   IERC20Metadata,
   IEmptySetReserve,
-  IMarket,
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
