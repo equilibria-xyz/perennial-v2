@@ -54,31 +54,19 @@ describe('Account', () => {
     // TODO: centralize this logic in helpers, perform for both tokens and both users
   })
 
-  describe('#DSU support', () => {
-    it('owner can deposit DSU', async () => {
-      const depositAmount = parse6decimal('500')
-      await dsu.connect(userA).approve(account.address, depositAmount.mul(1e12))
+  describe('#deposit and withdrawal', () => {
+    it('can use deposit function to pull USDC into account', async () => {
+      // run token approval
+      const depositAmount = parse6decimal('6000')
+      await usdc.connect(userA).approve(account.address, depositAmount)
 
-      await expect(account.deposit(depositAmount, false))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(userA.address, account.address, depositAmount.mul(1e12))
-
-      expect(await dsu.balanceOf(account.address)).to.equal(depositAmount.mul(1e12))
+      // call the deposit function to transferFrom userA
+      await expect(account.deposit(depositAmount))
+        .to.emit(usdc, 'Transfer')
+        .withArgs(userA.address, account.address, depositAmount)
+      expect(await usdc.balanceOf(account.address)).to.equal(depositAmount)
     })
 
-    it('anyone can deposit DSU', async () => {
-      const depositAmount = parse6decimal('6')
-      await dsu.connect(userB).approve(account.address, depositAmount.mul(1e12))
-
-      await expect(account.connect(userB).deposit(depositAmount, false))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(userB.address, account.address, depositAmount.mul(1e12))
-
-      expect(await dsu.balanceOf(account.address)).to.equal(depositAmount.mul(1e12))
-    })
-  })
-
-  describe('#USDC support', () => {
     it('can natively deposit USDC and withdraw USDC', async () => {
       const depositAmount = parse6decimal('7000')
       await usdc.connect(userA).transfer(account.address, depositAmount)

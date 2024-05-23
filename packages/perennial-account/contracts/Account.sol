@@ -34,7 +34,7 @@ contract Account is IAccount {
     IEmptySetReserve public immutable reserve;
 
     constructor(
-        address owner_, 
+        address owner_,
         address controller_,
         Token6 usdc_,
         Token18 dsu_,
@@ -54,13 +54,8 @@ contract Account is IAccount {
     }
 
     /// @inheritdoc IAccount
-    function deposit(UFixed6 amount, bool wrap) external {
-        if (wrap) {
-            USDC.pull(msg.sender, amount);
-            _wrap(UFixed18Lib.from(amount));
-        } else {
-            DSU.pull(msg.sender, UFixed18Lib.from(amount));
-        }
+    function deposit(UFixed6 amount) external {
+        USDC.pull(msg.sender, amount);
     }
 
     /// @inheritdoc IAccount
@@ -105,11 +100,9 @@ contract Account is IAccount {
     function withdraw(UFixed6 amount, bool unwrap) external ownerOrController {
         UFixed6 usdcBalance = USDC.balanceOf();
         if (unwrap && usdcBalance.lt(amount)) {
-            UFixed18 unwrapAmount;
-            if (amount.eq(UFixed6Lib.MAX))
-                unwrapAmount = DSU.balanceOf();
-            else
-                unwrapAmount = UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
+            UFixed18 unwrapAmount = amount.eq(UFixed6Lib.MAX) ?
+                DSU.balanceOf() :
+                UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
             _unwrap(unwrapAmount);
         }
         UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;

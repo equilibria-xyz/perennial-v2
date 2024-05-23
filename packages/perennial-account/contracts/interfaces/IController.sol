@@ -28,11 +28,7 @@ interface IController {
     /// @custom:error Attempt to interact with a Market which does not use DSU as collateral
     error UnsupportedMarketError(address);
 
-    // sig: 0x7991d323
-    /// @custom:error Account address (Action.account) is not for the specified owner (Action.Common.account)
-    error WrongAccountError();
-
-    /// @notice Returns the deterministic address of the collateral account for a user, 
+    /// @notice Returns the deterministic address of the collateral account for a user,
     /// regardless of whether or not it exists.
     /// @param user Identifies the EOA for which a collateral account is desired
     function getAccountAddress(address user) external view returns (address);
@@ -40,7 +36,7 @@ interface IController {
     /// @notice Deploys the collateral account for msg.sender and returns the address of the account
     function deployAccount() external returns (IAccount);
 
-    /// @notice Deploys a collateral account via a signed message 
+    /// @notice Deploys a collateral account via a signed message
     /// @param deployAccount Message requesting creation of a collateral account
     /// @param signature ERC712 message signature
     function deployAccountWithSignature(DeployAccount calldata deployAccount, bytes calldata signature) external;

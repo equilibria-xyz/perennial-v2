@@ -60,8 +60,8 @@ contract Controller is Instance, IController {
     function getAccountAddress(address user) public view returns (address) {
         // generate bytecode for an account created for the specified owner
         bytes memory bytecode = abi.encodePacked(
-            type(Account).creationCode, 
-            abi.encode(user), 
+            type(Account).creationCode,
+            abi.encode(user),
             abi.encode(address(this)),
             abi.encode(USDC),
             abi.encode(DSU),
@@ -77,14 +77,14 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function deployAccountWithSignature(
-        DeployAccount calldata deployAccount_, 
+        DeployAccount calldata deployAccount_,
         bytes calldata signature
     ) virtual external {
         _deployAccountWithSignature(deployAccount_, signature);
     }
 
     function _deployAccountWithSignature(
-        DeployAccount calldata deployAccount_, 
+        DeployAccount calldata deployAccount_,
         bytes calldata signature
     ) internal returns (IAccount account) {
         address owner = deployAccount_.action.common.account;
@@ -126,7 +126,7 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function updateSignerWithSignature(
-        SignerUpdate calldata signerUpdate, 
+        SignerUpdate calldata signerUpdate,
         bytes calldata signature
     ) virtual external {
         _updateSignerWithSignature(signerUpdate, signature);

@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import {
-    AggregatorV3Interface, 
+    AggregatorV3Interface,
     Kept_Arbitrum
 } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
@@ -55,7 +55,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
 
     /// @inheritdoc IController
     function deployAccountWithSignature(
-        DeployAccount calldata deployAccount_, 
+        DeployAccount calldata deployAccount_,
         bytes calldata signature
     ) override external {
         IAccount account = _deployAccountWithSignature(deployAccount_, signature);
@@ -84,7 +84,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
 
     /// @inheritdoc IController
     function updateSignerWithSignature(
-        SignerUpdate calldata signerUpdate, 
+        SignerUpdate calldata signerUpdate,
         bytes calldata signature
     ) override external {
         _updateSignerWithSignature(signerUpdate, signature);
@@ -96,7 +96,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
 
     /// @inheritdoc IController
     function withdrawWithSignature(
-        Withdrawal calldata withdrawal, 
+        Withdrawal calldata withdrawal,
         bytes calldata signature
     ) override external {
         address account = getAccountAddress(withdrawal.action.common.account);
@@ -106,7 +106,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         _withdrawWithSignature(IAccount(account), withdrawal, signature);
     }
 
-    /// @dev Transfers funds from collateral account to controller, and limits compensation 
+    /// @dev Transfers funds from collateral account to controller, and limits compensation
     /// to the user-defined maxFee in the Action message
     /// @param amount Calculated keeper fee
     /// @param data Encoded address of collateral account and UFixed6 user-specified maximum fee
