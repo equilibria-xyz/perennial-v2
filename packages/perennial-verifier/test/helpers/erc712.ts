@@ -53,6 +53,9 @@ export async function signIntent(
     Intent: [
       { name: 'amount', type: 'int256' },
       { name: 'price', type: 'int256' },
+      { name: 'fee', type: 'uint256' },
+      { name: 'originator', type: 'address' },
+      { name: 'solver', type: 'address' },
       { name: 'common', type: 'Common' },
     ],
   }
@@ -76,6 +79,9 @@ export async function signFill(
     Intent: [
       { name: 'amount', type: 'int256' },
       { name: 'price', type: 'int256' },
+      { name: 'fee', type: 'uint256' },
+      { name: 'originator', type: 'address' },
+      { name: 'solver', type: 'address' },
       { name: 'common', type: 'Common' },
     ],
     Fill: [

@@ -29,6 +29,8 @@ describe('Guarantee', () => {
       takerPos: 3,
       takerNeg: 4,
       notional: 0,
+      takerFee: 5,
+      referral: 0,
     }
 
     let guaranteeGlobal: GuaranteeGlobalTester
@@ -46,9 +48,12 @@ describe('Guarantee', () => {
         await guaranteeGlobal.store(VALID_STORED_GUARANTEE)
 
         const value = await guaranteeGlobal.read()
+        expect(value.orders).to.equal(2)
         expect(value.takerPos).to.equal(3)
         expect(value.takerNeg).to.equal(4)
         expect(value.notional).to.equal(0)
+        expect(value.takerFee).to.equal(5)
+        expect(value.referral).to.equal(0)
       })
     })
   })
@@ -59,6 +64,8 @@ describe('Guarantee', () => {
       takerPos: 3,
       takerNeg: 4,
       notional: 14,
+      takerFee: 5,
+      referral: 15,
     }
 
     let guaranteeLocal: GuaranteeLocalTester
@@ -76,9 +83,12 @@ describe('Guarantee', () => {
         await guaranteeLocal.store(VALID_STORED_GUARANTEE)
 
         const value = await guaranteeLocal.read()
+        expect(value.orders).to.equal(2)
         expect(value.takerPos).to.equal(3)
         expect(value.takerNeg).to.equal(4)
         expect(value.notional).to.equal(14)
+        expect(value.takerFee).to.equal(5)
+        expect(value.referral).to.equal(15)
       })
 
       context('.notional', async () => {
@@ -119,6 +129,27 @@ describe('Guarantee', () => {
           ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
         })
       })
+
+      context('.referral', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await guaranteeLocal.store({
+            ...DEFAULT_GUARANTEE,
+            referral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await guaranteeLocal.read()
+          expect(value.referral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if referral out of range', async () => {
+          await expect(
+            guaranteeLocal.store({
+              ...DEFAULT_GUARANTEE,
+              referral: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
+        })
+      })
     })
 
     describe('#from', () => {
@@ -126,15 +157,17 @@ describe('Guarantee', () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           parse6decimal('123'),
+          0,
           false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
+          ...DEFAULT_GUARANTEE,
           orders: 1,
           takerPos: parse6decimal('10'),
-          takerNeg: 0,
           notional: parse6decimal('1230'),
+          takerFee: parse6decimal('10'),
         })
       })
 
@@ -142,31 +175,69 @@ describe('Guarantee', () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, longNeg: parse6decimal('10') },
           parse6decimal('123'),
+          0,
           false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
+          ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerPos: 0,
           takerNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
+          takerFee: parse6decimal('10'),
         })
       })
 
-      it('generates correct guarantee (long settlementFee)', async () => {
+      it('generates correct guarantee (long w/ fee)', async () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           parse6decimal('123'),
+          0,
           true,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
-          orders: 0,
+          ...DEFAULT_GUARANTEE,
           takerPos: parse6decimal('10'),
-          takerNeg: 0,
           notional: parse6decimal('1230'),
+        })
+      })
+
+      it('generates correct guarantee (long w/ referral + fee)', async () => {
+        await guaranteeLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
+          parse6decimal('123'),
+          parse6decimal('0.5'),
+          true,
+        )
+        const newGuarantee = await guaranteeLocal.read()
+
+        expectGuaranteeEq(newGuarantee, {
+          ...DEFAULT_GUARANTEE,
+          takerPos: parse6decimal('10'),
+          notional: parse6decimal('1230'),
+          referral: parse6decimal('1'),
+        })
+      })
+
+      it('generates correct guarantee (long w/ referral)', async () => {
+        await guaranteeLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
+          parse6decimal('123'),
+          parse6decimal('0.5'),
+          false,
+        )
+        const newGuarantee = await guaranteeLocal.read()
+
+        expectGuaranteeEq(newGuarantee, {
+          ...DEFAULT_GUARANTEE,
+          orders: 1,
+          takerPos: parse6decimal('10'),
+          notional: parse6decimal('1230'),
+          takerFee: parse6decimal('10'),
+          referral: parse6decimal('1'),
         })
       })
 
@@ -174,15 +245,17 @@ describe('Guarantee', () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
           parse6decimal('123'),
+          0,
           false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
+          ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerPos: 0,
           takerNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
+          takerFee: parse6decimal('10'),
         })
       })
 
@@ -190,31 +263,69 @@ describe('Guarantee', () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, shortNeg: parse6decimal('10') },
           parse6decimal('123'),
+          0,
           false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
+          ...DEFAULT_GUARANTEE,
           orders: 1,
           takerPos: parse6decimal('10'),
-          takerNeg: 0,
           notional: parse6decimal('1230'),
+          takerFee: parse6decimal('10'),
         })
       })
 
-      it('generates correct guarantee (short settlementFee)', async () => {
+      it('generates correct guarantee (short w/ fee)', async () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
           parse6decimal('123'),
+          0,
           true,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
-          orders: 0,
-          takerPos: 0,
+          ...DEFAULT_GUARANTEE,
           takerNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
+        })
+      })
+
+      it('generates correct guarantee (short w/ referral + fee)', async () => {
+        await guaranteeLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
+          parse6decimal('123'),
+          parse6decimal('0.5'),
+          true,
+        )
+        const newGuarantee = await guaranteeLocal.read()
+
+        expectGuaranteeEq(newGuarantee, {
+          ...DEFAULT_GUARANTEE,
+          takerNeg: parse6decimal('10'),
+          notional: parse6decimal('-1230'),
+          referral: parse6decimal('1'),
+        })
+      })
+
+      it('generates correct guarantee (short w/ referral)', async () => {
+        await guaranteeLocal.from(
+          { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
+          parse6decimal('123'),
+          parse6decimal('0.5'),
+          false,
+        )
+        const newGuarantee = await guaranteeLocal.read()
+
+        expectGuaranteeEq(newGuarantee, {
+          ...DEFAULT_GUARANTEE,
+          orders: 1,
+          takerNeg: parse6decimal('10'),
+          notional: parse6decimal('-1230'),
+          takerFee: parse6decimal('10'),
+          referral: parse6decimal('1'),
         })
       })
 
@@ -222,15 +333,13 @@ describe('Guarantee', () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, makerPos: parse6decimal('10') },
           parse6decimal('123'),
+          0,
           false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
-          orders: 0,
-          takerPos: 0,
-          takerNeg: 0,
-          notional: 0,
+          ...DEFAULT_GUARANTEE,
         })
       })
 
@@ -238,15 +347,13 @@ describe('Guarantee', () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, makerNeg: parse6decimal('10') },
           parse6decimal('123'),
+          0,
           false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
-          orders: 0,
-          takerPos: 0,
-          takerNeg: 0,
-          notional: 0,
+          ...DEFAULT_GUARANTEE,
         })
       })
     })
@@ -331,6 +438,27 @@ describe('Guarantee', () => {
             guarantee.store({
               ...DEFAULT_GUARANTEE,
               takerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+        })
+      })
+
+      context('.takerFee', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await guarantee.store({
+            ...DEFAULT_GUARANTEE,
+            takerFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await guarantee.read()
+          expect(value.takerFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if takerFee out of range', async () => {
+          await expect(
+            guarantee.store({
+              ...DEFAULT_GUARANTEE,
+              takerFee: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
           ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })

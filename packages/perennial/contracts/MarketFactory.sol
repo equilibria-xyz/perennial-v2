@@ -28,8 +28,8 @@ contract MarketFactory is IMarketFactory, Factory {
     ///      Note: address(0) is used in place of the deprecated payoff provider field
     mapping(IOracleProvider => mapping(address => IMarket)) private _markets;
 
-    /// @dev The referreral fee level for each referrer
-    mapping(address => UFixed6) public referralFee;
+    /// @dev The referreral fee level for each referrer for orders
+    mapping(address => UFixed6) public referralFees;
 
     /// @dev Mapping of allowed signers for each account
     mapping(address => mapping(address => bool)) public signers;
@@ -125,11 +125,11 @@ contract MarketFactory is IMarketFactory, Factory {
     }
 
 
-    /// @notice Updates the referral fee for a referrer
+    /// @notice Updates the referral fee for orders
     /// @param referrer The referrer to update
     /// @param newReferralFee The new referral fee
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
-        referralFee[referrer] = newReferralFee;
+        referralFees[referrer] = newReferralFee;
         emit ReferralFeeUpdated(referrer, newReferralFee);
     }
 

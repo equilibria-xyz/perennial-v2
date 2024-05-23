@@ -111,7 +111,7 @@ describe('Version', () => {
     global: GlobalStruct,
     fromPosition: PositionStruct,
     order: OrderStruct,
-    guarantee: Guarantee,
+    guarantee: GuaranteeStruct,
     fromOracleVersion: OracleVersionStruct,
     toOracleVersion: OracleVersionStruct,
     marketParameter: MarketParameterStruct,
@@ -1153,7 +1153,6 @@ describe('Version', () => {
             makerFee: {
               linearFee: parse6decimal('0.02'),
               proportionalFee: parse6decimal('0.10'),
-              adiabaticFee: parse6decimal('0.20'),
               scale: parse6decimal('100'),
             },
             takerFee: {
@@ -1257,7 +1256,6 @@ describe('Version', () => {
             makerFee: {
               linearFee: parse6decimal('0.02'),
               proportionalFee: parse6decimal('0.10'),
-              adiabaticFee: parse6decimal('0.20'),
               scale: parse6decimal('100'),
             },
             takerFee: {
@@ -1359,7 +1357,6 @@ describe('Version', () => {
             makerFee: {
               linearFee: parse6decimal('0.02'),
               proportionalFee: parse6decimal('0.10'),
-              adiabaticFee: parse6decimal('0.20'),
               scale: parse6decimal('100'),
             },
             takerFee: {
@@ -1917,7 +1914,6 @@ describe('Version', () => {
                 makerFee: {
                   linearFee: 0,
                   proportionalFee: 0,
-                  adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
                 takerFee: {
@@ -1975,7 +1971,6 @@ describe('Version', () => {
                 makerFee: {
                   linearFee: 0,
                   proportionalFee: 0,
-                  adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
                 takerFee: {
@@ -2033,7 +2028,6 @@ describe('Version', () => {
                 makerFee: {
                   linearFee: 0,
                   proportionalFee: 0,
-                  adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
                 takerFee: {
@@ -2093,7 +2087,6 @@ describe('Version', () => {
                 makerFee: {
                   linearFee: 0,
                   proportionalFee: 0,
-                  adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
                 takerFee: {
@@ -2151,7 +2144,6 @@ describe('Version', () => {
                 makerFee: {
                   linearFee: 0,
                   proportionalFee: 0,
-                  adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
                 takerFee: {
@@ -2209,7 +2201,6 @@ describe('Version', () => {
                 makerFee: {
                   linearFee: 0,
                   proportionalFee: 0,
-                  adiabaticFee: 0,
                   scale: parse6decimal('100'),
                 },
                 takerFee: {
