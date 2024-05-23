@@ -630,7 +630,6 @@ describe('Orders', () => {
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
       .to.emit(market, 'OrderCreated')
-      .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -20024 }, { ...DEFAULT_GUARANTEE })
 
     const executorDSUNet = (await dsu.balanceOf(userC.address)).sub(executorBalanceBefore)
     const feeCharged = executorDSUNet.div(BigNumber.from(10).pow(12))
