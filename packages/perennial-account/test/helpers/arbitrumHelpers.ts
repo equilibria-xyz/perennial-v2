@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { BigNumber, utils } from 'ethers'
+import { BigNumber, CallOverrides, utils } from 'ethers'
 import {
   IKeeperOracle,
   IMarketFactory,
@@ -69,25 +69,36 @@ export async function deployController(): Promise<[IERC20Metadata, IERC20Metadat
   return [dsu, usdc, controller]
 }
 
-export async function fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber): Promise<undefined> {
-  const [owner] = await ethers.getSigners()
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-
+export async function fundWalletDSU(
+  wallet: SignerWithAddress,
+  amount: BigNumber,
+  overrides?: CallOverrides,
+): Promise<undefined> {
   const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, dsuOwner)
+
   expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
-  await dsu.connect(dsuOwner).transfer(wallet.address, amount)
+  await dsu.transfer(wallet.address, amount, overrides ?? {})
 }
 
-export async function fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber): Promise<undefined> {
-  const [owner] = await ethers.getSigners()
-  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
-
+export async function fundWalletUSDC(
+  wallet: SignerWithAddress,
+  amount: BigNumber,
+  overrides?: CallOverrides,
+): Promise<undefined> {
   const usdcOwner = await impersonate.impersonateWithBalance(USDCe_HOLDER, utils.parseEther('10'))
+  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, usdcOwner)
+
   expect(await usdc.balanceOf(USDCe_HOLDER)).to.be.greaterThan(amount)
-  await usdc.connect(usdcOwner).transfer(wallet.address, amount)
+  await usdc.transfer(wallet.address, amount, overrides ?? {})
 }
 
 export async function returnUSDC(wallet: SignerWithAddress): Promise<undefined> {
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, wallet)
   await usdc.transfer(USDCe_HOLDER, await usdc.balanceOf(wallet.address))
+}
+
+export async function returnDSU(wallet: SignerWithAddress): Promise<undefined> {
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, wallet)
+  await dsu.transfer(DSU_HOLDER, await dsu.balanceOf(wallet.address))
 }

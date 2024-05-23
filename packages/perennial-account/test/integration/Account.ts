@@ -5,7 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, IController, IERC20Metadata } from '../../types/generated'
-import { deployController, fundWalletDSU, fundWalletUSDC, returnUSDC } from '../helpers/arbitrumHelpers'
+import { deployController, fundWalletDSU, fundWalletUSDC, returnDSU, returnUSDC } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
@@ -49,6 +49,7 @@ describe('Account', () => {
   after(async () => {
     // return user funds to avoid impacting other tests
     await returnUSDC(userA)
+    await returnDSU(userA)
   })
 
   describe('#deposit and withdrawal', () => {

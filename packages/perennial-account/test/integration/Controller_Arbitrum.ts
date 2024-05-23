@@ -6,7 +6,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { smock } from '@defi-wonderland/smock'
-import { currentBlockTimestamp } from '../../../common/testutil/time'
+import { advanceBlock, currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
 import {
   Account,
@@ -76,14 +76,14 @@ describe('Controller_Arbitrum', () => {
     expect(creationArgs.account).to.equal(accountAddress)
 
     // approve the collateral account as operator
-    await marketFactory.connect(user).updateOperator(accountAddress, true)
+    await marketFactory.connect(user).updateOperator(accountAddress, true, { maxFeePerGas: 100000000 })
 
     return Account__factory.connect(accountAddress, user)
   }
 
   // funds specified wallet with 50k collateral
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
-    await fundWalletDSU(wallet, utils.parseEther('50000'))
+    await fundWalletDSU(wallet, utils.parseEther('50000'), { maxFeePerGas: 100000000 })
   }
 
   // create a serial nonce for testing purposes; real users may choose a nonce however they please
@@ -101,7 +101,7 @@ describe('Controller_Arbitrum', () => {
     let keeperOracle: any
     ;[market, oracle, keeperOracle] = await createMarketForOracle(owner, marketFactory, dsu)
     // const lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
-    await dsu.connect(userA).approve(market.address, constants.MaxUint256)
+    await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
     // set up users and deploy artifacts
     const keepConfig = {
@@ -110,8 +110,8 @@ describe('Controller_Arbitrum', () => {
       multiplierCalldata: 0,
       bufferCalldata: 500_000,
     }
-    controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig)
-    verifier = await new Verifier__factory(owner).deploy()
+    controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig, { maxFeePerGas: 100000000 })
+    verifier = await new Verifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
     await controller['initialize(address,address,address,address,address)'](
       verifier.address,
@@ -124,26 +124,29 @@ describe('Controller_Arbitrum', () => {
     await fundWallet(userA)
   }
 
-  beforeEach(async () => {
-    await loadFixture(fixture)
-    currentTime = BigNumber.from(await currentBlockTimestamp())
-
-    await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
-
+  before(async () => {
     // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-    const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
+    await smock.fake<ArbGasInfo>('ArbGasInfo', {
       address: '0x000000000000000000000000000000000000006C',
     })
-    gasInfo.getL1BaseFeeEstimate.returns(0)
+  })
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
+
+    // update the timestamp used for calculating expiry
+    await advanceBlock()
+    currentTime = BigNumber.from(await currentBlockTimestamp())
+
+    // set a realistic base gas fee
+    await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
   })
 
   afterEach(async () => {
     // ensure controller has no funds at rest
     expect(await dsu.balanceOf(controller.address)).to.equal(0)
-  })
 
-  after(async () => {
-    // reset to avoid impact to other tests
+    // reset to avoid impact to setup and other tests
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
   })
 
@@ -274,7 +277,11 @@ describe('Controller_Arbitrum', () => {
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
       // perform transfer
-      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+      await expect(
+        controller
+          .connect(keeper)
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
+      )
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, anyValue) // scale to token precision
         .to.emit(market, 'OrderCreated')
@@ -301,7 +308,11 @@ describe('Controller_Arbitrum', () => {
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
       // perform transfer
-      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+      await expect(
+        controller
+          .connect(keeper)
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
+      )
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, transferAmount.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
@@ -326,6 +337,7 @@ describe('Controller_Arbitrum', () => {
           constants.MaxUint256,
           deposit,
           false,
+          { maxFeePerGas: 200000000 },
         )
       expect((await market.locals(userA.address)).collateral).to.equal(deposit)
 
@@ -342,7 +354,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { gasLimit: 1_000_000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 200000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
@@ -365,6 +377,7 @@ describe('Controller_Arbitrum', () => {
           constants.MaxUint256,
           deposit,
           false,
+          { maxFeePerGas: 100000000 },
         )
       expect((await market.locals(userA.address)).collateral).to.equal(deposit)
 
@@ -380,7 +393,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { gasLimit: 1_000_000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, deposit.mul(1e12)) // scale to token precision
@@ -395,7 +408,7 @@ describe('Controller_Arbitrum', () => {
       // deposit everything possible
       await depositAll()
       // withdraw dust so it cannot be used to pay the keeper
-      await accountA.withdraw(constants.MaxUint256, true)
+      await accountA.withdraw(constants.MaxUint256, true, { maxFeePerGas: 100000000 })
       expect(await dsu.balanceOf(accountA.address)).to.equal(0)
 
       // sign a message to withdraw 3k from the market back into the collateral account
@@ -411,7 +424,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { gasLimit: 1_000_000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, anyValue)
