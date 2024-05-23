@@ -16,6 +16,7 @@ import {
   parse6decimal,
   expectCheckpointEq,
   DEFAULT_GLOBAL,
+  DEFAULT_GUARANTEE,
 } from '../../../../common/testutil/types'
 import { Market } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
@@ -114,8 +115,12 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
       )
-        .to.emit(market, 'Updated')
-        .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, constants.AddressZero)
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          user.address,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+        )
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
@@ -202,8 +207,12 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
       )
-        .to.emit(market, 'Updated')
-        .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, constants.AddressZero)
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          user.address,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+        )
 
       await nextWithConstantPrice()
       await settle(market, user)
@@ -305,17 +314,11 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_1,
-          0,
-          LONG_POSITION,
-          0,
-          COLLATERAL,
-          false,
-          constants.AddressZero,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
         )
 
       await nextWithConstantPrice()
@@ -437,17 +440,11 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_2,
-          0,
-          LONG_POSITION,
-          0,
-          COLLATERAL,
-          false,
-          constants.AddressZero,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
         )
 
       await nextWithConstantPrice()
@@ -602,17 +599,11 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_1,
-          0,
-          LONG_POSITION,
-          0,
-          COLLATERAL,
-          false,
-          constants.AddressZero,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
         )
 
       await nextWithConstantPrice()
@@ -771,17 +762,11 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_1,
-          0,
-          0,
-          SHORT_POSITION,
-          COLLATERAL,
-          false,
-          constants.AddressZero,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
         )
 
       await nextWithConstantPrice()
@@ -903,17 +888,11 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_2,
-          0,
-          0,
-          SHORT_POSITION,
-          COLLATERAL,
-          false,
-          constants.AddressZero,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
         )
 
       await nextWithConstantPrice()
@@ -1068,17 +1047,11 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_1,
-          0,
-          0,
-          SHORT_POSITION,
-          COLLATERAL,
-          false,
-          constants.AddressZero,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
         )
 
       await nextWithConstantPrice()

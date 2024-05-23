@@ -264,8 +264,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // store updated state
         _storeContext(context);
-
-        emit Updated(msg.sender, context.account, context.currentTimestamp, newMaker, newLong, newShort, collateral, protect, referrer);
     }
 
     /// @notice Updates the beneficiary, coordinator, and parameter set of the market
@@ -600,7 +598,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (newOrder.collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
 
         // events
-        emit OrderCreated(context.account, newOrder);
+        emit OrderCreated(context.account, newOrder, newGuarantee);
     }
 
     /// @notice Processes the referral fee for the given order
