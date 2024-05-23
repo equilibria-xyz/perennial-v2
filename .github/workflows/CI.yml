@@ -104,7 +104,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  
+
   # [ACCOUNT]
   account-unit-test:
     name: '[Collateral Account] Unit Tests w/ Coverage'
@@ -130,10 +130,10 @@ jobs:
           MOCHA_RETRY_COUNT: 2
         run: |
           yarn workspace @equilibria/perennial-v2-account run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
-      - name: '[Vault] Unit Test Code Coverage Report'
+      - name: '[Collateral Account] Unit Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: '[Vault] Unit Test Coverage Report'
+          title: '[Collateral Account] Unit Test Coverage Report'
           lcov-file: ./packages/perennial-account/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true

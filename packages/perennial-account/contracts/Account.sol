@@ -28,6 +28,12 @@ contract Account is IAccount {
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
+    /// @dev Construct collateral account and set approvals for controller and DSU reserve
+    /// @param owner_ EOA of the user for whom this collateral account belongs
+    /// @param controller_ Controller contract used for setting approvals and checking permissions
+    /// @param usdc_ USDC stablecoin
+    /// @param dsu_ Digital Standard Unit stablecoin
+    /// @param reserve_ DSU SimpleReserve contract, used for wrapping/unwrapping USDC to/from DSU
     constructor(
         address owner_,
         address controller_,
