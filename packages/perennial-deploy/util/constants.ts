@@ -1,7 +1,7 @@
 import { utils } from 'ethers'
 
-export const cmsqETHOracleID = utils.id('oracle-cmsq-eth')
-export const msqBTCOracleID = utils.id('oracle-msq-btc')
+export const cmsqETHOracleID = utils.id('oracle-cmsq-eth') // 0x002aa13b58df1c483e925045e9a580506812ed5bc85c188d3d8b501501294ad4
+export const msqBTCOracleID = utils.id('oracle-msq-btc') // 0x403d2f23c2015aee67e9311896907cc05c139b2c771a92ae48a2c0e50e6883a4
 
 export const DEFAULT_PROTOCOL_PARAMETER = {
   protocolFee: 0,

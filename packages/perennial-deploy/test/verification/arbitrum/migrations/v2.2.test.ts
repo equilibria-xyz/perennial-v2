@@ -19,7 +19,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { smock } from '@defi-wonderland/smock'
 import { GlobalStruct } from '../../../../types/generated/@equilibria/perennial-v2/contracts/Market'
 
-const RunMigrationDeployScript = true
+const RunMigrationDeployScript = false
 const SkipSettleAccounts = false
 const SkipSettleVaults = false
 
@@ -230,10 +230,13 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     }
 
     const currentTimestamp = await currentBlockTimestamp()
-    const nextVersionTimestamp = nextVersionForTimestamp(currentTimestamp)
     await commitPriceForIds(idsToCommit, currentTimestamp, undefined, 32000000)
     console.log('Updating position in markets')
-    await multiinvoker.connect(perennialUser)['invoke((uint8,bytes)[])'](actions)
+    const invokeTx = await multiinvoker.connect(perennialUser)['invoke((uint8,bytes)[])'](actions)
+    const nextVersionTimestamp = nextVersionForTimestamp(await currentBlockTimestamp())
+
+    for (const oracleProvider of oracleProviders)
+      await expect(invokeTx).to.emit(oracleProvider, 'OracleProviderVersionRequested').withArgs(nextVersionTimestamp)
 
     await increase(20)
 
@@ -264,7 +267,7 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     const currentTimestamp = await currentBlockTimestamp()
     await commitPriceForIds([oracleIDs[0].id, oracleIDs[1].id], currentTimestamp)
 
-    const nextVersionTimestamp = nextVersionForTimestamp(currentTimestamp)
+    const nextVersionTimestamp = nextVersionForTimestamp(await currentBlockTimestamp())
     await ethMarket
       .connect(liquidatorSigner)
       ['update(address,uint256,uint256,uint256,int256,bool)'](liquidatorSigner.address, 0, 0, 0, 0, false)
@@ -302,13 +305,10 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       .connect(ownerSigner)
       .updateRiskParameter({ ...riskParameter, minMargin: 500e6, minMaintenance: 500e6 }, false)
 
-    await expect(
-      ethMarket
-        .connect(liquidator)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](perennialUser.address, 0, 0, 0, 0, true),
-    ).to.not.be.reverted
-
-    await commitPriceForIds([oracleIDs[0].id], nextVersionForTimestamp(currentTimestamp) + 4)
+    await ethMarket
+      .connect(liquidator)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](perennialUser.address, 0, 0, 0, 0, true)
+    await commitPriceForIds([oracleIDs[0].id], nextVersionForTimestamp(await currentBlockTimestamp()) + 4)
 
     await ethMarket.connect(liquidator).settle(perennialUser.address)
     await ethMarket.connect(liquidator).settle(liquidator.address)
@@ -349,12 +349,13 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       .to.emit(solMarket, 'Updated')
       .to.emit(maticMarket, 'Updated')
       .to.emit(btcMarket, 'Updated')
+    const nextVersionTimestamp = nextVersionForTimestamp(await currentBlockTimestamp())
 
     await increase(10)
 
     await commitPriceForIds(
       [oracleIDs[0].id, oracleIDs[1].id, oracleIDs[2].id, oracleIDs[3].id, oracleIDs[6].id],
-      nextVersionForTimestamp(currentTimestamp) + 4,
+      nextVersionTimestamp + 4,
     )
   })
 })
