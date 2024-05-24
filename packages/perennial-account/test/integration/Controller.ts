@@ -131,7 +131,7 @@ describe('ControllerBase', () => {
         amount: amount,
         ...createAction(user.address),
       }
-      const signature = await signMarketTransfer(user, verifier, marketTransferMessage)
+      const signature = await signMarketTransfer(signer, verifier, marketTransferMessage)
 
       // determine expected event parameters
       let expectedFrom: Address, expectedTo: Address, expectedAmount: BigNumber
@@ -188,7 +188,7 @@ describe('ControllerBase', () => {
 
     it('delegated signer can transfer funds', async () => {
       // configure a delegate
-      controller.connect(userA).updateSigner(userB.address, true)
+      await controller.connect(userA).updateSigner(userB.address, true)
 
       // sign a message to deposit 4k from the collateral account to the market
       const transferAmount = parse6decimal('4000')

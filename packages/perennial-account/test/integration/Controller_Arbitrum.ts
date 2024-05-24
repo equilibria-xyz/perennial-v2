@@ -15,10 +15,11 @@ import {
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
   IERC20Metadata,
+  IMarket,
+  IMarketFactory,
   IVerifier,
   Verifier__factory,
 } from '../../types/generated'
-import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signSignerUpdate, signWithdrawal } from '../helpers/erc712'
 import {
   createMarketFactory,
@@ -102,10 +103,7 @@ describe('Controller_Arbitrum', () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
     ;[dsu, usdc] = await deployController()
     marketFactory = await createMarketFactory(owner)
-    let oracle: any //IOracleProvider
-    let keeperOracle: any
-    ;[market, oracle, keeperOracle] = await createMarketForOracle(owner, marketFactory, dsu)
-    // const lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
+    ;[market, ,] = await createMarketForOracle(owner, marketFactory, dsu)
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
     // set up users and deploy artifacts
@@ -234,8 +232,6 @@ describe('Controller_Arbitrum', () => {
   })
 
   describe('#delegation', async () => {
-    let accountAddressA: Address
-
     beforeEach(async () => {
       // keeper starts with no funds
       const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
@@ -300,8 +296,6 @@ describe('Controller_Arbitrum', () => {
     })
 
     async function deposit(amount = constants.MaxInt256) {
-      const collateralBefore = (await market.locals(userA.address)).collateral
-
       // sign a message to deposit everything from the collateral account to the market
       const marketTransferMessage = {
         market: market.address,
@@ -371,7 +365,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 200000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
@@ -385,7 +379,7 @@ describe('Controller_Arbitrum', () => {
     it('collects fee for withdrawing native deposit from market', async () => {
       // user directly deposits collateral to the market
       const depositAmount = parse6decimal('13000')
-      await fundWalletDSU(userA, depositAmount.mul(1e12), { maxFeePerGas: 100000000 })
+      await fundWalletDSU(userA, depositAmount.mul(1e12), { maxFeePerGas: 150000000 })
       await market
         .connect(userA)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -442,7 +436,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 150000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, anyValue)

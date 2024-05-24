@@ -230,7 +230,7 @@ export async function advanceToPrice(
 }
 
 // placates linter, which has an aversion to non-null assertions
-export async function getEventArguments(tx: ContractTransaction, name: string): Promise<any> {
+export async function getEventArguments(tx: ContractTransaction, name: string): Promise<utils.Result> {
   const receipt = await tx.wait()
   if (!receipt.events) throw new Error('Transaction receipt had no events')
   const firstMatch = receipt.events.find(e => e.event === name)

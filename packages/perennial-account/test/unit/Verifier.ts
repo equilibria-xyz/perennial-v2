@@ -30,7 +30,6 @@ describe('Verifier', () => {
   let userB: SignerWithAddress
   let lastNonce = 0
   let currentTime: BigNumber
-  let accountAddress: Address
 
   // create a default action for the specified user
   function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
@@ -60,7 +59,6 @@ describe('Verifier', () => {
     verifier = await new Verifier__factory(owner).deploy()
     verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
     controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
-    accountAddress = (await smock.fake('IAccount')).address
   }
 
   beforeEach(async () => {
