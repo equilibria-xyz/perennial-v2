@@ -32,6 +32,10 @@ const { ethers } = HRE
 describe('MarketFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
+  let signer: SignerWithAddress
+  let operator: SignerWithAddress
+  let signer2: SignerWithAddress
+  let operator2: SignerWithAddress
   let oracleFactory: FakeContract<IFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
@@ -41,7 +45,7 @@ describe('MarketFactory', () => {
   let marketImpl: Market
 
   beforeEach(async () => {
-    ;[user, owner] = await ethers.getSigners()
+    ;[user, owner, signer, signer2, operator, operator2] = await ethers.getSigners()
     oracleFactory = await smock.fake<IFactory>('IFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
@@ -421,6 +425,62 @@ describe('MarketFactory', () => {
       await expect(
         factory.connect(owner).updateSignerWithSignature(signerUpdate, signature),
       ).to.revertedWithCustomError(factory, 'MarketFactoryInvalidSignerError')
+    })
+  })
+
+  describe('#updateAccessBatch', async () => {
+    it('updates the operator and signer status', async () => {
+      await expect(
+        factory.connect(user).updateAccessBatch(
+          [
+            { accessor: operator.address, approved: true },
+            { accessor: operator2.address, approved: true },
+          ],
+          [
+            { accessor: signer.address, approved: true },
+            { accessor: signer2.address, approved: true },
+          ],
+        ),
+      )
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, operator.address, true)
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, operator2.address, true)
+        .to.emit(factory, 'SignerUpdated')
+        .withArgs(user.address, signer.address, true)
+        .to.emit(factory, 'SignerUpdated')
+        .withArgs(user.address, signer2.address, true)
+
+      expect(await factory.operators(user.address, operator.address)).to.equal(true)
+      expect(await factory.operators(user.address, operator2.address)).to.equal(true)
+      expect(await factory.signers(user.address, signer.address)).to.equal(true)
+      expect(await factory.signers(user.address, signer2.address)).to.equal(true)
+
+      await expect(
+        factory.connect(user).updateAccessBatch(
+          [
+            { accessor: operator.address, approved: false },
+            { accessor: operator2.address, approved: false },
+          ],
+          [
+            { accessor: signer.address, approved: false },
+            { accessor: signer2.address, approved: false },
+          ],
+        ),
+      )
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, operator.address, false)
+        .to.emit(factory, 'OperatorUpdated')
+        .withArgs(user.address, operator2.address, false)
+        .to.emit(factory, 'SignerUpdated')
+        .withArgs(user.address, signer.address, false)
+        .to.emit(factory, 'SignerUpdated')
+        .withArgs(user.address, signer2.address, false)
+
+      expect(await factory.operators(user.address, operator.address)).to.equal(false)
+      expect(await factory.operators(user.address, operator2.address)).to.equal(false)
+      expect(await factory.signers(user.address, signer.address)).to.equal(false)
+      expect(await factory.signers(user.address, signer2.address)).to.equal(false)
     })
   })
 })

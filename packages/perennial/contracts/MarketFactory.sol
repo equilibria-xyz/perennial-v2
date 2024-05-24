@@ -124,6 +124,15 @@ contract MarketFactory is IMarketFactory, Factory {
         emit SignerUpdated(account, signer, newEnabled);
     }
 
+    /// @notice Updates the status of a signer for the caller
+    /// @param operators The list of operators to update
+    /// @param signers The list of operators to update
+    function updateAccessBatch(AccessUpdate[] calldata operators, AccessUpdate[] calldata signers) external {
+        for (uint256 i = 0; i < operators.length; i++)
+            _updateOperator(msg.sender, operators[i].accessor, operators[i].approved);
+        for (uint256 i = 0; i < signers.length; i++)
+            _updateSigner(msg.sender, signers[i].accessor, signers[i].approved);
+    }
 
     /// @notice Updates the referral fee for orders
     /// @param referrer The referrer to update

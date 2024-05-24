@@ -27,6 +27,11 @@ interface IMarketFactory is IFactory {
     // sig: 0x4dc1bc59
     error ProtocolParameterStorageInvalidError();
 
+    struct AccessUpdate {
+        address accessor;
+        bool approved;
+    }
+
     function oracleFactory() external view returns (IFactory);
     function parameter() external view returns (ProtocolParameter memory);
     function extensions(address extension) external view returns (bool);
@@ -41,6 +46,7 @@ interface IMarketFactory is IFactory {
     function updateOperatorWithSignature(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external;
     function updateSigner(address signer, bool newEnabled) external;
     function updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) external;
+    function updateAccessBatch(AccessUpdate[] calldata operators, AccessUpdate[] calldata signers) external;
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external;
     function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);
 }
