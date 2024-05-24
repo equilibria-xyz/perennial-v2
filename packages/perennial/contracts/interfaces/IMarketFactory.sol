@@ -4,6 +4,8 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/attribute/interfaces/IFactory.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
+import "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdate.sol";
+import "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdateBatch.sol";
 import "../types/ProtocolParameter.sol";
 import "./IMarket.sol";
 
@@ -27,11 +29,6 @@ interface IMarketFactory is IFactory {
     // sig: 0x4dc1bc59
     error ProtocolParameterStorageInvalidError();
 
-    struct AccessUpdate {
-        address accessor;
-        bool approved;
-    }
-
     function oracleFactory() external view returns (IFactory);
     function parameter() external view returns (ProtocolParameter memory);
     function extensions(address extension) external view returns (bool);
@@ -47,6 +44,7 @@ interface IMarketFactory is IFactory {
     function updateSigner(address signer, bool newEnabled) external;
     function updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) external;
     function updateAccessBatch(AccessUpdate[] calldata operators, AccessUpdate[] calldata signers) external;
+    function updateAccessBatchWithSignature(AccessUpdateBatch calldata accessUpdateBatch, bytes calldata signature) external;
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external;
     function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);
 }
