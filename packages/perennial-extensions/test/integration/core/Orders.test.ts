@@ -5,7 +5,7 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import 'hardhat'
 
 import { expect } from 'chai'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 import {
@@ -440,21 +440,18 @@ describe('Orders', () => {
 
     const balanceBefore = await dsu.balanceOf(userB.address)
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+
     await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
-      .to.emit(market, 'Updated')
+      .to.emit(market, 'OrderCreated')
+      .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 }, { ...DEFAULT_GUARANTEE })
+      .to.emit(market, 'OrderCreated')
       .withArgs(
-        multiInvoker.address,
         user.address,
-        anyValue,
-        anyValue,
-        anyValue,
-        anyValue,
-        -50e6,
-        false,
-        constants.AddressZero,
+        { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition },
+        { ...DEFAULT_GUARANTEE },
       )
       .to.emit(multiInvoker, 'InterfaceFeeCharged')
       .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: false })
@@ -493,17 +490,13 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
-      .to.emit(market, 'Updated')
+      .to.emit(market, 'OrderCreated')
+      .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 }, { ...DEFAULT_GUARANTEE })
+      .to.emit(market, 'OrderCreated')
       .withArgs(
-        multiInvoker.address,
         user.address,
-        anyValue,
-        anyValue,
-        anyValue,
-        anyValue,
-        -50e6,
-        false,
-        constants.AddressZero,
+        { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition },
+        { ...DEFAULT_GUARANTEE },
       )
       .to.emit(multiInvoker, 'InterfaceFeeCharged')
       .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
@@ -544,17 +537,13 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
-      .to.emit(market, 'Updated')
+      .to.emit(market, 'OrderCreated')
+      .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 }, { ...DEFAULT_GUARANTEE })
+      .to.emit(market, 'OrderCreated')
       .withArgs(
-        multiInvoker.address,
         user.address,
-        anyValue,
-        anyValue,
-        anyValue,
-        anyValue,
-        -50e6,
-        false,
-        constants.AddressZero,
+        { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition },
+        { ...DEFAULT_GUARANTEE },
       )
       .to.emit(multiInvoker, 'InterfaceFeeCharged')
       .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
@@ -597,17 +586,11 @@ describe('Orders', () => {
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(userB.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
-      .to.emit(market, 'Updated')
+      .to.emit(market, 'OrderCreated')
       .withArgs(
-        multiInvoker.address,
         userB.address,
-        anyValue,
-        anyValue,
-        anyValue,
-        anyValue,
-        collateral.div(-4),
-        false,
-        constants.AddressZero,
+        { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: collateral.div(-4) },
+        { ...DEFAULT_GUARANTEE },
       )
 
     expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(collateral.div(4)))
@@ -641,22 +624,12 @@ describe('Orders', () => {
     const executorBalanceBefore = await dsu.balanceOf(userC.address)
     const balanceBefore = await usdc.balanceOf(user.address)
     const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+
     await expect(multiInvoker.connect(userC).invoke(execute))
       .to.emit(multiInvoker, 'OrderExecuted')
       .withArgs(user.address, market.address, 1)
       .to.emit(multiInvoker, 'KeeperCall')
-      .to.emit(market, 'Updated')
-      .withArgs(
-        multiInvoker.address,
-        user.address,
-        anyValue,
-        anyValue,
-        anyValue,
-        anyValue,
-        anyValue,
-        false,
-        constants.AddressZero,
-      )
+      .to.emit(market, 'OrderCreated')
 
     const executorDSUNet = (await dsu.balanceOf(userC.address)).sub(executorBalanceBefore)
     const feeCharged = executorDSUNet.div(BigNumber.from(10).pow(12))
@@ -908,9 +881,16 @@ describe('Orders', () => {
 
       await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000000'])
       const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+
       await expect(multiInvoker.connect(user).invoke(execute, { maxFeePerGas: 16777216 }))
-        .to.emit(market, 'Updated')
-        .withArgs(multiInvoker.address, user.address, 1631114005, 0, 0, 0, -10, false, constants.AddressZero)
+        .to.emit(market, 'OrderCreated')
+        .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -10 }, { ...DEFAULT_GUARANTEE })
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          user.address,
+          { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition },
+          { ...DEFAULT_GUARANTEE },
+        )
     })
 
     it('Fails to store TRIGGER values out of slot bounds', async () => {

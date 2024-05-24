@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
-import { expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
+import { expectPositionEq, parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 export const TIMESTAMP_2 = 1631113819
@@ -34,8 +34,12 @@ describe('Liquidate', () => {
     await expect(
       market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
     ) // liquidate
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
+        { ...DEFAULT_GUARANTEE },
+      )
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
@@ -168,8 +172,12 @@ describe('Liquidate', () => {
     await expect(
       market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
     ) // liquidate
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
+        { ...DEFAULT_GUARANTEE },
+      )
 
     await chainlink.next()
     await settle(market, user)
@@ -275,8 +283,12 @@ describe('Liquidate', () => {
     await expect(
       market.connect(userC)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
     ) // liquidate
-      .to.emit(market, 'Updated')
-      .withArgs(userC.address, user.address, TIMESTAMP_3, 0, 0, 0, 0, true, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_3, orders: 1, makerNeg: parse6decimal('5'), protection: 1 },
+        { ...DEFAULT_GUARANTEE },
+      )
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userC.address)
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1500'))
