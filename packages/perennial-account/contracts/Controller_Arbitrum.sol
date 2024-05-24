@@ -120,14 +120,14 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         raisedKeeperFee = amount.min(UFixed18.wrap(maxFee * 1e12));
 
         // if the account has insufficient DSU to pay the fee, wrap
-        if (DSU.balanceOf(account).lt(raisedKeeperFee))
-        {
-            IAccount(account).wrap(raisedKeeperFee);
+        if (DSU.balanceOf(account).lt(raisedKeeperFee)) {
+            if (USDC.balanceOf(account).gte(UFixed6Lib.from(raisedKeeperFee)))
+                IAccount(account).wrap(raisedKeeperFee);
+            else
+                revert CannotPayKeeper();
         }
 
         // transfer DSU to the Controller, such that Kept can transfer to keeper
         DSU.pull(account, raisedKeeperFee);
-
-        // TODO: explore cost of reverting if insufficient funds to compensate keeper
     }
 }

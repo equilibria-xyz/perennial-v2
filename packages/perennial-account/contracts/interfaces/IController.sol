@@ -20,6 +20,10 @@ interface IController {
     /// @param newEnabled true to assign or enable, false to disable
     event SignerUpdated(address indexed account, address indexed signer, bool newEnabled);
 
+    // sig: 0xa1206248
+    /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
+    error CannotPayKeeper();
+
     // sig: 0x35e0fb4b
     /// @custom:error Signer is not authorized to interact with the specified collateral account
     error InvalidSignerError();

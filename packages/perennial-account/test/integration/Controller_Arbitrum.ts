@@ -27,6 +27,7 @@ import {
   deployController,
   fundWalletDSU,
   fundWalletUSDC,
+  returnUSDC,
 } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
@@ -163,10 +164,12 @@ describe('Controller_Arbitrum', () => {
     // fund the account with 15k USDC
     beforeEach(async () => {
       accountAddressA = await controller.getAccountAddress(userA.address)
-      await usdc.connect(userA).transfer(accountAddressA, parse6decimal('15000'), { maxFeePerGas: 100000000 })
     })
 
     it('can create an account', async () => {
+      // pre-fund the address where the account will be deployed
+      await usdc.connect(userA).transfer(accountAddressA, parse6decimal('15000'), { maxFeePerGas: 100000000 })
+
       // sign a message to deploy the account
       const deployAccountMessage = {
         ...createAction(userA.address),
@@ -175,15 +178,22 @@ describe('Controller_Arbitrum', () => {
 
       // keeper executes deployment of the account and is compensated
       const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
-      await controller
-        .connect(keeper)
-        .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 })
+      await expect(
+        controller
+          .connect(keeper)
+          .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
+      )
+        .to.emit(controller, 'AccountDeployed')
+        .withArgs(userA.address, accountAddressA)
 
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
     it('keeper fee is limited by maxFee', async () => {
+      // pre-fund the address where the account will be deployed
+      await usdc.connect(userA).transfer(accountAddressA, parse6decimal('15000'), { maxFeePerGas: 100000000 })
+
       // sign a message with maxFee smaller than the calculated keeper fee (~0.0033215)
       const maxFee = parse6decimal('0.000789')
       const deployAccountMessage = {
@@ -193,12 +203,35 @@ describe('Controller_Arbitrum', () => {
 
       // keeper executes deployment of the account and is compensated
       const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
-      await controller
-        .connect(keeper)
-        .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 })
+      await expect(
+        controller
+          .connect(keeper)
+          .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
+      )
+        .to.emit(controller, 'AccountDeployed')
+        .withArgs(userA.address, accountAddressA)
 
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.equal(maxFee.mul(1e12)) // convert from 6- to 18- decimal
+    })
+
+    it('reverts with custom error if keeper cannot be compensated', async () => {
+      // ensure the account is empty
+      expect(await dsu.balanceOf(keeper.address)).to.equal(0)
+      expect(await usdc.balanceOf(keeper.address)).to.equal(0)
+
+      // sign a message to deploy the account
+      const deployAccountMessage = {
+        ...createAction(userA.address),
+      }
+
+      // ensure the request fails with a meaningful revert reason
+      const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
+      await expect(
+        controller
+          .connect(keeper)
+          .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
+      ).to.be.revertedWithCustomError(controller, 'CannotPayKeeper')
     })
   })
 
