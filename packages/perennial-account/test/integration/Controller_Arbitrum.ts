@@ -50,7 +50,7 @@ describe('Controller_Arbitrum', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, feeOverride = DEFAULT_MAX_FEE, expiresInSeconds = 16) {
+  function createAction(userAddress: Address, feeOverride = DEFAULT_MAX_FEE, expiresInSeconds = 45) {
     return {
       action: {
         maxFee: feeOverride,
@@ -143,7 +143,6 @@ describe('Controller_Arbitrum', () => {
     await loadFixture(fixture)
 
     // update the timestamp used for calculating expiry
-    await advanceBlock()
     currentTime = BigNumber.from(await currentBlockTimestamp())
 
     // set a realistic base gas fee
@@ -284,12 +283,12 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 300000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 250000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, anyValue) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
+        .withArgs(userA.address, anyValue, anyValue)
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
     }
@@ -313,9 +312,10 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, transferAmount.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
+        .withArgs(userA.address, anyValue, anyValue)
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+      expect((await market.locals(userA.address)).collateral).to.equal(transferAmount)
     })
 
     it('collects fee when depositing all funds to market', async () => {
@@ -340,12 +340,12 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 300000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
+        .withArgs(userA.address, anyValue, anyValue)
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(parse6decimal('10000')) // 12k-2k
@@ -380,12 +380,12 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 150000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
+        .withArgs(userA.address, anyValue, anyValue)
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(0)
@@ -395,7 +395,7 @@ describe('Controller_Arbitrum', () => {
       // deposit everything possible
       await deposit()
       // withdraw dust so it cannot be used to pay the keeper
-      await accountA.withdraw(constants.MaxUint256, true, { maxFeePerGas: 100000000 })
+      await accountA.withdraw(constants.MaxUint256, true, { maxFeePerGas: 150000000 })
       expect(await dsu.balanceOf(accountA.address)).to.equal(0)
 
       // sign a message to withdraw 3k from the market back into the collateral account
@@ -411,12 +411,12 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 150000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, anyValue)
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
+        .withArgs(userA.address, anyValue, anyValue)
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.be.within(

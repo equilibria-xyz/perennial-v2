@@ -89,7 +89,7 @@ describe('ControllerBase', () => {
     const tx = await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, newMaker, newLong, newShort, 0, false)
-    const created = (await tx.wait()).events?.find(e => e.event === 'Updated')!.args!.version
+    const created = (await tx.wait()).events?.find(e => e.event === 'OrderCreated')!.args!.order.timestamp
     return created
   }
 
@@ -155,7 +155,7 @@ describe('ControllerBase', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(expectedFrom, expectedTo, expectedAmount)
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue)
+        .withArgs(userA.address, anyValue, anyValue)
     }
 
     it('can deposit funds to a market', async () => {
