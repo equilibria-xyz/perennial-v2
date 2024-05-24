@@ -59,8 +59,6 @@ contract Account is IAccount {
     }
 
     /// @inheritdoc IAccount
-    /// @dev If Market ever supports non-18-decimal tokens, this method could be expanded 
-    /// to handle them appropriately.
     function marketTransfer(IMarket market, Fixed6 amount) external ownerOrController {
         // implicitly approve this market to spend our DSU
         uint256 allowance = IERC20Metadata(Token18.unwrap(DSU)).allowance(address(this), address(market));
@@ -74,36 +72,37 @@ contract Account is IAccount {
             if (balance.sign() != 1) revert NoCollateral(address(market));
             // ensure user has no position
             amount = balance.mul(Fixed6Lib.NEG_ONE);
+
         // handle magic number for full deposit
         } else if (amount.eq(Fixed6Lib.MAX)){
             UFixed6 usdcBalance = USDC.balanceOf();
             if (!usdcBalance.eq(UFixed6Lib.ZERO))
-                _wrap(UFixed18Lib.from(usdcBalance));
+                wrap(UFixed18Lib.from(usdcBalance));
             UFixed18 balance = DSU.balanceOf();
             amount = Fixed6Lib.from(UFixed6Lib.from(balance));
+
         // if account does not have enough DSU for the deposit, wrap everything
         } else if (amount.gt(Fixed6Lib.ZERO)) {
             UFixed6 dsuBalance6 = UFixed6Lib.from(DSU.balanceOf());
             if (UFixed6Lib.from(amount).gt(dsuBalance6)) {
                 UFixed6 usdcBalance = USDC.balanceOf();
                 if (!usdcBalance.eq(UFixed6Lib.ZERO))
-                    _wrap(UFixed18Lib.from(usdcBalance));
+                    wrap(UFixed18Lib.from(usdcBalance));
             }
         }
 
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
-        // console.log("Account attempting to update market %s with collateral %s", address(market_), UFixed6.unwrap(amount_.abs()));
         market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
     }
 
     /// @inheritdoc IAccount
-    function withdraw(UFixed6 amount, bool unwrap) external ownerOrController {
+    function withdraw(UFixed6 amount, bool unwrap_) external ownerOrController {
         UFixed6 usdcBalance = USDC.balanceOf();
-        if (unwrap && usdcBalance.lt(amount)) {
+        if (unwrap_ && usdcBalance.lt(amount)) {
             UFixed18 unwrapAmount = amount.eq(UFixed6Lib.MAX) ?
                 DSU.balanceOf() :
                 UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
-            _unwrap(unwrapAmount);
+            unwrap(unwrapAmount);
         }
         UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
         USDC.push(owner, pushAmount);
@@ -111,13 +110,13 @@ contract Account is IAccount {
 
     /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the reserve
     /// @param amount Amount of USDC to wrap
-    function _wrap(UFixed18 amount) internal {
+    function wrap(UFixed18 amount) public ownerOrController {
         reserve.mint(amount);
     }
 
     /// @notice Helper function to unwrap `amount` DSU into USDC and send to `receiver`
     /// @param amount Amount of DSU to unwrap
-    function _unwrap(UFixed18 amount) internal {
+    function unwrap(UFixed18 amount) public ownerOrController {
         reserve.redeem(amount);
     }
 

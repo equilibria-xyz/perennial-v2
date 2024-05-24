@@ -65,7 +65,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
 
     /// @inheritdoc IController
     function marketTransferWithSignature(
-        MarketTransfer calldata marketTransfer, 
+        MarketTransfer calldata marketTransfer,
         bytes calldata signature
     ) override external {
         IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
@@ -118,6 +118,16 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         (address account, uint256 maxFee) = abi.decode(data, (address, uint256));
         // maxFee is a UFixed6; convert to 18-decimal precision
         raisedKeeperFee = amount.min(UFixed18.wrap(maxFee * 1e12));
-        keeperToken().pull(account, raisedKeeperFee);
+
+        // if the account has insufficient DSU to pay the fee, wrap
+        if (DSU.balanceOf(account).lt(raisedKeeperFee))
+        {
+            IAccount(account).wrap(raisedKeeperFee);
+        }
+
+        // transfer DSU to the Controller, such that Kept can transfer to keeper
+        DSU.pull(account, raisedKeeperFee);
+
+        // TODO: explore cost of reverting if insufficient funds to compensate keeper
     }
 }
