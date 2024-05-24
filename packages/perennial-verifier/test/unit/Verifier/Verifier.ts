@@ -8,7 +8,7 @@ import HRE from 'hardhat'
 
 import { Verifier, Verifier__factory } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { signIntent, signFill, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
+import { signIntent, signFill, signOperatorUpdate, signSignerUpdate, signAccessUpdateBatch } from '../../helpers/erc712'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -18,10 +18,12 @@ describe('Verifier', () => {
   let market: SignerWithAddress
   let caller: SignerWithAddress
   let caller2: SignerWithAddress
+  let signer: SignerWithAddress
+  let operator: SignerWithAddress
   let verifier: Verifier
 
   beforeEach(async () => {
-    ;[owner, market, caller, caller2] = await ethers.getSigners()
+    ;[owner, market, caller, caller2, signer, operator] = await ethers.getSigners()
 
     verifier = await new Verifier__factory(owner).deploy()
   })
@@ -808,6 +810,196 @@ describe('Verifier', () => {
         verifier,
         'VerifierInvalidGroupError',
       )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+  })
+
+  describe('#verifyAccesUpdateBatch', () => {
+    const DEFAULT_ACCESS_UPDATE_BATCH = {
+      operators: [],
+      signers: [],
+      common: {
+        account: constants.AddressZero,
+        domain: constants.AddressZero,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    it('should verify default group cancellation', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        operators: [{ accessor: operator.address, approved: true }],
+        signers: [{ accessor: signer.address, approved: true }],
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      const result = await verifier.connect(caller).callStatic.verifyAccessUpdateBatch(accessUpdateBatch, signature)
+      await expect(verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify group cancellation w/ expiry', async () => {
+      const now = await time.latest()
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          domain: caller.address,
+          expiry: now + 2,
+        },
+      } // callstatic & call each take one second
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      const result = await verifier.connect(caller).callStatic.verifyAccessUpdateBatch(accessUpdateBatch, signature)
+      await expect(verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject group cancellation w/ invalid expiry', async () => {
+      const now = await time.latest()
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address, expiry: now },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidExpiryError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid expiry (zero)', async () => {
+      const now = await time.latest()
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address, expiry: 0 },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidExpiryError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should verify group cancellation w/ domain', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: market.address },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      const result = await verifier.connect(market).callStatic.verifyAccessUpdateBatch(accessUpdateBatch, signature)
+      await expect(verifier.connect(market).verifyAccessUpdateBatch(accessUpdateBatch, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(result).to.eq(caller.address)
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject group cancellation w/ invalid domain', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: market.address },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidDomainError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid domain (zero)', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidDomainError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid signature (too small)', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address },
+      }
+      const signature =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidSignatureError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid signature (too large)', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address },
+      }
+      const signature =
+        '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidSignatureError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid nonce', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address, nonce: 17 },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      await verifier.connect(caller).cancelNonce(17)
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidNonceError')
+
+      expect(await verifier.nonces(caller.address, 17)).to.eq(true)
+    })
+
+    it('should reject group cancellation w/ invalid nonce', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address, group: 17 },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      await verifier.connect(caller).cancelGroup(17)
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidGroupError')
 
       expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })
