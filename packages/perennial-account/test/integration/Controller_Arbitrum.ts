@@ -18,7 +18,6 @@ import {
   IVerifier,
   Verifier__factory,
 } from '../../types/generated'
-import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signSignerUpdate, signWithdrawal } from '../helpers/erc712'
 import {
@@ -27,8 +26,8 @@ import {
   deployController,
   fundWalletDSU,
   fundWalletUSDC,
-  returnUSDC,
 } from '../helpers/arbitrumHelpers'
+import { getEventArguments } from '../helpers/setupHelpers'
 
 const { ethers } = HRE
 
@@ -78,8 +77,7 @@ describe('Controller_Arbitrum', () => {
       .connect(keeper)
       .deployAccountWithSignature(deployAccountMessage, signatureCreate, { maxFeePerGas: 100000000 })
     // verify the address from event arguments
-    const creationArgs = (await tx.wait()).events?.find(e => e.event === 'AccountDeployed')
-      ?.args as any as AccountDeployedEventObject
+    const creationArgs = await getEventArguments(tx, 'AccountDeployed')
     expect(creationArgs.account).to.equal(accountAddress)
 
     // approve the collateral account as operator
@@ -444,7 +442,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 150000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, anyValue)

@@ -3,7 +3,7 @@ import HRE from 'hardhat'
 import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { BigNumber, constants, utils } from 'ethers'
+import { BigNumber, utils } from 'ethers'
 import {
   Controller,
   Controller__factory,
@@ -15,12 +15,11 @@ import {
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
-import { AccountDeployedEventObject } from '../../types/generated/contracts/Controller'
 import { signDeployAccount, signMarketTransfer, signSignerUpdate } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { smock } from '@defi-wonderland/smock'
-import { mockMarket } from '../helpers/setupHelpers'
+import { getEventArguments, mockMarket } from '../helpers/setupHelpers'
 
 const { ethers } = HRE
 
@@ -58,8 +57,7 @@ describe('Controller', () => {
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signatureCreate)
     // verify the address from event arguments
-    const creationArgs = (await tx.wait()).events?.find(e => e.event === 'AccountDeployed')
-      ?.args as any as AccountDeployedEventObject
+    const creationArgs = await getEventArguments(tx, 'AccountDeployed')
     const accountAddress = await controller.getAccountAddress(user.address)
     expect(creationArgs.account).to.equal(accountAddress)
     return IAccount__factory.connect(accountAddress, user)

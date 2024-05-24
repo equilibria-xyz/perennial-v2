@@ -12,7 +12,7 @@ import { IVerifier__factory } from '../../types/generated/factories/contracts/in
 import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
-import { advanceToPrice } from '../helpers/setupHelpers'
+import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
 import {
   createMarketFactory,
   createMarketForOracle,
@@ -89,8 +89,7 @@ describe('ControllerBase', () => {
     const tx = await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, newMaker, newLong, newShort, 0, false)
-    const created = (await tx.wait()).events?.find(e => e.event === 'OrderCreated')!.args!.order.timestamp
-    return created
+    return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
   }
 
   const fixture = async () => {
@@ -185,6 +184,19 @@ describe('ControllerBase', () => {
       await expectMarketCollateralBalance(userA, parse6decimal('20000'))
       expect(await dsu.balanceOf(accountA.address)).to.equal(0)
       expect(await usdc.balanceOf(accountA.address)).to.equal(0)
+    })
+
+    it('delegated signer can transfer funds', async () => {
+      // configure a delegate
+      controller.connect(userA).updateSigner(userB.address, true)
+
+      // sign a message to deposit 4k from the collateral account to the market
+      const transferAmount = parse6decimal('4000')
+      await transfer(transferAmount, userA, userB)
+
+      // verify balances
+      await expectMarketCollateralBalance(userA, transferAmount)
+      expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('11000')) // 15k-4k
     })
 
     it('can withdraw funds from a market', async () => {

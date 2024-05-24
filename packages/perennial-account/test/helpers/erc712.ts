@@ -9,7 +9,7 @@ import {
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
 
-export function erc721Domain(verifier: IVerifier | FakeContract<IVerifier>) {
+function erc721Domain(verifier: IVerifier | FakeContract<IVerifier>): any {
   return {
     name: 'Perennial V2 Collateral Accounts',
     version: '1.0.0',

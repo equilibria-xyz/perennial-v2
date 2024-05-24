@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import HRE from 'hardhat'
-import { BigNumber, constants, utils } from 'ethers'
+import { constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { parse6decimal } from '../../../common/testutil/types'
@@ -14,7 +14,6 @@ describe('Account', () => {
   let usdc: IERC20Metadata
   let controller: IController
   let account: Account
-  let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
 
@@ -25,7 +24,7 @@ describe('Account', () => {
   }
 
   const fixture = async () => {
-    ;[owner, userA, userB] = await ethers.getSigners()
+    ;[, userA, userB] = await ethers.getSigners()
     ;[dsu, usdc, controller] = await deployController()
 
     // fund users with some DSU and USDC
