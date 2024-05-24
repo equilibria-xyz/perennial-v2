@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Common, CommonLib } from "./Common.sol";
+import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 
 struct SignerUpdate {
     /// @dev The signer to approve for the signing account

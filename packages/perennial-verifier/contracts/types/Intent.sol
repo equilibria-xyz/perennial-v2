@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Common, CommonLib } from "./Common.sol";
+import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 
 struct Intent {
     /// @dev The size and direction of the order being opened by the taker
