@@ -267,7 +267,7 @@ describe('ControllerBase', () => {
       // ensure withdrawal fails
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
     })
   })
 
@@ -328,7 +328,7 @@ describe('ControllerBase', () => {
       // ensure withdrawal fails
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
     })
   })
 })

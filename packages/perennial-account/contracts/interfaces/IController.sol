@@ -20,17 +20,18 @@ interface IController {
     /// @param newEnabled true to assign or enable, false to disable
     event SignerUpdated(address indexed account, address indexed signer, bool newEnabled);
 
-    // sig: 0xa1206248
+    // sig: 0x2c51df8b
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
-    error CannotPayKeeper();
+    error ControllerCannotPayKeeper();
 
-    // sig: 0x35e0fb4b
+    // sig: 0x2ee770d20
     /// @custom:error Signer is not authorized to interact with the specified collateral account
-    error InvalidSignerError();
+    error ControllerInvalidSigner();
 
-    // sig: 0x91181e79
+    // sig: 0x3cb60bed
     /// @custom:error Attempt to interact with a Market which does not use DSU as collateral
-    error UnsupportedMarketError(address);
+    /// @param market Market with non-DSU collateral
+    error ControllerUnsupportedMarket(address market);
 
     /// @notice Returns the deterministic address of the collateral account for a user,
     /// regardless of whether or not it exists.

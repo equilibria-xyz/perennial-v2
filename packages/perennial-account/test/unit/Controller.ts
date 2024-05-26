@@ -144,7 +144,7 @@ describe('Controller', () => {
 
       await expect(
         controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
     })
   })
 
@@ -227,7 +227,7 @@ describe('Controller', () => {
       // ensure assignment fails
       await expect(
         controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
     })
 
     it('cannot disable a delegate from an unauthorized signer', async () => {
@@ -248,7 +248,7 @@ describe('Controller', () => {
       // ensure update fails
       await expect(
         controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'InvalidSignerError')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
     })
 
     it('can disable a delegate from a signed message', async () => {
@@ -290,7 +290,7 @@ describe('Controller', () => {
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'UnsupportedMarketError')
+      ).to.be.revertedWithCustomError(controller, 'ControllerUnsupportedMarket')
     })
   })
 })

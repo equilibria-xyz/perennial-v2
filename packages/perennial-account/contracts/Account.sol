@@ -75,7 +75,7 @@ contract Account is IAccount {
         if (amount.eq(Fixed6Lib.MIN)){
             // ensure user has a positive collateral balance to withdraw
             Fixed6 balance = market.locals(owner).collateral;
-            if (balance.sign() != 1) revert NoCollateral(address(market));
+            if (balance.sign() != 1) revert AccountNoCollateral(address(market));
             // ensure user has no position
             amount = balance.mul(Fixed6Lib.NEG_ONE);
 
@@ -128,7 +128,7 @@ contract Account is IAccount {
 
     /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller
     modifier ownerOrController {
-        if (msg.sender != owner && msg.sender != controller) revert NotAuthorizedError();
+        if (msg.sender != owner && msg.sender != controller) revert AccountNotAuthorizedError();
         _;
     }
 }

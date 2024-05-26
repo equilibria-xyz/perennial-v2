@@ -124,7 +124,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
             if (USDC.balanceOf(account).gte(UFixed6Lib.from(raisedKeeperFee)))
                 IAccount(account).wrap(raisedKeeperFee);
             else
-                revert CannotPayKeeper();
+                revert ControllerCannotPayKeeper();
         }
 
         // transfer DSU to the Controller, such that Kept can transfer to keeper

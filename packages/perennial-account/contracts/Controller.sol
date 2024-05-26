@@ -113,7 +113,7 @@ contract Controller is Instance, IController {
 
         // only Markets with DSU collateral are supported
         IMarket market = IMarket(marketTransfer.market);
-        if (!market.token().eq(DSU)) revert UnsupportedMarketError(address(market));
+        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarket(address(market));
 
         account.marketTransfer(market, marketTransfer.amount);
     }
@@ -136,7 +136,7 @@ contract Controller is Instance, IController {
         // ensure the message was signed only by the owner, not an existing delegate
         address messageSigner = verifier.verifySignerUpdate(signerUpdate, signature);
         address owner = signerUpdate.action.common.account;
-        if (messageSigner != owner) revert InvalidSignerError();
+        if (messageSigner != owner) revert ControllerInvalidSigner();
 
         signers[owner][signerUpdate.signer] = signerUpdate.approved;
         emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
@@ -159,6 +159,6 @@ contract Controller is Instance, IController {
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !signers[owner][signer]) revert InvalidSignerError();
+        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
     }
 }

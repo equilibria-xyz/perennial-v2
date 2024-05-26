@@ -227,7 +227,7 @@ describe('Controller_Arbitrum', () => {
         controller
           .connect(keeper)
           .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
-      ).to.be.revertedWithCustomError(controller, 'CannotPayKeeper')
+      ).to.be.revertedWithCustomError(controller, 'ControllerCannotPayKeeper')
     })
   })
 
