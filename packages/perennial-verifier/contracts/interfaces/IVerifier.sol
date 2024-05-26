@@ -10,9 +10,9 @@ import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { AccessUpdateBatch } from "../types/AccessUpdateBatch.sol";
 
 interface IVerifier is IVerifierBase {
-    function verifyIntent(Intent calldata intent, bytes calldata signature) external returns (address);
-    function verifyFill(Fill calldata fill, bytes calldata signature) external returns (address);
-    function verifyOperatorUpdate(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external returns (address);
-    function verifySignerUpdate(SignerUpdate calldata signerUpdate, bytes calldata signature) external returns (address);
-    function verifyAccessUpdateBatch(AccessUpdateBatch calldata accessUpdateBatch, bytes calldata signature) external returns (address);
+    function verifyIntent(Intent calldata intent, bytes calldata signature) external;
+    function verifyFill(Fill calldata fill, bytes calldata signature) external;
+    function verifyOperatorUpdate(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external;
+    function verifySignerUpdate(SignerUpdate calldata signerUpdate, bytes calldata signature) external;
+    function verifyAccessUpdateBatch(AccessUpdateBatch calldata accessUpdateBatch, bytes calldata signature) external;
 }

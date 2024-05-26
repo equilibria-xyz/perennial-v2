@@ -46,6 +46,7 @@ export async function signIntent(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -72,6 +73,7 @@ export async function signFill(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -102,6 +104,7 @@ export async function signGroupCancellation(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -124,6 +127,7 @@ export async function signOperatorUpdate(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -147,6 +151,7 @@ export async function signSignerUpdate(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -170,6 +175,7 @@ export async function signAccessUpdateBatch(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
