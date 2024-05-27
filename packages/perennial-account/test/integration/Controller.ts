@@ -5,8 +5,8 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { currentBlockTimestamp } from '../../../common/testutil/time'
-import { parse6decimal } from '../../../common/testutil/types'
+import { currentBlockTimestamp, increase } from '../../../common/testutil/time'
+import { Order, parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, Controller, IERC20Metadata, IVerifier } from '../../types/generated'
 import { IVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
 import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
@@ -125,7 +125,8 @@ describe('ControllerBase', () => {
   })
 
   describe('#transfer', () => {
-    async function transfer(amount: BigNumber, user: SignerWithAddress, signer = user) {
+    // performs a market transfer, returning the timestamp of the order produced
+    async function transfer(amount: BigNumber, user: SignerWithAddress, signer = user): Promise<BigNumber> {
       const marketTransferMessage = {
         market: market.address,
         amount: amount,
@@ -150,11 +151,14 @@ describe('ControllerBase', () => {
       }
 
       // perform transfer
-      await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+      await expect(await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
         .to.emit(dsu, 'Transfer')
         .withArgs(expectedFrom, expectedTo, expectedAmount)
         .to.emit(market, 'OrderCreated')
         .withArgs(userA.address, anyValue, anyValue)
+
+      const order = await market.pendingOrders(user.address, (await market.global()).currentId)
+      return order.timestamp
     }
 
     it('can deposit funds to a market', async () => {
@@ -197,6 +201,14 @@ describe('ControllerBase', () => {
       // verify balances
       await expectMarketCollateralBalance(userA, transferAmount)
       expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('11000')) // 15k-4k
+    })
+
+    it('can make multiple deposits to same market', async () => {
+      for (let i = 0; i < 9; ++i) {
+        currentTime = await transfer(parse6decimal('100'), userA)
+        await advanceAndSettle(userA, currentTime)
+      }
+      expectMarketCollateralBalance(userA, parse6decimal('900'))
     })
 
     it('can withdraw funds from a market', async () => {

@@ -67,9 +67,7 @@ contract Account is IAccount {
     /// @inheritdoc IAccount
     function marketTransfer(IMarket market, Fixed6 amount) external ownerOrController {
         // implicitly approve this market to spend our DSU
-        uint256 allowance = IERC20Metadata(Token18.unwrap(DSU)).allowance(address(this), address(market));
-        if (allowance != type(uint256).max)
-            DSU.approve(address(market));
+        DSU.approve(address(market));
 
         // handle magic number for full withdrawal
         if (amount.eq(Fixed6Lib.MIN)){
