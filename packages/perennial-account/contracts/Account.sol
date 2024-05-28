@@ -69,16 +69,8 @@ contract Account is IAccount {
         // implicitly approve this market to spend our DSU
         DSU.approve(address(market));
 
-        // handle magic number for full withdrawal
-        if (amount.eq(Fixed6Lib.MIN)){
-            // ensure user has a positive collateral balance to withdraw
-            Fixed6 balance = market.locals(owner).collateral;
-            if (balance.sign() != 1) revert AccountNoCollateral(address(market));
-            // ensure user has no position
-            amount = balance.mul(Fixed6Lib.NEG_ONE);
-
         // handle magic number for full deposit
-        } else if (amount.eq(Fixed6Lib.MAX)){
+        if (amount.eq(Fixed6Lib.MAX)){
             UFixed6 usdcBalance = USDC.balanceOf();
             if (!usdcBalance.eq(UFixed6Lib.ZERO))
                 wrap(UFixed18Lib.from(usdcBalance));

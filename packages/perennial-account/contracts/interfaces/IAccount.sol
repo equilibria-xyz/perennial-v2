@@ -8,11 +8,6 @@ import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.s
 
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 interface IAccount {
-    // sig: 0x579379eb
-    /// @custom:error Account owner cannot fully withdraw because they have no collateral balance
-    /// @param market address of the market
-    error AccountNoCollateral(address market);
-
     // sig: 0x9041f6c1
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error AccountNotAuthorizedError();
