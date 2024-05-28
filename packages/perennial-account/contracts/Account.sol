@@ -69,16 +69,8 @@ contract Account is IAccount {
         // implicitly approve this market to spend our DSU
         DSU.approve(address(market));
 
-        // handle magic number for full deposit
-        if (amount.eq(Fixed6Lib.MAX)){
-            UFixed6 usdcBalance = USDC.balanceOf();
-            if (!usdcBalance.eq(UFixed6Lib.ZERO))
-                wrap(UFixed18Lib.from(usdcBalance));
-            UFixed18 balance = DSU.balanceOf();
-            amount = Fixed6Lib.from(UFixed6Lib.from(balance));
-
         // if account does not have enough DSU for the deposit, wrap everything
-        } else if (amount.gt(Fixed6Lib.ZERO)) {
+         if (amount.gt(Fixed6Lib.ZERO)) {
             UFixed6 dsuBalance6 = UFixed6Lib.from(DSU.balanceOf());
             if (UFixed6Lib.from(amount).gt(dsuBalance6)) {
                 UFixed6 usdcBalance = USDC.balanceOf();

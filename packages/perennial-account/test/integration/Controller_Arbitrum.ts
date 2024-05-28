@@ -295,7 +295,7 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
-    async function deposit(amount = constants.MaxInt256) {
+    async function deposit(amount = parse6decimal('12000')) {
       // sign a message to deposit everything from the collateral account to the market
       const marketTransferMessage = {
         market: market.address,
@@ -341,10 +341,6 @@ describe('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(transferAmount)
-    })
-
-    it('collects fee when depositing all funds to market', async () => {
-      await deposit()
     })
 
     it('collects fee for withdrawing some funds from market', async () => {
@@ -417,14 +413,14 @@ describe('Controller_Arbitrum', () => {
     })
 
     it('collects fee for withdrawing funds into empty collateral account', async () => {
-      // deposit everything possible
+      // deposit 12k
       await deposit()
       // withdraw dust so it cannot be used to pay the keeper
       await accountA.withdraw(constants.MaxUint256, true, { maxFeePerGas: 150000000 })
       expect(await dsu.balanceOf(accountA.address)).to.equal(0)
 
-      // sign a message to withdraw 3k from the market back into the collateral account
-      const withdrawal = parse6decimal('-3000')
+      // sign a message to withdraw 2k from the market back into the collateral account
+      const withdrawal = parse6decimal('-2000')
       const marketTransferMessage = {
         market: market.address,
         amount: withdrawal,
@@ -447,7 +443,7 @@ describe('Controller_Arbitrum', () => {
       expect((await market.locals(userA.address)).collateral).to.be.within(
         parse6decimal('9999'),
         parse6decimal('10000'),
-      ) // 13k-3k
+      ) // 12k-2k
     })
   })
 
