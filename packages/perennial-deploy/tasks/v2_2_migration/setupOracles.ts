@@ -3,7 +3,7 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { isMainnet } from '../../../common/testutil/network'
 import { cmsqETHOracleID, msqBTCOracleID } from '../../util/constants'
-import { PopulatedTransaction } from 'ethers'
+import { PopulatedTransaction, utils } from 'ethers'
 
 export default task('2_2_setup-oracles', 'Sets up the new oracles for v2.2 Migration')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
@@ -58,13 +58,14 @@ export default task('2_2_setup-oracles', 'Sets up the new oracles for v2.2 Migra
     }
 
     if (isMainnet(getNetworkName())) {
-      const cmsqETHNewOracle = await oracleFactory.callStatic.create(cmsqETHOracleID, pythFactory.address)
+      const oracleFactoryNonce = await ethers.provider.getTransactionCount(oracleFactory.address)
+      const cmsqETHNewOracle = utils.getContractAddress({ from: oracleFactory.address, nonce: oracleFactoryNonce })
       await addPayload(
         () => oracleFactory.populateTransaction.create(cmsqETHOracleID, pythFactory.address),
         'Create Oracle cmsqETH',
       )
 
-      const msqBTCNewOracle = await oracleFactory.callStatic.create(msqBTCOracleID, pythFactory.address)
+      const msqBTCNewOracle = utils.getContractAddress({ from: oracleFactory.address, nonce: oracleFactoryNonce + 1 })
       await addPayload(
         () => oracleFactory.populateTransaction.create(msqBTCOracleID, pythFactory.address),
         'Create Oracle msqBTC',

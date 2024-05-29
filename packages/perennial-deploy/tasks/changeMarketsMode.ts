@@ -53,7 +53,7 @@ export default task('change-markets-mode', 'Opens or closes all markets; must be
         console.log('[Change Markets Mode]  Dry run successful')
         const txData = await market.populateTransaction.updateParameter(beneficiary, coordinator, parameter)
         timelockPayloads.targets.push(txData.to)
-        timelockPayloads.values.push(txData.value?.toString())
+        timelockPayloads.values.push(txData.value?.toString() ?? '0')
         timelockPayloads.payloads.push(txData.data)
       } else {
         process.stdout.write('[Change Markets Mode]    Sending Transaction...')

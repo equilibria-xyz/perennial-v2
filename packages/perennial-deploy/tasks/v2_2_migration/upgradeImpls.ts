@@ -2,8 +2,8 @@ import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PopulatedTransaction } from 'ethers'
-import { DEFAULT_MARKET_PARAMETER, DEFAULT_PROTOCOL_PARAMETER, DEFAULT_RISK_PARAMETERS } from '../../util/constants'
 import { getMarketBeneficiaryAndCoordinator } from '../changeMarketsMode'
+import { NewRiskParams, NewMarketParameter, NewProtocolParameter } from './contstants'
 
 export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migration')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
@@ -55,9 +55,8 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
     await buildUpgrade(multiinvoker.address, (await get('MultiInvokerImpl')).address, 'multiinvoker')
 
     // Update Protocol/Risk/Market parameters to new formats
-    // TODO: Recreate the market and risk parameters from the old values above? alternatively hardcode params for all markets
     await addPayload(
-      () => marketFactory.populateTransaction.updateParameter(DEFAULT_PROTOCOL_PARAMETER),
+      () => marketFactory.populateTransaction.updateParameter(NewProtocolParameter),
       'Update Protocol Parameter',
     )
     const marketsAddrs = (await marketFactory.queryFilter(marketFactory.filters['InstanceRegistered(address)']())).map(
@@ -68,17 +67,17 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
       const { beneficiary } = await getMarketBeneficiaryAndCoordinator(market)
       const coordinator = (await get('GauntletCoordinator')).address
       await addPayload(
-        () => market.populateTransaction.updateParameter(beneficiary, coordinator, DEFAULT_MARKET_PARAMETER),
+        () => market.populateTransaction.updateParameter(beneficiary, coordinator, NewMarketParameter),
         `Update Market ${market.address} Parameter`,
       )
-      await addPayload(
-        () =>
-          market.populateTransaction.updateRiskParameter(
-            { ...DEFAULT_RISK_PARAMETERS, makerLimit: ethers.utils.parseUnits('1000000', 6) },
-            true,
-          ),
-        `Update Market ${market.address} Risk Parameter`,
-      )
+      await addPayload(() => {
+        const riskParam = Object.values(NewRiskParams).find(
+          ([marketAddress]) => marketAddress.toLowerCase() === market.address.toLowerCase(),
+        )
+        if (!riskParam) throw new Error(`No risk parameters found for market ${market.address}`)
+
+        return market.populateTransaction.updateRiskParameter(riskParam[1], true)
+      }, `Update Market ${market.address} Risk Parameter`)
     }
 
     if (args.timelock) {

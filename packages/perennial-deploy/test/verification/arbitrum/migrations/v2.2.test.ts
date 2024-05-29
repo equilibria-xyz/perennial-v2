@@ -177,6 +177,26 @@ describe('Verify Arbitrum v2.2 Migration', () => {
 
       await expect(market.settle(ethers.constants.AddressZero)).to.not.be.reverted
     }
+
+    await commitPriceForIds(
+      oracleIDs.map(oracle => oracle.id),
+      await currentBlockTimestamp(),
+      undefined,
+      32_000_000,
+    )
+
+    // Assert oracle prices are close to previous ones
+    for (let i = 0; i < markets.length; i++) {
+      const market = markets[i]
+
+      const oracle = await ethers.getContractAt('IOracle', await market.oracle())
+      const oraclePrice = await oracle.latest()
+      const lowerRange = BigNumber.from(beforeGlobals[market.address].latestPrice).mul(9).div(10)
+      const upperRange = BigNumber.from(beforeGlobals[market.address].latestPrice).mul(11).div(10)
+      expect(oraclePrice.price).to.be.within(lowerRange, upperRange)
+
+      await expect(market.settle(ethers.constants.AddressZero)).to.not.be.reverted
+    }
   })
 
   it('Runs full request/fulfill flow for each market', async () => {
