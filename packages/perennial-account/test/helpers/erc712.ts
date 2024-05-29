@@ -82,6 +82,8 @@ export async function signRebalanceConfigChange(
 ): Promise<string> {
   const types = {
     RebalanceConfigChange: [
+      { name: 'group', type: 'uint256' },
+      { name: 'totalCollateral', type: 'uint256' },
       { name: 'markets', type: 'address[]' },
       { name: 'configs', type: 'RebalanceConfig[]' },
       { name: 'action', type: 'Action' },
@@ -89,8 +91,8 @@ export async function signRebalanceConfigChange(
     ...actionType,
     ...commonType,
     RebalanceConfig: [
-      { name: 'minCollateralization', type: 'uint256' },
-      { name: 'maxCollateralization', type: 'uint256' },
+      { name: 'target', type: 'uint256' },
+      { name: 'threshold', type: 'uint256' },
     ],
   }
 

@@ -145,10 +145,12 @@ describe('Verifier', () => {
     const ethMarket = await smock.fake('IMarket')
 
     const rebalanceConfigChangeMessage = {
+      group: constants.Zero,
+      totalCollateral: parse6decimal('10000'),
       markets: [btcMarket.address, ethMarket.address],
       configs: [
-        { minCollateralization: parse6decimal('1.15'), maxCollateralization: parse6decimal('1.45') },
-        { minCollateralization: parse6decimal('1.20'), maxCollateralization: parse6decimal('1.50') },
+        { target: parse6decimal('0.55'), threshold: parse6decimal('0.038') },
+        { target: parse6decimal('0.45'), threshold: parse6decimal('0.031') },
       ],
       ...createAction(userA.address),
     }
