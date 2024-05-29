@@ -13,6 +13,7 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
+import { RebalanceConfig, RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfig.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
@@ -37,6 +38,10 @@ contract Controller is Instance, IController {
     /// @dev Mapping of allowed signers for each account owner
     /// owner => delegate => enabled flag
     mapping(address => mapping(address => bool)) public signers;
+
+    /// @dev Mapping of rebalance configuration
+    /// owner => market => config
+    mapping(address => mapping(address => RebalanceConfig)) public rebalanceConfig;
 
     /// @notice Configures the EIP-712 message verifier used by this controller
     /// @param verifier_ Contract used to validate messages were signed by the sender
@@ -116,6 +121,13 @@ contract Controller is Instance, IController {
         if (!market.token().eq(DSU)) revert ControllerUnsupportedMarket(address(market));
 
         account.marketTransfer(market, marketTransfer.amount);
+    }
+
+    function changeRebalanceConfigWithSignature(
+        RebalanceConfigChange calldata configChange,
+        bytes calldata signature
+    ) virtual external {
+        // TODO: implement
     }
 
     /// @inheritdoc IController

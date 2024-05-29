@@ -8,8 +8,9 @@ import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
-import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
+import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfig.sol";
+import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Verifier
@@ -35,11 +36,19 @@ contract Verifier is VerifierBase, IVerifier {
     }
 
     /// @inheritdoc IVerifier
-    function verifyMarketTransfer(MarketTransfer calldata marketTransfer, bytes calldata signature) 
-        external 
+    function verifyMarketTransfer(MarketTransfer calldata marketTransfer, bytes calldata signature)
+        external
         validateAndCancel(marketTransfer.action.common, signature) returns (address)
     {
         return ECDSA.recover(_hashTypedDataV4(MarketTransferLib.hash(marketTransfer)), signature);
+    }
+
+    /// @inheritdoc IVerifier
+    function verifyRebalanceConfigChange(RebalanceConfigChange calldata change, bytes calldata signature)
+        external
+        validateAndCancel(change.action.common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(RebalanceConfigChangeLib.hash(change)), signature);
     }
 
     /// @inheritdoc IVerifier

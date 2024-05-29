@@ -11,6 +11,7 @@ import {
   signCommon,
   signDeployAccount,
   signMarketTransfer,
+  signRebalanceConfigChange,
   signSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
@@ -124,20 +125,6 @@ describe('Verifier', () => {
     expect(signerResult).to.eq(userA.address)
   })
 
-  it('verifies signerUpdate messages', async () => {
-    const updateSignerMessage = {
-      signer: userB.address,
-      approved: true,
-      ...createAction(userA.address),
-    }
-    const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifySignerUpdate(updateSignerMessage, signature)
-    expect(signerResult).to.eq(userA.address)
-  })
-
   it('verifies marketTransfer messages', async () => {
     const market = await smock.fake('IMarket')
     const marketTransferMessage = {
@@ -150,6 +137,40 @@ describe('Verifier', () => {
     const signerResult = await verifier
       .connect(controllerSigner)
       .callStatic.verifyMarketTransfer(marketTransferMessage, signature)
+    expect(signerResult).to.eq(userA.address)
+  })
+
+  it('verifies rebalanceConfigChange messages', async () => {
+    const btcMarket = await smock.fake('IMarket')
+    const ethMarket = await smock.fake('IMarket')
+
+    const rebalanceConfigChangeMessage = {
+      markets: [btcMarket.address, ethMarket.address],
+      configs: [
+        { minCollateralization: parse6decimal('1.15'), maxCollateralization: parse6decimal('1.45') },
+        { minCollateralization: parse6decimal('1.20'), maxCollateralization: parse6decimal('1.50') },
+      ],
+      ...createAction(userA.address),
+    }
+    const signature = await signRebalanceConfigChange(userA, verifier, rebalanceConfigChangeMessage)
+
+    const signerResult = await verifier
+      .connect(controllerSigner)
+      .callStatic.verifyRebalanceConfigChange(rebalanceConfigChangeMessage, signature)
+    expect(signerResult).to.eq(userA.address)
+  })
+
+  it('verifies signerUpdate messages', async () => {
+    const updateSignerMessage = {
+      signer: userB.address,
+      approved: true,
+      ...createAction(userA.address),
+    }
+    const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
+
+    const signerResult = await verifier
+      .connect(controllerSigner)
+      .callStatic.verifySignerUpdate(updateSignerMessage, signature)
     expect(signerResult).to.eq(userA.address)
   })
 

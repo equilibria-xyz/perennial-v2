@@ -5,6 +5,7 @@ import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBas
 import { Action } from "../types/Action.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
+import { RebalanceConfigChange } from "../types/RebalanceConfig.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
@@ -28,6 +29,15 @@ interface IVerifier is IVerifierBase {
     /// @param transfer message to verify
     /// @return Address of the signer
     function verifyMarketTransfer(MarketTransfer calldata transfer, bytes calldata signature) external returns (address);
+
+    /// @notice Verifies the signature of a request to change rebalancing configuration for multiple markets
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param change message to verify
+    /// @return Address of the signer
+    function verifyRebalanceConfigChange(
+        RebalanceConfigChange calldata change,
+        bytes calldata signature
+    ) external returns (address);
 
     /// @notice Verifies the signature of a request to assign/enable/disable a delegated signer for the sender's collateral account
     /// @dev Cancels the nonce after verifying the signature

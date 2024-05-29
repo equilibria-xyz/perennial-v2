@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import { IAccount } from "../interfaces/IAccount.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
+import { RebalanceConfigChange } from "../types/RebalanceConfig.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
@@ -50,6 +51,12 @@ interface IController {
     /// @param marketTransfer Message requesting a deposit to or withdrawal from the Market
     /// @param signature ERC712 message signature
     function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature) external;
+
+    /// @notice Adjusts the rebalancing configuration of one or more markets
+    /// @param configChange Message with new configuration
+    /// @param signature ERC712 message signature
+    function changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange,
+        bytes calldata signature) external;
 
     /// @notice Updates the status of a delegated signer for the caller's collateral account
     /// @param signer The signer to update
