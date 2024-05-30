@@ -17,10 +17,19 @@ using RebalanceConfigLib for RebalanceConfigStorage global;
 /// @title RebalanceConfigLib
 /// @notice Library used to hash and manage storage for rebalancing configuration for a single market
 library RebalanceConfigLib {
-    UFixed6 private constant MAX_PERCENT = UFixed6.wrap(1e6); // 100%
+    UFixed6 constant public MAX_PERCENT = UFixed6.wrap(1e6); // 100%
+
+    bytes32 constant public STRUCT_HASH = keccak256(
+        "RebalanceConfig(uint256 target,uint256 threshold)"
+    );
 
     /// sig: 0xd673935e
     error RebalanceConfigStorageInvalidError();
+
+    /// @dev hashes this instance for inclusion in an EIP-712 message
+    function hash(RebalanceConfig memory self) internal pure returns (bytes32) {
+        return keccak256(abi.encode(STRUCT_HASH, self.target, self.threshold));
+    }
 
     /// @dev extracts two unsigned values from a single storage slot
     function read(RebalanceConfigStorage storage self) internal view returns (RebalanceConfig memory) {
@@ -36,6 +45,7 @@ library RebalanceConfigLib {
         if (newValue.target.gt(MAX_PERCENT)) revert RebalanceConfigStorageInvalidError();
         if (newValue.threshold.gt(MAX_PERCENT)) revert RebalanceConfigStorageInvalidError();
 
+        // TODO: drop these to uint32 in case we need to fit other stuff in the slot
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.target)    << (256 - 128)) >> (256 - 128) |
             uint256(UFixed6.unwrap(newValue.threshold) << (256 - 128)) >> (256 - 128 - 128);
@@ -50,8 +60,6 @@ library RebalanceConfigLib {
 struct RebalanceConfigChange {
     /// @dev Identifies the group to update; set to 0 to create a new group
     uint256 group;
-    /// @dev Total collateral to distribute across markets in the group
-    UFixed6 totalCollateral;
     /// @dev List of 1-8 markets in which collateral shall be managed.
     /// Markets may be added to or removed from an existing group. Leave empty to delete the group.
     address[] markets;
@@ -67,13 +75,9 @@ using RebalanceConfigChangeLib for RebalanceConfigChange global;
 library RebalanceConfigChangeLib {
     /// @dev used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "RebalanceConfigChange(uint256 group,uint256 totalCollateral,address[] markets,RebalanceConfig[] configs,Action action)"
+        "RebalanceConfigChange(uint256 group,address[] markets,RebalanceConfig[] configs,Action action)"
         "Action(uint256 maxFee,Common common)"
         "Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)"
-        "RebalanceConfig(uint256 target,uint256 threshold)"
-    );
-
-    bytes32 constant public CONFIG_HASH = keccak256(
         "RebalanceConfig(uint256 target,uint256 threshold)"
     );
 
@@ -83,20 +87,14 @@ library RebalanceConfigChangeLib {
         bytes32[] memory encodedConfigs = new bytes32[](self.configs.length);
         for (uint256 i = 0; i < self.markets.length; ++i) {
             encodedAddresses[i] = keccak256(abi.encode(self.markets[i]));
-            encodedConfigs[i] = hashConfig(self.configs[i]);
+            encodedConfigs[i] = RebalanceConfigLib.hash(self.configs[i]);
         }
         return keccak256(abi.encode(
             STRUCT_HASH,
             self.group,
-            self.totalCollateral,
             keccak256(abi.encodePacked(self.markets)),
             keccak256(abi.encodePacked(encodedConfigs)),
             ActionLib.hash(self.action)
         ));
-    }
-
-    // TODO: move to RebalanceConfigLib alongside storage implementation
-    function hashConfig(RebalanceConfig memory config) internal pure returns (bytes32) {
-        return keccak256(abi.encode(CONFIG_HASH, config.target, config.threshold));
     }
 }

@@ -2,10 +2,13 @@
 pragma solidity 0.8.24;
 
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
+// import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
+
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
@@ -13,13 +16,20 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
-import { RebalanceConfig, RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfig.sol";
+import {
+    RebalanceConfig,
+    RebalanceConfigLib,
+    RebalanceConfigChange,
+    RebalanceConfigChangeLib
+} from "./types/RebalanceConfig.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Controller
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
 contract Controller is Instance, IController {
+    // using EnumerableMap for EnumerableMap.AddressToUintMap;
+
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
@@ -39,9 +49,27 @@ contract Controller is Instance, IController {
     /// owner => delegate => enabled flag
     mapping(address => mapping(address => bool)) public signers;
 
+    // TODO: Messy!  Refactor lines 55-71 into a Rebalance storage struct
+    // and RebalanceLib library which abstracts away the complexity of managing configuration,
+    // and reduces contract size by keeping management logic in an external lib.
+
     /// @dev Mapping of rebalance configuration
-    /// owner => market => config
-    mapping(address => mapping(address => RebalanceConfig)) public rebalanceConfig;
+    /// owner => group => market => config
+    mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) public rebalanceConfig;
+
+    /// @dev Serial identifier for rebalancing groups
+    uint256 public lastGroupId;
+
+    /// @dev Prevents markets from being added to multiple groups
+    /// owner => market => group
+    mapping(address => mapping(address => uint256)) public marketToGroup;
+
+    /// @dev Prevents users from making up their own group numbers
+    /// group => owner
+    mapping(uint256 => address) public groupToOwner;
+
+    /// @dev Allows iteration through markets in a group
+    mapping(uint256 => address[]) public groupToMarkets;
 
     /// @notice Configures the EIP-712 message verifier used by this controller
     /// @param verifier_ Contract used to validate messages were signed by the sender
@@ -127,7 +155,76 @@ contract Controller is Instance, IController {
         RebalanceConfigChange calldata configChange,
         bytes calldata signature
     ) virtual external {
-        // TODO: implement
+        // ensure the message was signed by the owner or a delegated signer
+        address signer = verifier.verifyRebalanceConfigChange(configChange, signature);
+        _ensureValidSigner(configChange.action.common.account, signer);
+
+        // sum of the target allocations of all markets in the group
+        UFixed6 totalAllocation;
+        // put this on the stack for readability
+        address owner = configChange.action.common.account;
+
+        // create a new group
+        if (configChange.group == 0) {
+            lastGroupId++;
+            for (uint256 i; i < configChange.markets.length; ++i)
+            {
+                // ensure market isn't already pointing to a group
+                uint256 currentGroup = marketToGroup[owner][configChange.markets[i]];
+                if (currentGroup != 0)
+                    revert ControllerMarketAlreadyInGroup(configChange.markets[i], currentGroup);
+
+                // update state
+                groupToOwner[lastGroupId] = owner;
+                marketToGroup[owner][configChange.markets[i]] = lastGroupId;
+                rebalanceConfig[owner][lastGroupId][configChange.markets[i]] = configChange.configs[i];
+                groupToMarkets[lastGroupId].push(configChange.markets[i]);
+
+                // Ensure target allocation across all markets totals 100%.
+                totalAllocation = totalAllocation.add(configChange.configs[i].target);
+
+                emit RebalanceMarketConfigured(owner, lastGroupId, configChange.markets[i], configChange.configs[i]);
+            }
+            emit RebalanceGroupConfigured(owner, lastGroupId);
+
+        // update an existing group
+        } else {
+            // ensure this group was created for the owner, preventing user from assigning their own number
+            if (groupToOwner[configChange.group] != owner)
+                revert ControllerInvalidRebalanceGroup();
+
+            // delete the existing group
+            for (uint256 i; i < groupToMarkets[configChange.group].length; ++i) {
+                address market = groupToMarkets[configChange.group][i];
+                delete rebalanceConfig[owner][configChange.group][market];
+                delete marketToGroup[owner][market];
+            }
+            delete groupToMarkets[configChange.group];
+
+            for (uint256 i; i < configChange.markets.length; ++i) {
+                // ensure market is not pointing to a different group
+                uint256 currentGroup = marketToGroup[owner][configChange.markets[i]];
+                if (/*currentGroup != configChange.group &&*/ currentGroup != 0)
+                    revert ControllerMarketAlreadyInGroup(configChange.markets[i], currentGroup);
+
+                // rewrite over all the old configuration
+                marketToGroup[owner][configChange.markets[i]] = configChange.group;
+                rebalanceConfig[owner][configChange.group][configChange.markets[i]] = configChange.configs[i];
+
+                // ensure target allocation across all markets totals 100%
+                // read from storage to trap duplicate markets in the message
+                totalAllocation = totalAllocation.add(
+                    rebalanceConfig[owner][configChange.group][configChange.markets[i]].target
+                );
+
+                emit RebalanceMarketConfigured(owner, configChange.group, configChange.markets[i], configChange.configs[i]);
+            }
+
+            emit RebalanceGroupConfigured(owner, configChange.group);
+        }
+
+        if (!totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
+            revert ControllerInvalidRebalanceTargets();
     }
 
     /// @inheritdoc IController

@@ -83,7 +83,6 @@ export async function signRebalanceConfigChange(
   const types = {
     RebalanceConfigChange: [
       { name: 'group', type: 'uint256' },
-      { name: 'totalCollateral', type: 'uint256' },
       { name: 'markets', type: 'address[]' },
       { name: 'configs', type: 'RebalanceConfig[]' },
       { name: 'action', type: 'Action' },

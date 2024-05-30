@@ -146,7 +146,6 @@ describe('Verifier', () => {
 
     const rebalanceConfigChangeMessage = {
       group: constants.Zero,
-      totalCollateral: parse6decimal('10000'),
       markets: [btcMarket.address, ethMarket.address],
       configs: [
         { target: parse6decimal('0.55'), threshold: parse6decimal('0.038') },
