@@ -28,11 +28,12 @@ export default task('commit-price', 'Commits a price for the given price ids')
 
       const commitments: { action: number; args: string }[] = []
 
-      console.log('Gathering commitments for priceIds:', priceIds.join(','))
+      console.log('Gathering commitments for priceIds:', priceIds.join(','), 'at timestamp', timestamp)
       const pythFactory = await ethers.getContractAt(
         'IKeeperFactory',
         factoryaddress ?? (await get('PythFactory')).address,
       )
+      console.log('Using factory at:', pythFactory.address)
       const minValidTime = await pythFactory.callStatic.validFrom()
       for (const priceId of priceIds) {
         const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
@@ -51,7 +52,7 @@ export default task('commit-price', 'Commits a price for the given price ids')
             value: 1n,
             ids: [priceId],
             version: BigInt(vaa[0].publishTime) - minValidTime.toBigInt(),
-            revertOnFailure: false,
+            revertOnFailure: true,
           }),
         )
       }

@@ -25,7 +25,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '2500000000000',
       efficiencyLimit: '500000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '450000',
@@ -62,7 +62,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '3010000000',
       efficiencyLimit: '500000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '300000',
@@ -99,7 +99,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '552630000000',
       efficiencyLimit: '500000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '450000',
@@ -136,7 +136,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '1200000000000',
       efficiencyLimit: '500000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '450000',
@@ -173,7 +173,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '15650000000',
       efficiencyLimit: '500000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '450000',
@@ -210,7 +210,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '99000000',
       efficiencyLimit: '500000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '300000',
@@ -247,7 +247,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '240000000',
       efficiencyLimit: '1000000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '1800000',
@@ -284,7 +284,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '94740000000',
       efficiencyLimit: '500000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '450000',
@@ -321,7 +321,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '250009000000',
       efficiencyLimit: '1000000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '750000',
@@ -358,7 +358,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '5410000000',
       efficiencyLimit: '1000000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '1800000',
@@ -395,7 +395,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '384616000000',
       efficiencyLimit: '800000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '750000',
@@ -432,7 +432,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '12730000000',
       efficiencyLimit: '1000000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '750000',
@@ -469,7 +469,7 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       },
       makerLimit: '1170000000',
       efficiencyLimit: '800000',
-      liquidationFee: '50000',
+      liquidationFee: '5000000',
       utilizationCurve: {
         minRate: '0',
         maxRate: '550000',
