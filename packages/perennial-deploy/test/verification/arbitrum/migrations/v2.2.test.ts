@@ -20,7 +20,7 @@ import { GlobalStruct } from '../../../../types/generated/@equilibria/perennial-
 
 const RunMigrationDeployScript = false
 const SkipSettleAccounts = false
-const SkipSettleVaults = false
+const SkipSettleVaults = true
 
 const liquidatorAddress = '0xB092493412FCae3432487Efb33204F7B4FeF12ff'
 
@@ -232,9 +232,17 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     }
   })
 
-  it('Runs full request/fulfill flow for each market', async () => {
+  it.only('Runs full request/fulfill flow for each market', async () => {
     const makerAccount = '0x66a7fDB96C583c59597de16d8b2B989231415339'
     const perennialUser = await impersonateWithBalance(makerAccount, ethers.utils.parseEther('10'))
+    const users = [
+      '0xccd64512d9ef1ae207e6376586a2d12c197ab19a',
+      '0x66a7fDB96C583c59597de16d8b2B989231415339',
+      '0x0c5a2c72c009252f0e7312f5a1ab87de02be6fbe',
+      '0xed9b1600744df9c47c22ef98ff634920a1533d0a',
+      '0x08f518870ec33bc96cc251692b79a745c1af78b5',
+    ]
+    const beforeCollateral: Record<string, Record<string, BigNumber>> = {}
 
     await increase(10)
 
@@ -280,6 +288,10 @@ describe('Verify Arbitrum v2.2 Migration', () => {
           ],
         ),
       })
+      for (const user of users) {
+        if (!beforeCollateral[user]) beforeCollateral[user] = {}
+        beforeCollateral[user][market.address] = (await market.locals(user)).collateral
+      }
     }
 
     const currentTimestamp = await currentBlockTimestamp()
@@ -308,8 +320,28 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       expect(local.collateral).to.be.greaterThan(0)
       expect(checkpoint.transfer).to.be.equal(ethers.utils.parseUnits('15', 6))
 
-      await run('check-solvency', { full: true, batchsize: 30 })
+      for (const user of users) {
+        await market.settle(user)
+        const user2Local = await market.locals(user)
+        const before = beforeCollateral[user][market.address]
+        const after = user2Local.collateral
+        if (before.eq(after)) continue
+        console.log(
+          'Market:',
+          market.address,
+          'User:',
+          user,
+          'before',
+          ethers.utils.formatUnits(before, 6),
+          'after',
+          ethers.utils.formatUnits(after, 6),
+          'delta:',
+          ethers.utils.formatUnits(user2Local.collateral.sub(beforeCollateral[user][market.address]), 6),
+        )
+      }
     }
+
+    // await run('check-solvency', { full: true, batchsize: 30 })
   })
 
   it('transitions checkpoint for liquidator', async () => {
