@@ -39,13 +39,6 @@ export default task('2_2_setup-oracles', 'Sets up the new oracles for v2.2 Migra
       })
     }
 
-    // Authorize OracleFactory to call new PythFactory
-    // TODO: do this before the migration
-    await addPayload(() => oracleFactory.populateTransaction.register(pythFactory.address), 'Register PythFactory')
-    if ((await pythFactory.pendingOwner()) === ownerSigner.address) {
-      await addPayload(() => pythFactory.populateTransaction.acceptOwner(), 'Accept PythFactory ownership')
-    }
-
     // Update existing oracles to use new PythFactory
     const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
     for (const oracle of oracles) {
