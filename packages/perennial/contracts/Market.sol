@@ -537,6 +537,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         settlementContext.latestVersion = _versions[context.latestPosition.global.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[account][context.latestPosition.local.timestamp].read();
         settlementContext.orderOracleVersion = oracle.at(context.latestPosition.global.timestamp);
+        if (settlementContext.orderOracleVersion.price.isZero())
+            settlementContext.orderOracleVersion.price = context.global.latestPrice;
 
         // v2.2 migration (if latest checkpoint is empty, initialize with latest local collateral)
         if (
