@@ -33,6 +33,7 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
     const multiinvoker = (await ethers.getContractAt('MultiInvoker', (await get('MultiInvoker')).address)).connect(
       ownerSigner,
     )
+    const DSU = (await ethers.getContractAt('IERC20', (await get('DSU')).address)).connect(ownerSigner)
 
     const txPayloads: { to?: string; value?: string; data?: string; info: string }[] = []
     const addPayload = async (populateTx: () => Promise<PopulatedTransaction>, info: string) => {
@@ -48,10 +49,28 @@ export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migr
     const buildUpgrade = async (address: string, implAddress: string, contract: string) => {
       await addPayload(() => proxyAdmin.populateTransaction.upgrade(address, implAddress), `Upgrade ${contract}`)
     }
+    const buildUpgradeAndInitialize = async (
+      address: string,
+      implAddress: string,
+      contract: string,
+      fnData: string,
+    ) => {
+      await addPayload(
+        () => proxyAdmin.populateTransaction.upgradeAndCall(address, implAddress, fnData),
+        `Upgrade ${contract}`,
+      )
+    }
 
     await buildUpgrade(marketFactory.address, (await get('MarketFactoryImpl')).address, 'marketFactory')
     await buildUpgrade(vaultFactory.address, (await get('VaultFactoryImpl')).address, 'vaultFactory')
-    await buildUpgrade(oracleFactory.address, (await get('OracleFactoryImpl')).address, 'oracleFactory')
+    await buildUpgradeAndInitialize(
+      oracleFactory.address,
+      (
+        await get('OracleFactoryImpl')
+      ).address,
+      'oracleFactory',
+      oracleFactory.interface.encodeFunctionData('initialize', [DSU.address]),
+    )
     await buildUpgrade(multiinvoker.address, (await get('MultiInvokerImpl')).address, 'multiinvoker')
 
     // Update Protocol/Risk/Market parameters to new formats

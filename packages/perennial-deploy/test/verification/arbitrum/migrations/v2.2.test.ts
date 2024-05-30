@@ -1,11 +1,10 @@
 import HRE, { run } from 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { expect } from 'chai'
 import { impersonateWithBalance } from '../../../../../common/testutil/impersonate'
 import { currentBlockTimestamp, increase, reset } from '../../../../../common/testutil/time'
 import {
   ArbGasInfo,
-  IERC20,
   IMarket,
   IOracleProvider,
   MarketFactory,
@@ -26,8 +25,6 @@ const SkipSettleVaults = false
 const liquidatorAddress = '0xB092493412FCae3432487Efb33204F7B4FeF12ff'
 
 describe('Verify Arbitrum v2.2 Migration', () => {
-  let DSU: IERC20
-  let USDC: IERC20
   let ownerSigner: SignerWithAddress
   let oracleFactory: OracleFactory
   let pythFactory: PythFactory
@@ -55,9 +52,6 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       await fixture('v2_2_Migration', { keepExistingDeployments: true })
       console.log('---- Done ----\n')
     }
-
-    DSU = await ethers.getContractAt('IERC20', (await get('DSU')).address)
-    USDC = await ethers.getContractAt('IERC20', (await get('USDC')).address)
 
     marketFactory = await ethers.getContractAt('MarketFactory', (await get('MarketFactory')).address)
     ownerSigner = await impersonateWithBalance(await marketFactory.owner(), ethers.utils.parseEther('10'))
@@ -92,12 +86,6 @@ describe('Verify Arbitrum v2.2 Migration', () => {
 
     const v2_1_1Artifact = await deployments.getArtifact('MarketV2_1_1')
     const marketsOld = await Promise.all(marketsAddrs.map(a => ethers.getContractAt(v2_1_1Artifact.abi, a)))
-
-    console.log('---- Running Pre-Migration Tasks ----')
-    // Register pyth factory with oracle factory
-    // During migration this will already be done
-    await oracleFactory.register(pythFactory.address)
-    console.log('---- Done ----\n')
 
     // Perform v2.2 Migration
     // Enter settle only for all markets
@@ -156,10 +144,55 @@ describe('Verify Arbitrum v2.2 Migration', () => {
   })
 
   it('Migrates', async () => {
+    /* Check all initializations */
+    await expect(marketFactory.initialize()).to.be.revertedWithCustomError(
+      marketFactory,
+      'InitializableAlreadyInitializedError',
+    )
+    await expect(
+      pythFactory.initialize(constants.AddressZero, constants.AddressZero, constants.AddressZero),
+    ).to.be.revertedWithCustomError(pythFactory, 'InitializableAlreadyInitializedError')
+    await expect(oracleFactory.initialize(constants.AddressZero)).to.be.revertedWithCustomError(
+      oracleFactory,
+      'InitializableAlreadyInitializedError',
+    )
+    await expect(vaultFactory.initialize()).to.be.revertedWithCustomError(
+      vaultFactory,
+      'InitializableAlreadyInitializedError',
+    )
+    await expect(multiinvoker.initialize(constants.AddressZero)).to.be.revertedWithCustomError(
+      multiinvoker,
+      'InitializableAlreadyInitializedError',
+    )
+
+    // Check PythFactory setup
     expect(await pythFactory.callStatic.owner()).to.be.eq(ownerSigner.address)
     expect(await oracleFactory.callStatic.factories(pythFactory.address)).to.be.true
-    expect(await USDC.balanceOf(oracleFactory.address)).to.be.eq(0)
+    expect(await oracleFactory.incentive()).to.be.equal((await get('DSU')).address)
 
+    expect(await proxyAdmin.getProxyImplementation(marketFactory.address)).to.be.equal(
+      (await get('MarketFactoryImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(pythFactory.address)).to.be.equal(
+      (await get('PythFactoryImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(oracleFactory.address)).to.be.equal(
+      (await get('OracleFactoryImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(vaultFactory.address)).to.be.equal(
+      (await get('VaultFactoryImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(multiinvoker.address)).to.be.equal(
+      (await get('MultiInvokerImpl')).address,
+    )
+
+    // Check Factory beacon proxy impls
+    expect(await marketFactory.implementation()).to.be.equal((await get('MarketImpl')).address)
+    expect(await pythFactory.implementation()).to.be.equal((await get('KeeperOracleImpl')).address)
+    expect(await oracleFactory.implementation()).to.be.equal((await get('OracleImpl')).address)
+    expect(await vaultFactory.implementation()).to.be.equal((await get('VaultImpl')).address)
+
+    // Check Oracles point to PythFactory
     for (const oracle of oracleIDs) {
       const contract = await ethers.getContractAt('Oracle', await oracleFactory.oracles(oracle.id))
       const global = await contract.global()
@@ -274,6 +307,8 @@ describe('Verify Arbitrum v2.2 Migration', () => {
       expect(local.currentId).to.equal(local.latestId)
       expect(local.collateral).to.be.greaterThan(0)
       expect(checkpoint.transfer).to.be.equal(ethers.utils.parseUnits('15', 6))
+
+      await run('check-solvency', { full: true, batchsize: 30 })
     }
   })
 
