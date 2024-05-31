@@ -35,8 +35,8 @@ library RebalanceConfigLib {
     function read(RebalanceConfigStorage storage self) internal view returns (RebalanceConfig memory) {
         uint256 slot0 = self.slot0;
         return RebalanceConfig(
-            UFixed6.wrap(uint256(slot0 << (256 - 128)) >> (256 - 128)),
-            UFixed6.wrap(uint256(slot0 << (256 - 128 - 128)) >> (256 - 128))
+            UFixed6.wrap(uint256(slot0 << (256 - 32)) >> (256 - 32)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32)) >> (256 - 32))
         );
     }
 
@@ -45,10 +45,9 @@ library RebalanceConfigLib {
         if (newValue.target.gt(MAX_PERCENT)) revert RebalanceConfigStorageInvalidError();
         if (newValue.threshold.gt(MAX_PERCENT)) revert RebalanceConfigStorageInvalidError();
 
-        // TODO: drop these to uint32 in case we need to fit other stuff in the slot
         uint256 encoded0 =
-            uint256(UFixed6.unwrap(newValue.target)    << (256 - 128)) >> (256 - 128) |
-            uint256(UFixed6.unwrap(newValue.threshold) << (256 - 128)) >> (256 - 128 - 128);
+            uint256(UFixed6.unwrap(newValue.target)    << (256 - 32)) >> (256 - 32) |
+            uint256(UFixed6.unwrap(newValue.threshold) << (256 - 32)) >> (256 - 32 - 32);
 
         assembly {
             sstore(self.slot, encoded0)
