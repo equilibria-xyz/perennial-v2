@@ -16,6 +16,7 @@ const DefaultBatchSize = 500
 export default task('check-solvency', 'Check the solvency of all markets')
   .addFlag('full', "Check that market's DSU balance matches total collateral")
   .addFlag('prevabi', 'Use previous ABIs for contract interaction')
+  .addOptionalParam('block', 'The block number to check', undefined, types.int)
   .addOptionalParam('batchsize', 'The multicall batch size', DefaultBatchSize, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     const {
@@ -23,6 +24,7 @@ export default task('check-solvency', 'Check the solvency of all markets')
       deployments: { getNetworkName, getArtifact },
     } = HRE
 
+    const block = args.block ? '0x' + Number(args.block).toString(16) : 'latest'
     const graphURL = getSubgraphUrlFromEnvironment(getNetworkName())
     if (!graphURL) {
       console.error('Invalid Network.')
@@ -39,6 +41,7 @@ export default task('check-solvency', 'Check the solvency of all markets')
 
     const markets = await marketFactory.queryFilter(marketFactory.filters.InstanceRegistered(), 0, 'latest')
     let totalShortfall = 0n
+    let totalClaimable = 0n
 
     const { result: allUsers } = args.full
       ? await getAllMarketUsers(graphURL)
@@ -56,9 +59,10 @@ export default task('check-solvency', 'Check the solvency of all markets')
       const market = args.prevabi
         ? ((await ethers.getContractAt((await getArtifact('MarketV2_1_1')).abi, marketAddress)) as IMarket)
         : await ethers.getContractAt('IMarket', marketAddress)
-      const result = await readLocalsForUsers(multicall, market, users, args.batchsize)
+      const result = await readLocalsForUsers(multicall, market, users, args.batchsize, block)
 
       const totalCollateral = result.reduce((acc, r) => acc + r.collateral.toBigInt(), 0n)
+      totalClaimable = totalClaimable + result.reduce((acc, r) => acc + r.claimable.toBigInt(), 0n)
       const shortfalls = result
         .filter(r => r.collateral.toBigInt() < 0n)
         .map(r => ({ account: r.address, shortfall: r.collateral.toBigInt() }))
@@ -83,17 +87,27 @@ export default task('check-solvency', 'Check the solvency of all markets')
       totalShortfall += marketShortfall
 
       if (args.full) {
-        const marketBalance = await dsu.balanceOf(marketAddress)
-        const globalReturn = await multicall.callStatic.aggregate3(settleAndReadGlobalMulticallPayload(market))
+        const marketBalance = await dsu.balanceOf(marketAddress, { blockTag: block })
+        const globalReturn = await multicall.callStatic.aggregate3(settleAndReadGlobalMulticallPayload(market), {
+          blockTag: block,
+        })
         const [global] = market.interface.decodeFunctionResult('global', globalReturn[1].returnData)
-        const globalFees = global.riskFee.add(global.oracleFee).add(global.donation).add(global.protocolFee).toBigInt()
-        const marketBalance6 = marketBalance.toBigInt() / BigInt(1e12)
-        const marketCollateral = globalFees + totalCollateral
+        // DSU that can be taken from the market, remove these values from the DSU balance
+        const globalFees = global.protocolFee
+          .add(global.oracleFee)
+          .add(global.riskFee)
+          .add(global.donation)
+          .add(global.exposure)
+          .add(totalClaimable)
+          .toBigInt()
+        const marketBalance6 = marketBalance.toBigInt() / BigInt(1e12) - globalFees
+        const marketCollateral = totalCollateral
         console.log(
           'Market collateral delta (marketDSU - marketFees - totalCollateral):',
           utils.formatUnits(marketBalance6 - marketCollateral, 6),
-          'DSU\n',
-          `Balance: ${utils.formatUnits(marketBalance6, 6)}, Collateral: ${utils.formatUnits(marketCollateral, 6)}`,
+          'DSU',
+          `\n\tBalance: ${utils.formatUnits(marketBalance6, 6)}, Collateral: ${utils.formatUnits(marketCollateral, 6)}`,
+          `\n\t\tFees: ${utils.formatUnits(globalFees, 6)}, Exposure: ${utils.formatUnits(global.exposure, 6)}`,
         )
       }
     }
@@ -148,15 +162,29 @@ function settleAndReadGlobalMulticallPayload(market: IMarket): MulticallPayload[
   return [settle, global].map(callData => ({ callData, allowFailure: false, target: market.address }))
 }
 
-async function readLocalsForUsers(multicall: Contract, market: IMarket, users_: string[], batchsize: number) {
+async function readLocalsForUsers(
+  multicall: Contract,
+  market: IMarket,
+  users_: string[],
+  batchsize: number,
+  block: string,
+) {
   const users = [...users_]
-  const allLocals: { address: string; latestId: BigNumber; currentId: BigNumber; collateral: BigNumber }[] = []
+  const allLocals: {
+    address: string
+    latestId: BigNumber
+    currentId: BigNumber
+    collateral: BigNumber
+    claimable: BigNumber
+  }[] = []
 
   while (users.length > 0) {
     const batchedUsers = users.splice(0, batchsize)
     const multicallPayload = batchedUsers.flatMap(account => settleAndReadLocalsMulticallPayload(market, account))
 
-    const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(multicallPayload)
+    const result: { success: boolean; returnData: string }[] = await multicall.callStatic.aggregate3(multicallPayload, {
+      blockTag: block,
+    })
 
     const locals = result
       .map(({ returnData }, i) => {
@@ -170,6 +198,7 @@ async function readLocalsForUsers(multicall: Contract, market: IMarket, users_: 
           latestId: local.latestId,
           currentId: local.currentId,
           collateral: local.collateral,
+          claimable: local.claimable ?? BigNumber.from(0),
         }
       })
     allLocals.push(...locals)
