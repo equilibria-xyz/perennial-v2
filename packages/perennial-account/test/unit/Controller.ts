@@ -286,7 +286,7 @@ describe('Controller', () => {
       ethMarket = await smock.fake('IMarket')
     })
 
-    // TODO: createGroup helper which returns the group number?
+    // helper which creates a new rebalance group and returns the group number
     async function createGroup(markets: Array<Address>, configs: Array<RebalanceConfigStruct>): Promise<number> {
       const message = {
         group: constants.Zero,
@@ -458,7 +458,7 @@ describe('Controller', () => {
     })
 
     context('update group', async () => {
-      let group
+      let group: number
 
       beforeEach(async () => {
         group = await createGroup(
@@ -472,13 +472,136 @@ describe('Controller', () => {
       })
 
       it('can update an existing group', async () => {
-        console.log('foo')
+        // sign message to change the parameters
+        const message = {
+          group: group,
+          markets: [btcMarket.address, ethMarket.address],
+          configs: [
+            { target: parse6decimal('0.51'), threshold: parse6decimal('0.042') },
+            { target: parse6decimal('0.49'), threshold: parse6decimal('0.043') },
+          ],
+          ...createAction(userA.address),
+        }
+        const signature = await signRebalanceConfigChange(userA, verifier, message)
+
+        // perform the update
+        await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, group, btcMarket.address, message.configs[0])
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, group, ethMarket.address, message.configs[1])
+          .to.emit(controller, 'RebalanceGroupConfigured')
+          .withArgs(userA.address, group)
+
+        await verifyConfigAgainstMessage(userA, message, group)
+      })
+
+      it('can add a market', async () => {
+        const solMarket = await smock.fake('IMarket')
+
+        // sign message to add a market
+        const message = {
+          group: group,
+          markets: [btcMarket.address, ethMarket.address, solMarket.address],
+          configs: [
+            { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
+            { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
+            { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
+          ],
+          ...createAction(userA.address),
+        }
+        const signature = await signRebalanceConfigChange(userA, verifier, message)
+
+        // perform the update
+        await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, group, btcMarket.address, message.configs[0])
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, group, ethMarket.address, message.configs[1])
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, group, solMarket.address, message.configs[2])
+          .to.emit(controller, 'RebalanceGroupConfigured')
+          .withArgs(userA.address, group)
+
+        await verifyConfigAgainstMessage(userA, message, group)
+      })
+
+      it('can remove a market', async () => {
+        // sign message to remove a market
+        const message = {
+          group: group,
+          markets: [ethMarket.address],
+          configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.05') }],
+          ...createAction(userA.address),
+        }
+        const signature = await signRebalanceConfigChange(userA, verifier, message)
+
+        // perform the update
+        await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, group, ethMarket.address, message.configs[0])
+          .to.emit(controller, 'RebalanceGroupConfigured')
+          .withArgs(userA.address, group)
+
+        await verifyConfigAgainstMessage(userA, message, group)
+      })
+
+      it('rejects groups with duplicate markets when updating a group', async () => {
+        // sign message to change the parameters
+        const message = {
+          group: group,
+          markets: [btcMarket.address, ethMarket.address, btcMarket.address],
+          configs: [
+            { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
+            { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
+            { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
+          ],
+          ...createAction(userA.address),
+        }
+        const signature = await signRebalanceConfigChange(userA, verifier, message)
+
+        // perform the update
+        await expect(
+          controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
+        ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
+      })
+
+      it('rejects updating a market with a market which exists in another group', async () => {
+        // test setup offers a BTC,ETH group
+        const btcEthGroup = group
+
+        // create a SOL,MATIC group
+        const solMarket = await smock.fake('IMarket')
+        const maticMarket = await smock.fake('IMarket')
+        const solMaticGroup = await createGroup(
+          [solMarket.address, maticMarket.address],
+          [
+            { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
+            { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
+          ],
+        )
+        expect(solMaticGroup).to.equal(2)
+
+        // try to modifiy the latter to add ETH
+        const message = {
+          group: group,
+          markets: [solMarket.address, maticMarket.address, ethMarket.address],
+          configs: [
+            { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
+            { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
+            { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
+          ],
+          ...createAction(userA.address),
+        }
+        const signature = await signRebalanceConfigChange(userA, verifier, message)
+
+        await expect(
+          controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
+        ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
       })
     })
 
     // TODO: delete a group
-
-    // TODO: rejects groups with duplicate markets when updating a group
   })
 
   describe('#transfer', () => {
