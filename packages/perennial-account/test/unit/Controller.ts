@@ -13,6 +13,7 @@ import {
   IERC20Metadata,
   IEmptySetReserve,
   IVerifier,
+  RebalanceLib__factory,
   Verifier,
   Verifier__factory,
 } from '../../types/generated'
@@ -30,7 +31,7 @@ const { ethers } = HRE
 
 describe('Controller', () => {
   let controller: Controller
-  let verifier: IVerifier
+  let verifier: Verifier
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
@@ -76,7 +77,13 @@ describe('Controller', () => {
 
   const fixture = async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    controller = await new Controller__factory(owner).deploy()
+    // FIXME: need to deploy RebalanceLib here
+    controller = await new Controller__factory(
+      {
+        'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
+      },
+      owner,
+    ).deploy()
     verifier = await new Verifier__factory(owner).deploy()
 
     const usdc = await smock.fake<IERC20>('IERC20')

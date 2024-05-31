@@ -93,6 +93,16 @@ interface IController {
     function changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange,
         bytes calldata signature) external;
 
+    /// @notice Retrieves rebalance configuration for a specified owner, group, and market
+    /// @param owner User for whom the collateral account was created
+    /// @param group Identifies a collection of markets, each with their own configuration
+    /// @param market Identifies which Perennial market for which the configuration is desired
+    function rebalanceConfig(
+        address owner,
+        uint256 group,
+        address market
+    ) external view returns (RebalanceConfig memory config);
+
     /// @notice Updates the status of a delegated signer for the caller's collateral account
     /// @param signer The signer to update
     /// @param newEnabled The new status of the opersignerator

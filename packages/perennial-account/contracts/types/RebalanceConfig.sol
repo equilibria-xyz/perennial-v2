@@ -11,6 +11,8 @@ struct RebalanceConfig {
     /// @dev Percentage away from the target at which keepers may rebalance
     UFixed6 threshold;
 }
+// FIXME: Naming is pretty confusing here; maybe the struct above should be RebalanceMarketConfig and
+// this could be renamed RebalanceMarketConfigStorage and the library RebalanceMarketConfigLib
 struct RebalanceConfigStorage { uint256 slot0; }
 using RebalanceConfigLib for RebalanceConfigStorage global;
 
