@@ -180,13 +180,14 @@ library VersionLib {
             UFixed6Lib.ZERO :
             makerFee.muldiv(context.order.makerReferral, context.order.makerTotal());
 
-        UFixed6 takerFee = context.order.takerTotal()
+        UFixed6 takerTotal = context.order.takerTotal().sub(context.guarantee.takerFee);
+        UFixed6 takerFee = takerTotal
             .mul(context.toOracleVersion.price.abs())
             .mul(context.marketParameter.takerFee);
-        next.takerFee.decrement(Fixed6Lib.from(takerFee), context.order.takerTotal());
-        UFixed6 takerSubtractiveFee = context.order.takerTotal().isZero() ?
+        next.takerFee.decrement(Fixed6Lib.from(takerFee), takerTotal);
+        UFixed6 takerSubtractiveFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            takerFee.muldiv(context.order.takerReferral, context.order.takerTotal());
+            takerFee.muldiv(context.order.takerReferral, takerTotal);
 
         result.tradeFee = result.tradeFee.add(makerFee).add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee);
         result.subtractiveFee = result.subtractiveFee.add(makerSubtractiveFee).add(takerSubtractiveFee);

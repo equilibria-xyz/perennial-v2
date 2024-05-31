@@ -26,6 +26,7 @@ struct CheckpointAccumulationResult {
     UFixed6 liquidationFee;
     /// @dev Subtractive fee accumulated from the previous position to the next position (this amount is included in the linear fee)
     UFixed6 subtractiveFee;
+    UFixed6 solverFee;
 }
 
 /// @title CheckpointLib
@@ -50,19 +51,16 @@ library CheckpointLib {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
-        (result.tradeFee, result.subtractiveFee) = _accumulateFee(order, toVersion);
+        (result.tradeFee, result.subtractiveFee, result.solverFee) = _accumulateFee(order, guarantee, toVersion);
         result.offset = _accumulateOffset(order, guarantee, toVersion);
         result.settlementFee = _accumulateSettlementFee(order, guarantee, toVersion);
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
         // update checkpoint
-        next.collateral = self
-        .collateral
-        .sub(self.tradeFee).sub(Fixed6Lib.from(self.settlementFee)); // trade fee processed post settlement // settlement / liquidation fee processed post settlement
+        next.collateral = self.collateral.sub(self.tradeFee).sub(Fixed6Lib.from(self.settlementFee)); // trade fee processed post settlement // settlement / liquidation fee processed post settlement
         next.collateral = next
         .collateral
-        .add(self.transfer) // deposit / withdrawal processed post settlement
-        .add(result.collateral).add(result.priceOverride); // incorporate collateral change at this settlement // incorporate price override pnl at this settlement
+        .add(self.transfer).add(result.collateral).add(result.priceOverride); // deposit / withdrawal processed post settlement // incorporate collateral change at this settlement // incorporate price override pnl at this settlement
         next.transfer = order.collateral;
         next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
@@ -87,29 +85,35 @@ library CheckpointLib {
 
     /// @notice Accumulate trade fees for the next position
     /// @param order The next order
+    /// @param guarantee The next guarantee
     /// @param toVersion The next version
     function _accumulateFee(
         Order memory order,
+        Guarantee memory guarantee,
         Version memory toVersion
-    ) private pure returns (UFixed6 tradeFee, UFixed6 subtractiveFee) {
+    ) private pure returns (UFixed6 tradeFee, UFixed6 subtractiveFee, UFixed6 solverFee) {
+        UFixed6 takerTotal = order.takerTotal().sub(guarantee.takerFee);
+
         UFixed6 makerFee = Fixed6Lib
             .ZERO
             .sub(toVersion.makerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
             .abs();
         UFixed6 takerFee = Fixed6Lib
             .ZERO
-            .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.takerTotal()))
+            .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerTotal))
             .abs();
 
         UFixed6 makerSubtractiveFee = order.makerTotal().isZero()
             ? UFixed6Lib.ZERO
             : makerFee.muldiv(order.makerReferral, order.makerTotal());
-        UFixed6 takerSubtractiveFee = order.takerTotal().isZero()
+        UFixed6 takerSubtractiveFee = takerTotal.isZero()
             ? UFixed6Lib.ZERO
-            : takerFee.muldiv(order.takerReferral, order.takerTotal());
+            : takerFee.muldiv(order.takerReferral, takerTotal);
+
+        solverFee = takerTotal.isZero() ? UFixed6Lib.ZERO : takerFee.muldiv(guarantee.referral, takerTotal);
 
         tradeFee = makerFee.add(takerFee);
-        subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee);
+        subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
     }
 
     /// @notice Accumulate price offset for the next position

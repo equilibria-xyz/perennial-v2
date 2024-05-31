@@ -3,11 +3,13 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root/attribute/interfaces/IFactory.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
+import "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
 import "../types/ProtocolParameter.sol";
 import "./IMarket.sol";
 
 interface IMarketFactory is IFactory {
     event ParameterUpdated(ProtocolParameter newParameter);
+    event ExtensionUpdated(address indexed operator, bool newEnabled);
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
     event SignerUpdated(address indexed account, address indexed signer, bool newEnabled);
     event ReferralFeeUpdated(address indexed referrer, UFixed6 newFee);
@@ -27,15 +29,18 @@ interface IMarketFactory is IFactory {
 
     function oracleFactory() external view returns (IFactory);
     function parameter() external view returns (ProtocolParameter memory);
+    function extensions(address extension) external view returns (bool);
     function operators(address account, address operator) external view returns (bool);
     function signers(address signer, address operator) external view returns (bool);
-    function referralFee(address referrer) external view returns (UFixed6);
+    function referralFees(address referrer) external view returns (UFixed6);
     function markets(IOracleProvider oracle) external view returns (IMarket);
     function initialize() external;
     function updateParameter(ProtocolParameter memory newParameter) external;
+    function updateExtension(address extension, bool newEnabled) external;
     function updateOperator(address operator, bool newEnabled) external;
     function updateOperatorWithSignature(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external;
     function updateSigner(address signer, bool newEnabled) external;
+    function updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) external;
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external;
     function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);
 }
