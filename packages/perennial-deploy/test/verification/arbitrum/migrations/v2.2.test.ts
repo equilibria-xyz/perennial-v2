@@ -141,16 +141,6 @@ describe('Verify Arbitrum v2.2 Migration', () => {
     await run('change-markets-mode', { open: true })
     console.log('---- Done ----\n')
 
-    console.log('---- Commit Prices at Timestamp for Power Perp Markets ----')
-    const marketcmsqETH = await ethers.getContractAt('IMarket', '0x004E1Abf70e4FF99BC572843B63a63a58FAa08FF')
-    const cmsqETHPosition = await marketcmsqETH.position()
-    await commitPriceForIds([cmsqETHOracleID], cmsqETHPosition.timestamp.toNumber() + 4)
-
-    const marketmsqBTC = await ethers.getContractAt('IMarket', '0x768a5909f0B6997efa56761A89344eA2BD5560fd')
-    const msqBTCPosition = await marketmsqBTC.position()
-    await commitPriceForIds([msqBTCOracleID], msqBTCPosition.timestamp.toNumber() + 4)
-    console.log('---- Done ----\n')
-
     console.log('---- Finished Running Migration...Running Tests ----\n')
   })
 
