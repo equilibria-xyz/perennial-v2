@@ -4,8 +4,8 @@ import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { gql, request } from 'graphql-request'
 import { IVault } from '../types/generated'
 import { isArbitrum } from '../../common/testutil/network'
-import { MultiCallABI } from './checkSolvency'
 import { constants, utils } from 'ethers'
+import { MulticallABI } from './multicallUtils'
 
 const QueryPageSize = 1000
 const SharesReadSize = 500
@@ -40,7 +40,7 @@ export default task('check-vault-shares', 'Check the share counts of all vaults'
 
       const vault = await ethers.getContractAt('IVault', vaultAddress)
       const multicallPayload = vaultUsers.map(account => settleAndReadSharesPayload(vault, account)).flat()
-      const multicall = new ethers.Contract(MultiCallAddress, MultiCallABI, ethers.provider)
+      const multicall = new ethers.Contract(MultiCallAddress, MulticallABI, ethers.provider)
 
       let offset = 0
       let results: { success: boolean; returnData: string }[] = []
