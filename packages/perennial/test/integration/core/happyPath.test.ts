@@ -26,12 +26,6 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
-export const PRICE = parse6decimal('1')
-
-export const PRICE_1 = parse6decimal('113.882975')
-export const PRICE_2 = parse6decimal('113.796498')
-export const PRICE_3 = parse6decimal('115.046259')
-
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
 export const TIMESTAMP_2 = 1631113819
@@ -39,8 +33,11 @@ export const TIMESTAMP_3 = 1631114005
 export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
 
+export const PRICE = parse6decimal('1')
 export const PRICE_0 = parse6decimal('113.882975')
 export const PRICE_1 = parse6decimal('113.796498')
+export const PRICE_2 = parse6decimal('113.796498')
+export const PRICE_3 = parse6decimal('115.046259')
 export const PRICE_4 = parse6decimal('117.462552')
 
 describe('Happy Path', () => {
@@ -1218,7 +1215,7 @@ describe('Happy Path', () => {
     const chainlink = await new ChainlinkContext(
       CHAINLINK_CUSTOM_CURRENCIES.ETH,
       CHAINLINK_CUSTOM_CURRENCIES.USD,
-      undefined,
+      { decimals: 0 },
       delay,
     ).init()
 

@@ -321,7 +321,6 @@ describe('Liquidate', () => {
       makerFee: {
         linearFee: parse6decimal('0.05'),
         proportionalFee: 0,
-        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
     })
@@ -344,7 +343,7 @@ describe('Liquidate', () => {
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
-    expect(await market.referrers(user.address, 2)).to.eq(userC.address)
+    expect(await market.orderReferrers(user.address, 2)).to.eq(userC.address)
 
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000'))
 
@@ -366,6 +365,6 @@ describe('Liquidate', () => {
     await settle(market, user)
     expect((await market.locals(user.address)).latestId).to.equal(4)
     expect(await market.liquidators(user.address, 4)).to.eq(constants.AddressZero)
-    expect(await market.referrers(user.address, 4)).to.eq(constants.AddressZero)
+    expect(await market.orderReferrers(user.address, 4)).to.eq(constants.AddressZero)
   })
 })

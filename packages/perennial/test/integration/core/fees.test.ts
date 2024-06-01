@@ -45,7 +45,6 @@ const RISK_PARAMS = {
   makerFee: {
     linearFee: parse6decimal('0.09'),
     proportionalFee: parse6decimal('0.08'),
-    adiabaticFee: 0,
     scale: parse6decimal('10'),
   },
   utilizationCurve: {
@@ -2129,7 +2128,7 @@ describe('Fees', () => {
       await settle(market, user)
       await settle(market, userB)
       await updateNoOp(market, userC) // update userC to clear values
-      expect(await market.referrers(userC.address, currentId)).to.equal(userB.address)
+      expect(await market.orderReferrers(userC.address, currentId)).to.equal(userB.address)
       expect((await market.locals(userC.address)).currentId).to.equal(currentId.add(1))
 
       // ensure the proper amount of the base fee is claimable by the referrer
@@ -2170,7 +2169,7 @@ describe('Fees', () => {
       await expect(market.connect(user).claimFee())
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, expectedCloseClaimable)
-      expect(await market.referrers(userC.address, currentId.add(1))).to.equal(user.address)
+      expect(await market.orderReferrers(userC.address, currentId.add(1))).to.equal(user.address)
 
       await nextWithConstantPrice()
       // userC opens a short position referred by no one
@@ -2178,7 +2177,7 @@ describe('Fees', () => {
         .connect(userC)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, 0, false)
       await nextWithConstantPrice()
-      expect(await market.referrers(userC.address, currentId.add(2))).to.equal(constants.AddressZero)
+      expect(await market.orderReferrers(userC.address, currentId.add(2))).to.equal(constants.AddressZero)
     })
   })
 })

@@ -208,6 +208,7 @@ export const DEFAULT_GLOBAL: Global = {
   riskFee: 0,
   donation: 0,
   exposure: 0,
+  latestPrice: 0,
 }
 
 export const DEFAULT_LOCAL: Local = {
