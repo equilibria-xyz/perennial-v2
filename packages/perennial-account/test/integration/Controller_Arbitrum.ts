@@ -13,7 +13,6 @@ import {
   Account__factory,
   ArbGasInfo,
   Controller_Arbitrum,
-  Controller_Arbitrum__factory,
   IERC20Metadata,
   IMarket,
   IMarketFactory,
@@ -24,7 +23,8 @@ import { signDeployAccount, signMarketTransfer, signSignerUpdate, signWithdrawal
 import {
   createMarketFactory,
   createMarketForOracle,
-  deployController,
+  deployAndInitializeController,
+  deployControllerArbitrum,
   fundWalletDSU,
   fundWalletUSDC,
 } from '../helpers/arbitrumHelpers'
@@ -101,7 +101,7 @@ describe('Controller_Arbitrum', () => {
   const fixture = async () => {
     // create a market
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    ;[dsu, usdc] = await deployController()
+    ;[dsu, usdc] = await deployAndInitializeController(owner)
     marketFactory = await createMarketFactory(owner)
     ;[market, ,] = await createMarketForOracle(owner, marketFactory, dsu)
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
@@ -113,7 +113,7 @@ describe('Controller_Arbitrum', () => {
       multiplierCalldata: 0,
       bufferCalldata: 500_000,
     }
-    controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig, { maxFeePerGas: 100000000 })
+    controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
     verifier = await new Verifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
     await controller['initialize(address,address,address,address,address)'](

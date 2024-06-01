@@ -7,17 +7,19 @@ import {
   OracleFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { createMarket, deployProtocolForOracle } from './setupHelpers'
+import { createMarket, deployController, deployProtocolForOracle } from './setupHelpers'
 import {
   Controller,
-  Controller__factory,
+  Controller_Arbitrum__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
   IOracleProvider,
   IOracleProvider__factory,
+  RebalanceLib__factory,
   Verifier__factory,
 } from '../../types/generated'
+import type { IKept } from '../../contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
 import { ethers } from 'hardhat'
 
@@ -58,15 +60,31 @@ export async function createMarketForOracle(
 }
 
 // connects to Arbitrum stablecoins and deploys a controller configured for them
-export async function deployController(): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
-  const [owner] = await ethers.getSigners()
+export async function deployAndInitializeController(
+  owner: SignerWithAddress,
+): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
-  const controller = await new Controller__factory(owner).deploy()
+  const controller = await deployController(owner)
 
   const verifier = await new Verifier__factory(owner).deploy()
   await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_RESERVE)
   return [dsu, usdc, controller]
+}
+
+// deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
+export async function deployControllerArbitrum(
+  owner: SignerWithAddress,
+  keepConfig: IKept.KeepConfigStruct,
+  overrides?: CallOverrides,
+) {
+  const controller = await new Controller_Arbitrum__factory(
+    {
+      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy(keepConfig, overrides ?? {})
+  return controller
 }
 
 export async function fundWalletDSU(

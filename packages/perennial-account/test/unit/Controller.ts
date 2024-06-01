@@ -6,32 +6,29 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
 import {
   Controller,
-  Controller__factory,
   IAccount,
   IAccount__factory,
+  IController,
   IERC20,
   IERC20Metadata,
   IEmptySetReserve,
   IVerifier,
-  RebalanceLib__factory,
-  Verifier,
   Verifier__factory,
 } from '../../types/generated'
-import { RebalanceConfigChangeStruct, RebalanceConfigStruct } from '../../types/generated/contracts/Controller'
+// import { RebalanceConfigChangeStruct, RebalanceConfigStruct } from '../../types/generated/contracts/Controller'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signSignerUpdate } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { getEventArguments, mockMarket } from '../helpers/setupHelpers'
+import { deployController, getEventArguments, mockMarket } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../common/testutil/types'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { IMarket } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
 describe('Controller', () => {
   let controller: Controller
-  let verifier: Verifier
+  let verifier: IVerifier
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
@@ -77,13 +74,7 @@ describe('Controller', () => {
 
   const fixture = async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    // FIXME: need to deploy RebalanceLib here
-    controller = await new Controller__factory(
-      {
-        'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
-      },
-      owner,
-    ).deploy()
+    controller = await deployController(owner)
     verifier = await new Verifier__factory(owner).deploy()
 
     const usdc = await smock.fake<IERC20>('IERC20')

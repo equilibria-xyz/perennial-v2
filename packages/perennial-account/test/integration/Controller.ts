@@ -5,8 +5,8 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { currentBlockTimestamp, increase } from '../../../common/testutil/time'
-import { Order, parse6decimal } from '../../../common/testutil/types'
+import { currentBlockTimestamp } from '../../../common/testutil/time'
+import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, Controller, IERC20Metadata, IVerifier } from '../../types/generated'
 import { IVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
 import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
@@ -16,7 +16,7 @@ import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
 import {
   createMarketFactory,
   createMarketForOracle,
-  deployController,
+  deployAndInitializeController,
   fundWalletDSU,
   fundWalletUSDC,
 } from '../helpers/arbitrumHelpers'
@@ -95,7 +95,7 @@ describe('ControllerBase', () => {
   const fixture = async () => {
     // set up users and deploy artifacts
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    ;[dsu, usdc, controller] = await deployController()
+    ;[dsu, usdc, controller] = await deployAndInitializeController(owner)
     verifier = IVerifier__factory.connect(await controller.verifier(), owner)
 
     // create a collateral account for userA with 15k collateral in it

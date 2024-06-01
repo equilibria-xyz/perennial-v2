@@ -50,11 +50,7 @@ contract Controller is Instance, IController {
     /// @dev Collections required to manage Rebalance configuration
     RebalanceStorage public rebalance;
 
-    /// @notice Configures the EIP-712 message verifier used by this controller
-    /// @param verifier_ Contract used to validate messages were signed by the sender
-    /// @param usdc_ USDC token address
-    /// @param dsu_ DSU token address
-    /// @param reserve_ DSU Reserve address, used by Account
+    /// @inheritdoc IController
     function initialize(
         IVerifier verifier_,
         Token6 usdc_,

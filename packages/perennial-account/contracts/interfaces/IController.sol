@@ -1,7 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+
 import { IAccount } from "../interfaces/IAccount.sol";
+import { IVerifier } from "../interfaces/IVerifier.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { RebalanceConfig, RebalanceConfigChange } from "../types/RebalanceConfig.sol";
@@ -68,6 +73,18 @@ interface IController {
     /// @custom:error Attempt to interact with a Market which does not use DSU as collateral
     /// @param market Market with non-DSU collateral
     error ControllerUnsupportedMarket(address market);
+
+    /// @notice Sets contract addresses used for message verification and token management
+    /// @param verifier Contract used to validate messages were signed by the sender
+    /// @param usdc USDC token address
+    /// @param dsu DSU token address
+    /// @param reserve DSU Reserve address, used by Account
+    function initialize(
+        IVerifier verifier,
+        Token6 usdc,
+        Token18 dsu,
+        IEmptySetReserve reserve
+    ) external;
 
     /// @notice Returns the deterministic address of the collateral account for a user,
     /// regardless of whether or not it exists.

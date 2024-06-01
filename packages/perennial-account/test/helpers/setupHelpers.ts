@@ -6,7 +6,7 @@ import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 
-import { IERC20Metadata } from '../../types/generated'
+import { Controller__factory, IController, IERC20Metadata, RebalanceLib__factory } from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -33,6 +33,18 @@ import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennia
 import { OracleFactory, OracleFactory__factory, IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
 import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
+
+// TODO: sort the functions in this method; should exported functions go first?
+
+export async function deployController(owner: SignerWithAddress): Promise<Controller> {
+  const controller = await new Controller__factory(
+    {
+      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy()
+  return controller
+}
 
 // Deploys an empty market used by the factory as a template for creating new markets
 async function deployMarketImplementation(owner: SignerWithAddress, verifierAddress: Address): Promise<Market> {
