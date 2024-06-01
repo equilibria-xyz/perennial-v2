@@ -317,13 +317,20 @@ describe('Liquidate', () => {
       maxFee: parse6decimal('0.9'),
       referralFee: parse6decimal('0.12'),
     })
-    const market = await createMarket(instanceVars, undefined, {
-      makerFee: {
-        linearFee: parse6decimal('0.05'),
-        proportionalFee: 0,
-        scale: parse6decimal('10000'),
+    const market = await createMarket(
+      instanceVars,
+      undefined,
+      {
+        makerFee: {
+          linearFee: parse6decimal('0.05'),
+          proportionalFee: 0,
+          scale: parse6decimal('10000'),
+        },
       },
-    })
+      {
+        makerFee: parse6decimal('0.05'),
+      },
+    )
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await market
@@ -338,8 +345,19 @@ describe('Liquidate', () => {
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool,address)'](user.address, 0, 0, 0, 0, true, userC.address),
     ) // liquidate
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, true, userC.address)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_2,
+          orders: 1,
+          makerNeg: POSITION,
+          protection: 1,
+          makerReferral: parse6decimal('1.2'),
+        },
+        { ...DEFAULT_GUARANTEE },
+      )
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
@@ -357,9 +375,7 @@ describe('Liquidate', () => {
     expect((await market.locals(userC.address)).claimable).to.equal(expectedClaimable)
 
     await chainlink.next()
-    await market
-      .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(10), 0, 0, 0, false)
+    await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
     await chainlink.next()
     await settle(market, user)
