@@ -68,7 +68,7 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
     /// @notice Returns the applicable value for the keeper fee
     /// @param data The update data to validate
     /// @return The applicable value for the keeper fee
-    function _applicableValue(uint256, bytes memory data) internal view override returns (uint256) {
+    function _applicableValue(uint256 numRequested, bytes memory data) internal view override returns (uint256) {
         bytes[] memory payloads = abi.decode(data, (bytes[]));
         uint256 totalFeeAmount = 0;
         for (uint256 i = 0; i < payloads.length; i++) {
@@ -76,7 +76,7 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
             (Asset memory fee, ,) = feeManager.getFeeAndReward(address(this), report, feeTokenAddress);
             totalFeeAmount += fee.amount;
         }
-        return totalFeeAmount;
+        return totalFeeAmount * numRequested / payloads.length;
     }
 }
 

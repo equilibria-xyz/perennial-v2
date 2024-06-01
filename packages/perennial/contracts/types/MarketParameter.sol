@@ -40,7 +40,7 @@ struct MarketParameter {
      /// @dev Whether the market is in settle-only mode
     bool settle;
 }
-struct MarketParameterStorage { uint256 slot0; } // SECURITY: must remain at (1) slots
+struct MarketParameterStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using MarketParameterStorageLib for MarketParameterStorage global;
 
 /// @dev Manually encodes and decodes the MarketParameter struct into storage.

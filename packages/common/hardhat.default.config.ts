@@ -40,6 +40,7 @@ const FORK_ENABLED = process.env.FORK_ENABLED === 'true' || false
 const FORK_NETWORK = process.env.FORK_NETWORK || 'mainnet'
 const FORK_BLOCK_NUMBER = process.env.FORK_BLOCK_NUMBER ? parseInt(process.env.FORK_BLOCK_NUMBER) : undefined
 const FORK_USE_REAL_DEPLOYS = process.env.FORK_USE_REAL_DEPLOYS === 'true' || false
+const FORK_USE_REAL_ACCOUNT = process.env.FORK_USE_REAL_ACCOUNT === 'true' || false
 
 const NODE_INTERVAL_MINING = process.env.NODE_INTERVAL_MINING ? parseInt(process.env.NODE_INTERVAL_MINING) : undefined
 
@@ -120,8 +121,12 @@ export default function defaultConfig({
           enabled: FORK_ENABLED,
           blockNumber: FORK_BLOCK_NUMBER,
         },
+        accounts: FORK_USE_REAL_ACCOUNT
+          ? [{ privateKey: PRIVATE_KEY_MAINNET, balance: '100000000000000000000000000' }]
+          : undefined,
         chainId: getChainId('hardhat'),
         allowUnlimitedContractSize: true,
+        blockGasLimit: 32000000,
         mining: NODE_INTERVAL_MINING
           ? {
               interval: NODE_INTERVAL_MINING,
@@ -142,6 +147,23 @@ export default function defaultConfig({
       compilers: [
         {
           version: SOLIDITY_VERSION,
+          settings: {
+            optimizer: {
+              enabled: OPTIMIZER_ENABLED,
+              runs: 1000000, // Max allowed by Etherscan verify
+            },
+            outputSelection: OPTIMIZER_ENABLED
+              ? {}
+              : {
+                  '*': {
+                    '*': ['storageLayout'], // This is needed by Smock for mocking functions
+                  },
+                },
+            viaIR: OPTIMIZER_ENABLED,
+          },
+        },
+        {
+          version: '0.8.24',
           settings: {
             optimizer: {
               enabled: OPTIMIZER_ENABLED,
@@ -210,7 +232,7 @@ export default function defaultConfig({
       parallel: MOCHA_PARALLEL,
       reporter: MOCHA_REPORTER,
       slow: 1000,
-      timeout: 480000,
+      timeout: 4800000,
       retries: Number(MOCHA_RETRY_COUNT),
     },
     contractSizer: {

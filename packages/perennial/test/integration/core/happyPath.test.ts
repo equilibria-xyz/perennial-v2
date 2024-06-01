@@ -26,6 +26,12 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
+export const PRICE = parse6decimal('1')
+
+export const PRICE_1 = parse6decimal('113.882975')
+export const PRICE_2 = parse6decimal('113.796498')
+export const PRICE_3 = parse6decimal('115.046259')
+
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
 export const TIMESTAMP_2 = 1631113819
@@ -161,6 +167,7 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
+      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -208,6 +215,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -269,6 +277,7 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
+      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -316,6 +325,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -384,6 +394,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -457,6 +468,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -561,6 +573,7 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
+      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -593,6 +606,7 @@ describe('Happy Path', () => {
       latestId: 1,
       protocolFee: '18',
       donation: '18',
+      latestPrice: PRICE_3,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -687,6 +701,7 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
+      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -719,6 +734,7 @@ describe('Happy Path', () => {
       latestId: 1,
       protocolFee: '18',
       donation: '18',
+      latestPrice: PRICE_3,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -816,6 +832,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -904,6 +921,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -1055,7 +1073,7 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
         proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),
@@ -1163,6 +1181,7 @@ describe('Happy Path', () => {
       latestId: 2,
       protocolFee: '86263589',
       donation: '86263590',
+      latestPrice: '117462552',
     })
     expectOrderEq(await market.pendingOrder(3), {
       ...DEFAULT_ORDER,
@@ -1218,7 +1237,7 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
         proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),
@@ -1341,6 +1360,7 @@ describe('Happy Path', () => {
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
       donation: (await market.global()).donation,
+      latestPrice: PRICE,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(delay + 1), {

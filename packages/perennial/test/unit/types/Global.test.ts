@@ -32,6 +32,7 @@ const DEFAULT_GLOBAL: GlobalStruct = {
     _value: 0,
     _skew: 0,
   },
+  latestPrice: 0,
   exposure: 0,
 }
 
@@ -127,6 +128,7 @@ describe('Global', () => {
           _value: 6,
           _skew: 7,
         },
+        latestPrice: 9,
         exposure: 8,
       })
 
@@ -139,6 +141,7 @@ describe('Global', () => {
       expect(value.donation).to.equal(5)
       expect(value.pAccumulator._value).to.equal(6)
       expect(value.pAccumulator._skew).to.equal(7)
+      expect(value.latestPrice).to.equal(9)
       expect(value.exposure).to.equal(8)
     })
 
@@ -263,6 +266,27 @@ describe('Global', () => {
           global.store({
             ...DEFAULT_GLOBAL,
             donation: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
+      })
+    })
+
+    context('.latestPrice', async () => {
+      const STORAGE_SIZE = 63
+      it('saves if in range', async () => {
+        await global.store({
+          ...DEFAULT_GLOBAL,
+          latestPrice: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await global.read()
+        expect(value.latestPrice).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if latestPrice out of range', async () => {
+        await expect(
+          global.store({
+            ...DEFAULT_GLOBAL,
+            latestPrice: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
