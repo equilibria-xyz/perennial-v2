@@ -14063,8 +14063,6 @@ describe('Market', () => {
             })
 
             it('allows closing short position', async () => {
-              console.log(await market.positions(user.address))
-
               await expect(
                 market
                   .connect(user)
@@ -14852,6 +14850,7 @@ describe('Market', () => {
             },
             shortValue: { _value: 0 },
             liquidationFee: { _value: -riskParameter.liquidationFee },
+            price: oracleVersionLowerPrice.price,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
@@ -14869,6 +14868,7 @@ describe('Market', () => {
             },
             shortValue: { _value: 0 },
             liquidationFee: { _value: -riskParameter.liquidationFee },
+            price: PRICE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
@@ -14886,6 +14886,7 @@ describe('Market', () => {
             },
             shortValue: { _value: 0 },
             liquidationFee: { _value: -riskParameter.liquidationFee },
+            price: oracleVersionLowerPrice2.price,
           })
         })
       })
@@ -15731,6 +15732,7 @@ describe('Market', () => {
             currentId: 4,
             latestId: 3,
             oracleFee: SETTLEMENT_FEE,
+            latestPrice: PRICE,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -16449,6 +16451,7 @@ describe('Market', () => {
           expectGlobalEq(await market.global(), {
             ...DEFAULT_GLOBAL,
             currentId: 1,
+            latestPrice: PRICE,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -16527,6 +16530,7 @@ describe('Market', () => {
           expectGlobalEq(await market.global(), {
             ...DEFAULT_GLOBAL,
             currentId: 1,
+            latestPrice: PRICE,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -18675,10 +18679,6 @@ describe('Market', () => {
         })
 
         it('opens the position and settles later with fee (self)', async () => {
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-
           factory.parameter.returns({
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
@@ -18691,25 +18691,17 @@ describe('Market', () => {
             referralFee: parse6decimal('0.20'),
           })
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterTakerFee = { ...riskParameter.takerFee }
-          riskParameterTakerFee.linearFee = parse6decimal('0.01')
-          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
-          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
-          riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
-
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
+          marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-          const TAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.01) * price
-          const TAKER_FEE_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
-          const TAKER_FEE_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
-
-          const TAKER_FEE = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL).add(TAKER_FEE_ADIABATIC)
-          const TAKER_FEE_WITHOUT_IMPACT = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL)
+          const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
 
           await expect(
             market
@@ -18755,7 +18747,7 @@ describe('Market', () => {
               .sub(EXPECTED_INTEREST_5_123)
               .sub(TAKER_FEE)
               .sub(SETTLEMENT_FEE.div(2)),
-            claimable: TAKER_FEE_LINEAR.mul(2).div(10),
+            claimable: TAKER_FEE.mul(2).div(10),
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -18790,9 +18782,9 @@ describe('Market', () => {
           expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
           })
-          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
-            .add(TAKER_FEE_WITHOUT_IMPACT)
-            .sub(TAKER_FEE_LINEAR.mul(2).div(10))
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
+            TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)),
+          )
           expectGlobalEq(await market.global(), {
             currentId: 2,
             latestId: 1,
@@ -18819,6 +18811,7 @@ describe('Market', () => {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
             longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
@@ -18980,6 +18973,7 @@ describe('Market', () => {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
             longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            price: PRICE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
@@ -18998,6 +18992,7 @@ describe('Market', () => {
                 .mul(-1),
             },
             liquidationFee: { _value: -riskParameter.liquidationFee },
+            price: PRICE,
           })
         })
 

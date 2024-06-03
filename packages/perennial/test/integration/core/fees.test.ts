@@ -567,6 +567,12 @@ describe('Fees', () => {
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
         },
+        takerFee: {
+          ...riskParams.takerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
       })
       await market.updateParameter(AddressZero, AddressZero, {
         ...marketParams,
@@ -1011,6 +1017,12 @@ describe('Fees', () => {
           ...riskParams.makerFee,
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
+        },
+        takerFee: {
+          ...riskParams.takerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
         },
       })
       await market.updateParameter(AddressZero, AddressZero, {
@@ -1607,6 +1619,18 @@ describe('Fees', () => {
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
         },
+        takerFee: {
+          ...riskParams.takerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
+        utilizationCurve: {
+          minRate: parse6decimal('0.01'),
+          maxRate: parse6decimal('0.01'),
+          targetRate: parse6decimal('0.01'),
+          targetUtilization: parse6decimal('1'),
+        },
       })
 
       const { user, userB, userC, dsu } = instanceVars
@@ -1713,6 +1737,17 @@ describe('Fees', () => {
           ...riskParams.makerFee,
           linearFee: BigNumber.from('0'),
           proportionalFee: BigNumber.from('0'),
+        },
+        takerFee: {
+          ...riskParams.takerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
+        pController: {
+          k: parse6decimal('10'),
+          min: parse6decimal('-1.20'),
+          max: parse6decimal('1.20'),
         },
       })
 
@@ -2156,14 +2191,14 @@ describe('Fees', () => {
       await settle(market, userC)
 
       // ensure the proper amount of the base fee is claimable by the referrer
-      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
-      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.45 / 3 = 2.562367
-      const expectedCloseClaimable = parse6decimal('2.562367')
+      // takerFee = position * linearFee * price = 3 * 0.025 * 113.882975 = 8.541223
+      // referralFee = takerFee * referral / takerPos =  8.541223 * 0.45 / 3 = 1.281183
+      const expectedCloseClaimable = parse6decimal('1.281183')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: '1143713328',
+        collateral: '1150119246',
         claimable: expectedCloseClaimable,
       })
       await expect(market.connect(user).claimFee())

@@ -686,27 +686,27 @@ describe('Invoke', () => {
           await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
           await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
-          await expect(
-            invoke(
-              buildUpdateMarket({
-                market: market.address,
-                collateral: collateral,
-                maker: parse6decimal('0.01'),
-                interfaceFee1: {
-                  amount: 0,
-                  receiver: ethers.constants.AddressZero,
-                  unwrap: false,
-                },
-                interfaceFee2: {
-                  amount: 0,
-                  receiver: userB.address,
-                  unwrap: false,
-                },
-              }),
-            ),
+          await invoke(
+            buildUpdateMarket({
+              market: market.address,
+              collateral: collateral,
+              maker: parse6decimal('0.01'),
+              interfaceFee1: {
+                amount: 0,
+                receiver: ethers.constants.AddressZero,
+                unwrap: false,
+              },
+              interfaceFee2: {
+                amount: 0,
+                receiver: userB.address,
+                unwrap: false,
+              },
+            }),
           )
-            .to.emit(market, 'Updated')
-            .withArgs(anyValue, user.address, anyUint, anyUint, anyUint, anyUint, anyValue, false, userB.address)
+
+          expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
+            userB.address,
+          )
         })
 
         it('Only allows updates to factory created markets', async () => {

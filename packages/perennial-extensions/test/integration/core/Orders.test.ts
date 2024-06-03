@@ -569,7 +569,11 @@ describe('Orders', () => {
       })
 
       it('executes an order with multiple interface fees', async () => {
-        const { user, userB, userC, userD, chainlink, dsu, usdc } = instanceVars
+        const { marketFactory, user, userB, userC, userD, chainlink, dsu, usdc } = instanceVars
+        await marketFactory.updateParameter({
+          ...(await marketFactory.parameter()),
+          referralFee: parse6decimal('0.05'),
+        })
 
         const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
@@ -610,7 +614,7 @@ describe('Orders', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
-            { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition },
+            { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition, takerReferral: 5e6 },
             { ...DEFAULT_GUARANTEE },
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
