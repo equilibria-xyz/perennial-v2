@@ -1014,84 +1014,6 @@ describe('Market', () => {
           'MarketNotCoordinatorError',
         )
       })
-
-      it('updates with isMigration=true and empty latest risk parameter', async () => {
-        // setup market with POSITION skew
-        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
-
-        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        await settle(market, user)
-        await settle(market, userB)
-
-        // Manually set risk parameter to 0
-        await setStorageAt(market.address, 6, 0)
-        await setStorageAt(market.address, 7, 0)
-        await setStorageAt(market.address, 8, 0)
-
-        // test the migration risk parameter update
-        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
-        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
-          market,
-          'RiskParameterUpdated',
-        )
-
-        // Despite the market
-        expectGlobalEq(await market.global(), {
-          currentId: 2,
-          latestId: 1,
-          protocolFee: 0,
-          oracleFee: 0,
-          riskFee: 0,
-          donation: 0,
-          latestPrice: PRICE,
-          exposure: BigNumber.from(0).sub(parse6decimal('0.369')),
-        })
-
-        const riskParameter = await market.riskParameter()
-        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
-        expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
-        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
-        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
-        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
-        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
-        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
-        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
-        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
-        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
-        expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
-        expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
-        expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
-        expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
-        expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
-        expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
-        expect(riskParameter.utilizationCurve.targetUtilization).to.equal(
-          defaultRiskParameter.utilizationCurve.targetUtilization,
-        )
-        expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
-        expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
-        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
-        expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
-        expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
-        expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
-      })
     })
 
     describe('#settle', async () => {
@@ -1309,6 +1231,7 @@ describe('Market', () => {
           ...DEFAULT_GLOBAL,
           currentId: 1,
           latestId: 1,
+          latestPrice: PRICE,
         })
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
@@ -14830,11 +14753,9 @@ describe('Market', () => {
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-          await expect(
-            market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-          )
-            .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, constants.AddressZero)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -15024,25 +14945,21 @@ describe('Market', () => {
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-          await expect(
-            market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
-                user.address,
-                0,
-                0,
-                0,
-                0,
-                true,
-                userB.address,
-              ),
-          )
-            .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, userB.address)
+          await market
+            .connect(liquidator)
+            ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+              user.address,
+              0,
+              0,
+              0,
+              0,
+              true,
+              userB.address,
+            )
 
           expect((await market.locals(user.address)).currentId).to.equal(3)
           expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
-          expect(await market.referrers(user.address, 3)).to.equal(userB.address)
+          expect(await market.orderReferrers(user.address, 3)).to.equal(userB.address)
         })
 
         it('resets related accounts on update', async () => {
@@ -15080,25 +14997,24 @@ describe('Market', () => {
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-          await expect(
-            market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
-                user.address,
-                0,
-                0,
-                0,
-                0,
-                true,
-                userB.address,
-              ),
-          )
-            .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, userB.address)
+          await market
+            .connect(liquidator)
+            ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+              user.address,
+              0,
+              0,
+              0,
+              0,
+              true,
+              userB.address,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
+
+          expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
+          expect(await market.orderReferrers(user.address, 3)).to.equal(userB.address)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1000')).returns(true)
           await market
@@ -15115,7 +15031,7 @@ describe('Market', () => {
 
           expect((await market.locals(user.address)).currentId).to.equal(4)
           expect(await market.liquidators(user.address, 4)).to.equal(constants.AddressZero)
-          expect(await market.referrers(user.address, 4)).to.equal(constants.AddressZero)
+          expect(await market.orderReferrers(user.address, 4)).to.equal(constants.AddressZero)
         })
       })
 
@@ -18808,17 +18724,18 @@ describe('Market', () => {
                 user.address,
               ),
           )
-            .to.emit(market, 'Updated')
+            .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              user.address,
-              ORACLE_VERSION_2.timestamp,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+                takerReferral: POSITION.div(10),
+              },
+              { ...DEFAULT_GUARANTEE },
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -18930,17 +18847,17 @@ describe('Market', () => {
                 false,
               ),
           )
-            .to.emit(market, 'Updated')
+            .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              user.address,
-              ORACLE_VERSION_2.timestamp,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-              constants.AddressZero,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              },
+              { ...DEFAULT_GUARANTEE },
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -18948,17 +18865,14 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(settle(market, user)) // requestless update for id 3
-            .to.emit(market, 'Updated')
+            .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              user.address,
-              ORACLE_VERSION_3.timestamp,
-              0,
-              POSITION.div(2),
-              0,
-              0,
-              false,
-              constants.AddressZero,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_3.timestamp,
+              },
+              { ...DEFAULT_GUARANTEE },
             )
 
           oracle.at
@@ -19100,17 +19014,17 @@ describe('Market', () => {
                 false,
               ),
           )
-            .to.emit(market, 'Updated')
+            .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              user.address,
-              ORACLE_VERSION_2.timestamp,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-              constants.AddressZero,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              },
+              { ...DEFAULT_GUARANTEE },
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -19118,17 +19032,14 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
 
           await expect(settle(market, user)) // requestless update for id 3
-            .to.emit(market, 'Updated')
+            .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              user.address,
-              ORACLE_VERSION_3.timestamp,
-              0,
-              POSITION.div(2),
-              0,
-              0,
-              false,
-              constants.AddressZero,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_3.timestamp,
+              },
+              { ...DEFAULT_GUARANTEE },
             )
 
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -19142,17 +19053,14 @@ describe('Market', () => {
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
           )
-            .to.emit(market, 'Updated')
+            .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              user.address,
-              ORACLE_VERSION_4.timestamp,
-              0,
-              POSITION.div(2),
-              0,
-              0,
-              false,
-              constants.AddressZero,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_4.timestamp,
+              },
+              { ...DEFAULT_GUARANTEE },
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4) // latest
@@ -19256,6 +19164,7 @@ describe('Market', () => {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
             longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            price: PRICE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
@@ -19274,6 +19183,7 @@ describe('Market', () => {
                 .mul(-1),
             },
             liquidationFee: { _value: -riskParameter.liquidationFee },
+            price: PRICE,
           })
         })
       })

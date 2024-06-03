@@ -2283,6 +2283,7 @@ describe('Version', () => {
             short: parse6decimal('9'),
           },
           ORDER,
+          { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
           {

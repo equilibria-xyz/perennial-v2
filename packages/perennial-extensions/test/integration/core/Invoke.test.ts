@@ -31,7 +31,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 
@@ -647,33 +647,41 @@ describe('Invoke', () => {
         })
 
         it('sets subtractive fee referrer as interface1.receiver if set', async () => {
-          const { owner, user, usdc, dsu } = instanceVars
+          const { marketFactory, owner, user, usdc, dsu } = instanceVars
 
+          await marketFactory.updateParameter({
+            ...(await marketFactory.parameter()),
+            referralFee: parse6decimal('0.05'),
+          })
           await usdc.connect(user).approve(multiInvoker.address, collateral)
           await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
           await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
-          await expect(
-            invoke(
-              buildUpdateMarket({
-                market: market.address,
-                collateral: collateral,
-                maker: parse6decimal('0.01'),
-                interfaceFee1: {
-                  amount: 0,
-                  receiver: owner.address,
-                  unwrap: true,
-                },
-              }),
-            ),
+          await invoke(
+            buildUpdateMarket({
+              market: market.address,
+              collateral: collateral,
+              maker: parse6decimal('0.02'),
+              interfaceFee1: {
+                amount: 0,
+                receiver: owner.address,
+                unwrap: true,
+              },
+            }),
           )
-            .to.emit(market, 'Updated')
-            .withArgs(anyValue, user.address, anyUint, anyUint, anyUint, anyUint, anyValue, false, owner.address)
+
+          expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
+            owner.address,
+          )
         })
 
         it('sets subtractive fee referrer as interfaceFee2.receiver if interfaceFee1.receiver is not set', async () => {
-          const { user, userB, usdc, dsu } = instanceVars
+          const { marketFactory, userB, user, usdc, dsu } = instanceVars
 
+          await marketFactory.updateParameter({
+            ...(await marketFactory.parameter()),
+            referralFee: parse6decimal('0.05'),
+          })
           await usdc.connect(user).approve(multiInvoker.address, collateral)
           await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
           await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
