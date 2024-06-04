@@ -75,7 +75,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The local aggregate pending order for each account
     mapping(address => OrderStorageLocal) private _pendings;
 
-    /// @dev The local checkpoint for each id for each account
+    /// @dev The local checkpoint for each version for each account
     mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
 
     /// @dev The liquidator for each id for each account
@@ -288,19 +288,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
-
-        // credit impact update fee to the protocol account
         Global memory newGlobal = _global.read();
+
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
-        OracleVersion memory latestVersion = oracle.at(latestPosition.timestamp);
 
         newGlobal.exposure = newGlobal.exposure.sub(latestRiskParameter.takerFee
-                .update(newRiskParameter.takerFee, latestPosition.skew(), latestVersion.price.abs()));
-        _global.store(newGlobal);
+                .update(newRiskParameter.takerFee, latestPosition.skew(), newGlobal.latestPrice.abs()));
 
         // update
+        _global.store(newGlobal);
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
+
         emit RiskParameterUpdated(newRiskParameter);
     }
 
@@ -654,6 +653,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
         settlementContext.orderOracleVersion = oracle.at(context.latestPositionGlobal.timestamp);
+        if (settlementContext.orderOracleVersion.price.isZero())
+            settlementContext.orderOracleVersion.price = context.global.latestPrice;
     }
 
     /// @notice Settles the account position up to the latest version
@@ -663,7 +664,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         Order memory nextOrder;
 
-        // settle
+        // settle - process orders whose requested prices are now available from oracle
         while (
             context.global.currentId != context.global.latestId &&
             (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
@@ -674,7 +675,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             (nextOrder = _pendingOrders[context.account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
 
-        // sync
+        // sync  - advance position timestamps with the latest oracle version
         if (context.latestOracleVersion.timestamp > context.latestPositionGlobal.timestamp)
             _processOrderGlobal(
                 context,
@@ -736,6 +737,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder
     ) private {
         OracleVersion memory oracleVersion = oracle.at(newOrderTimestamp);
+        if (oracleVersion.price.isZero()) oracleVersion.price = context.global.latestPrice;
         Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
         // if latest timestamp is more recent than order timestamp, sync the order data
@@ -820,23 +822,28 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _checkpoints[context.account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
-        _credit(liquidators[context.account][newOrderId], accumulationResult.liquidationFee);
-        _credit(orderReferrers[context.account][newOrderId], accumulationResult.subtractiveFee);
-        _credit(guaranteeReferrers[context.account][newOrderId], accumulationResult.solverFee);
+        _credit(context, liquidators[context.account][newOrderId], accumulationResult.liquidationFee);
+        _credit(context, orderReferrers[context.account][newOrderId], accumulationResult.subtractiveFee);
+        _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResult.solverFee);
 
         emit AccountPositionProcessed(context.account, newOrderId, newOrder, accumulationResult);
     }
 
-    /// @notice Credits an account's claimable that is out-of-context
-    /// @dev The amount must have already come from a corresponing debit in the settlement flow
+    /// @notice Credits an account's claimable
+    /// @dev The amount must have already come from a corresponding debit in the settlement flow.
+    ///      If the receiver is the context's account, the amount is instead credited in-memory.
+    /// @param context The context to use
     /// @param receiver The account to credit
     /// @param amount The amount to credit
-    function _credit(address receiver, UFixed6 amount) private {
+    function _credit(Context memory context, address receiver, UFixed6 amount) private {
         if (amount.isZero()) return;
 
-        Local memory newLocal = _locals[receiver].read();
-        newLocal.credit(amount);
-        _locals[receiver].store(newLocal);
+        if (receiver == context.account) context.local.credit(amount);
+        else {
+            Local memory receiverLocal = _locals[receiver].read();
+            receiverLocal.credit(amount);
+            _locals[receiver].store(receiverLocal);
+        }
     }
 
     /// @notice Only the coordinator or the owner can call

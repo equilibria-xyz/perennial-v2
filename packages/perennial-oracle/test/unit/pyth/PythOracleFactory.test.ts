@@ -93,11 +93,6 @@ describe('PythOracleFactory', () => {
     market.factory.returns(marketFactory.address)
     marketFactory.instances.whenCalledWith(market.address).returns(true)
 
-    market = await smock.fake<IMarket>('IMarket')
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    market.factory.returns(marketFactory.address)
-    marketFactory.instances.whenCalledWith(market.address).returns(true)
-
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
     await oracleFactory.initialize(dsu.address)

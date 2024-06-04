@@ -2,7 +2,7 @@ import defaultConfig, { OPTIMIZER_ENABLED, SOLIDITY_VERSION } from '../common/ha
 
 export const solidityOverrides = {
   'contracts/Market.sol': {
-    version: SOLIDITY_VERSION,
+    version: '0.8.24',
     settings: {
       optimizer: {
         enabled: OPTIMIZER_ENABLED,
