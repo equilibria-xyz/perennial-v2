@@ -3,50 +3,56 @@ pragma solidity ^0.8.13;
 
 import "../types/Order.sol";
 
-contract OrderTester {
-    function registerFee(
-        Order memory order,
-        OracleVersion memory latestVersion,
-        MarketParameter memory marketParameter,
-        RiskParameter memory riskParameter
-    ) public pure returns (Order memory) {
-        order.registerFee(latestVersion, marketParameter, riskParameter);
+abstract contract OrderTester {
+    function read() public virtual view returns (Order memory);
 
-        return order;
+    function store(Order memory newOrder) public virtual;
+
+    function ready(OracleVersion memory latestVersion) external view returns (bool result) {
+        return read().ready(latestVersion);
     }
 
-    function increasesPosition(Order memory order) public pure returns (bool) {
-        return order.increasesPosition();
+    function increasesPosition() external view returns (bool) {
+        return read().increasesPosition();
     }
 
-    function increasesTaker(Order memory order) public pure returns (bool) {
-        return order.increasesTaker();
+    function increasesTaker() external view returns (bool) {
+        return read().increasesTaker();
     }
 
-    function decreasesLiquidity(Order memory order) public pure returns (bool) {
-        return order.decreasesLiquidity();
+    function decreasesLiquidity(Position memory currentPosition) external view returns (bool) {
+        return read().decreasesLiquidity(currentPosition);
     }
 
-    function singleSided(Order memory order, Position memory currentPosition) public pure returns (bool) {
-        return order.singleSided(currentPosition);
+    function liquidityCheckApplicable(MarketParameter memory marketParameter) external view returns (bool) {
+        return read().liquidityCheckApplicable(marketParameter);
     }
 
-    function liquidityCheckApplicable(
-        Order memory order,
-        MarketParameter memory marketParameter
-    ) public pure returns (bool) {
-        return order.liquidityCheckApplicable(marketParameter);
+    function isEmpty() external view returns (bool) {
+        return read().isEmpty();
+    }
+}
+
+contract OrderGlobalTester is OrderTester {
+    OrderStorageGlobal public order;
+
+    function read() public view override returns (Order memory) {
+        return order.read();
     }
 
-    function liquidationFee(
-        Order memory order,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) public pure returns (UFixed6) {
-        return order.liquidationFee(latestVersion, riskParameter);
+    function store(Order memory newOrder) public override {
+        order.store(newOrder);
+    }
+}
+
+contract OrderLocalTester is OrderTester {
+    OrderStorageLocal public order;
+
+    function read() public view override returns (Order memory) {
+        return order.read();
     }
 
-    function isEmpty(Order memory order) public pure returns (bool) {
-        return order.isEmpty();
+    function store(Order memory newOrder) public override {
+        order.store(newOrder);
     }
 }

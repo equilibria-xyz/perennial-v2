@@ -26,10 +26,7 @@ export async function deployProductOnMainnetFork({
   fundingFee,
   interestFee,
   makerFee,
-  makerImpactFee,
   takerFee,
-  takerSkewFee,
-  takerImpactFee,
   positionFee,
   makerLimit,
   efficiencyLimit,
@@ -37,24 +34,26 @@ export async function deployProductOnMainnetFork({
   minMargin,
   minMaintenance,
   liquidationFee,
-  minLiquidationFee,
-  maxLiquidationFee,
   staleAfter,
-  skewScale,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
     margin: margin ?? parse6decimal('0.10'),
     maintenance: maintenance ?? parse6decimal('0.10'),
-    takerFee: takerFee ?? parse6decimal('0.0'),
-    takerSkewFee: takerSkewFee ?? parse6decimal('0.0'),
-    takerImpactFee: takerImpactFee ?? parse6decimal('0.0'),
-    makerFee: makerFee ?? parse6decimal('0.0'),
-    makerImpactFee: makerImpactFee ?? parse6decimal('0.0'),
+    takerFee: takerFee ?? {
+      linearFee: parse6decimal('0.0'),
+      proportionalFee: parse6decimal('0.0'),
+      adiabaticFee: parse6decimal('0.0'),
+      scale: parse6decimal('0.0'),
+    },
+    makerFee: makerFee ?? {
+      linearFee: parse6decimal('0.0'),
+      proportionalFee: parse6decimal('0.0'),
+      adiabaticFee: parse6decimal('0.0'),
+      scale: parse6decimal('0.0'),
+    },
     makerLimit: makerLimit ?? parse6decimal('100'),
     efficiencyLimit: efficiencyLimit ?? parse6decimal('0.2'),
-    liquidationFee: liquidationFee ?? parse6decimal('0.50'),
-    minLiquidationFee: minLiquidationFee ?? parse6decimal('0'),
-    maxLiquidationFee: maxLiquidationFee ?? parse6decimal('1000'),
+    liquidationFee: parse6decimal('10.00'),
     utilizationCurve: utilizationCurve ?? {
       minRate: parse6decimal('0.02'),
       maxRate: parse6decimal('0.80'),
@@ -63,11 +62,11 @@ export async function deployProductOnMainnetFork({
     },
     pController: {
       k: parse6decimal('40000'),
+      min: parse6decimal('-1.20'),
       max: parse6decimal('1.20'),
     },
     minMargin: minMargin ?? parse6decimal('100'),
     minMaintenance: minMaintenance ?? parse6decimal('100'),
-    skewScale: skewScale ?? 0,
     staleAfter: staleAfter ?? 7200,
     makerReceiveOnly: false,
   }
@@ -80,9 +79,6 @@ export async function deployProductOnMainnetFork({
     settlementFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    makerRewardRate: 0,
-    longRewardRate: 0,
-    shortRewardRate: 0,
     makerCloseAlways: false,
     takerCloseAlways: false,
     closed: false,
@@ -91,7 +87,6 @@ export async function deployProductOnMainnetFork({
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     token: token.address,
     oracle: oracle ?? constants.AddressZero,
-    payoff: payoff ?? constants.AddressZero,
   }
 
   const protocolParameter = { ...(await factory.parameter()) }
@@ -102,7 +97,7 @@ export async function deployProductOnMainnetFork({
   await factory.connect(owner).create(marketDefinition)
 
   const market = IMarket__factory.connect(productAddress, owner)
-  await market.connect(owner).updateRiskParameter(riskParameter)
+  await market.connect(owner).updateRiskParameter(riskParameter, false)
   await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
 
   return market

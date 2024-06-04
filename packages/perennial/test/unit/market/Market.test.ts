@@ -12,20 +12,33 @@ import {
   IOracleProvider,
   IERC20Metadata,
   IMarketFactory,
+  CheckpointLib__factory,
+  CheckpointStorageLib__factory,
+  GlobalStorageLib__factory,
+  InvariantLib__factory,
   MarketParameterStorageLib__factory,
+  PositionStorageGlobalLib__factory,
+  PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
+  VersionLib__factory,
+  VersionStorageLib__factory,
 } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
   DEFAULT_LOCAL,
+  DEFAULT_ORDER,
+  DEFAULT_CHECKPOINT,
+  DEFAULT_VERSION,
   expectGlobalEq,
   expectLocalEq,
   expectPositionEq,
   expectVersionEq,
   parse6decimal,
+  expectOrderEq,
+  expectCheckpointEq,
 } from '../../../../common/testutil/types'
 import { IMarket, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import { MilliPowerTwo__factory } from '@equilibria/perennial-v2-payoff/types/generated'
+import { setStorageAt } from '@nomicfoundation/hardhat-network-helpers'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -36,42 +49,41 @@ const TIMESTAMP = 1636401093
 const PRICE = parse6decimal('123')
 
 const DEFAULT_VERSION_ACCUMULATION_RESULT = {
+  positionFee: 0,
   positionFeeMaker: 0,
-  positionFeeFee: 0,
+  positionFeeProtocol: 0,
+  positionFeeSubtractive: 0,
+  positionFeeExposure: 0,
+  positionFeeExposureMaker: 0,
+  positionFeeExposureProtocol: 0,
+  positionFeeImpact: 0,
+
   fundingMaker: 0,
   fundingLong: 0,
   fundingShort: 0,
   fundingFee: 0,
+
   interestMaker: 0,
   interestLong: 0,
   interestShort: 0,
   interestFee: 0,
+
   pnlMaker: 0,
   pnlLong: 0,
   pnlShort: 0,
-  rewardMaker: 0,
-  rewardLong: 0,
-  rewardShort: 0,
+
+  settlementFee: 0,
+  liquidationFee: parse6decimal('10.000'), // will return liquidation fee unless invalid
 }
 
 const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
-  collateralAmount: 0,
-  rewardAmount: 0,
-  positionFee: 0,
-  keeper: 0,
-}
-
-const DEFAULT_ORDER = {
-  maker: 0,
-  long: 0,
-  short: 0,
-  net: 0,
-  skew: 0,
-  impact: 0,
-  utilization: 0,
-  efficiency: 0,
-  fee: 0,
-  keeper: 0,
+  collateral: 0,
+  linearFee: 0,
+  proportionalFee: 0,
+  adiabaticFee: 0,
+  subtractiveFee: 0,
+  settlementFee: 0,
+  liquidationFee: 0,
 }
 
 const ORACLE_VERSION_0 = {
@@ -116,8 +128,6 @@ const ORACLE_VERSION_6 = {
   valid: true,
 }
 
-const EXPECTED_REWARD = parse6decimal('0.1').mul(3600)
-
 // rate_0 = 0
 // rate_1 = rate_0 + (elapsed * skew / k)
 // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
@@ -126,6 +136,15 @@ const EXPECTED_FUNDING_1_5_123 = BigNumber.from(3160)
 const EXPECTED_FUNDING_FEE_1_5_123 = BigNumber.from(320) // (3159 + 157) = 3316 / 5 -> 664 * 5 -> 3320
 const EXPECTED_FUNDING_WITH_FEE_1_5_123 = EXPECTED_FUNDING_1_5_123.add(EXPECTED_FUNDING_FEE_1_5_123.div(2))
 const EXPECTED_FUNDING_WITHOUT_FEE_1_5_123 = EXPECTED_FUNDING_1_5_123.sub(EXPECTED_FUNDING_FEE_1_5_123.div(2))
+
+// rate_0 = 0.09
+// rate_1 = rate_0 + (elapsed * skew / k)
+// funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
+// (0.09 + (0.09 + 3600 * 1.00 / 40000)) / 2 * 3600 * 5 * 123 / (86400 * 365) = 9485
+const EXPECTED_FUNDING_2_5_123 = BigNumber.from(9480)
+const EXPECTED_FUNDING_FEE_2_5_123 = BigNumber.from(950) // (9477 + 473) = 9950 / 5 -> 1990 * 5 -> 9950
+const EXPECTED_FUNDING_WITH_FEE_2_5_123 = EXPECTED_FUNDING_2_5_123.add(EXPECTED_FUNDING_FEE_2_5_123.div(2))
+const EXPECTED_FUNDING_WITHOUT_FEE_2_5_123 = EXPECTED_FUNDING_2_5_123.sub(EXPECTED_FUNDING_FEE_2_5_123.div(2))
 
 // rate_0 = 0.09
 // rate_1 = rate_0 + (elapsed * skew / k)
@@ -329,18 +348,30 @@ const EXPECTED_INTEREST_WITHOUT_FEE_10_67_96_ALL = EXPECTED_INTEREST_10_67_96_AL
 
 async function settle(market: Market, account: SignerWithAddress, sender?: SignerWithAddress) {
   const local = await market.locals(account.address)
-  const currentPosition = await market.pendingPositions(account.address, local.currentId)
   return await market
     .connect(sender || account)
-    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      account.address,
+      ethers.constants.MaxUint256,
+      ethers.constants.MaxUint256,
+      ethers.constants.MaxUint256,
+      0,
+      false,
+    )
 }
 
 async function deposit(market: Market, amount: BigNumber, account: SignerWithAddress, sender?: SignerWithAddress) {
   const local = await market.locals(account.address)
-  const currentPosition = await market.pendingPositions(account.address, local.currentId)
   return await market
     .connect(sender || account)
-    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, amount, false)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      account.address,
+      ethers.constants.MaxUint256,
+      ethers.constants.MaxUint256,
+      ethers.constants.MaxUint256,
+      amount,
+      false,
+    )
 }
 
 describe('Market', () => {
@@ -359,7 +390,6 @@ describe('Market', () => {
   let factory: FakeContract<IMarketFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
-  let reward: FakeContract<IERC20Metadata>
 
   let market: Market
   let marketDefinition: IMarket.MarketDefinitionStruct
@@ -382,7 +412,6 @@ describe('Market', () => {
     ] = await ethers.getSigners()
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
-    reward = await smock.fake<IERC20Metadata>('IERC20Metadata')
 
     factory = await smock.fake<IMarketFactory>('IMarketFactory')
     factorySigner = await impersonate.impersonateWithBalance(factory.address, utils.parseEther('10'))
@@ -396,27 +425,32 @@ describe('Market', () => {
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
       minEfficiency: parse6decimal('0.1'),
+      referralFee: 0,
     })
     factory.oracleFactory.returns(oracleFactorySigner.address)
 
     marketDefinition = {
       token: dsu.address,
       oracle: oracle.address,
-      payoff: constants.AddressZero,
     }
     riskParameter = {
       margin: parse6decimal('0.35'),
       maintenance: parse6decimal('0.3'),
-      takerFee: 0,
-      takerSkewFee: 0,
-      takerImpactFee: 0,
-      makerFee: 0,
-      makerImpactFee: 0,
+      takerFee: {
+        linearFee: 0,
+        proportionalFee: 0,
+        adiabaticFee: 0,
+        scale: parse6decimal('5.000'),
+      },
+      makerFee: {
+        linearFee: 0,
+        proportionalFee: 0,
+        adiabaticFee: 0,
+        scale: parse6decimal('10.000'),
+      },
       makerLimit: parse6decimal('1000'),
       efficiencyLimit: parse6decimal('0.2'),
-      liquidationFee: parse6decimal('0.50'),
-      minLiquidationFee: parse6decimal('0'),
-      maxLiquidationFee: parse6decimal('1000'),
+      liquidationFee: parse6decimal('10.00'),
       utilizationCurve: {
         minRate: parse6decimal('0.0'),
         maxRate: parse6decimal('1.00'),
@@ -425,11 +459,11 @@ describe('Market', () => {
       },
       pController: {
         k: parse6decimal('40000'),
+        min: parse6decimal('-1.20'),
         max: parse6decimal('1.20'),
       },
       minMargin: parse6decimal('120'),
       minMaintenance: parse6decimal('100'),
-      skewScale: parse6decimal('5.000'),
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
@@ -442,9 +476,6 @@ describe('Market', () => {
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
       settlementFee: 0,
-      makerRewardRate: parse6decimal('0.0'),
-      longRewardRate: parse6decimal('0.0'),
-      shortRewardRate: parse6decimal('0.0'),
       makerCloseAlways: false,
       takerCloseAlways: false,
       closed: false,
@@ -452,12 +483,26 @@ describe('Market', () => {
     }
     market = await new Market__factory(
       {
+        'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
+        'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
+        'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
+        'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+          await new CheckpointStorageLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
         'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
           await new MarketParameterStorageLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Position.sol:PositionStorageGlobalLib': (
+          await new PositionStorageGlobalLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Position.sol:PositionStorageLocalLib': (
+          await new PositionStorageLocalLib__factory(owner).deploy()
         ).address,
         'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
           await new RiskParameterStorageLib__factory(owner).deploy()
         ).address,
+        'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
       },
       owner,
     ).deploy()
@@ -470,21 +515,21 @@ describe('Market', () => {
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.token()).to.equal(dsu.address)
       expect(await market.oracle()).to.equal(marketDefinition.oracle)
-      expect(await market.payoff()).to.equal(marketDefinition.payoff)
 
       const riskParameterResult = await market.riskParameter()
       expect(riskParameterResult.margin).to.equal(0)
       expect(riskParameterResult.maintenance).to.equal(0)
-      expect(riskParameterResult.takerFee).to.equal(0)
-      expect(riskParameterResult.takerSkewFee).to.equal(0)
-      expect(riskParameterResult.takerImpactFee).to.equal(0)
-      expect(riskParameterResult.makerFee).to.equal(0)
-      expect(riskParameterResult.makerImpactFee).to.equal(0)
+      expect(riskParameterResult.takerFee.linearFee).to.equal(0)
+      expect(riskParameterResult.takerFee.proportionalFee).to.equal(0)
+      expect(riskParameterResult.takerFee.adiabaticFee).to.equal(0)
+      expect(riskParameterResult.takerFee.scale).to.equal(0)
+      expect(riskParameterResult.makerFee.linearFee).to.equal(0)
+      expect(riskParameterResult.makerFee.proportionalFee).to.equal(0)
+      expect(riskParameterResult.makerFee.adiabaticFee).to.equal(0)
+      expect(riskParameterResult.makerFee.scale).to.equal(0)
       expect(riskParameterResult.makerLimit).to.equal(0)
       expect(riskParameterResult.efficiencyLimit).to.equal(0)
       expect(riskParameterResult.liquidationFee).to.equal(0)
-      expect(riskParameterResult.minLiquidationFee).to.equal(0)
-      expect(riskParameterResult.maxLiquidationFee).to.equal(0)
       expect(riskParameterResult.utilizationCurve.minRate).to.equal(0)
       expect(riskParameterResult.utilizationCurve.targetRate).to.equal(0)
       expect(riskParameterResult.utilizationCurve.maxRate).to.equal(0)
@@ -493,7 +538,6 @@ describe('Market', () => {
       expect(riskParameterResult.pController.max).to.equal(0)
       expect(riskParameterResult.minMargin).to.equal(0)
       expect(riskParameterResult.minMaintenance).to.equal(0)
-      expect(riskParameterResult.skewScale).to.equal(0)
       expect(riskParameterResult.staleAfter).to.equal(0)
       expect(riskParameterResult.makerReceiveOnly).to.equal(false)
 
@@ -506,9 +550,6 @@ describe('Market', () => {
       expect(marketParameterResult.maxPendingGlobal).to.equal(0)
       expect(marketParameterResult.maxPendingLocal).to.equal(0)
       expect(marketParameterResult.settlementFee).to.equal(0)
-      expect(marketParameterResult.makerRewardRate).to.equal(0)
-      expect(marketParameterResult.longRewardRate).to.equal(0)
-      expect(marketParameterResult.shortRewardRate).to.equal(0)
       expect(marketParameterResult.closed).to.equal(false)
     })
 
@@ -523,7 +564,37 @@ describe('Market', () => {
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition)
-      await market.connect(owner).updateRiskParameter(riskParameter)
+      await market.connect(owner).updateRiskParameter(riskParameter, false)
+    })
+
+    describe('#updateOracle', async () => {
+      it('updates the oracle', async () => {
+        const oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
+
+        await expect(market.connect(owner).updateOracle(oracle2.address))
+          .to.emit(market, 'OracleUpdated')
+          .withArgs(oracle2.address)
+
+        expect(await market.oracle()).to.equal(oracle2.address)
+      })
+
+      it('reverts if not owner (user)', async () => {
+        const oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
+
+        await expect(market.connect(user).updateOracle(oracle2.address)).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+
+      it('reverts if not owner (coordinator)', async () => {
+        const oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
+
+        await expect(market.connect(coordinator).updateOracle(oracle2.address)).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
     })
 
     describe('#updateParameter', async () => {
@@ -536,9 +607,6 @@ describe('Market', () => {
         maxPendingGlobal: 5,
         maxPendingLocal: 3,
         settlementFee: parse6decimal('0.09'),
-        makerRewardRate: parse6decimal('0.00'),
-        longRewardRate: parse6decimal('0.00'),
-        shortRewardRate: parse6decimal('0.00'),
         makerCloseAlways: true,
         takerCloseAlways: true,
         closed: true,
@@ -565,9 +633,6 @@ describe('Market', () => {
         expect(marketParameter.maxPendingGlobal).to.equal(defaultMarketParameter.maxPendingGlobal)
         expect(marketParameter.maxPendingLocal).to.equal(defaultMarketParameter.maxPendingLocal)
         expect(marketParameter.settlementFee).to.equal(defaultMarketParameter.settlementFee)
-        expect(marketParameter.makerRewardRate).to.equal(0)
-        expect(marketParameter.longRewardRate).to.equal(0)
-        expect(marketParameter.shortRewardRate).to.equal(0)
         expect(marketParameter.closed).to.equal(defaultMarketParameter.closed)
         expect(marketParameter.settle).to.equal(defaultMarketParameter.settle)
       })
@@ -590,16 +655,21 @@ describe('Market', () => {
       const defaultRiskParameter = {
         margin: parse6decimal('0.5'),
         maintenance: parse6decimal('0.4'),
-        takerFee: parse6decimal('0.01'),
-        takerSkewFee: parse6decimal('0.004'),
-        takerImpactFee: parse6decimal('0.003'),
-        makerFee: parse6decimal('0.005'),
-        makerImpactFee: parse6decimal('0.001'),
+        takerFee: {
+          linearFee: parse6decimal('0.01'),
+          proportionalFee: parse6decimal('0.004'),
+          adiabaticFee: parse6decimal('0.003'),
+          scale: parse6decimal('50.00'),
+        },
+        makerFee: {
+          linearFee: parse6decimal('0.005'),
+          proportionalFee: parse6decimal('0.001'),
+          adiabaticFee: 0,
+          scale: parse6decimal('100.00'),
+        },
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
-        liquidationFee: parse6decimal('0.25'),
-        minLiquidationFee: parse6decimal('10'),
-        maxLiquidationFee: parse6decimal('200'),
+        liquidationFee: parse6decimal('5.00'),
         utilizationCurve: {
           minRate: parse6decimal('0.20'),
           maxRate: parse6decimal('0.20'),
@@ -608,17 +678,17 @@ describe('Market', () => {
         },
         pController: {
           k: parse6decimal('40000'),
+          min: parse6decimal('-1.20'),
           max: parse6decimal('1.20'),
         },
         minMargin: parse6decimal('60'),
         minMaintenance: parse6decimal('50'),
-        skewScale: parse6decimal('100000'),
         staleAfter: 9600,
         makerReceiveOnly: true,
       }
 
       it('updates the parameters (owner)', async () => {
-        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter)).to.emit(
+        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter, false)).to.emit(
           market,
           'RiskParameterUpdated',
         )
@@ -626,16 +696,17 @@ describe('Market', () => {
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
-        expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
-        expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
-        expect(riskParameter.takerImpactFee).to.equal(defaultRiskParameter.takerImpactFee)
-        expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
-        expect(riskParameter.makerImpactFee).to.equal(defaultRiskParameter.makerImpactFee)
+        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
+        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
+        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
+        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
+        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
+        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
+        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
+        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
-        expect(riskParameter.minLiquidationFee).to.equal(defaultRiskParameter.minLiquidationFee)
-        expect(riskParameter.maxLiquidationFee).to.equal(defaultRiskParameter.maxLiquidationFee)
         expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
         expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
         expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
@@ -646,14 +717,13 @@ describe('Market', () => {
         expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
         expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
-        expect(riskParameter.skewScale).to.equal(defaultRiskParameter.skewScale)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
 
       it('updates the parameters (coordinator)', async () => {
         await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
-        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter, false)).to.emit(
           market,
           'RiskParameterUpdated',
         )
@@ -661,16 +731,17 @@ describe('Market', () => {
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
-        expect(riskParameter.takerFee).to.equal(defaultRiskParameter.takerFee)
-        expect(riskParameter.takerSkewFee).to.equal(defaultRiskParameter.takerSkewFee)
-        expect(riskParameter.takerImpactFee).to.equal(defaultRiskParameter.takerImpactFee)
-        expect(riskParameter.makerFee).to.equal(defaultRiskParameter.makerFee)
-        expect(riskParameter.makerImpactFee).to.equal(defaultRiskParameter.makerImpactFee)
+        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
+        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
+        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
+        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
+        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
+        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
+        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
+        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
-        expect(riskParameter.minLiquidationFee).to.equal(defaultRiskParameter.minLiquidationFee)
-        expect(riskParameter.maxLiquidationFee).to.equal(defaultRiskParameter.maxLiquidationFee)
         expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
         expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
         expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
@@ -685,46 +756,441 @@ describe('Market', () => {
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
 
-      it('reverts if not owner or coordinator', async () => {
-        await expect(market.connect(user).updateRiskParameter(defaultRiskParameter)).to.be.revertedWithCustomError(
+      it('updates the parameters w/ fee', async () => {
+        // setup market with POSITION skew
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await settle(market, userB)
+
+        // test the risk parameter update
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter, false)).to.emit(
           market,
-          'MarketNotCoordinatorError',
+          'RiskParameterUpdated',
         )
+
+        // before = 0
+        // after = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
+        //         + [(1+1-makerChange/scale)/2 * makerFee.adiabaticFee * makerChange * price]
+        // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 + (1.00 + 0.90) / 2 * 0.000 * -10 * 123 = 0.369
+        expectGlobalEq(await market.global(), {
+          currentId: 2,
+          latestId: 1,
+          protocolFee: 0,
+          oracleFee: 0,
+          riskFee: 0,
+          donation: 0,
+          latestPrice: PRICE,
+          exposure: BigNumber.from(0).sub(parse6decimal('0.369')),
+        })
+
+        const riskParameter = await market.riskParameter()
+        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
+        expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
+        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
+        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
+        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
+        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
+        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
+        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
+        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
+        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
+        expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
+        expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
+        expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
+        expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
+        expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
+        expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
+        expect(riskParameter.utilizationCurve.targetUtilization).to.equal(
+          defaultRiskParameter.utilizationCurve.targetUtilization,
+        )
+        expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
+        expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
+        expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
+        expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
+        expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
+      })
+
+      it('incurs exposure adding adiabatic fee with no maker position', async () => {
+        // setup from #update
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        // setup from maker - userB establishes maker position
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            parse6decimal('10'),
+            0,
+            0,
+            parse6decimal('450'),
+            false,
+          )
+        // user establishes long position
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            user.address,
+            0,
+            parse6decimal('6'),
+            0,
+            COLLATERAL,
+            false,
+          )
+        // userC establishes short position
+        dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userC)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userC.address,
+            0,
+            0,
+            parse6decimal('12'),
+            COLLATERAL,
+            false,
+          )
+
+        // update oracle and settle positions
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
+        oracle.request.returns()
+        await settle(market, user)
+        await settle(market, userB)
+        await settle(market, userC)
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: parse6decimal('10'),
+          long: parse6decimal('6'),
+          short: parse6decimal('12'),
+        })
+
+        // price drops, undercollateralizing the maker position
+        let oracleVersion = {
+          price: parse6decimal('45'),
+          timestamp: TIMESTAMP + 3600 * 2,
+          valid: true,
+        }
+        oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
+        oracle.status.returns([oracleVersion, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
+        oracle.request.returns()
+        await settle(market, user)
+
+        // userB gets liquidated, eliminating the maker position
+        const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
+        dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+        dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+        await expect(
+          market
+            .connect(liquidator)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+        )
+          .to.emit(market, 'Updated')
+          .withArgs(
+            liquidator.address,
+            userB.address,
+            ORACLE_VERSION_4.timestamp, // TIMESTAMP + 10800
+            0,
+            0,
+            0,
+            0,
+            true,
+            constants.AddressZero,
+          )
+        oracleVersion = {
+          ...oracleVersion,
+          timestamp: TIMESTAMP + 3600 * 3,
+        }
+        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(oracleVersion)
+        oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
+        oracle.request.returns()
+        await settle(market, userB)
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_4.timestamp,
+          maker: parse6decimal('0'),
+          long: parse6decimal('6'),
+          short: parse6decimal('12'),
+        })
+
+        // takerFee.scale=5, makerFee.scale=10, skew=-6, scaledSkew=-6/5 bounded by (-1,1)=-1
+        // takerSoc = min(max(long,short), min(long,short)+maker) = 12
+        // rate_0 = 0
+        // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -1 / 40000 = -0.09
+        // funding = (rate_0 + rate_1) / 2 * elapsed * takerSoc * price / time_in_years
+        // (0 + -0.09)/2 * 3600 * 12 * 123 / (86400 * 365)
+        const EXPECTED_FUNDING_1 = BigNumber.from(-7582) // −0.007582
+        const EXPECTED_FUNDING_FEE_1 = BigNumber.from(758) // |funding| * fundingFee
+        // net         = max(long,short) / (maker+min(long,short)) = 12/(10+6) = 0.75
+        // efficiency  = max(long,short) * efficiencyLimit / maker = 12*0.2/10 = 0.24
+        // utilization = max(net, efficiency) with ceiling of 1    = 0.75
+        // rate * elapsed * min(maker, taker) * price
+        // (0.55 / 365/24/60/60) * 3600 * 10 * 123 = 0.077226
+        const EXPECTED_INTEREST_1 = BigNumber.from(77226)
+        const EXPECTED_INTEREST_FEE_1 = EXPECTED_INTEREST_1.div(10) // 7722
+
+        // rate_2 = rate_1 + (elapsed * scaledSkew / k) = -0.09 + 3600 * -1 / 40000 = -0.18
+        // (-0.09 + -0.18)/2 * 3600 * 12 * 45 / (86400 * 365)
+        const EXPECTED_FUNDING_2 = BigNumber.from(-8321) // −0.008321
+        const EXPECTED_FUNDING_FEE_2 = BigNumber.from(832) // |funding| * fundingFee
+        // (0.55 / 365/24/60/60) * 3600 * 10 * 45 = 0.028253
+        const EXPECTED_INTEREST_2 = BigNumber.from(28253)
+        const EXPECTED_INTEREST_FEE_2 = EXPECTED_INTEREST_2.div(10) // 2825
+        let totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_1)
+          .add(EXPECTED_FUNDING_FEE_2)
+          .add(EXPECTED_INTEREST_FEE_2)
+
+        expectGlobalEq(await market.global(), {
+          currentId: 4,
+          latestId: 3,
+          protocolFee: totalFee.div(2),
+          oracleFee: totalFee.div(2).div(10),
+          riskFee: totalFee.div(2).div(10),
+          donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+          latestPrice: parse6decimal('45'),
+          exposure: 0,
+        })
+
+        // update risk parameters, introducing exposure
+        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter, false)).to.emit(
+          market,
+          'RiskParameterUpdated',
+        )
+
+        // maker exposure is 0, so
+        // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1] + makerExposure
+        //                = [(-6/50+0)/2 * 0.003 * -6] + 0 = 0.00108
+        // impactExposure = latestExposure * priceChange = 0.00108 * (45-0) = 0.0486
+        const EXPOSURE_BEFORE_2 = BigNumber.from(0)
+        const EXPOSURE_AFTER_2 = BigNumber.from(0).sub(parse6decimal('0.0486'))
+        expectGlobalEq(await market.global(), {
+          currentId: 4,
+          latestId: 3,
+          protocolFee: totalFee.div(2),
+          oracleFee: totalFee.div(2).div(10),
+          riskFee: totalFee.div(2).div(10),
+          donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+          latestPrice: parse6decimal('45'),
+          exposure: EXPOSURE_BEFORE_2.add(EXPOSURE_AFTER_2),
+        })
+
+        // settle after another oracle price update to ensure exposure changes as expected
+        oracleVersion = {
+          ...oracleVersion,
+          price: parse6decimal('62'),
+          timestamp: TIMESTAMP + 3600 * 4,
+        }
+        oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(oracleVersion)
+        oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
+        oracle.request.returns()
+        await settle(market, user)
+
+        // rate_3 = rate_2 + (elapsed * scaledSkew / k) = -0.18 + 3600 * -1 / 40000 = −0.27
+        // (-0.18 + -0.27)/2 * 3600 * 6 * 45 / (86400 * 365) = −0.006934
+        const EXPECTED_FUNDING_3 = BigNumber.from(-6934)
+        const EXPECTED_FUNDING_FEE_3 = BigNumber.from(693) // |funding| * fundingFee
+        // no EXPECTED_INTEREST_FEE_3 because no position change
+        totalFee = totalFee.add(EXPECTED_FUNDING_FEE_3)
+
+        // impactExposure = latestExposure * priceChange = 0.00108 * (62-45) =
+        const EXPOSURE_BEFORE_3 = EXPOSURE_AFTER_2
+        const EXPOSURE_AFTER_3 = BigNumber.from(0).sub(parse6decimal('0.01836'))
+        expectGlobalEq(await market.global(), {
+          currentId: 5,
+          latestId: 4,
+          protocolFee: totalFee.div(2).sub(1), // loss of precision
+          oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+          riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+          donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
+          latestPrice: parse6decimal('62'),
+          exposure: EXPOSURE_BEFORE_3.add(EXPOSURE_AFTER_3),
+        })
+      })
+
+      it('reverts if not owner or coordinator', async () => {
+        await expect(
+          market.connect(user).updateRiskParameter(defaultRiskParameter, false),
+        ).to.be.revertedWithCustomError(market, 'MarketNotCoordinatorError')
+      })
+
+      it('updates with isMigration=true and empty latest risk parameter', async () => {
+        // setup market with POSITION skew
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await settle(market, userB)
+
+        // Manually set risk parameter to 0
+        await setStorageAt(market.address, 6, 0)
+        await setStorageAt(market.address, 7, 0)
+        await setStorageAt(market.address, 8, 0)
+
+        // test the migration risk parameter update
+        await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, await market.parameter())
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter, true)).to.emit(
+          market,
+          'RiskParameterUpdated',
+        )
+
+        // Despite the market
+        expectGlobalEq(await market.global(), {
+          currentId: 2,
+          latestId: 1,
+          protocolFee: 0,
+          oracleFee: 0,
+          riskFee: 0,
+          donation: 0,
+          latestPrice: PRICE,
+          exposure: BigNumber.from(0).sub(parse6decimal('0.369')),
+        })
+
+        const riskParameter = await market.riskParameter()
+        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
+        expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
+        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
+        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
+        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
+        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
+        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
+        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
+        expect(riskParameter.makerFee.adiabaticFee).to.equal(defaultRiskParameter.makerFee.adiabaticFee)
+        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
+        expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
+        expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
+        expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
+        expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
+        expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
+        expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
+        expect(riskParameter.utilizationCurve.targetUtilization).to.equal(
+          defaultRiskParameter.utilizationCurve.targetUtilization,
+        )
+        expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
+        expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
+        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
+        expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
+        expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
+        expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
       })
     })
 
     describe('#settle', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
         oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
+
         dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
       })
+
       it('opens the position and settles', async () => {
-        await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        )
           .to.emit(market, 'PositionProcessed')
-          .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
-          .to.emit(market, 'AccountPositionProcessed')
-          .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
-          .to.emit(market, 'Updated')
-          .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-        await expect(await market.settle(user.address))
-          .to.emit(market, 'PositionProcessed')
-          .withArgs(ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, 1, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
           .to.emit(market, 'AccountPositionProcessed')
           .withArgs(
             user.address,
-            ORACLE_VERSION_1.timestamp,
-            ORACLE_VERSION_2.timestamp,
             0,
-            1,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
             DEFAULT_LOCAL_ACCUMULATION_RESULT,
           )
+          .to.emit(market, 'Updated')
+          .withArgs(
+            user.address,
+            user.address,
+            ORACLE_VERSION_2.timestamp,
+            POSITION,
+            0,
+            0,
+            COLLATERAL,
+            false,
+            constants.AddressZero,
+          )
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await expect(await market.settle(user.address))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(
+            1,
+            {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_VERSION_ACCUMULATION_RESULT,
+          )
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            1,
+            {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+
         expectLocalEq(await market.locals(user.address), {
           ...DEFAULT_LOCAL,
           currentId: 1,
@@ -736,11 +1202,18 @@ describe('Market', () => {
           timestamp: ORACLE_VERSION_2.timestamp,
           maker: POSITION,
         })
-        expectPositionEq(await market.pendingPositions(user.address, 1), {
-          ...DEFAULT_POSITION,
+        expectOrderEq(await market.pendingOrders(user.address, 1), {
+          ...DEFAULT_ORDER,
           timestamp: ORACLE_VERSION_2.timestamp,
-          maker: POSITION,
-          delta: COLLATERAL,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
         })
         expectGlobalEq(await market.global(), {
           currentId: 1,
@@ -749,35 +1222,57 @@ describe('Market', () => {
           oracleFee: 0,
           riskFee: 0,
           donation: 0,
+          latestPrice: PRICE,
+          exposure: 0,
         })
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
           timestamp: ORACLE_VERSION_2.timestamp,
           maker: POSITION,
         })
-        expectPositionEq(await market.pendingPosition(1), {
-          ...DEFAULT_POSITION,
+        expectOrderEq(await market.pendingOrder(1), {
+          ...DEFAULT_ORDER,
           timestamp: ORACLE_VERSION_2.timestamp,
-          maker: POSITION,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
         })
         expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-          makerValue: { _value: 0 },
-          longValue: { _value: 0 },
-          shortValue: { _value: 0 },
-          makerReward: { _value: 0 },
-          longReward: { _value: 0 },
-          shortReward: { _value: 0 },
+          ...DEFAULT_VERSION,
+          liquidationFee: { _value: -riskParameter.liquidationFee },
         })
       })
 
       it('settles when market is in settle-only mode', async () => {
-        await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        )
           .to.emit(market, 'PositionProcessed')
-          .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
           .to.emit(market, 'AccountPositionProcessed')
-          .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+          .withArgs(
+            user.address,
+            0,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
           .to.emit(market, 'Updated')
-          .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+          .withArgs(
+            user.address,
+            user.address,
+            ORACLE_VERSION_2.timestamp,
+            POSITION,
+            0,
+            0,
+            COLLATERAL,
+            false,
+            constants.AddressZero,
+          )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -789,14 +1284,28 @@ describe('Market', () => {
 
         await expect(await market.settle(user.address))
           .to.emit(market, 'PositionProcessed')
-          .withArgs(ORACLE_VERSION_1.timestamp, ORACLE_VERSION_2.timestamp, 0, 1, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .withArgs(
+            1,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_VERSION_ACCUMULATION_RESULT,
+          )
           .to.emit(market, 'AccountPositionProcessed')
           .withArgs(
             user.address,
-            ORACLE_VERSION_1.timestamp,
-            ORACLE_VERSION_2.timestamp,
-            0,
             1,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
             DEFAULT_LOCAL_ACCUMULATION_RESULT,
           )
 
@@ -811,11 +1320,18 @@ describe('Market', () => {
           timestamp: ORACLE_VERSION_2.timestamp,
           maker: POSITION,
         })
-        expectPositionEq(await market.pendingPositions(user.address, 1), {
-          ...DEFAULT_POSITION,
+        expectOrderEq(await market.pendingOrders(user.address, 1), {
+          ...DEFAULT_ORDER,
           timestamp: ORACLE_VERSION_2.timestamp,
-          maker: POSITION,
-          delta: COLLATERAL,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
         })
         expectGlobalEq(await market.global(), {
           currentId: 1,
@@ -824,24 +1340,27 @@ describe('Market', () => {
           oracleFee: 0,
           riskFee: 0,
           donation: 0,
+          latestPrice: PRICE,
+          exposure: 0,
         })
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
           timestamp: ORACLE_VERSION_2.timestamp,
           maker: POSITION,
         })
-        expectPositionEq(await market.pendingPosition(1), {
-          ...DEFAULT_POSITION,
+        expectOrderEq(await market.pendingOrder(1), {
+          ...DEFAULT_ORDER,
           timestamp: ORACLE_VERSION_2.timestamp,
-          maker: POSITION,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
         })
         expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-          makerValue: { _value: 0 },
-          longValue: { _value: 0 },
-          shortValue: { _value: 0 },
-          makerReward: { _value: 0 },
-          longReward: { _value: 0 },
-          shortReward: { _value: 0 },
+          ...DEFAULT_VERSION,
+          liquidationFee: { _value: -riskParameter.liquidationFee },
         })
       })
     })
@@ -860,11 +1379,25 @@ describe('Market', () => {
       context('no position', async () => {
         it('deposits and withdraws (immediately)', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, ORACLE_VERSION_2.timestamp, DEFAULT_ORDER, COLLATERAL)
+            .withArgs(user.address, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL })
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -875,10 +1408,13 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
+            collateral: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -887,30 +1423,47 @@ describe('Market', () => {
             oracleFee: 0,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            collateral: COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
 
           dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
-          await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL.mul(-1), false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL.mul(-1),
+              false,
+              constants.AddressZero,
+            )
             .to.emit(market, 'OrderCreated')
-            .withArgs(user.address, ORACLE_VERSION_2.timestamp, DEFAULT_ORDER, COLLATERAL.mul(-1))
+            .withArgs(user.address, {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: -COLLATERAL,
+            })
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -920,8 +1473,8 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectGlobalEq(await market.global(), {
@@ -931,30 +1484,42 @@ describe('Market', () => {
             oracleFee: 0,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
         it('deposits and withdraws (next)', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -965,10 +1530,13 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
+            collateral: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -977,22 +1545,21 @@ describe('Market', () => {
             oracleFee: 0,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            collateral: COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -1002,9 +1569,23 @@ describe('Market', () => {
           await settle(market, user)
 
           dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
-          await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL.mul(-1), false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL.mul(-1),
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1015,9 +1596,10 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
+            collateral: -COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 2,
@@ -1026,30 +1608,43 @@ describe('Market', () => {
             oracleFee: 0,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
+            collateral: -COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
         it('deposits and withdraws (next - stale)', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1060,10 +1655,13 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
+            collateral: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -1072,22 +1670,21 @@ describe('Market', () => {
             oracleFee: 0,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            collateral: COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -1097,9 +1694,23 @@ describe('Market', () => {
           await settle(market, user)
 
           dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
-          await expect(market.connect(user).update(user.address, 0, 0, 0, COLLATERAL.mul(-1), false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_6.timestamp, 0, 0, 0, COLLATERAL.mul(-1), false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_6.timestamp,
+              0,
+              0,
+              0,
+              COLLATERAL.mul(-1),
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1110,9 +1721,10 @@ describe('Market', () => {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
+            collateral: -COLLATERAL,
           })
           expectGlobalEq(await market.global(), {
             currentId: 2,
@@ -1121,22 +1733,21 @@ describe('Market', () => {
             oracleFee: 0,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
+            collateral: -COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
       })
@@ -1148,21 +1759,38 @@ describe('Market', () => {
           })
 
           it('opens the position', async () => {
-            await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                ),
+            )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
-              .to.emit(market, 'OrderCreated')
               .withArgs(
                 user.address,
+                user.address,
                 ORACLE_VERSION_2.timestamp,
-                {
-                  ...DEFAULT_ORDER,
-                  maker: POSITION,
-                  skew: parse6decimal('2'),
-                  utilization: parse6decimal('-1'),
-                },
+                POSITION,
+                0,
+                0,
                 COLLATERAL,
+                false,
+                constants.AddressZero,
               )
+              .to.emit(market, 'OrderCreated')
+              .withArgs(user.address, {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                collateral: COLLATERAL,
+                makerPos: POSITION,
+              })
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -1173,11 +1801,15 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
@@ -1186,34 +1818,64 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
           it('opens the position and settles', async () => {
-            await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                ),
+            )
               .to.emit(market, 'PositionProcessed')
-              .withArgs(0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_VERSION_ACCUMULATION_RESULT)
+              .withArgs(
+                0,
+                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+                DEFAULT_VERSION_ACCUMULATION_RESULT,
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, 0, ORACLE_VERSION_1.timestamp, 0, 0, DEFAULT_LOCAL_ACCUMULATION_RESULT)
+              .withArgs(
+                user.address,
+                0,
+                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+                DEFAULT_LOCAL_ACCUMULATION_RESULT,
+              )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1222,19 +1884,27 @@ describe('Market', () => {
             await expect(await settle(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
-                ORACLE_VERSION_1.timestamp,
-                ORACLE_VERSION_2.timestamp,
-                0,
                 1,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  collateral: COLLATERAL,
+                  makerPos: POSITION,
+                },
                 DEFAULT_VERSION_ACCUMULATION_RESULT,
               )
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(
                 user.address,
-                ORACLE_VERSION_1.timestamp,
-                ORACLE_VERSION_2.timestamp,
-                0,
                 1,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  collateral: COLLATERAL,
+                  makerPos: POSITION,
+                },
                 DEFAULT_LOCAL_ACCUMULATION_RESULT,
               )
 
@@ -1249,11 +1919,12 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1262,33 +1933,46 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
           it('opens a second position (same version)', async () => {
-            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
-            await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
+            )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION.mul(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION.mul(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -1299,11 +1983,15 @@ describe('Market', () => {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.mul(2),
-              delta: COLLATERAL,
+              orders: 2,
+              collateral: COLLATERAL,
+              makerPos: POSITION.mul(2),
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 1,
@@ -1312,32 +2000,44 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_1.timestamp,
             })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(1), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.mul(2),
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              orders: 2,
+              collateral: COLLATERAL,
+              makerPos: POSITION.mul(2),
             })
           })
 
           it('opens a second position and settles (same version)', async () => {
-            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
-            await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
+            )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION.mul(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION.mul(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1356,11 +2056,12 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION.mul(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.mul(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1369,37 +2070,50 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION.mul(2),
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.mul(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
           it('opens a second position (next version)', async () => {
-            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
+            )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, POSITION.mul(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_3.timestamp,
+                POSITION.mul(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -1412,11 +2126,14 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.mul(2),
-              delta: COLLATERAL,
+              orders: 1,
+              makerPos: POSITION,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1425,37 +2142,52 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.mul(2),
+              orders: 1,
+              makerPos: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
           it('opens a second position and settles (next version)', async () => {
-            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(market.connect(user).update(user.address, POSITION.mul(2), 0, 0, 0, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
+            )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, POSITION.mul(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_3.timestamp,
+                POSITION.mul(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -1468,18 +2200,18 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION.mul(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.mul(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -1488,6 +2220,8 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -1495,27 +2229,42 @@ describe('Market', () => {
               maker: POSITION.mul(2),
               long: 0,
               short: 0,
-              fee: 0,
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.mul(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
           it('opens the position and settles later', async () => {
-            await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                ),
+            )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -1529,18 +2278,18 @@ describe('Market', () => {
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -1549,43 +2298,64 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
           it('opens the position and settles later with fee', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.makerFee = parse6decimal('0.005')
-            riskParameter.makerImpactFee = parse6decimal('0.0025')
-            await market.updateRiskParameter(riskParameter)
+            const riskParameterMakerFee = { ...riskParameter.makerFee }
+            riskParameterMakerFee.linearFee = parse6decimal('0.005')
+            riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
+            riskParameter.makerFee = riskParameterMakerFee
+            await market.updateRiskParameter(riskParameter, false)
 
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.settlementFee = parse6decimal('0.50')
             await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-            const MAKER_FEE = parse6decimal('3.075') // position * (0.005 - 0.0025) * price
+            const MAKER_FEE = parse6decimal('9.225') // position * (0.01 * -(1.00 + 0.00) / 2 + 0.005 + 0.0025) * price
+            const MAKER_FEE_WITHOUT_IMPACT = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
             const SETTLEMENT_FEE = parse6decimal('0.50')
 
-            await expect(market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                ),
+            )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_2.timestamp,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -1599,44 +2369,41 @@ describe('Market', () => {
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL.sub(MAKER_FEE).sub(SETTLEMENT_FEE),
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
               latestId: 1,
-              protocolFee: MAKER_FEE.div(2),
-              oracleFee: MAKER_FEE.div(2).div(10).add(SETTLEMENT_FEE),
-              riskFee: MAKER_FEE.div(2).div(10),
-              donation: MAKER_FEE.div(2).mul(8).div(10),
+              protocolFee: MAKER_FEE_WITHOUT_IMPACT.div(2),
+              oracleFee: MAKER_FEE_WITHOUT_IMPACT.div(2).div(10).add(SETTLEMENT_FEE),
+              riskFee: MAKER_FEE_WITHOUT_IMPACT.div(2).div(10),
+              donation: MAKER_FEE_WITHOUT_IMPACT.div(2).mul(8).div(10),
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
         })
@@ -1644,124 +2411,9 @@ describe('Market', () => {
         context('close', async () => {
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
-          })
-
-          it('closes the position', async () => {
-            await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
-              .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
-              .to.emit(market, 'OrderCreated')
-              .withArgs(
-                user.address,
-                ORACLE_VERSION_2.timestamp,
-                {
-                  ...DEFAULT_ORDER,
-                  maker: POSITION.mul(-1),
-                  skew: parse6decimal('2'),
-                  utilization: parse6decimal('1'),
-                },
-                0,
-              )
-
-            expectLocalEq(await market.locals(user.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 1,
-              collateral: COLLATERAL,
-            })
-            expectPositionEq(await market.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_1.timestamp,
-            })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              delta: COLLATERAL,
-            })
-            expectGlobalEq(await market.global(), {
-              currentId: 1,
-              latestId: 0,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-            })
-            expectPositionEq(await market.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_1.timestamp,
-            })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_2.timestamp,
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
-            })
-          })
-
-          it('closes the position partially', async () => {
-            await expect(market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false))
-              .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, POSITION.div(2), 0, 0, 0, false)
-              .to.emit(market, 'OrderCreated')
-              .withArgs(
-                user.address,
-                ORACLE_VERSION_2.timestamp,
-                {
-                  ...DEFAULT_ORDER,
-                  skew: parse6decimal('1'),
-                  maker: POSITION.div(2).mul(-1),
-                },
-                0,
-              )
-
-            expectLocalEq(await market.locals(user.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 1,
-              latestId: 0,
-              collateral: COLLATERAL,
-              reward: 0,
-            })
-            expectPositionEq(await market.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_1.timestamp,
-            })
-            expectPositionEq(await market.pendingPositions(user.address, 1), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.div(2),
-              delta: COLLATERAL,
-            })
-            expectGlobalEq(await market.global(), {
-              currentId: 1,
-              latestId: 0,
-              protocolFee: 0,
-              oracleFee: 0,
-              riskFee: 0,
-              donation: 0,
-            })
-            expectPositionEq(await market.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_1.timestamp,
-            })
-            expectPositionEq(await market.pendingPosition(1), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              maker: POSITION.div(2),
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
-            })
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
           })
 
           context('settles first', async () => {
@@ -1774,9 +2426,23 @@ describe('Market', () => {
             })
 
             it('closes the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -1789,10 +2455,14 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                delta: COLLATERAL,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1801,30 +2471,44 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('closes the position and settles', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -1837,16 +2521,17 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -1855,31 +2540,45 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('closes a second position (same version)', async () => {
-              await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
 
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -1892,10 +2591,14 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                delta: COLLATERAL,
+                orders: 2,
+                makerNeg: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -1904,32 +2607,48 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
+                orders: 2,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('closes a second position and settles (same version)', async () => {
-              await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
 
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -1942,16 +2661,17 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -1960,52 +2680,69 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('closes a second position (next version)', async () => {
-              await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: COLLATERAL,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -2014,36 +2751,52 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                makerNeg: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('closes a second position and settles (next version)', async () => {
-              await market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -2056,16 +2809,17 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 4,
@@ -2074,29 +2828,41 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('closes the position and settles later', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -2111,16 +2877,17 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 3,
@@ -2129,43 +2896,58 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('closes the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.makerFee = parse6decimal('0.005')
-              riskParameter.makerImpactFee = parse6decimal('0.0025')
-              await market.updateRiskParameter(riskParameter)
+              const riskParameterMakerFee = { ...riskParameter.makerFee }
+              riskParameterMakerFee.linearFee = parse6decimal('0.005')
+              riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
+              riskParameter.makerFee = riskParameterMakerFee
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              const MAKER_FEE = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
-              const MAKER_FEE_FEE = MAKER_FEE.div(10)
-              const MAKER_FEE_WITHOUT_FEE = MAKER_FEE.sub(MAKER_FEE_FEE)
+              const MAKER_FEE = parse6decimal('9.225') // position * (0.00 * (1.00 + 0.00) / 2 + 0.005 + 0.0025) * price
+              const MAKER_FEE_WITHOUT_IMPACT = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
+              const MAKER_FEE_FEE = MAKER_FEE_WITHOUT_IMPACT.div(10)
+              const MAKER_FEE_WITHOUT_FEE = MAKER_FEE_WITHOUT_IMPACT.sub(MAKER_FEE_FEE)
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -2180,17 +2962,25 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL.sub(MAKER_FEE).add(MAKER_FEE_WITHOUT_FEE).sub(SETTLEMENT_FEE),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: COLLATERAL,
               })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+
+              // no taker position when risk parameters updated, so
+              // updateFee = 0 + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerPos * priceChange]
+              //           = 0 + 0.5 * 0.00 * -10 * (123-0) = 0
+              const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('0'))
+              const EXPOSURE_AFTER = BigNumber.from(0)
+
               expectGlobalEq(await market.global(), {
                 currentId: 3,
                 latestId: 2,
@@ -2198,22 +2988,21 @@ describe('Market', () => {
                 oracleFee: MAKER_FEE_FEE.div(2).div(10).add(SETTLEMENT_FEE),
                 riskFee: MAKER_FEE_FEE.div(2).div(10),
                 donation: MAKER_FEE_FEE.div(2).mul(8).div(10),
+                latestPrice: PRICE,
+                exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: { _value: MAKER_FEE_WITHOUT_FEE.div(10) },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
           })
@@ -2229,26 +3018,203 @@ describe('Market', () => {
           context('open', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
             })
 
             it('opens the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION,
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
-                .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
+                  user.address,
                   ORACLE_VERSION_2.timestamp,
-                  {
-                    ...DEFAULT_ORDER,
-                    long: POSITION,
-                    net: parse6decimal('10'),
-                    skew: parse6decimal('2'),
-                    impact: parse6decimal('1'),
-                    utilization: parse6decimal('1'),
-                  },
+                  0,
+                  POSITION,
+                  0,
                   COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
+                .to.emit(market, 'OrderCreated')
+                .withArgs(user.address, {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  collateral: COLLATERAL,
+                  orders: 1,
+                  longPos: POSITION,
+                })
+
+              expectLocalEq(await market.locals(user.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 1,
+                collateral: COLLATERAL,
+              })
+              expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_1.timestamp,
+              })
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                collateral: COLLATERAL,
+                longPos: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              expectGlobalEq(await market.global(), {
+                currentId: 1,
+                latestId: 0,
+                protocolFee: 0,
+                oracleFee: 0,
+                riskFee: 0,
+                donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
+              })
+              expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_1.timestamp,
+              })
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                collateral: COLLATERAL.mul(2),
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION,
+              })
+              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
+              })
+            })
+
+            it('opens the position and settles', async () => {
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION,
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
+                .to.emit(market, 'Updated')
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.whenCalledWith(user.address).returns()
+
+              await settle(market, user)
+
+              expectLocalEq(await market.locals(user.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 2,
+                latestId: 1,
+                collateral: COLLATERAL,
+              })
+              expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                long: POSITION,
+              })
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_3.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              expectGlobalEq(await market.global(), {
+                currentId: 2,
+                latestId: 1,
+                protocolFee: 0,
+                oracleFee: 0,
+                riskFee: 0,
+                donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
+              })
+              expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                maker: POSITION,
+                long: POSITION,
+              })
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_3.timestamp,
+              })
+              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
+              })
+            })
+
+            it('opens a second position (same version)', async () => {
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
+
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              )
+                .to.emit(market, 'Updated')
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -2260,11 +3226,15 @@ describe('Market', () => {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+                orders: 2,
+                collateral: COLLATERAL,
+                longPos: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -2273,142 +3243,52 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('opens the position and settles', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
-
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-              oracle.request.whenCalledWith(user.address).returns()
-
-              await settle(market, user)
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 2,
-                latestId: 1,
-                collateral: COLLATERAL,
-                reward: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 2,
-                latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
-              })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('opens a second position (same version)', async () => {
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 1,
-                collateral: COLLATERAL,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                orders: 3,
+                collateral: COLLATERAL.mul(2),
+                makerPos: POSITION,
+                longPos: POSITION,
               })
             })
 
             it('opens a second position and settles (same version)', async () => {
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -2427,11 +3307,12 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -2440,6 +3321,8 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2447,32 +3330,49 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens a second position (next version)', async () => {
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2485,11 +3385,14 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+                orders: 1,
+                longPos: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -2498,6 +3401,8 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2505,32 +3410,51 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
+                orders: 1,
+                longPos: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens a second position and settles (next version)', async () => {
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -2544,18 +3468,18 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -2564,18 +3488,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -2585,6 +3509,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2592,26 +3518,33 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles later', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -2622,6 +3555,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -2638,18 +3572,18 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -2658,18 +3592,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -2679,6 +3613,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2686,39 +3622,49 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.008')
-              await market.updateRiskParameter(riskParameter)
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+              riskParameter.takerFee = riskParameterTakerFee
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
+              const TAKER_FEE_WITHOUT_IMPACT = parse6decimal('7.38') // position * (0.01 + 0.002) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -2729,6 +3675,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -2747,19 +3694,19 @@ describe('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
-                  .sub(SETTLEMENT_FEE),
-                reward: 0,
+                  .sub(SETTLEMENT_FEE.div(2)),
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -2767,21 +3714,23 @@ describe('Market', () => {
                 latestId: 1,
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                  .sub(SETTLEMENT_FEE.div(2))
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
               })
-              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              const totalFee =
+                EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_WITHOUT_IMPACT)
               expectGlobalEq(await market.global(), {
                 currentId: 2,
                 latestId: 1,
@@ -2789,6 +3738,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2796,21 +3747,17 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
@@ -2822,21 +3769,35 @@ describe('Market', () => {
               await settle(market, user)
 
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.008')
-              await market.updateRiskParameter(riskParameter)
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+              riskParameter.takerFee = riskParameterTakerFee
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
-              const TAKER_FEE_FEE = TAKER_FEE.div(10)
-              const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+              const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
+              const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
+              const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -2847,6 +3808,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -2866,7 +3828,6 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
                   .sub(SETTLEMENT_FEE),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
@@ -2874,35 +3835,35 @@ describe('Market', () => {
                 maker: 0,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: 0,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 2,
                 latestId: 1,
-                collateral: COLLATERAL.add(TAKER_FEE_WITHOUT_FEE)
+                collateral: COLLATERAL.add(TAKER_FEE_ONLY_WITHOUT_FEE)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
               })
-              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
               expectGlobalEq(await market.global(), {
                 currentId: 3,
                 latestId: 2,
@@ -2910,6 +3871,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -2917,23 +3880,19 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
-                  _value: TAKER_FEE_WITHOUT_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                  _value: TAKER_FEE_ONLY_WITHOUT_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .div(10),
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
           })
@@ -2941,134 +3900,26 @@ describe('Market', () => {
           context('close', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-            })
-
-            it('closes the position partially', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(4), 0, 0, false)
-                .to.emit(market, 'OrderCreated')
-                .withArgs(
-                  user.address,
-                  ORACLE_VERSION_2.timestamp,
-                  {
-                    ...DEFAULT_ORDER,
-                    long: POSITION.div(4).mul(-1),
-                    net: parse6decimal('-2.5'),
-                    skew: parse6decimal('.5'),
-                    impact: parse6decimal('-.75'),
-                    utilization: parse6decimal('-.25'),
-                  },
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
                   0,
-                )
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION.div(4),
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION.div(4),
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('closes the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
-                .to.emit(market, 'OrderCreated')
-                .withArgs(
-                  user.address,
-                  ORACLE_VERSION_2.timestamp,
-                  {
-                    ...DEFAULT_ORDER,
-                    long: POSITION.div(2).mul(-1),
-                    net: parse6decimal('-5'),
-                    skew: parse6decimal('1'),
-                    impact: parse6decimal('-.5'),
-                    utilization: parse6decimal('-.5'),
-                  },
                   0,
+                  COLLATERAL,
+                  false,
                 )
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
             })
 
             context('settles first', async () => {
@@ -3081,26 +3932,43 @@ describe('Market', () => {
               })
 
               it('closes the position', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
                   currentId: 2,
                   latestId: 1,
                   collateral: COLLATERAL,
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  delta: COLLATERAL,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -3109,6 +3977,8 @@ describe('Market', () => {
                   oracleFee: 0,
                   riskFee: 0,
                   donation: 0,
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -3116,25 +3986,36 @@ describe('Market', () => {
                   maker: POSITION,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  ...DEFAULT_VERSION,
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -3148,16 +4029,17 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3166,18 +4048,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -3187,54 +4069,72 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position (same version)', async () => {
-                await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
                   currentId: 2,
                   latestId: 1,
                   collateral: COLLATERAL,
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  delta: COLLATERAL,
+                  orders: 2,
+                  longNeg: POSITION.div(2),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -3243,34 +4143,49 @@ describe('Market', () => {
                   oracleFee: 0,
                   riskFee: 0,
                   donation: 0,
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_2.timestamp,
-                  maker: POSITION,
                   long: POSITION.div(2),
-                })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
-                  timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
+                })
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 2,
+                  longNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  ...DEFAULT_VERSION,
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position and settles (same version)', async () => {
-                await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -3284,16 +4199,17 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3302,18 +4218,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -3323,41 +4239,56 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position (next version)', async () => {
-                await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 await settle(market, user)
                 await settle(market, userB)
@@ -3367,17 +4298,20 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   long: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3386,18 +4320,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -3407,6 +4341,8 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -3414,36 +4350,56 @@ describe('Market', () => {
                   maker: POSITION,
                   long: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position and settles (next version)', async () => {
-                await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION.div(4) })
-                await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
+                const riskParameter = { ...(await market.riskParameter()) }
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.scale = POSITION.div(4)
+                riskParameter.takerFee = riskParameterTakerFee
+                await market.updateRiskParameter(riskParameter, false)
+
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -3460,16 +4416,17 @@ describe('Market', () => {
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_25_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_INTEREST_25_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3480,18 +4437,18 @@ describe('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_25_123)
                     .sub(13), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_FUNDING_FEE_2_25_123)
                   .add(EXPECTED_INTEREST_FEE_5_123)
@@ -3503,30 +4460,30 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_2_25_123)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -3540,17 +4497,28 @@ describe('Market', () => {
                       .add(EXPECTED_FUNDING_WITH_FEE_2_25_123.add(EXPECTED_INTEREST_25_123).mul(2).div(5))
                       .mul(-1),
                   },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles later', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -3566,16 +4534,17 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3584,18 +4553,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -3605,50 +4574,66 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
-                riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerSkewFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee = parse6decimal('0.008')
-                await market.updateRiskParameter(riskParameter)
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.linearFee = parse6decimal('0.01')
+                riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+                riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+                riskParameter.takerFee = riskParameterTakerFee
+                await market.updateRiskParameter(riskParameter, false)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
                 await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
                 const TAKER_FEE = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
-                const TAKER_FEE_FEE = TAKER_FEE.div(10)
-                const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+                const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
+                const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
+                const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
                 const SETTLEMENT_FEE = parse6decimal('0.50')
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -3667,16 +4652,17 @@ describe('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE)
                     .sub(SETTLEMENT_FEE),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -3684,22 +4670,27 @@ describe('Market', () => {
                   latestId: 1,
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                    .add(TAKER_FEE_WITHOUT_FEE)
+                    .add(TAKER_FEE_ONLY_WITHOUT_FEE)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
                 })
-                const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
+                })
+                const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
+                // maker exposure is 0, so
+                // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * priceChange] + 0
+                //           = [(5/5+0)/2 * 0.008 * 5 * (123-0)] + 0 = 0.5 * 4.92 = 2.46
+                const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('2.46'))
+                const EXPOSURE_AFTER = BigNumber.from(0)
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
                   latestId: 2,
@@ -3707,30 +4698,29 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                      .add(TAKER_FEE_WITHOUT_FEE)
+                      .add(TAKER_FEE_ONLY_WITHOUT_FEE)
                       .div(10),
                   },
                   longValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
             })
@@ -3740,8 +4730,19 @@ describe('Market', () => {
         context('price delta', async () => {
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -3770,36 +4771,36 @@ describe('Market', () => {
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -3808,6 +4809,8 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -3815,19 +4818,9 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
             })
           })
 
@@ -3848,39 +4841,47 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
-                fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
-                  EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
-                ),
-                fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
-                interestLong: EXPECTED_INTEREST_5_123.mul(-1),
-                interestFee: EXPECTED_INTEREST_FEE_5_123,
-                pnlMaker: EXPECTED_PNL,
-                pnlLong: EXPECTED_PNL.mul(-1),
-                rewardMaker: 0,
-                rewardLong: 0,
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
+                  fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestLong: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlLong: EXPECTED_PNL.mul(-1),
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.mul(-1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: 0,
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-                rewardAmount: 0,
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -3889,18 +4890,18 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123),
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -3910,18 +4911,18 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(8), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -3931,6 +4932,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
               riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
               donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+              latestPrice: parse6decimal('121'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -3938,13 +4941,12 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -3953,10 +4955,7 @@ describe('Market', () => {
               longValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
@@ -3975,39 +4974,47 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
-                fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
-                  EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
-                ),
-                fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
-                interestLong: EXPECTED_INTEREST_5_123.mul(-1),
-                interestFee: EXPECTED_INTEREST_FEE_5_123,
-                pnlMaker: EXPECTED_PNL,
-                pnlLong: EXPECTED_PNL.mul(-1),
-                rewardMaker: 0,
-                rewardLong: 0,
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(2).div(5)),
+                  fundingLong: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(3).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestLong: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlLong: EXPECTED_PNL.mul(-1),
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.mul(-1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: 0,
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-                rewardAmount: 0,
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -4016,18 +5023,18 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123),
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -4037,18 +5044,18 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(8), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -4058,6 +5065,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
               riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
               donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+              latestPrice: parse6decimal('125'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -4065,13 +5074,12 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -4081,10 +5089,7 @@ describe('Market', () => {
               longValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
         })
@@ -4093,9 +5098,27 @@ describe('Market', () => {
           context('maker', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, parse6decimal('450'), false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  parse6decimal('450'),
+                  false,
+                )
               dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
             })
 
             it('with socialization to zero', async () => {
@@ -4107,7 +5130,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('150'),
@@ -4122,9 +5145,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -4149,8 +5186,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -4161,18 +5197,18 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                   .sub(EXPECTED_INTEREST_5_150)
                   .sub(5), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4185,19 +5221,18 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(22), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('450'),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -4209,18 +5244,20 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
+                latestPrice: parse6decimal('150'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
@@ -4233,12 +5270,10 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -4254,12 +5289,10 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -4275,16 +5308,22 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('with partial socialization', async () => {
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userC).update(userC.address, POSITION.div(4), 0, 0, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  POSITION.div(4),
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -4295,7 +5334,7 @@ describe('Market', () => {
               await settle(market, userC)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('150'),
@@ -4310,9 +5349,23 @@ describe('Market', () => {
               await settle(market, userC)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -4362,25 +5415,24 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_3)
                   .add(EXPECTED_PNL)
                   .sub(5), // loss of precision
-                reward: 0,
               })
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4391,19 +5443,18 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2).mul(4).div(5))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(16), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('450'),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userC.address), {
                 ...DEFAULT_LOCAL,
@@ -4416,18 +5467,18 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_3_25_123.add(EXPECTED_INTEREST_WITHOUT_FEE_3))
                   .sub(EXPECTED_PNL)
                   .sub(12), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userC.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION.div(4),
               })
-              expectPositionEq(await market.pendingPositions(userC.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userC.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
                 .add(EXPECTED_FUNDING_FEE_2_5_150.add(EXPECTED_INTEREST_FEE_2))
@@ -4439,6 +5490,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10).add(2), // loss of precision
+                latestPrice: parse6decimal('150'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -4446,13 +5499,12 @@ describe('Market', () => {
                 maker: POSITION.div(4),
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
-                long: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .sub(EXPECTED_PNL.mul(2))
@@ -4466,12 +5518,10 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
@@ -4486,12 +5536,10 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
@@ -4510,10 +5558,7 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
@@ -4522,11 +5567,19 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
+              const protocolParameter = { ...(await factory.parameter()) }
+              protocolParameter.maxFeeAbsolute = parse6decimal('100')
+              await factory.connect(owner).updateParameter(protocolParameter)
+
+              const riskParameter = { ...(await market.riskParameter()) }
+              riskParameter.liquidationFee = parse6decimal('100')
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
+
               await settle(market, user)
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('304.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('100')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('203'),
@@ -4541,9 +5594,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -4552,18 +5619,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .add(EXPECTED_PNL),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4574,20 +5641,22 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('450'),
+                orders: 1,
+                makerNeg: POSITION,
+                protection: 1,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -4597,6 +5666,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: parse6decimal('203'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -4604,12 +5675,14 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
@@ -4623,9 +5696,7 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
 
               const oracleVersionHigherPrice2 = {
@@ -4649,7 +5720,18 @@ describe('Market', () => {
               dsu.transferFrom
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, shortfall.mul(-1), false))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    userB.address,
+                    0,
+                    0,
+                    0,
+                    shortfall.mul(-1),
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   liquidator.address,
@@ -4660,33 +5742,33 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('450').add(shortfall.mul(-1)),
+                collateral: shortfall.mul(-1),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
             })
           })
@@ -4694,9 +5776,27 @@ describe('Market', () => {
           context('long', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
               dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('216'), false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  parse6decimal('216'),
+                  false,
+                )
             })
 
             it('default', async () => {
@@ -4708,7 +5808,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('72')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -4723,9 +5823,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -4754,26 +5868,24 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                   .sub(EXPECTED_LIQUIDATION_FEE),
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('216'),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4784,18 +5896,18 @@ describe('Market', () => {
                 )
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                   .sub(20), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
                 EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_5_96),
@@ -4807,18 +5919,20 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: parse6decimal('96'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
@@ -4831,11 +5945,10 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
@@ -4849,11 +5962,10 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
@@ -4867,16 +5979,14 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -4886,7 +5996,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('32.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('43'),
@@ -4901,9 +6011,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -4912,20 +6036,22 @@ describe('Market', () => {
                 collateral: parse6decimal('216')
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
                   .sub(EXPECTED_PNL),
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('216'),
+                orders: 1,
+                longNeg: POSITION.div(2),
+                protection: 1,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -4936,18 +6062,18 @@ describe('Market', () => {
                 )
                   .add(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -4957,6 +6083,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: parse6decimal('43'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -4964,12 +6092,14 @@ describe('Market', () => {
                 maker: POSITION,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
+                orders: 1,
+                longNeg: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
@@ -4982,9 +6112,7 @@ describe('Market', () => {
                     .mul(-1),
                 },
                 shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
 
               const oracleVersionLowerPrice2 = {
@@ -5005,7 +6133,18 @@ describe('Market', () => {
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
               factory.operators.whenCalledWith(user.address, liquidator.address).returns(false)
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, shortfall.mul(-1), false))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    0,
+                    0,
+                    shortfall.mul(-1),
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   liquidator.address,
@@ -5016,6 +6155,7 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -5023,26 +6163,25 @@ describe('Market', () => {
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('216').add(shortfall.mul(-1)),
+                collateral: shortfall.mul(-1),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
             })
           })
@@ -5050,9 +6189,20 @@ describe('Market', () => {
 
         context('closed', async () => {
           beforeEach(async () => {
-            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                userB.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -5091,36 +6241,36 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -5129,6 +6279,8 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: parse6decimal('128'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -5136,27 +6288,17 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
         })
@@ -5171,26 +6313,204 @@ describe('Market', () => {
           context('open', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
             })
 
             it('opens the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    0,
+                    POSITION,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
-                .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
+                  user.address,
                   ORACLE_VERSION_2.timestamp,
-                  {
-                    ...DEFAULT_ORDER,
-                    short: POSITION,
-                    net: parse6decimal('10'),
-                    skew: parse6decimal('2'),
-                    impact: parse6decimal('1'),
-                    utilization: parse6decimal('1'),
-                  },
+                  0,
+                  0,
+                  POSITION,
                   COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
+                .to.emit(market, 'OrderCreated')
+                .withArgs(user.address, {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  collateral: COLLATERAL,
+                  orders: 1,
+                  shortPos: POSITION,
+                })
+
+              expectLocalEq(await market.locals(user.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 1,
+                latestId: 0,
+                collateral: COLLATERAL,
+              })
+              expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_1.timestamp,
+              })
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                collateral: COLLATERAL,
+                shortPos: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              expectGlobalEq(await market.global(), {
+                currentId: 1,
+                latestId: 0,
+                protocolFee: 0,
+                oracleFee: 0,
+                riskFee: 0,
+                donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
+              })
+              expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_1.timestamp,
+              })
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                collateral: COLLATERAL.mul(2),
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION,
+              })
+              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
+              })
+            })
+
+            it('opens the position and settles', async () => {
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    0,
+                    POSITION,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
+                .to.emit(market, 'Updated')
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+              oracle.request.whenCalledWith(user.address).returns()
+
+              await settle(market, user)
+
+              expectLocalEq(await market.locals(user.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 2,
+                latestId: 1,
+                collateral: COLLATERAL,
+              })
+              expectPositionEq(await market.positions(user.address), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                short: POSITION,
+              })
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_3.timestamp,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              expectGlobalEq(await market.global(), {
+                currentId: 2,
+                latestId: 1,
+                protocolFee: 0,
+                oracleFee: 0,
+                riskFee: 0,
+                donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
+              })
+              expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                maker: POSITION,
+                short: POSITION,
+              })
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_3.timestamp,
+              })
+              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
+              })
+            })
+
+            it('opens a second position (same version)', async () => {
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  0,
+                  POSITION.div(2),
+                  COLLATERAL,
+                  false,
+                )
+
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              )
+                .to.emit(market, 'Updated')
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  0,
+                  false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -5198,128 +6518,20 @@ describe('Market', () => {
                 currentId: 1,
                 latestId: 0,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                short: POSITION,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('opens the position and settles', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, COLLATERAL, false)
-
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-              oracle.request.whenCalledWith(user.address).returns()
-
-              await settle(market, user)
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 2,
-                latestId: 1,
+                orders: 2,
                 collateral: COLLATERAL,
-                reward: 0,
+                shortPos: POSITION,
               })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                short: POSITION,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                short: POSITION,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 2,
-                latestId: 1,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION,
-              })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                short: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('opens a second position (same version)', async () => {
-              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
-
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                short: POSITION,
-                delta: COLLATERAL,
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -5328,33 +6540,52 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                orders: 3,
+                collateral: COLLATERAL.mul(2),
+                makerPos: POSITION,
+                shortPos: POSITION,
               })
             })
 
             it('opens a second position and settles (same version)', async () => {
-              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  0,
+                  POSITION.div(2),
+                  COLLATERAL,
+                  false,
+                )
 
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -5367,18 +6598,18 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                short: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -5387,6 +6618,8 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -5394,50 +6627,69 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens a second position (next version)', async () => {
-              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  0,
+                  POSITION.div(2),
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, POSITION, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                short: POSITION,
-                delta: COLLATERAL,
+                orders: 1,
+                shortPos: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -5446,6 +6698,8 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -5453,32 +6707,51 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                short: POSITION,
+                orders: 1,
+                shortPos: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens a second position and settles (next version)', async () => {
-              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  0,
+                  POSITION.div(2),
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, POSITION, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  0,
+                  POSITION,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -5492,18 +6765,18 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 2,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                short: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -5512,18 +6785,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -5533,6 +6806,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -5540,30 +6815,38 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles later', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.staleAfter = BigNumber.from(9600)
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    0,
+                    POSITION.div(2),
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -5574,6 +6857,7 @@ describe('Market', () => {
                   POSITION.div(2),
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -5590,18 +6874,18 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                short: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -5610,18 +6894,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -5631,6 +6915,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -5638,44 +6924,53 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.008')
-              await market.updateRiskParameter(riskParameter)
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+              riskParameter.takerFee = riskParameterTakerFee
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
-              const TAKER_FEE_FEE = TAKER_FEE.div(10)
-              const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+              const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               dsu.transferFrom
                 .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
                 .returns(true)
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    0,
+                    POSITION.div(2),
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -5686,6 +6981,7 @@ describe('Market', () => {
                   POSITION.div(2),
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -5704,19 +7000,19 @@ describe('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
-                  .sub(SETTLEMENT_FEE),
-                reward: 0,
+                  .sub(SETTLEMENT_FEE.div(2)),
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                short: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -5724,21 +7020,22 @@ describe('Market', () => {
                 latestId: 1,
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                  .sub(SETTLEMENT_FEE.div(2))
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
               })
-              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE)
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY)
               expectGlobalEq(await market.global(), {
                 currentId: 2,
                 latestId: 1,
@@ -5746,6 +7043,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -5753,21 +7052,18 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
@@ -5779,24 +7075,38 @@ describe('Market', () => {
               await settle(market, user)
 
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.008')
-              await market.updateRiskParameter(riskParameter)
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+              riskParameter.takerFee = riskParameterTakerFee
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.008) * price
-              const TAKER_FEE_FEE = TAKER_FEE.div(10)
-              const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+              const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
+              const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
+              const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
               dsu.transferFrom
                 .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
                 .returns(true)
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    0,
+                    POSITION.div(2),
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -5807,6 +7117,7 @@ describe('Market', () => {
                   POSITION.div(2),
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -5826,42 +7137,42 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(TAKER_FEE)
                   .sub(SETTLEMENT_FEE),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                short: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL.add(
-                  TAKER_FEE_WITHOUT_FEE.add(
+                  TAKER_FEE_ONLY_WITHOUT_FEE.add(
                     EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123),
                   ),
                 ).sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
               })
-              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
               expectGlobalEq(await market.global(), {
                 currentId: 3,
                 latestId: 2,
@@ -5869,6 +7180,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -5876,23 +7189,20 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                maker: POSITION,
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
-                  _value: TAKER_FEE_WITHOUT_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                  _value: TAKER_FEE_ONLY_WITHOUT_FEE.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .div(10),
                 },
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
           })
@@ -5900,134 +7210,26 @@ describe('Market', () => {
           context('close', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
-            })
-
-            it('closes the position partially', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, POSITION.div(4), 0, false)
-                .to.emit(market, 'OrderCreated')
-                .withArgs(
-                  user.address,
-                  ORACLE_VERSION_2.timestamp,
-                  {
-                    ...DEFAULT_ORDER,
-                    short: POSITION.div(4).mul(-1),
-                    net: parse6decimal('-2.5'),
-                    skew: parse6decimal('.5'),
-                    impact: parse6decimal('-.75'),
-                    utilization: parse6decimal('-.25'),
-                  },
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
                   0,
-                )
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                short: POSITION.div(4),
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION.div(4),
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('closes the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
-                .to.emit(market, 'OrderCreated')
-                .withArgs(
-                  user.address,
-                  ORACLE_VERSION_2.timestamp,
-                  {
-                    ...DEFAULT_ORDER,
-                    short: POSITION.div(2).mul(-1),
-                    net: parse6decimal('-5'),
-                    skew: parse6decimal('1'),
-                    impact: parse6decimal('-.5'),
-                    utilization: parse6decimal('-.5'),
-                  },
                   0,
+                  COLLATERAL,
+                  false,
                 )
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  0,
+                  POSITION.div(2),
+                  COLLATERAL,
+                  false,
+                )
             })
 
             context('settles first', async () => {
@@ -6040,26 +7242,43 @@ describe('Market', () => {
               })
 
               it('closes the position', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
                   currentId: 2,
                   latestId: 1,
                   collateral: COLLATERAL,
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   short: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  delta: COLLATERAL,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -6068,6 +7287,8 @@ describe('Market', () => {
                   oracleFee: 0,
                   riskFee: 0,
                   donation: 0,
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -6075,25 +7296,36 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  shortNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  ...DEFAULT_VERSION,
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -6107,16 +7339,17 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -6125,18 +7358,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -6146,18 +7379,20 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6165,35 +7400,52 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position (same version)', async () => {
-                await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
                   currentId: 2,
                   latestId: 1,
                   collateral: COLLATERAL,
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   short: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  delta: COLLATERAL,
+                  orders: 2,
+                  shortNeg: POSITION.div(2),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -6202,6 +7454,8 @@ describe('Market', () => {
                   oracleFee: 0,
                   riskFee: 0,
                   donation: 0,
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -6209,27 +7463,40 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
+                  orders: 2,
+                  shortNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  ...DEFAULT_VERSION,
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position and settles (same version)', async () => {
-                await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -6243,16 +7510,17 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -6261,18 +7529,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -6282,18 +7550,20 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6301,22 +7571,36 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position (next version)', async () => {
-                await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 await settle(market, userB)
 
@@ -6325,17 +7609,20 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   short: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                  orders: 1,
+                  shortNeg: POSITION.div(4),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -6344,18 +7631,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -6365,6 +7652,8 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -6372,12 +7661,14 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
+                  orders: 1,
+                  shortNeg: POSITION.div(4),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6385,23 +7676,42 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position and settles (next version)', async () => {
-                await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION.div(4) })
-                await market.connect(user).update(user.address, 0, 0, POSITION.div(4), 0, false)
+                const riskParameter = { ...(await market.riskParameter()) }
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.scale = POSITION.div(4)
+                riskParameter.takerFee = riskParameterTakerFee
+                await market.updateRiskParameter(riskParameter, false)
+
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -6418,16 +7728,17 @@ describe('Market', () => {
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_25_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_INTEREST_25_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -6438,18 +7749,18 @@ describe('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_25_123)
                     .sub(13), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_FUNDING_FEE_2_25_123)
                   .add(EXPECTED_INTEREST_FEE_5_123)
@@ -6461,18 +7772,20 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6480,11 +7793,10 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_2_25_123)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -6499,16 +7811,28 @@ describe('Market', () => {
                       .add(EXPECTED_FUNDING_WITH_FEE_2_25_123.add(EXPECTED_INTEREST_25_123).mul(2).div(5))
                       .mul(-1),
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles later', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -6524,16 +7848,17 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 2,
                   collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -6542,18 +7867,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 expectGlobalEq(await market.global(), {
@@ -6563,18 +7888,20 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
@@ -6582,32 +7909,47 @@ describe('Market', () => {
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
-                riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerSkewFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee = parse6decimal('0.008')
-                await market.updateRiskParameter(riskParameter)
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.linearFee = parse6decimal('0.01')
+                riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+                riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+                riskParameter.takerFee = riskParameterTakerFee
+                await market.updateRiskParameter(riskParameter, false)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
                 await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
                 const TAKER_FEE = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
-                const TAKER_FEE_FEE = TAKER_FEE.div(10)
-                const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+                const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
+                const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
+                const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
                 const SETTLEMENT_FEE = parse6decimal('0.50')
 
                 dsu.transferFrom.whenCalledWith(user.address, market.address, TAKER_FEE.mul(1e12)).returns(true)
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -6626,16 +7968,17 @@ describe('Market', () => {
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE)
                     .sub(SETTLEMENT_FEE),
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -6643,22 +7986,27 @@ describe('Market', () => {
                   latestId: 1,
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                    .add(TAKER_FEE_WITHOUT_FEE)
+                    .add(TAKER_FEE_ONLY_WITHOUT_FEE)
                     .sub(8), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
                 })
-                const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_FEE)
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
+                })
+                const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(TAKER_FEE_ONLY_FEE)
+                // maker exposure is 0, so
+                // updateFee = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * priceChange] + makerExposure
+                //           = [(5/5+0)/2 * 0.008 * 5 * (123-0)] + 0 = 0.5 * 4.92 = 2.46
+                const EXPOSURE_BEFORE = BigNumber.from(0).sub(parse6decimal('2.46'))
+                const EXPOSURE_AFTER = BigNumber.from(0)
                 expectGlobalEq(await market.global(), {
                   currentId: 3,
                   latestId: 2,
@@ -6666,30 +8014,30 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                      .add(TAKER_FEE_WITHOUT_FEE)
+                      .add(TAKER_FEE_ONLY_WITHOUT_FEE)
                       .div(10),
                   },
                   longValue: { _value: 0 },
                   shortValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
             })
@@ -6699,8 +8047,19 @@ describe('Market', () => {
         context('price delta', async () => {
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                0,
+                POSITION.div(2),
+                COLLATERAL,
+                false,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -6729,36 +8088,36 @@ describe('Market', () => {
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -6767,6 +8126,8 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -6774,19 +8135,9 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
             })
           })
 
@@ -6807,39 +8158,47 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
-                fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
-                  EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
-                ),
-                fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
-                interestShort: EXPECTED_INTEREST_5_123.mul(-1),
-                interestFee: EXPECTED_INTEREST_FEE_5_123,
-                pnlMaker: EXPECTED_PNL,
-                pnlShort: EXPECTED_PNL.mul(-1),
-                rewardMaker: 0,
-                rewardShort: 0,
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestShort: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlShort: EXPECTED_PNL.mul(-1),
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.mul(-1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: 0,
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-                rewardAmount: 0,
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -6848,18 +8207,18 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123),
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -6869,18 +8228,18 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(8), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -6890,6 +8249,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
               riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
               donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+              latestPrice: parse6decimal('121'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -6897,13 +8258,12 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -6914,9 +8274,7 @@ describe('Market', () => {
               shortValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
@@ -6935,39 +8293,47 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
-                fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
-                  EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
-                ),
-                fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
-                interestShort: EXPECTED_INTEREST_5_123.mul(-1),
-                interestFee: EXPECTED_INTEREST_FEE_5_123,
-                pnlMaker: EXPECTED_PNL,
-                pnlShort: EXPECTED_PNL.mul(-1),
-                rewardMaker: 0,
-                rewardShort: 0,
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_PRECISION_LOSS.mul(1).div(5)),
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_5_123.mul(-1).add(
+                    EXPECTED_FUNDING_PRECISION_LOSS.mul(4).div(5),
+                  ),
+                  fundingFee: EXPECTED_FUNDING_FEE_1_5_123.sub(EXPECTED_FUNDING_PRECISION_LOSS),
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_5_123,
+                  interestShort: EXPECTED_INTEREST_5_123.mul(-1),
+                  interestFee: EXPECTED_INTEREST_FEE_5_123,
+                  pnlMaker: EXPECTED_PNL,
+                  pnlShort: EXPECTED_PNL.mul(-1),
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.mul(-1)
-                  .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-                  .sub(EXPECTED_INTEREST_5_123),
-                rewardAmount: 0,
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.mul(-1).sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                  .sub(8),
-                rewardAmount: 0,
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                    .sub(8),
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -6976,18 +8342,18 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(EXPECTED_PNL)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .sub(EXPECTED_INTEREST_5_123),
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -6997,18 +8363,18 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(8), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -7018,6 +8384,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
               riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
               donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+              latestPrice: parse6decimal('125'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -7025,13 +8393,12 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
@@ -7041,9 +8408,7 @@ describe('Market', () => {
               shortValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
         })
@@ -7053,12 +8418,30 @@ describe('Market', () => {
             beforeEach(async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.margin = parse6decimal('0.31')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('390')).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, parse6decimal('390'), false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  parse6decimal('390'),
+                  false,
+                )
               dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  0,
+                  POSITION.div(2),
+                  COLLATERAL,
+                  false,
+                )
             })
 
             it('with socialization to zero', async () => {
@@ -7070,7 +8453,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('144')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -7085,9 +8468,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -7112,8 +8509,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7122,18 +8518,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)).sub(
                   EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96),
                 ),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                short: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -7144,19 +8540,18 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(20), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('390'),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
                 EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_5_96),
@@ -7168,18 +8563,20 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: parse6decimal('96'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
@@ -7193,11 +8590,10 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
@@ -7211,11 +8607,10 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
@@ -7229,15 +8624,22 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('with partial socialization', async () => {
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userC).update(userC.address, POSITION.div(4), 0, 0, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  POSITION.div(4),
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -7248,7 +8650,7 @@ describe('Market', () => {
               await settle(market, userC)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('144')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               // (0.08 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 5620
               const EXPECTED_INTEREST_1 = BigNumber.from(5620)
@@ -7278,9 +8680,23 @@ describe('Market', () => {
               await settle(market, userC)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -7307,8 +8723,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7321,18 +8736,18 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_3_25_123)
                   .sub(EXPECTED_INTEREST_3)
                   .add(EXPECTED_PNL),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                short: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -7343,19 +8758,18 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2).mul(4).div(5))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(17), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('390'),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userC.address), {
                 ...DEFAULT_LOCAL,
@@ -7368,18 +8782,18 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_3_25_123.add(EXPECTED_INTEREST_WITHOUT_FEE_3))
                   .sub(EXPECTED_PNL)
                   .sub(12), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userC.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION.div(4),
               })
-              expectPositionEq(await market.pendingPositions(userC.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userC.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_1)
                 .add(EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_2))
@@ -7391,6 +8805,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(2), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(2), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: parse6decimal('96'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -7398,13 +8814,12 @@ describe('Market', () => {
                 maker: POSITION.div(4),
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(4),
-                short: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .sub(EXPECTED_PNL.mul(2))
@@ -7419,11 +8834,10 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
@@ -7438,11 +8852,10 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
@@ -7461,9 +8874,7 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
@@ -7476,7 +8887,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('64.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('43'),
@@ -7491,9 +8902,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7502,18 +8927,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)).add(
                   EXPECTED_PNL,
                 ),
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                short: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -7523,15 +8948,17 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
                   .sub(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('390'),
+                orders: 1,
+                makerNeg: POSITION,
+                protection: 1,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -7541,6 +8968,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: parse6decimal('43'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -7548,12 +8977,14 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                short: POSITION.div(2),
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
@@ -7567,9 +8998,7 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
 
               const oracleVersionHigherPrice2 = {
@@ -7591,7 +9020,18 @@ describe('Market', () => {
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
               factory.operators.whenCalledWith(userB.address, liquidator.address).returns(false)
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, shortfall.mul(-1), false))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    userB.address,
+                    0,
+                    0,
+                    0,
+                    shortfall.mul(-1),
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   liquidator.address,
@@ -7602,33 +9042,33 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('390').add(shortfall.mul(-1)),
+                collateral: shortfall.mul(-1),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
             })
           })
@@ -7636,9 +9076,27 @@ describe('Market', () => {
           context('short', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
               dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
-              await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('216'), false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  0,
+                  POSITION.div(2),
+                  parse6decimal('216'),
+                  false,
+                )
             })
 
             it('default', async () => {
@@ -7650,7 +9108,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('150'),
@@ -7665,9 +9123,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -7692,8 +9164,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7705,19 +9176,18 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                   .sub(EXPECTED_INTEREST_5_150)
                   .sub(EXPECTED_LIQUIDATION_FEE),
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('216'),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -7728,18 +9198,18 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                   .sub(22), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
                 .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -7751,18 +9221,20 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
+                latestPrice: parse6decimal('150'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
@@ -7775,11 +9247,10 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -7795,11 +9266,10 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -7815,16 +9285,14 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -7834,7 +9302,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('152.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('203'),
@@ -7849,9 +9317,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7861,20 +9343,22 @@ describe('Market', () => {
                   .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                   .sub(EXPECTED_INTEREST_5_123)
                   .sub(EXPECTED_PNL),
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('216'),
+                orders: 1,
+                shortNeg: POSITION.div(2),
+                protection: 1,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -7884,18 +9368,18 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .add(EXPECTED_PNL)
                   .sub(8), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
               expectGlobalEq(await market.global(), {
@@ -7905,6 +9389,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+                latestPrice: parse6decimal('203'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -7912,12 +9398,14 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
+                orders: 1,
+                shortNeg: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
@@ -7930,9 +9418,7 @@ describe('Market', () => {
                     .div(5)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
 
               const oracleVersionHigherPrice2 = {
@@ -7955,7 +9441,18 @@ describe('Market', () => {
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
               factory.operators.whenCalledWith(user.address, liquidator.address).returns(false)
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, shortfall.mul(-1), false))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    0,
+                    0,
+                    shortfall.mul(-1),
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   liquidator.address,
@@ -7966,33 +9463,33 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('216').add(shortfall.mul(-1)),
+                collateral: shortfall.mul(-1),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
             })
           })
@@ -8000,9 +9497,20 @@ describe('Market', () => {
 
         context('closed', async () => {
           beforeEach(async () => {
-            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                userB.address,
+                0,
+                0,
+                POSITION.div(2),
+                COLLATERAL,
+                false,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -8041,36 +9549,36 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -8079,6 +9587,8 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: parse6decimal('118'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -8086,49 +9596,59 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
-          it('does not zero position and keeper fee upon closing', async () => {
+          it('does not zero position and settlement fee upon closing', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.takerFee = parse6decimal('0.01')
-            riskParameter.takerSkewFee = parse6decimal('0.002')
-            riskParameter.takerImpactFee = parse6decimal('0.008')
-            riskParameter.makerFee = parse6decimal('0.01')
-            riskParameter.makerImpactFee = parse6decimal('0.004')
-            await market.updateRiskParameter(riskParameter)
+            const riskParmeterTakerFee = { ...riskParameter.takerFee }
+            riskParmeterTakerFee.linearFee = parse6decimal('0.01')
+            riskParmeterTakerFee.proportionalFee = parse6decimal('0.002')
+            riskParmeterTakerFee.adiabaticFee = parse6decimal('0.008')
+            const riskParameterMakerFee = { ...riskParameter.makerFee }
+            riskParameterMakerFee.linearFee = parse6decimal('0.01')
+            riskParameterMakerFee.proportionalFee = parse6decimal('0.004')
+            riskParameter.takerFee = riskParmeterTakerFee
+            riskParameter.makerFee = riskParameterMakerFee
+            await market.updateRiskParameter(riskParameter, false)
 
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.settlementFee = parse6decimal('0.50')
             await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
             const EXPECTED_SETTLEMENT_FEE = parse6decimal('0.50')
-            const EXPECTED_MAKER_FEE = parse6decimal('7.38')
+            const EXPECTED_MAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
+            const EXPECTED_MAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.004 * 0.5) * price
+            const EXPECTED_MAKER_ADIABATIC = parse6decimal('0') // position * (0.000 * (0.0 + 0.5) / 2) * price
 
-            await expect(market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false))
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false),
+            )
               .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, POSITION.div(2), 0, 0, 0, false)
+              .withArgs(
+                user.address,
+                user.address,
+                ORACLE_VERSION_3.timestamp,
+                POSITION.div(2),
+                0,
+                0,
+                0,
+                false,
+                constants.AddressZero,
+              )
 
             const marketParameter2 = { ...(await market.parameter()) }
             marketParameter2.closed = true
@@ -8145,39 +9665,51 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 3,
               latestId: 2,
-              collateral: COLLATERAL.sub(EXPECTED_SETTLEMENT_FEE).sub(EXPECTED_MAKER_FEE.div(10)),
-              reward: 0,
+              collateral: COLLATERAL.sub(EXPECTED_SETTLEMENT_FEE)
+                .sub(EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10))
+                .sub(EXPECTED_MAKER_ADIABATIC),
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
             })
-            const totalFee = EXPECTED_MAKER_FEE.div(10)
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
+            })
+            const totalFee = EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10)
+            // empty position updates to maker 10 (user) and short 5 (userB)
+            // and then user reduces position to maker 5 before risk parameters updated
+            // before = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
+            //          + [(1+1-maker/scale)/2 * makerFee.adiabaticFee * maker * price]
+            //        = [(0/5+0)/2 * 0.008 * 0 * 123] + [(1+1-(10/10))/2 * 0.008 * -10 * 123]
+            //        = [(-5/5+0)/2 * 0.008 * -5 * 123] + [0.5 * 0.000 * -10 * 123] =
+            //        = [-0.5 * -4.92] + [0.5 * 0] = 2.46 + 0 = 2.46
+            // after  = 0
+            const EXPOSURE_BEFORE = BigNumber.from(0)
+            const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('2.46'))
             expectGlobalEq(await market.global(), {
               currentId: 3,
               latestId: 2,
@@ -8185,6 +9717,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10).add(EXPECTED_SETTLEMENT_FEE),
               riskFee: totalFee.div(2).div(10),
               donation: totalFee.div(2).mul(8).div(10),
+              latestPrice: PRICE,
+              exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -8192,112 +9726,20 @@ describe('Market', () => {
               maker: POSITION.div(2),
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.div(2),
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: EXPECTED_MAKER_FEE.mul(9).div(10).div(10) },
+              ...DEFAULT_VERSION,
+              makerValue: { _value: EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).mul(9).div(10).div(10) },
               longValue: { _value: 0 },
               shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
-            })
-          })
-
-          it('zeros position fee for new positions after close', async () => {
-            const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.takerFee = parse6decimal('0.01')
-            riskParameter.takerSkewFee = parse6decimal('0.002')
-            riskParameter.takerImpactFee = parse6decimal('0.008')
-            riskParameter.makerFee = parse6decimal('0.01')
-            riskParameter.makerImpactFee = parse6decimal('0.004')
-            await market.updateRiskParameter(riskParameter)
-
-            const marketParameter = { ...(await market.parameter()) }
-            marketParameter.closed = true
-            marketParameter.settlementFee = parse6decimal('0.50')
-            await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-            const EXPECTED_SETTLEMENT_FEE = parse6decimal('0.50')
-
-            await expect(market.connect(user).update(user.address, POSITION.div(2), 0, 0, 0, false))
-              .to.emit(market, 'Updated')
-              .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, POSITION.div(2), 0, 0, 0, false)
-
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
-            oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
-            oracle.request.returns()
-
-            await settle(market, user)
-            await settle(market, userB)
-
-            expectLocalEq(await market.locals(user.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.sub(EXPECTED_SETTLEMENT_FEE),
-              reward: 0,
-            })
-            expectPositionEq(await market.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.div(2),
-            })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.div(2),
-              delta: COLLATERAL,
-            })
-            expectLocalEq(await market.locals(userB.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL,
-              reward: 0,
-            })
-            expectPositionEq(await market.positions(userB.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              short: POSITION.div(2),
-            })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
-            })
-            expectGlobalEq(await market.global(), {
-              currentId: 3,
-              latestId: 2,
-              protocolFee: 0,
-              oracleFee: EXPECTED_SETTLEMENT_FEE,
-              riskFee: 0,
-              donation: 0,
-            })
-            expectPositionEq(await market.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION.div(2),
-              short: POSITION.div(2),
-            })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION.div(2),
-              short: POSITION.div(2),
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              makerLinearFee: { _value: -EXPECTED_MAKER_LINEAR.div(5) },
+              makerProportionalFee: { _value: -EXPECTED_MAKER_PROPORTIONAL.div(5) },
+              makerNegFee: { _value: -EXPECTED_MAKER_ADIABATIC.div(5) },
+              settlementFee: { _value: -EXPECTED_SETTLEMENT_FEE },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
         })
@@ -8306,39 +9748,86 @@ describe('Market', () => {
       context('all positions', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.updateRiskParameter({ ...(await market.riskParameter()), skewScale: POSITION })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.scale = POSITION
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter, false)
         })
 
         context('position delta', async () => {
           context('open', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  0,
+                  0,
+                  POSITION,
+                  COLLATERAL,
+                  false,
+                )
             })
 
             it('opens the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION,
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 1,
                 latestId: 0,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+                orders: 1,
+                collateral: COLLATERAL,
+                longPos: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -8347,32 +9836,53 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
+                orders: 3,
+                collateral: COLLATERAL.mul(3),
+                makerPos: POSITION,
+                longPos: POSITION,
+                shortPos: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION,
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, COLLATERAL, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  COLLATERAL,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -8385,18 +9895,18 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -8405,6 +9915,8 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -8413,46 +9925,65 @@ describe('Market', () => {
                 long: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens a second position (same version)', async () => {
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 1,
                 latestId: 0,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+                orders: 2,
+                collateral: COLLATERAL,
+                longPos: POSITION,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 1,
@@ -8461,34 +9992,53 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_1.timestamp,
               })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(1), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                orders: 4,
+                collateral: COLLATERAL.mul(3),
+                makerPos: POSITION,
+                longPos: POSITION,
+                shortPos: POSITION,
               })
             })
 
             it('opens a second position and settles (same version)', async () => {
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_2.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -8501,18 +10051,18 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -8521,6 +10071,8 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -8529,51 +10081,69 @@ describe('Market', () => {
                 long: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens a second position (next version)', async () => {
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 2,
                 latestId: 1,
                 collateral: COLLATERAL,
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_2.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+                orders: 1,
+                longPos: POSITION.div(2),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectGlobalEq(await market.global(), {
                 currentId: 2,
@@ -8582,6 +10152,8 @@ describe('Market', () => {
                 oracleFee: 0,
                 riskFee: 0,
                 donation: 0,
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -8590,33 +10162,51 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_3.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
+                orders: 1,
+                longPos: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                ...DEFAULT_VERSION,
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens a second position and settles (next version)', async () => {
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION, 0, 0, false)
+                .withArgs(
+                  user.address,
+                  user.address,
+                  ORACLE_VERSION_3.timestamp,
+                  0,
+                  POSITION,
+                  0,
+                  0,
+                  false,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -8632,18 +10222,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8652,18 +10242,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -8673,6 +10263,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -8681,14 +10273,12 @@ describe('Market', () => {
                 long: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -8707,14 +10297,23 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles later', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -8725,6 +10324,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -8743,18 +10343,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8763,18 +10363,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -8784,6 +10384,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -8792,14 +10394,12 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -8818,27 +10418,47 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles later with fee', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
-              riskParameter.takerFee = parse6decimal('0.01')
-              riskParameter.takerSkewFee = parse6decimal('0.002')
-              riskParameter.takerImpactFee = parse6decimal('0.004')
-              await market.updateRiskParameter(riskParameter)
+              const riskParameterTakerFee = { ...riskParameter.takerFee }
+              riskParameterTakerFee.linearFee = parse6decimal('0.01')
+              riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+              riskParameterTakerFee.adiabaticFee = parse6decimal('0.004')
+              riskParameter.takerFee = riskParameterTakerFee
+              await market.updateRiskParameter(riskParameter, false)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.settlementFee = parse6decimal('0.50')
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              const TAKER_FEE = parse6decimal('4.92') // position * (0.01 + 0.002 - 0.004) * price
+              const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
+              const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('1.845') // position * (0.003) * price // 0.50 + 1.00 skew from setup
+              const EXPECTED_TAKER_ADIABATIC = parse6decimal('0.615') // position * (0.001) * price
+
+              const EXPECTED_TAKER_LINEAR_C = parse6decimal('12.30') // position * (0.01) * price
+              const EXPECTED_TAKER_PROPORTIONAL_C = parse6decimal('3.69') // position * (0.003) * price // 0.50 + 1.00 skew from setup
+
+              const TAKER_FEE = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
+              const TAKER_FEE_ONLY = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
+              const TAKER_FEE_ONLY_C = EXPECTED_TAKER_LINEAR_C.add(EXPECTED_TAKER_PROPORTIONAL_C)
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -8849,6 +10469,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -8867,20 +10488,20 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(TAKER_FEE)
-                  .sub(SETTLEMENT_FEE)
+                  .sub(SETTLEMENT_FEE.div(3).add(1))
                   .sub(2), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -8888,21 +10509,24 @@ describe('Market', () => {
                 latestId: 1,
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
+                  .sub(SETTLEMENT_FEE.div(3).add(1))
                   .sub(13), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
               })
-              const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL).add(TAKER_FEE)
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
+              })
+              const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
+                .add(TAKER_FEE_ONLY)
+                .add(TAKER_FEE_ONLY_C)
               expectGlobalEq(await market.global(), {
                 currentId: 2,
                 latestId: 1,
@@ -8910,6 +10534,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).add(SETTLEMENT_FEE), // loss of precision
                 riskFee: totalFee.div(2).div(10), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10), // loss of precision
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -8918,14 +10544,12 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -8944,14 +10568,23 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles later from different account', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -8962,6 +10595,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -8980,18 +10614,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -9000,18 +10634,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -9021,6 +10655,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -9029,14 +10665,12 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9055,14 +10689,23 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and deposits later from different account', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -9073,6 +10716,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9092,18 +10736,19 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL.add(COLLATERAL),
+                collateral: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -9113,18 +10758,19 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL.add(COLLATERAL),
+                collateral: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -9134,6 +10780,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -9142,14 +10790,13 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
+                collateral: COLLATERAL.mul(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9168,14 +10815,23 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and settles later from different account while stale', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -9186,6 +10842,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9204,18 +10861,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -9224,18 +10881,18 @@ describe('Market', () => {
                 collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -9245,6 +10902,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -9253,14 +10912,12 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9279,14 +10936,23 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('opens the position and deposits later from different account while stale', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    POSITION.div(2),
+                    0,
+                    COLLATERAL,
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   user.address,
@@ -9297,6 +10963,7 @@ describe('Market', () => {
                   0,
                   COLLATERAL,
                   false,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9316,18 +10983,19 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
                   .sub(2), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL.add(COLLATERAL),
+                collateral: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -9337,18 +11005,19 @@ describe('Market', () => {
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(13), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL.add(COLLATERAL),
+                collateral: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -9358,6 +11027,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: PRICE,
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -9366,14 +11037,13 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(2), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(2), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                long: POSITION.div(2),
-                short: POSITION,
+                collateral: COLLATERAL.mul(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9392,9 +11062,7 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
           })
@@ -9402,112 +11070,39 @@ describe('Market', () => {
           context('close', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  0,
+                  0,
+                  POSITION,
+                  COLLATERAL,
+                  false,
+                )
 
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-            })
-
-            it('closes the position partially', async () => {
-              await expect(market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(4), 0, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                long: POSITION.div(4),
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                long: POSITION.div(4),
-                short: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
-            })
-
-            it('closes the position', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
-                .to.emit(market, 'Updated')
-                .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, 0, 0, 0, false)
-
-              expectLocalEq(await market.locals(user.address), {
-                ...DEFAULT_LOCAL,
-                currentId: 1,
-                latestId: 0,
-                collateral: COLLATERAL,
-                reward: 0,
-              })
-              expectPositionEq(await market.positions(user.address), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPositions(user.address, 1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                delta: COLLATERAL,
-              })
-              expectGlobalEq(await market.global(), {
-                currentId: 1,
-                latestId: 0,
-                protocolFee: 0,
-                oracleFee: 0,
-                riskFee: 0,
-                donation: 0,
-              })
-              expectPositionEq(await market.position(), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_1.timestamp,
-              })
-              expectPositionEq(await market.pendingPosition(1), {
-                ...DEFAULT_POSITION,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                maker: POSITION,
-                short: POSITION,
-              })
-              expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-                makerValue: { _value: 0 },
-                longValue: { _value: 0 },
-                shortValue: { _value: 0 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
-              })
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
             })
 
             context('settles first', async () => {
@@ -9520,26 +11115,43 @@ describe('Market', () => {
               })
 
               it('closes the position', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
                   currentId: 2,
                   latestId: 1,
                   collateral: COLLATERAL,
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  delta: COLLATERAL,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -9548,6 +11160,8 @@ describe('Market', () => {
                   oracleFee: 0,
                   riskFee: 0,
                   donation: 0,
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9556,26 +11170,36 @@ describe('Market', () => {
                   long: POSITION.div(2),
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  ...DEFAULT_VERSION,
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -9591,16 +11215,17 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -9609,18 +11234,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(13), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 expectGlobalEq(await market.global(), {
@@ -9630,6 +11255,8 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10),
                   riskFee: totalFee.div(2).div(10),
                   donation: totalFee.div(2).mul(8).div(10),
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9637,13 +11264,12 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9662,35 +11288,52 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position (same version)', async () => {
-                await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
                   currentId: 2,
                   latestId: 1,
                   collateral: COLLATERAL,
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_2.timestamp,
                   long: POSITION.div(2),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  delta: COLLATERAL,
+                  orders: 2,
+                  longNeg: POSITION.div(2),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectGlobalEq(await market.global(), {
                   currentId: 2,
@@ -9699,6 +11342,8 @@ describe('Market', () => {
                   oracleFee: 0,
                   riskFee: 0,
                   donation: 0,
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9707,28 +11352,40 @@ describe('Market', () => {
                   long: POSITION.div(2),
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
+                  orders: 2,
+                  longNeg: POSITION.div(2),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-                  makerValue: { _value: 0 },
-                  longValue: { _value: 0 },
-                  shortValue: { _value: 0 },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  ...DEFAULT_VERSION,
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position and settles (same version)', async () => {
-                await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -9744,16 +11401,17 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -9762,18 +11420,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(13), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 expectGlobalEq(await market.global(), {
@@ -9783,6 +11441,8 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10),
                   riskFee: totalFee.div(2).div(10),
                   donation: totalFee.div(2).mul(8).div(10),
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9790,13 +11450,12 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9815,22 +11474,36 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position (next version)', async () => {
-                await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 await settle(market, user)
                 await settle(market, userB)
@@ -9842,17 +11515,20 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   long: POSITION.div(4),
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  delta: COLLATERAL,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -9861,18 +11537,18 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(13), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_3.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 expectGlobalEq(await market.global(), {
@@ -9882,6 +11558,8 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10),
                   riskFee: totalFee.div(2).div(10),
                   donation: totalFee.div(2).mul(8).div(10),
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9890,13 +11568,14 @@ describe('Market', () => {
                   long: POSITION.div(4),
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_4.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -9915,22 +11594,36 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes a second position and settles (next version)', async () => {
-                await market.connect(user).update(user.address, 0, POSITION.div(4), 0, 0, false)
+                await market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_4.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -9948,16 +11641,17 @@ describe('Market', () => {
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(EXPECTED_INTEREST_10_80_123_ALL.div(5))
                     .sub(3), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectLocalEq(await market.locals(userB.address), {
                   ...DEFAULT_LOCAL,
@@ -9968,18 +11662,18 @@ describe('Market', () => {
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_80_123_ALL)
                     .sub(38), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(userB.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                   maker: POSITION,
                 })
-                expectPositionEq(await market.pendingPositions(userB.address, 2), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(userB.address, 2), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_FUNDING_FEE_2_10_123_ALL)
                   .add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
@@ -9991,6 +11685,8 @@ describe('Market', () => {
                   oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                   donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+                  latestPrice: PRICE,
+                  exposure: 0,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -9998,13 +11694,12 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(4), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(4), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10023,11 +11718,10 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_123_ALL.mul(3).div(4))
@@ -10059,16 +11753,28 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(2), // loss of precision
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles later', async () => {
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -10086,16 +11792,17 @@ describe('Market', () => {
                   collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -10103,13 +11810,12 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10128,31 +11834,50 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
 
               it('closes the position and settles later with fee', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
-                riskParameter.takerFee = parse6decimal('0.01')
-                riskParameter.takerSkewFee = parse6decimal('0.002')
-                riskParameter.takerImpactFee = parse6decimal('0.004')
-                await market.updateRiskParameter(riskParameter)
+                const riskParameterTakerFee = { ...riskParameter.takerFee }
+                riskParameterTakerFee.linearFee = parse6decimal('0.01')
+                riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+                riskParameterTakerFee.adiabaticFee = parse6decimal('0.004')
+                riskParameter.takerFee = riskParameterTakerFee
+                await market.updateRiskParameter(riskParameter, false)
 
                 const marketParameter = { ...(await market.parameter()) }
                 marketParameter.settlementFee = parse6decimal('0.50')
                 await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-                const TAKER_FEE = parse6decimal('8.61') // position * (0.01 + 0.002 + 0.004/2) * price
-                const TAKER_FEE_FEE = TAKER_FEE.div(10)
-                const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+                const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
+                const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('0.615') // position * (0.001) * price
+                const EXPECTED_TAKER_ADIABATIC = parse6decimal('1.845') // position * (0.003) * price
+
+                const TAKER_FEE = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
+                const TAKER_FEE_ONLY = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
+                const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
+                const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
                 const SETTLEMENT_FEE = parse6decimal('0.50')
 
-                await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+                await expect(
+                  market
+                    .connect(user)
+                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                )
                   .to.emit(market, 'Updated')
-                  .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, 0, 0, 0, false)
+                  .withArgs(
+                    user.address,
+                    user.address,
+                    ORACLE_VERSION_3.timestamp,
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    constants.AddressZero,
+                  )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -10172,16 +11897,17 @@ describe('Market', () => {
                     .sub(TAKER_FEE)
                     .sub(SETTLEMENT_FEE)
                     .sub(2), // loss of precision
-                  reward: 0,
                 })
                 expectPositionEq(await market.positions(user.address), {
                   ...DEFAULT_POSITION,
                   timestamp: ORACLE_VERSION_4.timestamp,
                 })
-                expectPositionEq(await market.pendingPositions(user.address, 3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrders(user.address, 3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  delta: COLLATERAL,
+                })
+                expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                  ...DEFAULT_CHECKPOINT,
                 })
                 expectPositionEq(await market.position(), {
                   ...DEFAULT_POSITION,
@@ -10189,17 +11915,16 @@ describe('Market', () => {
                   maker: POSITION,
                   short: POSITION,
                 })
-                expectPositionEq(await market.pendingPosition(3), {
-                  ...DEFAULT_POSITION,
+                expectOrderEq(await market.pendingOrder(3), {
+                  ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_5.timestamp,
-                  maker: POSITION,
-                  short: POSITION,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                  ...DEFAULT_VERSION,
                   makerValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
-                      .add(TAKER_FEE_WITHOUT_FEE)
+                      .add(TAKER_FEE_ONLY_WITHOUT_FEE)
                       .div(10)
                       .sub(1), // loss of precision
                   },
@@ -10215,9 +11940,11 @@ describe('Market', () => {
                       .mul(-1)
                       .sub(1), // loss of precision
                   },
-                  makerReward: { _value: 0 },
-                  longReward: { _value: 0 },
-                  shortReward: { _value: 0 },
+                  takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
+                  takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
+                  takerNegFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
+                  settlementFee: { _value: -SETTLEMENT_FEE },
+                  liquidationFee: { _value: -riskParameter.liquidationFee },
                 })
               })
             })
@@ -10227,10 +11954,23 @@ describe('Market', () => {
         context('price delta', async () => {
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
             dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
-            await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            await market
+              .connect(userC)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -10259,36 +11999,36 @@ describe('Market', () => {
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
               latestId: 1,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_2.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 2,
@@ -10297,6 +12037,8 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -10305,20 +12047,9 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(2), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(2), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-              short: POSITION,
-            })
-            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
             })
           })
 
@@ -10338,45 +12069,54 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2),
-                fundingLong: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2).add(1), // loss of precision
-                fundingShort: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.mul(-1).add(4), // loss of precision
-                fundingFee: EXPECTED_FUNDING_FEE_1_10_123_ALL.sub(5), // loss of precision
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL.sub(5), // loss of precision
-                interestLong: EXPECTED_INTEREST_10_67_123_ALL.div(3).mul(-1).add(2), // loss of precision
-                interestShort: EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3).mul(-1).add(3),
-                interestFee: EXPECTED_INTEREST_FEE_10_67_123_ALL.sub(1), // loss of precision
-                pnlMaker: EXPECTED_PNL.div(2).mul(-1),
-                pnlLong: EXPECTED_PNL.div(2).mul(-1),
-                pnlShort: EXPECTED_PNL,
-                rewardMaker: 0,
-                rewardLong: 0,
-                rewardShort: 0,
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2),
+                  fundingLong: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2).add(1), // loss of precision
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.mul(-1).add(4), // loss of precision
+                  fundingFee: EXPECTED_FUNDING_FEE_1_10_123_ALL.sub(5), // loss of precision
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL.sub(5), // loss of precision
+                  interestLong: EXPECTED_INTEREST_10_67_123_ALL.div(3).mul(-1).add(2), // loss of precision
+                  interestShort: EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3).mul(-1).add(3),
+                  interestFee: EXPECTED_INTEREST_FEE_10_67_123_ALL.sub(1), // loss of precision
+                  pnlMaker: EXPECTED_PNL.div(2).mul(-1),
+                  pnlLong: EXPECTED_PNL.div(2).mul(-1),
+                  pnlShort: EXPECTED_PNL,
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.div(2)
-                  .mul(-1)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
-                  .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
-                  .sub(2), // loss of precision
-                rewardAmount: 0,
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.div(2)
+                    .mul(-1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                    .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
+                    .sub(2), // loss of precision
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionLowerPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.div(2)
-                  .mul(-1)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
-                  .sub(13), // loss of precision
-                rewardAmount: 0,
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionLowerPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.div(2)
+                    .mul(-1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
+                    .sub(13), // loss of precision
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -10386,18 +12126,18 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                 .sub(2), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -10407,18 +12147,18 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                 .sub(13), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
             expectGlobalEq(await market.global(), {
@@ -10428,6 +12168,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10),
               riskFee: totalFee.div(2).div(10),
               donation: totalFee.div(2).mul(8).div(10),
+              latestPrice: parse6decimal('121'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -10436,14 +12178,12 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-              short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.div(2)
                   .mul(-1)
@@ -10465,9 +12205,7 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                   .div(10),
               },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
@@ -10485,45 +12223,54 @@ describe('Market', () => {
 
             await expect(settle(market, user))
               .to.emit(market, 'PositionProcessed')
-              .withArgs(ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_VERSION_ACCUMULATION_RESULT,
-                fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2),
-                fundingLong: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2).add(1), // loss of precision
-                fundingShort: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.mul(-1).add(4), // loss of precision
-                fundingFee: EXPECTED_FUNDING_FEE_1_10_123_ALL.sub(5), // loss of precision
-                interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL.sub(5), // loss of precision
-                interestLong: EXPECTED_INTEREST_10_67_123_ALL.div(3).mul(-1).add(2), // loss of precision
-                interestShort: EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3).mul(-1).add(3),
-                interestFee: EXPECTED_INTEREST_FEE_10_67_123_ALL.sub(1), // loss of precision
-                pnlMaker: EXPECTED_PNL.div(2).mul(-1),
-                pnlLong: EXPECTED_PNL.div(2).mul(-1),
-                pnlShort: EXPECTED_PNL,
-                rewardMaker: 0,
-                rewardLong: 0,
-                rewardShort: 0,
-              })
+              .withArgs(
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_VERSION_ACCUMULATION_RESULT,
+                  fundingMaker: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2),
+                  fundingLong: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2).add(1), // loss of precision
+                  fundingShort: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.mul(-1).add(4), // loss of precision
+                  fundingFee: EXPECTED_FUNDING_FEE_1_10_123_ALL.sub(5), // loss of precision
+                  interestMaker: EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL.sub(5), // loss of precision
+                  interestLong: EXPECTED_INTEREST_10_67_123_ALL.div(3).mul(-1).add(2), // loss of precision
+                  interestShort: EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3).mul(-1).add(3),
+                  interestFee: EXPECTED_INTEREST_FEE_10_67_123_ALL.sub(1), // loss of precision
+                  pnlMaker: EXPECTED_PNL.div(2).mul(-1),
+                  pnlLong: EXPECTED_PNL.div(2).mul(-1),
+                  pnlShort: EXPECTED_PNL,
+                },
+              )
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(user.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.div(2)
-                  .mul(-1)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
-                  .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
-                  .sub(2), // loss of precision
-                rewardAmount: 0,
-              })
+              .withArgs(
+                user.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.div(2)
+                    .mul(-1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                    .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
+                    .sub(2), // loss of precision
+                },
+              )
 
             await expect(settle(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
-              .withArgs(userB.address, ORACLE_VERSION_2.timestamp, oracleVersionHigherPrice.timestamp, 1, 2, {
-                ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
-                collateralAmount: EXPECTED_PNL.div(2)
-                  .mul(-1)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
-                  .sub(13), // loss of precision
-                rewardAmount: 0,
-              })
+              .withArgs(
+                userB.address,
+                2,
+                { ...DEFAULT_ORDER, timestamp: oracleVersionHigherPrice.timestamp },
+                {
+                  ...DEFAULT_LOCAL_ACCUMULATION_RESULT,
+                  collateral: EXPECTED_PNL.div(2)
+                    .mul(-1)
+                    .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
+                    .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
+                    .sub(13), // loss of precision
+                },
+              )
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -10533,18 +12280,18 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                 .sub(2), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -10554,18 +12301,18 @@ describe('Market', () => {
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                 .sub(13), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
             expectGlobalEq(await market.global(), {
@@ -10575,6 +12322,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10),
               riskFee: totalFee.div(2).div(10),
               donation: totalFee.div(2).mul(8).div(10),
+              latestPrice: parse6decimal('125'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -10583,14 +12332,12 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-              short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_PNL.div(2)
                   .mul(-1)
@@ -10612,9 +12359,7 @@ describe('Market', () => {
                   .div(10)
                   .sub(1), // loss of precision
               },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
         })
@@ -10623,12 +12368,39 @@ describe('Market', () => {
           context('maker', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, parse6decimal('450'), false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  parse6decimal('450'),
+                  false,
+                )
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  0,
+                  0,
+                  POSITION,
+                  COLLATERAL,
+                  false,
+                )
 
               dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
             })
 
             it('with socialization to zero', async () => {
@@ -10640,7 +12412,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('78').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('67.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('45'),
@@ -10655,9 +12427,23 @@ describe('Market', () => {
 
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -10682,8 +12468,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10696,18 +12481,18 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_45_ALL.div(3))
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_3_10_123_ALL)
                   .sub(9), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -10720,19 +12505,18 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL)
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(25), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('450'),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 .add(EXPECTED_FUNDING_FEE_2_10_45_ALL)
@@ -10745,6 +12529,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).sub(1), // loss of precision
+                latestPrice: parse6decimal('45'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -10752,13 +12538,12 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10779,11 +12564,10 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10807,11 +12591,10 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -10839,9 +12622,135 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
+              })
+            })
+
+            it('with adiabatic fees to incur exposure', async () => {
+              // rate_0 = 0
+              // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -0.5 / 40000 = -0.045
+              // rate_2 = rate_1 + (elapsed * scaledSkew / k) = 3600 * -1   / 40000 = -0.090
+              // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
+              // (0 + -0.045)/2 * 3600 * 10 * 123 / (86400 * 365)
+              const EXPECTED_FUNDING_1 = BigNumber.from(-3159) // −0.003159
+              const EXPECTED_FUNDING_FEE_1 = BigNumber.from(315) // |funding| * fundingFee
+              const EXPECTED_FUNDING_WITH_FEE_1 = EXPECTED_FUNDING_1.add(EXPECTED_FUNDING_FEE_1.div(2))
+
+              // (-0.045 + (-0.045 + -0.090))/2 * 3600 * 10 * 45 / (86400 * 365)
+              const EXPECTED_FUNDING_2 = BigNumber.from(-4623) // −0.004623
+              const EXPECTED_FUNDING_FEE_2 = BigNumber.from(462) // |funding| * fundingFee
+              const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.add(EXPECTED_FUNDING_FEE_2.div(2))
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
+              oracle.request.returns()
+
+              await settle(market, user)
+              await settle(market, userB)
+
+              // establish risk parameters with adiabatic fees
+              const adiabaticRiskParameter = {
+                ...riskParameter,
+                takerFee: {
+                  ...riskParameter.takerFee,
+                  adiabaticFee: parse6decimal('0.003'),
+                },
+              }
+              await market
+                .connect(owner)
+                .updateParameter(beneficiary.address, coordinator.address, await market.parameter())
+              await expect(market.connect(coordinator).updateRiskParameter(adiabaticRiskParameter, false)).to.emit(
+                market,
+                'RiskParameterUpdated',
+              )
+
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
+
+              const oracleVersionLowerPrice = {
+                price: parse6decimal('45'),
+                timestamp: TIMESTAMP + 7200,
+                valid: true,
+              }
+              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
+              oracle.request.returns()
+
+              await settle(market, user)
+
+              // userB gets liquidated, eliminating the maker position
+              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
+                .to.emit(market, 'Updated')
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp, // TIMESTAMP + 10800
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
+
+              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+              oracle.request.returns()
+
+              await settle(market, userB)
+
+              expectLocalEq(await market.locals(liquidator.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 0,
+                latestId: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
+              })
+
+              const MAKER_FEE_ADIABATIC = parse6decimal('0') // position * (0.000 * (1.00 + 0.00) / 2) * price
+              expectLocalEq(await market.locals(userB.address), {
+                ...DEFAULT_LOCAL,
+                currentId: 4,
+                latestId: 3,
+                collateral: parse6decimal('450')
+                  .sub(EXPECTED_FUNDING_WITH_FEE_1.div(2))
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
+                  .sub(EXPECTED_FUNDING_WITH_FEE_2.div(2))
+                  .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_45_ALL)
+                  .sub(MAKER_FEE_ADIABATIC)
+                  .sub(EXPECTED_LIQUIDATION_FEE)
+                  .sub(25),
+              })
+
+              const totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
+                .add(EXPECTED_FUNDING_FEE_2)
+                .add(EXPECTED_INTEREST_FEE_10_67_45_ALL)
+              // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1]
+              //                  + [(1+1-makerPos/scale)/2 * makerFee.adiabaticFee * makerChange * 1]
+              //                = [(-5/5+0)/2 * 0.003 * -5] + [(1+1-(10/10))/2 * 0.000 * -10]
+              //                = 0.0075 + -0.00 = 0.0075
+              // impactExposure = latestExposure * priceChange = 0.0075 * (123-0) = 0.9225
+              const EXPOSURE_BEFORE = BigNumber.from(0)
+              const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('0.9225'))
+              expectGlobalEq(await market.global(), {
+                currentId: 4,
+                latestId: 3,
+                protocolFee: totalFee.div(2).sub(1), // loss of precision
+                oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+                donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+                latestPrice: PRICE,
+                exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
+              })
+              expectPositionEq(await market.position(), {
+                ...DEFAULT_POSITION,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                long: POSITION.div(2),
+                short: POSITION,
               })
             })
 
@@ -10871,7 +12780,16 @@ describe('Market', () => {
               const EXPECTED_FUNDING_WITHOUT_FEE_3 = EXPECTED_FUNDING_3.sub(EXPECTED_FUNDING_FEE_3.div(2))
 
               dsu.transferFrom.whenCalledWith(userD.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userD).update(userD.address, POSITION.div(5), 0, 0, COLLATERAL, false)
+              await market
+                .connect(userD)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userD.address,
+                  POSITION.div(5),
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -10882,7 +12800,7 @@ describe('Market', () => {
               await settle(market, userD)
 
               const EXPECTED_PNL = parse6decimal('78').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('67.5')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('45'),
@@ -10898,9 +12816,23 @@ describe('Market', () => {
 
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -10927,8 +12859,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10942,18 +12873,18 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_3.div(3))
                   .sub(EXPECTED_PNL)
                   .sub(6), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -10966,19 +12897,18 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_2.mul(10).div(12))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(19), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('450'),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_1)
                 .add(EXPECTED_FUNDING_FEE_2_10_45_ALL)
@@ -10992,6 +12922,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(2), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(2), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10).sub(2), // loss of precision
+                latestPrice: parse6decimal('45'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -11000,14 +12932,12 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION.div(5),
-                long: POSITION.div(2),
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
@@ -11028,11 +12958,10 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
@@ -11057,11 +12986,10 @@ describe('Market', () => {
                     .mul(-1)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
@@ -11098,9 +13026,7 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
@@ -11113,7 +13039,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('90').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // minMaintenance * liquidationFee = 100 * 0.50 = 50
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionHigherPrice = {
                 price: parse6decimal('33'),
@@ -11128,9 +13054,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, userB.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  userB.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -11140,18 +13080,18 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(EXPECTED_PNL)
                   .sub(2), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -11162,20 +13102,22 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(EXPECTED_PNL)
                   .sub(13), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('450'),
+                orders: 1,
+                makerNeg: POSITION,
+                protection: 1,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -11185,6 +13127,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: parse6decimal('33'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -11193,13 +13137,14 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                long: POSITION.div(2),
-                short: POSITION,
+                orders: 1,
+                makerNeg: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11220,9 +13165,7 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
 
               const oracleVersionHigherPrice2 = {
@@ -11246,7 +13189,18 @@ describe('Market', () => {
               dsu.transferFrom
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
-              await expect(market.connect(liquidator).update(userB.address, 0, 0, 0, shortfall.mul(-1), false))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    userB.address,
+                    0,
+                    0,
+                    0,
+                    shortfall.mul(-1),
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   liquidator.address,
@@ -11257,33 +13211,33 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(userB.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('450').add(shortfall.mul(-1)),
+                collateral: shortfall.mul(-1),
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
             })
           })
@@ -11291,11 +13245,38 @@ describe('Market', () => {
           context('long', async () => {
             beforeEach(async () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-              await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  0,
+                  0,
+                  POSITION,
+                  COLLATERAL,
+                  false,
+                )
               dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
-              await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('216'), false)
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  POSITION.div(2),
+                  0,
+                  parse6decimal('216'),
+                  false,
+                )
             })
 
             it('default', async () => {
@@ -11307,7 +13288,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('72')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('96'),
@@ -11322,9 +13303,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -11364,8 +13359,7 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -11378,19 +13372,18 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_96_ALL.div(3))
                   .sub(EXPECTED_LIQUIDATION_FEE)
                   .sub(9), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                delta: parse6decimal('216'),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -11404,18 +13397,18 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_3)
                   .sub(EXPECTED_PNL.mul(2))
                   .sub(45), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 .add(EXPECTED_FUNDING_FEE_2_10_96_ALL)
@@ -11429,6 +13422,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: parse6decimal('96'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -11436,13 +13431,12 @@ describe('Market', () => {
                 maker: POSITION,
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(5), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(5), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_6.timestamp,
-                maker: POSITION,
-                short: POSITION,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11463,11 +13457,10 @@ describe('Market', () => {
                     .mul(-1)
                     .div(10),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11492,11 +13485,10 @@ describe('Market', () => {
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11527,16 +13519,14 @@ describe('Market', () => {
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
             })
 
             it('with shortfall', async () => {
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.minMaintenance = parse6decimal('50')
-              await market.connect(owner).updateRiskParameter(riskParameter)
+              await market.connect(owner).updateRiskParameter(riskParameter, false)
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -11546,7 +13536,7 @@ describe('Market', () => {
               await settle(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
-              const EXPECTED_LIQUIDATION_FEE = parse6decimal('32.25')
+              const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
               const oracleVersionLowerPrice = {
                 price: parse6decimal('43'),
@@ -11561,9 +13551,23 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+              )
                 .to.emit(market, 'Updated')
-                .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+                .withArgs(
+                  liquidator.address,
+                  user.address,
+                  ORACLE_VERSION_4.timestamp,
+                  0,
+                  0,
+                  0,
+                  0,
+                  true,
+                  constants.AddressZero,
+                )
 
               // rate_1 = rate_0 + (elapsed * skew / k)
               // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
@@ -11588,20 +13592,22 @@ describe('Market', () => {
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .sub(EXPECTED_PNL)
                   .sub(2), // loss of precision
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 long: POSITION.div(2),
               })
-              expectPositionEq(await market.pendingPositions(user.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                delta: parse6decimal('216'),
+                orders: 1,
+                longNeg: POSITION.div(2),
+                protection: 1,
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -11611,18 +13617,18 @@ describe('Market', () => {
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                   .sub(EXPECTED_PNL)
                   .sub(13), // loss of precision
-                reward: 0,
               })
               expectPositionEq(await market.positions(userB.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
                 maker: POSITION,
               })
-              expectPositionEq(await market.pendingPositions(userB.address, 3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(userB.address, 3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                delta: COLLATERAL,
+              })
+              expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
@@ -11632,6 +13638,8 @@ describe('Market', () => {
                 oracleFee: totalFee.div(2).div(10),
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
+                latestPrice: parse6decimal('43'),
+                exposure: 0,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -11640,13 +13648,14 @@ describe('Market', () => {
                 long: POSITION.div(2),
                 short: POSITION,
               })
-              expectPositionEq(await market.pendingPosition(3), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrder(3), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
-                maker: POSITION,
-                short: POSITION,
+                orders: 1,
+                longNeg: POSITION.div(2),
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+                ...DEFAULT_VERSION,
                 makerValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11667,9 +13676,7 @@ describe('Market', () => {
                     .div(10)
                     .mul(-1),
                 },
-                makerReward: { _value: 0 },
-                longReward: { _value: 0 },
-                shortReward: { _value: 0 },
+                liquidationFee: { _value: -riskParameter.liquidationFee },
               })
 
               const oracleVersionLowerPrice2 = {
@@ -11693,7 +13700,18 @@ describe('Market', () => {
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
               factory.operators.whenCalledWith(user.address, liquidator.address).returns(false)
-              await expect(market.connect(liquidator).update(user.address, 0, 0, 0, shortfall.mul(-1), false))
+              await expect(
+                market
+                  .connect(liquidator)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    user.address,
+                    0,
+                    0,
+                    0,
+                    shortfall.mul(-1),
+                    false,
+                  ),
+              )
                 .to.emit(market, 'Updated')
                 .withArgs(
                   liquidator.address,
@@ -11704,33 +13722,33 @@ describe('Market', () => {
                   0,
                   shortfall.mul(-1),
                   false,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                collateral: EXPECTED_LIQUIDATION_FEE,
-                reward: 0,
+                claimable: EXPECTED_LIQUIDATION_FEE,
               })
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 4,
                 latestId: 3,
                 collateral: 0,
-                reward: 0,
-                protection: ORACLE_VERSION_4.timestamp,
-                protectionAmount: EXPECTED_LIQUIDATION_FEE,
-                protectionInitiator: liquidator.address,
               })
+              expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
               })
-              expectPositionEq(await market.pendingPositions(user.address, 4), {
-                ...DEFAULT_POSITION,
+              expectOrderEq(await market.pendingOrders(user.address, 4), {
+                ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_5.timestamp,
-                delta: parse6decimal('216').add(shortfall.mul(-1)),
+                collateral: shortfall.mul(-1),
+              })
+              expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+                ...DEFAULT_CHECKPOINT,
               })
             })
           })
@@ -11738,11 +13756,24 @@ describe('Market', () => {
 
         context('closed', async () => {
           beforeEach(async () => {
-            await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                userB.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              )
             dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userC).update(userC.address, 0, 0, POSITION, COLLATERAL, false)
+            await market
+              .connect(userC)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, COLLATERAL, false)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -11781,36 +13812,36 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL,
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_4.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectGlobalEq(await market.global(), {
               currentId: 3,
@@ -11819,6 +13850,8 @@ describe('Market', () => {
               oracleFee: 0,
               riskFee: 0,
               donation: 0,
+              latestPrice: parse6decimal('128'),
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -11827,28 +13860,17 @@ describe('Market', () => {
               long: POSITION.div(2),
               short: POSITION,
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_5.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-              short: POSITION,
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-              makerValue: { _value: 0 },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              ...DEFAULT_VERSION,
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
         })
@@ -11858,40 +13880,81 @@ describe('Market', () => {
         it('reverts if under margin', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
           await expect(
-            market.connect(user).update(user.address, parse6decimal('1000'), 0, 0, parse6decimal('500'), false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                parse6decimal('1000'),
+                0,
+                0,
+                parse6decimal('500'),
+                false,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
         it('reverts if paused', async () => {
           factory.paused.returns(true)
           await expect(
-            market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
           ).to.be.revertedWithCustomError(market, 'InstancePausedError')
         })
 
         it('reverts if over maker limit', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.makerLimit = POSITION.div(2)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
           await expect(
-            market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
           ).to.be.revertedWithCustomError(market, 'MarketMakerOverLimitError')
         })
 
         it('reverts if under efficiency limit', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.efficiencyLimit = parse6decimal('0.6')
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              POSITION.div(2),
+              0,
+              0,
+              COLLATERAL,
+              false,
+            )
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
-
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              POSITION.div(2),
+              COLLATERAL,
+              false,
+            )
           await expect(
-            market.connect(userB).update(userB.address, 0, POSITION, 0, 0, false),
+            market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
         })
 
@@ -11905,25 +13968,54 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              POSITION.div(2),
+              0,
+              0,
+              COLLATERAL,
+              false,
+            )
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 1])
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION.add(1), 0, 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              POSITION.add(1),
+              0,
+              0,
+              COLLATERAL,
+              false,
+            )
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 2])
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userC).update(userC.address, POSITION.add(2), 0, 0, COLLATERAL, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              POSITION.add(2),
+              0,
+              0,
+              COLLATERAL,
+              false,
+            )
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 3])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(
-            market.connect(user).update(user.address, POSITION.add(3), 0, 0, 0, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(3), 0, 0, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketExceedsPendingIdLimitError')
         })
 
@@ -11937,23 +14029,38 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              POSITION.div(2),
+              0,
+              0,
+              COLLATERAL,
+              false,
+            )
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 1])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, POSITION.add(1), 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, 0, false)
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 2])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, POSITION.add(2), 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(2), 0, 0, 0, false)
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 3])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(
-            market.connect(user).update(user.address, POSITION.add(3), 0, 0, 0, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(3), 0, 0, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketExceedsPendingIdLimitError')
         })
 
@@ -11961,37 +14068,77 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
 
           await expect(
-            market.connect(user).update(user.address, POSITION, POSITION, 0, COLLATERAL, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                POSITION,
+                POSITION,
+                0,
+                COLLATERAL,
+                false,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
           await expect(
-            market.connect(user).update(user.address, POSITION, 0, POSITION, COLLATERAL, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                POSITION,
+                0,
+                POSITION,
+                COLLATERAL,
+                false,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
           await expect(
-            market.connect(user).update(user.address, 0, POSITION, POSITION, COLLATERAL, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION,
+                POSITION,
+                COLLATERAL,
+                false,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
         })
 
         it('reverts if insufficient collateral', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, 0, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
 
           await expect(
-            market.connect(user).update(user.address, 0, 0, 0, COLLATERAL.add(1).mul(-1), false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                0,
+                0,
+                COLLATERAL.add(1).mul(-1),
+                false,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
         })
 
         it('reverts if price is stale', async () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
-          await market.connect(owner).updateRiskParameter(riskParameter)
+          await market.connect(owner).updateRiskParameter(riskParameter, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
@@ -11999,25 +14146,31 @@ describe('Market', () => {
 
           // revert if withdrawing
           await expect(
-            market.connect(user).update(user.address, POSITION, 0, 0, -1, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
 
           // revert if changing position
           await expect(
-            market.connect(user).update(user.address, POSITION.add(1), 0, 0, -1, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, -1, false),
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
         })
 
         it('reverts if sender is not account', async () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
-          await market.connect(owner).updateRiskParameter(riskParameter)
+          await market.connect(owner).updateRiskParameter(riskParameter, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
@@ -12025,19 +14178,32 @@ describe('Market', () => {
 
           // revert if withdrawing
           await expect(
-            market.connect(userB).update(user.address, POSITION, 0, 0, -1, false),
+            market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
 
           // revert if changing position
           await expect(
-            market.connect(userB).update(user.address, POSITION.add(1), 0, 0, -1, false),
+            market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, -1, false),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
 
         it('reverts if under minimum margin', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
           await expect(
-            market.connect(user).update(user.address, 1, 0, 0, parse6decimal('99'), false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                1,
+                0,
+                0,
+                parse6decimal('99'),
+                false,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
@@ -12046,123 +14212,52 @@ describe('Market', () => {
           marketParameter.closed = true
           await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
           await expect(
-            market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
           ).to.be.revertedWithCustomError(market, 'MarketClosedError')
         })
 
         it('reverts if taker > maker', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, POSITION, 0, 0, COLLATERAL, false)
-
-          await expect(
-            market.connect(userB).update(userB.address, 0, POSITION.add(1), 0, COLLATERAL, false),
-          ).to.be.revertedWithCustomError(market, `MarketInsufficientLiquidityError`)
-        })
-
-        it('reverts when opening and closing immediately with settlementFee', async () => {
-          const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-          const minMarginAmount = (await market.riskParameter()).minMargin
-          const dustPosition = parse6decimal('0.000001')
-          dsu.transferFrom
-            .whenCalledWith(user.address, market.address, minMarginAmount.add(marketParameter.settlementFee).mul(1e12))
-            .returns(true)
-
-          await expect(
-            market.connect(user).update(user.address, dustPosition, 0, 0, minMarginAmount, false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
           await expect(
             market
-              .connect(user)
-              .update(user.address, dustPosition, 0, 0, minMarginAmount.add(marketParameter.settlementFee), false),
-          )
-            .to.emit(market, 'Updated')
-            .withArgs(
-              user.address,
-              user.address,
-              ORACLE_VERSION_2.timestamp,
-              dustPosition,
-              0,
-              0,
-              minMarginAmount.add(marketParameter.settlementFee),
-              false,
-            )
-
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 1,
-            latestId: 0,
-            collateral: minMarginAmount.add(marketParameter.settlementFee),
-            reward: 0,
-          })
-          expectPositionEq(await market.positions(user.address), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_1.timestamp,
-          })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: dustPosition,
-            delta: minMarginAmount.add(marketParameter.settlementFee),
-          })
-          expectGlobalEq(await market.global(), {
-            currentId: 1,
-            latestId: 0,
-            protocolFee: 0,
-            oracleFee: 0,
-            riskFee: 0,
-            donation: 0,
-          })
-          expectPositionEq(await market.position(), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_1.timestamp,
-          })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: dustPosition,
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
-          })
-
-          await expect(
-            market.connect(user).update(user.address, 0, 0, 0, minMarginAmount.mul(-1), false),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
-
-          dsu.transfer
-            .whenCalledWith(user.address, minMarginAmount.sub(marketParameter.settlementFee).mul(1e12))
-            .returns(true)
-          await market
-            .connect(user)
-            .update(user.address, 0, 0, 0, minMarginAmount.sub(marketParameter.settlementFee).mul(-1), false)
-
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 1,
-            latestId: 0,
-            collateral: parse6decimal('1'),
-            reward: 0,
-          })
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                userB.address,
+                0,
+                POSITION.add(1),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          ).to.be.revertedWithCustomError(market, `MarketInsufficientLiquidityError`)
         })
 
         it('reverts when the position is over-closed', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -12171,7 +14266,9 @@ describe('Market', () => {
           await settle(market, user)
 
           // open to POSITION (POSITION / 2 settled)
-          await market.connect(user).update(user.address, 0, POSITION, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
@@ -12179,13 +14276,36 @@ describe('Market', () => {
 
           // can't close more than POSITION / 2
           await expect(
-            market.connect(user).update(user.address, 0, POSITION.div(2).sub(1), 0, 0, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2).sub(1),
+                0,
+                0,
+                false,
+              ),
           ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
           // close out as much as possible
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_5.timestamp])
@@ -12193,7 +14313,16 @@ describe('Market', () => {
 
           // can't close any more
           await expect(
-            market.connect(user).update(user.address, 0, POSITION.div(2).sub(1), 0, 0, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2).sub(1),
+                0,
+                0,
+                false,
+              ),
           ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -12201,9 +14330,13 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           // can now close out rest
-          await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_5.timestamp, 0, 0, 0, 0, false)
+            .withArgs(user.address, user.address, ORACLE_VERSION_5.timestamp, 0, 0, 0, 0, false, constants.AddressZero)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
@@ -12223,9 +14356,28 @@ describe('Market', () => {
 
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
-            await market.connect(userB).update(userB.address, POSITION, 0, 0, parse6decimal('450'), false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                userB.address,
+                POSITION,
+                0,
+                0,
+                parse6decimal('450'),
+                false,
+              )
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
@@ -12243,29 +14395,45 @@ describe('Market', () => {
           })
 
           it('it reverts if not protected', async () => {
-            await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.be.revertedWithCustomError(
-              market,
-              'MarketInsufficientMarginError',
-            )
+            await expect(
+              market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
+            ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
           })
 
           it('it reverts if already liquidated', async () => {
-            await market.connect(liquidator).update(userB.address, 0, 0, 0, 0, true)
+            await market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
 
             await expect(
-              market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false),
+              market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                ),
             ).to.be.revertedWithCustomError(market, 'MarketProtectedError')
           })
 
           it('it reverts if withdrawing collateral', async () => {
             await expect(
-              market.connect(liquidator).update(userB.address, 0, 0, 0, -1, true),
+              market
+                .connect(liquidator)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, -1, true),
             ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
           })
 
           it('it reverts if position doesnt close', async () => {
             await expect(
-              market.connect(liquidator).update(userB.address, 1, 0, 0, 0, true),
+              market
+                .connect(liquidator)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 1, 0, 0, 0, true),
             ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
           })
 
@@ -12279,46 +14447,84 @@ describe('Market', () => {
 
             const oracleVersion = {
               price: parse6decimal('100'),
-              timestamp: TIMESTAMP,
+              timestamp: TIMESTAMP + 7200,
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
-            oracle.status.returns([oracleVersion, TIMESTAMP + 100])
+            oracle.status.returns([oracleVersion, TIMESTAMP + 7300])
             oracle.request.returns()
 
             dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, positionMaker, 0, 0, collateral, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                userB.address,
+                positionMaker,
+                0,
+                0,
+                collateral,
+                false,
+              )
             dsu.transferFrom.whenCalledWith(user.address, market.address, collateral2.mul(1e12)).returns(true)
-            await market.connect(user).update(user.address, 0, positionLong, 0, collateral2, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                positionLong,
+                0,
+                collateral2,
+                false,
+              )
 
             const oracleVersion2 = {
               price: parse6decimal('100'),
-              timestamp: TIMESTAMP + 100,
+              timestamp: TIMESTAMP + 7300,
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersion2.timestamp).returns(oracleVersion2)
-            oracle.status.returns([oracleVersion2, TIMESTAMP + 200])
+            oracle.status.returns([oracleVersion2, TIMESTAMP + 7400])
             oracle.request.returns()
 
-            await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
-            oracle.status.returns([oracleVersion2, TIMESTAMP + 300])
+            oracle.status.returns([oracleVersion2, TIMESTAMP + 7500])
             oracle.request.returns()
 
             dsu.transfer.whenCalledWith(user.address, collateralWithdraw2.mul(1e12)).returns(true)
-            await market.connect(user).update(user.address, 0, 0, 0, -collateralWithdraw2, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                0,
+                0,
+                -collateralWithdraw2,
+                false,
+              )
 
             const oracleVersion3 = {
               price: parse6decimal('99.9999'),
-              timestamp: TIMESTAMP + 180,
+              timestamp: TIMESTAMP + 7380,
               valid: true,
             }
             oracle.at.whenCalledWith(oracleVersion3.timestamp).returns(oracleVersion3)
-            oracle.status.returns([oracleVersion3, TIMESTAMP + 300])
+            oracle.status.returns([oracleVersion3, TIMESTAMP + 7500])
             oracle.request.returns()
 
             await expect(
-              market.connect(user).update(user.address, 0, collateralLiquidate, 0, 0, true),
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  user.address,
+                  0,
+                  collateralLiquidate,
+                  0,
+                  0,
+                  true,
+                ),
             ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
           })
         })
@@ -12332,9 +14538,29 @@ describe('Market', () => {
 
           context('closing long', async () => {
             beforeEach(async () => {
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-              await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
-              await market.connect(userC).update(userC.address, 0, 0, POSITION.mul(2), COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  0,
+                  0,
+                  POSITION.mul(2),
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -12347,14 +14573,19 @@ describe('Market', () => {
               marketParameter.takerCloseAlways = true
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              ).to.not.be.reverted
             })
 
             it('disallows closing when not takerCloseAlways', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
-                market,
-                'MarketInsufficientLiquidityError',
-              )
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
             })
 
             it('disallows short increasing (efficiency)', async () => {
@@ -12364,10 +14595,19 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.5')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               await expect(
-                market.connect(userC).update(userC.address, 0, 0, POSITION.mul(2).add(1), 0, false),
+                market
+                  .connect(userC)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    userC.address,
+                    0,
+                    0,
+                    POSITION.mul(2).add(1),
+                    0,
+                    false,
+                  ),
               ).to.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
             })
 
@@ -12378,19 +14618,48 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.3')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               await expect(
-                market.connect(userC).update(userC.address, 0, 0, POSITION.mul(2).add(1), 0, false),
+                market
+                  .connect(userC)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    userC.address,
+                    0,
+                    0,
+                    POSITION.mul(2).add(1),
+                    0,
+                    false,
+                  ),
               ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
             })
           })
 
           context('closing short', async () => {
             beforeEach(async () => {
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-              await market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false)
-              await market.connect(userC).update(userC.address, 0, POSITION.mul(2), 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  0,
+                  POSITION.mul(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -12403,14 +14672,19 @@ describe('Market', () => {
               marketParameter.takerCloseAlways = true
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              ).to.not.be.reverted
             })
 
             it('disallows closing when not takerCloseAlways', async () => {
-              await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
-                market,
-                'MarketInsufficientLiquidityError',
-              )
+              await expect(
+                market
+                  .connect(user)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
             })
 
             it('disallows long increasing (efficiency)', async () => {
@@ -12420,10 +14694,19 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.5')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               await expect(
-                market.connect(userC).update(userC.address, 0, POSITION.mul(2).add(1), 0, 0, false),
+                market
+                  .connect(userC)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    userC.address,
+                    0,
+                    POSITION.mul(2).add(1),
+                    0,
+                    0,
+                    false,
+                  ),
               ).to.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
             })
 
@@ -12434,19 +14717,48 @@ describe('Market', () => {
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.efficiencyLimit = parse6decimal('0.3')
-              await market.updateRiskParameter(riskParameter)
+              await market.updateRiskParameter(riskParameter, false)
 
               await expect(
-                market.connect(userC).update(userC.address, 0, POSITION.mul(2).add(1), 0, 0, false),
+                market
+                  .connect(userC)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                    userC.address,
+                    0,
+                    POSITION.mul(2).add(1),
+                    0,
+                    0,
+                    false,
+                  ),
               ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
             })
           })
 
           context('closing maker', async () => {
             beforeEach(async () => {
-              await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-              await market.connect(user).update(user.address, 0, 0, POSITION, COLLATERAL, false)
-              await market.connect(userC).update(userC.address, 0, POSITION.mul(2), 0, COLLATERAL, false)
+              await market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userB.address,
+                  POSITION,
+                  0,
+                  0,
+                  COLLATERAL,
+                  false,
+                )
+              await market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, COLLATERAL, false)
+              await market
+                .connect(userC)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  userC.address,
+                  0,
+                  POSITION.mul(2),
+                  0,
+                  COLLATERAL,
+                  false,
+                )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -12459,14 +14771,19 @@ describe('Market', () => {
               marketParameter.makerCloseAlways = true
               await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-              await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.not.be.reverted
+              await expect(
+                market
+                  .connect(userB)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
+              ).to.not.be.reverted
             })
 
             it('disallows closing when not makerCloseAlways', async () => {
-              await expect(market.connect(userB).update(userB.address, 0, 0, 0, 0, false)).to.revertedWithCustomError(
-                market,
-                'MarketEfficiencyUnderLimitError',
-              )
+              await expect(
+                market
+                  .connect(userB)
+                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
+              ).to.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
             })
           })
         })
@@ -12480,7 +14797,16 @@ describe('Market', () => {
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
           await expect(
-            market.connect(user).update(user.address, parse6decimal('10'), 0, 0, parse6decimal('1000'), false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                parse6decimal('10'),
+                0,
+                0,
+                parse6decimal('1000'),
+                false,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
         })
       })
@@ -12488,9 +14814,20 @@ describe('Market', () => {
       context('liquidation w/ under min collateral', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, parse6decimal('216'), false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              parse6decimal('216'),
+              false,
+            )
         })
 
         it('properly charges liquidation fee', async () => {
@@ -12517,9 +14854,23 @@ describe('Market', () => {
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-          await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+            .withArgs(
+              liquidator.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              0,
+              0,
+              0,
+              true,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -12528,20 +14879,22 @@ describe('Market', () => {
             collateral: parse6decimal('216')
               .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
               .sub(EXPECTED_PNL),
-            reward: 0,
-            protection: ORACLE_VERSION_4.timestamp,
-            protectionAmount: EXPECTED_LIQUIDATION_FEE,
-            protectionInitiator: liquidator.address,
           })
+          expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            delta: parse6decimal('216'),
+            orders: 1,
+            longNeg: POSITION.div(2),
+            protection: 1,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -12550,18 +14903,18 @@ describe('Market', () => {
             collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
               .add(EXPECTED_PNL)
               .sub(8), // loss of precision
-            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
           expectGlobalEq(await market.global(), {
@@ -12571,6 +14924,8 @@ describe('Market', () => {
             oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
             riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
             donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: parse6decimal('43'),
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -12578,12 +14933,14 @@ describe('Market', () => {
             maker: POSITION,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_PNL)
@@ -12593,199 +14950,7 @@ describe('Market', () => {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
             },
             shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
-          })
-        })
-      })
-
-      context('liquidation w/ above max liquidation fee', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
-          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('216'), false)
-        })
-
-        it('default', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.maxLiquidationFee = parse6decimal('10')
-          await market.connect(owner).updateRiskParameter(riskParameter)
-
-          const EXPECTED_PNL = parse6decimal('27').mul(5)
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10') // 22.5
-
-          const oracleVersionLowerPrice = {
-            price: parse6decimal('150'),
-            timestamp: TIMESTAMP + 7200,
-            valid: true,
-          }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
-          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-
-          await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
-            .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          const oracleVersionLowerPrice2 = {
-            price: parse6decimal('150'),
-            timestamp: TIMESTAMP + 14400,
-            valid: true,
-          }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
-          oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          expectLocalEq(await market.locals(liquidator.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 0,
-            latestId: 0,
-            collateral: EXPECTED_LIQUIDATION_FEE,
-            reward: 0,
-          })
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 5,
-            latestId: 4,
-            collateral: parse6decimal('216')
-              .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
-              .sub(EXPECTED_INTEREST_5_123)
-              .sub(EXPECTED_FUNDING_WITH_FEE_2_5_150)
-              .sub(EXPECTED_INTEREST_5_150)
-              .sub(EXPECTED_LIQUIDATION_FEE),
-            reward: 0,
-            protection: ORACLE_VERSION_4.timestamp,
-            protectionAmount: EXPECTED_LIQUIDATION_FEE,
-            protectionInitiator: liquidator.address,
-          })
-          expectPositionEq(await market.positions(user.address), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_5.timestamp,
-          })
-          expectPositionEq(await market.pendingPositions(user.address, 5), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_6.timestamp,
-            delta: parse6decimal('216'),
-          })
-          expectLocalEq(await market.locals(userB.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 5,
-            latestId: 4,
-            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-              .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
-              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
-              .sub(22), // loss of precision
-            reward: 0,
-          })
-          expectPositionEq(await market.positions(userB.address), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-          })
-          expectPositionEq(await market.pendingPositions(userB.address, 5), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_6.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
-          })
-          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
-            .add(EXPECTED_FUNDING_FEE_2_5_150)
-            .add(EXPECTED_INTEREST_FEE_5_150)
-          expectGlobalEq(await market.global(), {
-            currentId: 5,
-            latestId: 4,
-            protocolFee: totalFee.div(2).sub(1), // loss of precision
-            oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
-            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
-            donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
-          })
-          expectPositionEq(await market.position(), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-          })
-          expectPositionEq(await market.pendingPosition(5), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_6.timestamp,
-            maker: POSITION,
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: {
-              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                .add(EXPECTED_PNL)
-                .div(10),
-            },
-            longValue: { _value: 0 },
-            shortValue: {
-              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
-            },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            makerValue: {
-              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
-                .div(10)
-                .sub(2), // loss of precision
-            },
-            longValue: { _value: 0 },
-            shortValue: {
-              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
-                .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
-                .add(EXPECTED_INTEREST_5_150)
-                .div(5)
-                .mul(-1),
-            },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
-            makerValue: {
-              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
-                .div(10)
-                .sub(2), // loss of precision
-            },
-            longValue: { _value: 0 },
-            shortValue: {
-              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
-                .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
-                .add(EXPECTED_INTEREST_5_150)
-                .div(5)
-                .mul(-1),
-            },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
       })
@@ -12794,23 +14959,43 @@ describe('Market', () => {
         beforeEach(async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('324')).returns(true)
-          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('324'), false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              0,
+              POSITION.div(2),
+              parse6decimal('324'),
+              false,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, 0, 0, POSITION.mul(3).div(4), 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              0,
+              POSITION.mul(3).div(4),
+              0,
+              false,
+            )
           await settle(market, userB)
         })
 
         it('default', async () => {
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5') // 168.75
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
           const oracleVersionLowerPrice = {
             price: parse6decimal('150'),
@@ -12826,17 +15011,42 @@ describe('Market', () => {
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
           await expect(
-            market.connect(liquidator).update(user.address, 0, 0, POSITION.div(4).sub(1), 0, true),
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                0,
+                POSITION.div(4).sub(1),
+                0,
+                true,
+              ),
           ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.add(1).mul(1e12)).returns(true)
           await expect(
-            market.connect(liquidator).update(user.address, 0, 0, POSITION.div(4), -1, true),
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), -1, true),
           ).to.revertedWithCustomError(market, 'MarketInvalidProtectionError')
 
-          await expect(market.connect(liquidator).update(user.address, 0, 0, POSITION.div(4), 0, true))
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, true),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_5.timestamp, 0, 0, POSITION.div(4), 0, true)
+            .withArgs(
+              liquidator.address,
+              user.address,
+              ORACLE_VERSION_5.timestamp,
+              0,
+              0,
+              POSITION.div(4),
+              0,
+              true,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
@@ -12862,23 +15072,40 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 0,
             latestId: 0,
-            collateral: EXPECTED_LIQUIDATION_FEE,
-            reward: 0,
+            claimable: EXPECTED_LIQUIDATION_FEE,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             short: POSITION.div(4),
           })
+
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          await expect(market.connect(liquidator).claimFee())
+            .to.emit(market, 'FeeClaimed')
+            .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
+
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
         })
       })
 
       context('liquidation w/ invalidation', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
-          await market.connect(user).update(user.address, 0, 0, POSITION.div(2), parse6decimal('216'), false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              0,
+              POSITION.div(2),
+              parse6decimal('216'),
+              false,
+            )
         })
 
         it('default', async () => {
@@ -12890,7 +15117,7 @@ describe('Market', () => {
           await settle(market, userB)
 
           const EXPECTED_PNL = parse6decimal('27').mul(5)
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('112.5')
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
           const oracleVersionLowerPrice = {
             price: parse6decimal('150'),
@@ -12904,17 +15131,50 @@ describe('Market', () => {
           await settle(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-          await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true)
+            .withArgs(
+              liquidator.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              0,
+              0,
+              0,
+              true,
+              constants.AddressZero,
+            )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_4.timestamp)
+            .returns({ ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false })
+          oracle.status.returns([
+            { ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false },
+            ORACLE_VERSION_5.timestamp,
+          ])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(market.connect(liquidator).update(user.address, 0, 0, 0, 0, true))
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(liquidator.address, user.address, ORACLE_VERSION_5.timestamp, 0, 0, 0, 0, true)
+            .withArgs(
+              liquidator.address,
+              user.address,
+              ORACLE_VERSION_5.timestamp,
+              0,
+              0,
+              0,
+              0,
+              true,
+              constants.AddressZero,
+            )
           await settle(market, userB)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
@@ -12944,8 +15204,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 0,
             latestId: 0,
-            collateral: EXPECTED_LIQUIDATION_FEE, // does not double charge
-            reward: 0,
+            claimable: EXPECTED_LIQUIDATION_FEE, // does not double charge
           })
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -12958,19 +15217,18 @@ describe('Market', () => {
               .sub(EXPECTED_INTEREST_5_150)
               .sub(EXPECTED_ROUND_3_ACC)
               .sub(EXPECTED_LIQUIDATION_FEE), // does not double charge
-            reward: 0,
-            protection: ORACLE_VERSION_5.timestamp,
-            protectionAmount: EXPECTED_LIQUIDATION_FEE,
-            protectionInitiator: liquidator.address,
           })
+          expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 6), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 6), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
-            delta: parse6decimal('216'),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp + 3600), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -12982,18 +15240,18 @@ describe('Market', () => {
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
               .add(EXPECTED_ROUND_3_ACC_WITHOUT_FEE)
               .sub(32), // loss of precision
-            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 6), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 6), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp + 3600), {
+            ...DEFAULT_CHECKPOINT,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             .add(EXPECTED_FUNDING_FEE_2_5_150)
@@ -13006,18 +15264,20 @@ describe('Market', () => {
             oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
             riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
             donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
+            latestPrice: parse6decimal('150'),
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_6.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPosition(6), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(6), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp + 3600,
-            maker: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_PNL)
@@ -13027,11 +15287,11 @@ describe('Market', () => {
             shortValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
             },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
+            valid: false,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -13049,11 +15309,9 @@ describe('Market', () => {
                 .div(5)
                 .mul(-1),
             },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
@@ -13071,10 +15329,347 @@ describe('Market', () => {
                 .div(5)
                 .mul(-1),
             },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
+
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          await expect(market.connect(liquidator).claimFee())
+            .to.emit(market, 'FeeClaimed')
+            .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
+
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+        })
+      })
+
+      context('liquidation w/ self liquidator', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              parse6decimal('216'),
+              false,
+            )
+        })
+
+        it('still credits the liquidation fee to claimable', async () => {
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const EXPECTED_PNL = parse6decimal('27').mul(5)
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
+
+          const oracleVersionLowerPrice = {
+            price: parse6decimal('96'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, userB)
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+          await expect(
+            market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, constants.AddressZero)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const oracleVersionLowerPrice2 = {
+            price: parse6decimal('96'),
+            timestamp: TIMESTAMP + 14400,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+          oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 5,
+            latestId: 4,
+            collateral: parse6decimal('216')
+              .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
+              .sub(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
+              .sub(EXPECTED_LIQUIDATION_FEE),
+            claimable: EXPECTED_LIQUIDATION_FEE,
+          })
+          expect(await market.liquidators(user.address, 3)).to.equal(user.address)
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 5), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_6.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 5,
+            latestId: 4,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
+              .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
+              .sub(20), // loss of precision
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 5), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_6.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
+            EXPECTED_FUNDING_FEE_2_5_96.add(EXPECTED_INTEREST_FEE_5_96),
+          )
+          expectGlobalEq(await market.global(), {
+            currentId: 5,
+            latestId: 4,
+            protocolFee: totalFee.div(2).sub(4), // loss of precision
+            oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            donation: totalFee.div(2).mul(8).div(10),
+            latestPrice: parse6decimal('96'),
+            exposure: 0,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrder(5), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_6.timestamp,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .add(EXPECTED_PNL)
+                .div(10),
+            }, // loss of precision
+            longValue: {
+              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
+            },
+            shortValue: { _value: 0 },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
+                .div(10)
+                .sub(2),
+            }, // loss of precision
+            longValue: {
+              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
+                .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
+                .div(5)
+                .mul(-1),
+            },
+            shortValue: { _value: 0 },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_VERSION,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
+                .div(10)
+                .sub(2),
+            }, // loss of precision
+            longValue: {
+              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
+                .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
+                .div(5)
+                .mul(-1),
+            },
+            shortValue: { _value: 0 },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+        })
+      })
+
+      context('liquidation w/ referrer', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              parse6decimal('216'),
+              false,
+            )
+        })
+
+        it('sets related accounts', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const EXPECTED_PNL = parse6decimal('80').mul(5)
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
+
+          const oracleVersionLowerPrice = {
+            price: parse6decimal('43'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, userB)
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                0,
+                0,
+                0,
+                true,
+                userB.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, userB.address)
+
+          expect((await market.locals(user.address)).currentId).to.equal(3)
+          expect(await market.liquidators(user.address, 3)).to.equal(liquidator.address)
+          expect(await market.referrers(user.address, 3)).to.equal(userB.address)
+        })
+
+        it('resets related accounts on update', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
+
+          const oracleVersionLowerPrice = {
+            price: parse6decimal('43'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, userB)
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+          await expect(
+            market
+              .connect(liquidator)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                0,
+                0,
+                0,
+                true,
+                userB.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(liquidator.address, user.address, ORACLE_VERSION_4.timestamp, 0, 0, 0, 0, true, userB.address)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1000')).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(5),
+              0,
+              parse6decimal('1000'),
+              false,
+            )
+          await settle(market, user)
+
+          expect((await market.locals(user.address)).currentId).to.equal(4)
+          expect(await market.liquidators(user.address, 4)).to.equal(constants.AddressZero)
+          expect(await market.referrers(user.address, 4)).to.equal(constants.AddressZero)
         })
       })
 
@@ -13082,7 +15677,9 @@ describe('Market', () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
         })
 
         it('settles the position w/o change', async () => {
@@ -13093,10 +15690,12 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
-          await market.updateRiskParameter(riskParameter)
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -13105,12 +15704,33 @@ describe('Market', () => {
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -13121,49 +15741,58 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL,
-            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 3,
@@ -13172,41 +15801,33 @@ describe('Market', () => {
             oracleFee: SETTLEMENT_FEE,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            valid: false,
+            settlementFee: { _value: -SETTLEMENT_FEE },
           })
         })
 
@@ -13218,31 +15839,74 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
-          await market.updateRiskParameter(riskParameter)
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
-          const TAKER_FEE_FEE = TAKER_FEE.div(10)
-          const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+          const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
+          const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
+          const EXPECTED_TAKER_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
+
+          const TAKER_FEE = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
+          const TAKER_FEE_ONLY = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
+
+          const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
+          const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
@@ -13256,65 +15920,81 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(TAKER_FEE).sub(SETTLEMENT_FEE.mul(2)),
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+            orders: 1,
+            longPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            tradeFee: TAKER_FEE,
+            settlementFee: SETTLEMENT_FEE,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
-            collateral: COLLATERAL.add(TAKER_FEE_WITHOUT_FEE),
-            reward: 0,
+            collateral: COLLATERAL.add(TAKER_FEE_ONLY_WITHOUT_FEE),
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 4,
             latestId: 3,
-            protocolFee: TAKER_FEE_FEE.div(2),
-            oracleFee: TAKER_FEE_FEE.div(2).div(10).add(SETTLEMENT_FEE.mul(2)),
-            riskFee: TAKER_FEE_FEE.div(2).div(10),
-            donation: TAKER_FEE_FEE.div(2).mul(8).div(10),
+            protocolFee: TAKER_FEE_ONLY_FEE.div(2),
+            oracleFee: TAKER_FEE_ONLY_FEE.div(2).div(10).add(SETTLEMENT_FEE.mul(2)),
+            riskFee: TAKER_FEE_ONLY_FEE.div(2).div(10),
+            donation: TAKER_FEE_ONLY_FEE.div(2).mul(8).div(10),
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -13322,49 +16002,40 @@ describe('Market', () => {
             maker: POSITION,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            valid: false,
+            settlementFee: { _value: -SETTLEMENT_FEE },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            makerValue: { _value: TAKER_FEE_WITHOUT_FEE.div(10) },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            makerValue: { _value: TAKER_FEE_ONLY_WITHOUT_FEE.div(10) },
+            takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
+            takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
+            takerPosFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
+            settlementFee: { _value: -SETTLEMENT_FEE },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
@@ -13376,10 +16047,12 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
-          await market.updateRiskParameter(riskParameter)
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -13390,20 +16063,55 @@ describe('Market', () => {
           const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_4, price: 0, valid: false }, ORACLE_VERSION_5.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -13414,57 +16122,69 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)),
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            delta: COLLATERAL,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
+            settlementFee: SETTLEMENT_FEE,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL,
-            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 4,
@@ -13473,56 +16193,44 @@ describe('Market', () => {
             oracleFee: SETTLEMENT_FEE.mul(2),
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            valid: false,
+            settlementFee: { _value: -SETTLEMENT_FEE },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            valid: false,
+            settlementFee: { _value: -SETTLEMENT_FEE },
           })
         })
 
@@ -13534,11 +16242,13 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
           riskParameter.staleAfter = BigNumber.from(9600)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
@@ -13549,18 +16259,53 @@ describe('Market', () => {
           const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.status.returns([{ ...ORACLE_VERSION_2 }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
@@ -13573,56 +16318,66 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE), // does not charge fee if both were pending at once
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL,
-            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 4,
@@ -13631,56 +16386,41 @@ describe('Market', () => {
             oracleFee: SETTLEMENT_FEE,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            short: 0,
-            fee: TAKER_FEE,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            valid: false,
+            settlementFee: { _value: -SETTLEMENT_FEE },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
@@ -13692,40 +16432,97 @@ describe('Market', () => {
           await settle(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.takerFee = parse6decimal('0.01')
-          riskParameter.takerSkewFee = parse6decimal('0.002')
-          riskParameter.takerImpactFee = parse6decimal('0.008')
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
           riskParameter.staleAfter = BigNumber.from(9600)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.settlementFee = parse6decimal('0.50')
           await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
-          const TAKER_FEE_FEE = TAKER_FEE.div(10)
-          const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+          const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
+          const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
+          const EXPECTED_TAKER_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
+
+          const TAKER_FEE = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
+          const TAKER_FEE_ONLY = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
+
+          const TAKER_FEE_ONLY_FEE = TAKER_FEE_ONLY.div(10)
+          const TAKER_FEE_ONLY_WITHOUT_FEE = TAKER_FEE_ONLY.sub(TAKER_FEE_ONLY_FEE)
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_3.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.status.returns([{ ...ORACLE_VERSION_2 }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_4.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_5.timestamp, 0, POSITION.div(2), 0, 0, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_5.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns({ ...ORACLE_VERSION_5 })
           oracle.status.returns([{ ...ORACLE_VERSION_5 }, ORACLE_VERSION_6.timestamp])
@@ -13739,72 +16536,89 @@ describe('Market', () => {
             currentId: 4,
             latestId: 3,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)).sub(TAKER_FEE),
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            settlementFee: SETTLEMENT_FEE,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
-            delta: COLLATERAL,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 4), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            tradeFee: TAKER_FEE,
+            settlementFee: SETTLEMENT_FEE,
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_6.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
-            collateral: COLLATERAL.add(TAKER_FEE_WITHOUT_FEE),
-            reward: 0,
+            collateral: COLLATERAL.add(TAKER_FEE_ONLY_WITHOUT_FEE),
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            transfer: COLLATERAL,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_6.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 5,
             latestId: 4,
-            protocolFee: TAKER_FEE_FEE.div(2),
-            oracleFee: TAKER_FEE_FEE.div(20).add(SETTLEMENT_FEE.mul(2)),
-            riskFee: TAKER_FEE_FEE.div(20),
-            donation: TAKER_FEE_FEE.mul(2).div(5),
+            protocolFee: TAKER_FEE_ONLY_FEE.div(2),
+            oracleFee: TAKER_FEE_ONLY_FEE.div(20).add(SETTLEMENT_FEE.mul(2)),
+            riskFee: TAKER_FEE_ONLY_FEE.div(20),
+            donation: TAKER_FEE_ONLY_FEE.mul(2).div(5),
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -13812,76 +16626,81 @@ describe('Market', () => {
             maker: POSITION,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            short: 0,
-            fee: TAKER_FEE,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
-            fee: TAKER_FEE,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(5), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(5), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            valid: false,
+            settlementFee: { _value: -SETTLEMENT_FEE },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
-            makerValue: { _value: TAKER_FEE_WITHOUT_FEE.div(10) },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            makerValue: { _value: TAKER_FEE_ONLY_WITHOUT_FEE.div(10) },
+            takerLinearFee: { _value: -EXPECTED_TAKER_LINEAR.div(5) },
+            takerProportionalFee: { _value: -EXPECTED_TAKER_PROPORTIONAL.div(5) },
+            takerPosFee: { _value: -EXPECTED_TAKER_ADIABATIC.div(5) },
+            settlementFee: { _value: -SETTLEMENT_FEE },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
         it('settles invalid w/ exposure', async () => {
-          await expect(market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(user.address, user.address, ORACLE_VERSION_2.timestamp, 0, POSITION.div(2), 0, COLLATERAL, false)
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, price: 0, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -13892,18 +16711,18 @@ describe('Market', () => {
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -13912,18 +16731,18 @@ describe('Market', () => {
             collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .sub(8), // loss of precision
-            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_3.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
           expectGlobalEq(await market.global(), {
@@ -13933,6 +16752,8 @@ describe('Market', () => {
             oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
             riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
             donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -13940,21 +16761,18 @@ describe('Market', () => {
             maker: POSITION,
             long: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            long: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            valid: false,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
             longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
             shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
           })
         })
       })
@@ -13963,8 +16781,19 @@ describe('Market', () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
         })
 
         it('doesnt flip funding default', async () => {
@@ -13973,8 +16802,19 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              POSITION.div(2),
+              COLLATERAL,
+              false,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -13991,16 +16831,17 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -14011,36 +16852,36 @@ describe('Market', () => {
               .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .sub(16), // loss of precision
-            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userC.address), {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: 0,
           })
           expectPositionEq(await market.positions(userC.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             .add(EXPECTED_FUNDING_FEE_1_5_123)
@@ -14052,6 +16893,8 @@ describe('Market', () => {
             oracleFee: totalFee.div(2).div(10).sub(2), // loss of precision
             riskFee: totalFee.div(2).div(10).sub(2), // loss of precision
             donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -14059,13 +16902,12 @@ describe('Market', () => {
             maker: POSITION,
             short: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            short: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
@@ -14079,24 +16921,33 @@ describe('Market', () => {
             shortValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.sub(EXPECTED_INTEREST_5_123).div(5),
             },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
         it('flips funding when makerReceiveOnly', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.makerReceiveOnly = true
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              POSITION.div(2),
+              COLLATERAL,
+              false,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
 
@@ -14113,16 +16964,17 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -14133,36 +16985,36 @@ describe('Market', () => {
               .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .sub(16), // loss of precision
-            reward: 0,
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             maker: POSITION,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectLocalEq(await market.locals(userC.address), {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 1,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: 0,
           })
           expectPositionEq(await market.positions(userC.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
             short: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
             .add(EXPECTED_FUNDING_FEE_1_5_123)
@@ -14174,6 +17026,8 @@ describe('Market', () => {
             oracleFee: totalFee.div(2).div(10).sub(2), // loss of precision
             riskFee: totalFee.div(2).div(10).sub(2), // loss of precision
             donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -14181,13 +17035,12 @@ describe('Market', () => {
             maker: POSITION,
             short: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPosition(3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            maker: POSITION,
-            short: POSITION.div(2),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
             makerValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
@@ -14201,9 +17054,7 @@ describe('Market', () => {
             shortValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
             },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
       })
@@ -14215,26 +17066,43 @@ describe('Market', () => {
 
         it('opens the position when operator', async () => {
           factory.operators.whenCalledWith(user.address, operator.address).returns(true)
-          await expect(market.connect(operator).update(user.address, POSITION, 0, 0, COLLATERAL, false))
+          await expect(
+            market
+              .connect(operator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+          )
             .to.emit(market, 'Updated')
-            .withArgs(operator.address, user.address, ORACLE_VERSION_2.timestamp, POSITION, 0, 0, COLLATERAL, false)
+            .withArgs(
+              operator.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              POSITION,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 0,
             collateral: COLLATERAL,
-            reward: 0,
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
           expectGlobalEq(await market.global(), {
             currentId: 1,
@@ -14243,30 +17111,32 @@ describe('Market', () => {
             oracleFee: 0,
             riskFee: 0,
             donation: 0,
+            latestPrice: PRICE,
+            exposure: 0,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_1.timestamp,
           })
-          expectPositionEq(await market.pendingPosition(1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            makerValue: { _value: 0 },
-            longValue: { _value: 0 },
-            shortValue: { _value: 0 },
-            makerReward: { _value: 0 },
-            longReward: { _value: 0 },
-            shortReward: { _value: 0 },
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
           })
         })
 
         it('reverts when not operator', async () => {
           factory.operators.whenCalledWith(user.address, operator.address).returns(false)
           await expect(
-            market.connect(operator).update(user.address, POSITION, 0, 0, COLLATERAL, false),
+            market
+              .connect(operator)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
       })
@@ -14279,15 +17149,30 @@ describe('Market', () => {
         })
 
         it('withdraws all collateral on MIN', async () => {
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
-          await market.connect(userB).update(userB.address, 0, 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -14301,7 +17186,6 @@ describe('Market', () => {
             currentId: 3,
             latestId: 2,
             collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-            reward: 0,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
@@ -14310,7 +17194,6 @@ describe('Market', () => {
             collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .sub(8), // loss of precision
-            reward: 0,
           })
 
           dsu.transfer
@@ -14328,75 +17211,162 @@ describe('Market', () => {
                 .mul(1e12),
             )
             .returns(true)
-          await market.connect(user).update(user.address, 0, 0, 0, ethers.constants.MinInt256, false)
-          await market.connect(userB).update(userB.address, 0, 0, 0, ethers.constants.MinInt256, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              0,
+              0,
+              ethers.constants.MinInt256,
+              false,
+            )
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              0,
+              0,
+              0,
+              ethers.constants.MinInt256,
+              false,
+            )
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
             currentId: 3,
             latestId: 2,
             collateral: 0,
-            reward: 0,
           })
           expectLocalEq(await market.locals(userB.address), {
             ...DEFAULT_LOCAL,
             currentId: 3,
             latestId: 2,
             collateral: 0,
-            reward: 0,
           })
         })
 
         it('keeps same position on MAX', async () => {
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              POSITION.div(2),
+              COLLATERAL,
+              false,
+            )
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
           })
-
-          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256, 0, 0, false)
-          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256, 0, 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256, 0, false)
-
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
 
           await market
             .connect(user)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              ethers.constants.MaxUint256,
+              0,
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              ethers.constants.MaxUint256,
+              0,
+              0,
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              ethers.constants.MaxUint256,
+              0,
+              false,
+            )
+
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               user.address,
               ethers.constants.MaxUint256,
               ethers.constants.MaxUint256,
@@ -14406,7 +17376,7 @@ describe('Market', () => {
             )
           await market
             .connect(userB)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userB.address,
               ethers.constants.MaxUint256,
               ethers.constants.MaxUint256,
@@ -14416,7 +17386,7 @@ describe('Market', () => {
             )
           await market
             .connect(userC)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userC.address,
               ethers.constants.MaxUint256,
               ethers.constants.MaxUint256,
@@ -14425,96 +17395,200 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
         })
 
         it('closes full position on MAX - 1 (unsettled)', async () => {
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              POSITION.div(2),
+              COLLATERAL,
+              false,
+            )
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
           })
-
-          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
-          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
-
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
-          })
-
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, 0, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), 0, false)
-
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
-          })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
-          })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
 
           await market
             .connect(user)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              0,
+              0,
+              false,
+            )
+
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION.div(2), 0, false)
+
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               user.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14524,7 +17598,7 @@ describe('Market', () => {
             )
           await market
             .connect(userC)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userC.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14534,7 +17608,7 @@ describe('Market', () => {
             )
           await market
             .connect(userB)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userB.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14543,96 +17617,197 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
         })
 
         it('closes full position on MAX - 1 (settled)', async () => {
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              POSITION.div(2),
+              COLLATERAL,
+              false,
+            )
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
-          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              0,
+              0,
+              false,
+            )
 
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            delta: COLLATERAL,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            delta: COLLATERAL,
+            orders: 1,
+            makerNeg: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            orders: 1,
+            shortNeg: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, 0, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), 0, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION.div(2), 0, false)
 
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 3), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 3), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            orders: 1,
+            shortPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -14641,7 +17816,7 @@ describe('Market', () => {
 
           await market
             .connect(user)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               user.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14651,7 +17826,7 @@ describe('Market', () => {
             )
           await market
             .connect(userC)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userC.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14661,7 +17836,7 @@ describe('Market', () => {
             )
           await market
             .connect(userB)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userB.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14670,81 +17845,155 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            delta: COLLATERAL,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 4), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 4), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 4), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_5.timestamp,
-            delta: COLLATERAL,
+            orders: 1,
+            makerNeg: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 4), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_5.timestamp,
+            orders: 1,
+            shortNeg: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_5.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
         })
 
         it('closes full position on MAX - 1 (pending)', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              POSITION.div(2),
+              COLLATERAL,
+              false,
+            )
 
-          expectPositionEq(await market.pendingPositions(user.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            longPos: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 1), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 1), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            collateral: COLLATERAL,
+            makerPos: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            collateral: COLLATERAL,
+            shortPos: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
-          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              0,
+              0,
+              false,
+            )
 
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
 
           await market
             .connect(user)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               user.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14754,7 +18003,7 @@ describe('Market', () => {
             )
           await market
             .connect(userC)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userC.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14764,7 +18013,7 @@ describe('Market', () => {
             )
           await market
             .connect(userB)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userB.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14773,73 +18022,138 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 2), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_3.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 2), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
         })
 
         it('closes partial position on MAX - 1', async () => {
           const riskParameter = { ...(await market.riskParameter()) }
           riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
+          await market.updateRiskParameter(riskParameter, false)
 
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              POSITION.div(2),
+              COLLATERAL,
+              false,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(userB).update(userB.address, POSITION.mul(2), 0, 0, 0, false)
-          await market.connect(user).update(user.address, 0, POSITION, 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, POSITION, 0, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION.mul(2), 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, 0, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await market.connect(user).update(user.address, 0, ethers.constants.MaxUint256.sub(1), 0, 0, false)
-          await market.connect(userC).update(userC.address, 0, 0, ethers.constants.MaxUint256.sub(1), 0, false)
-          await market.connect(userB).update(userB.address, ethers.constants.MaxUint256.sub(1), 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              0,
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              0,
+              0,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              false,
+            )
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              ethers.constants.MaxUint256.sub(1),
+              0,
+              0,
+              0,
+              false,
+            )
 
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 3), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            makerNeg: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 3), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            orders: 1,
+            shortNeg: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
 
           await market
             .connect(user)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               user.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14849,7 +18163,7 @@ describe('Market', () => {
             )
           await market
             .connect(userC)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userC.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14859,7 +18173,7 @@ describe('Market', () => {
             )
           await market
             .connect(userB)
-            .update(
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
               userB.address,
               ethers.constants.MaxUint256.sub(1),
               ethers.constants.MaxUint256.sub(1),
@@ -14868,296 +18182,37 @@ describe('Market', () => {
               false,
             )
 
-          expectPositionEq(await market.pendingPositions(user.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            long: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            longNeg: POSITION.div(2),
           })
-          expectPositionEq(await market.pendingPositions(userB.address, 3), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            maker: POSITION,
-            delta: COLLATERAL,
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
-          expectPositionEq(await market.pendingPositions(userC.address, 3), {
-            ...DEFAULT_POSITION,
+          expectOrderEq(await market.pendingOrders(userB.address, 3), {
+            ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_4.timestamp,
-            short: POSITION.div(2),
-            delta: COLLATERAL,
+            orders: 1,
+            makerNeg: POSITION,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectOrderEq(await market.pendingOrders(userC.address, 3), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            orders: 1,
+            shortNeg: POSITION.div(2),
+          })
+          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
           })
         })
       })
 
-      context('payoff', async () => {
-        let marketPayoff: Market
-
-        // rate_0 = 0
-        // rate_1 = rate_0 + (elapsed * skew / k)
-        // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
-        // (0 + (0 + 3600 * 1.00 / 40000)) / 2 * 3600 * 5 * 15.129 / (86400 * 365) = 390
-        const EXPECTED_FUNDING_1_5_123_P2 = BigNumber.from(390)
-        const EXPECTED_FUNDING_FEE_1_5_123_P2 = BigNumber.from(40) // (388 + 19) = 407 / 5 -> 82 * 5 -> 410 - 390 -> 20 * 2 -> 40
-        const EXPECTED_FUNDING_WITH_FEE_1_5_123_P2 = EXPECTED_FUNDING_1_5_123_P2.add(
-          EXPECTED_FUNDING_FEE_1_5_123_P2.div(2),
-        )
-        const EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2 = EXPECTED_FUNDING_1_5_123_P2.sub(
-          EXPECTED_FUNDING_FEE_1_5_123_P2.div(2),
-        )
-
-        // rate * elapsed * utilization * min(maker, taker) * price
-        // (0.10 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 15.129 = 865
-        const EXPECTED_INTEREST_5_123_P2 = BigNumber.from(865)
-        const EXPECTED_INTEREST_FEE_5_123_P2 = EXPECTED_INTEREST_5_123_P2.div(10)
-        const EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2 = EXPECTED_INTEREST_5_123_P2.sub(EXPECTED_INTEREST_FEE_5_123_P2)
-
-        beforeEach(async () => {
-          marketPayoff = await new Market__factory(
-            {
-              'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-                await new MarketParameterStorageLib__factory(owner).deploy()
-              ).address,
-              'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-                await new RiskParameterStorageLib__factory(owner).deploy()
-              ).address,
-            },
-            owner,
-          ).deploy()
-          const payoff = await new MilliPowerTwo__factory(owner).deploy()
-          marketDefinition.payoff = payoff.address
-          await marketPayoff.connect(factorySigner).initialize(marketDefinition)
-          await marketPayoff.connect(owner).updateRiskParameter(riskParameter)
-          await marketPayoff.connect(owner).updateParameter(beneficiary.address, coordinator.address, marketParameter)
-
-          dsu.transferFrom.whenCalledWith(user.address, marketPayoff.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
-        context('long', async () => {
-          beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, marketPayoff.address, COLLATERAL.mul(1e12)).returns(true)
-            await marketPayoff.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await marketPayoff.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
-
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-            oracle.request.whenCalledWith(user.address).returns()
-
-            await settle(marketPayoff, user)
-            await settle(marketPayoff, userB)
-          })
-
-          it('higher price same rate settle', async () => {
-            const EXPECTED_PNL = parse6decimal('-0.496').mul(5) // maker pnl
-
-            const oracleVersionHigherPrice = {
-              price: parse6decimal('125'),
-              timestamp: TIMESTAMP + 7200,
-              valid: true,
-            }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-            oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
-            oracle.request.whenCalledWith(user.address).returns()
-
-            await settle(marketPayoff, user)
-            await settle(marketPayoff, userB)
-
-            expectLocalEq(await marketPayoff.locals(user.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.sub(EXPECTED_PNL)
-                .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
-                .sub(EXPECTED_INTEREST_5_123_P2),
-              reward: 0,
-            })
-            expectPositionEq(await marketPayoff.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              long: POSITION.div(2),
-            })
-            expectPositionEq(await marketPayoff.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
-            })
-            expectLocalEq(await marketPayoff.locals(userB.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.add(EXPECTED_PNL)
-                .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
-                .sub(19), // loss of precision
-              reward: 0,
-            })
-            expectPositionEq(await marketPayoff.positions(userB.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-            })
-            expectPositionEq(await marketPayoff.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
-            })
-            const totalFee = EXPECTED_FUNDING_FEE_1_5_123_P2.add(EXPECTED_INTEREST_FEE_5_123_P2)
-            expectGlobalEq(await marketPayoff.global(), {
-              currentId: 3,
-              latestId: 2,
-              protocolFee: totalFee.div(2).sub(1), // loss of precision
-              oracleFee: totalFee.div(2).div(10),
-              riskFee: totalFee.div(2).div(10),
-              donation: totalFee.div(2).mul(8).div(10),
-            })
-            expectPositionEq(await marketPayoff.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-            })
-            expectPositionEq(await marketPayoff.pendingPosition(3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
-            })
-            expectVersionEq(await marketPayoff.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: {
-                _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
-                  .div(10)
-                  .sub(2), // loss of precision
-              },
-              longValue: {
-                _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
-                  .add(EXPECTED_INTEREST_5_123_P2)
-                  .div(5)
-                  .mul(-1),
-              },
-              shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
-            })
-          })
-        })
-
-        context('short', async () => {
-          beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, marketPayoff.address, COLLATERAL.mul(1e12)).returns(true)
-            await marketPayoff.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await marketPayoff.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
-
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-            oracle.request.whenCalledWith(user.address).returns()
-
-            await settle(marketPayoff, user)
-            await settle(marketPayoff, userB)
-          })
-
-          it('higher price same rate settle', async () => {
-            const EXPECTED_PNL = parse6decimal('0.496').mul(5) // maker pnl
-
-            const oracleVersionHigherPrice = {
-              price: parse6decimal('125'),
-              timestamp: TIMESTAMP + 7200,
-              valid: true,
-            }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
-            oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
-            oracle.request.whenCalledWith(user.address).returns()
-
-            await settle(marketPayoff, user)
-            await settle(marketPayoff, userB)
-
-            expectLocalEq(await marketPayoff.locals(user.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.sub(EXPECTED_PNL)
-                .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
-                .sub(EXPECTED_INTEREST_5_123_P2),
-              reward: 0,
-            })
-            expectPositionEq(await marketPayoff.positions(user.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              short: POSITION.div(2),
-            })
-            expectPositionEq(await marketPayoff.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
-            })
-            expectLocalEq(await marketPayoff.locals(userB.address), {
-              ...DEFAULT_LOCAL,
-              currentId: 3,
-              latestId: 2,
-              collateral: COLLATERAL.add(EXPECTED_PNL)
-                .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
-                .sub(19), // loss of precision
-              reward: 0,
-            })
-            expectPositionEq(await marketPayoff.positions(userB.address), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-            })
-            expectPositionEq(await marketPayoff.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
-            })
-            const totalFee = EXPECTED_FUNDING_FEE_1_5_123_P2.add(EXPECTED_INTEREST_FEE_5_123_P2)
-            expectGlobalEq(await marketPayoff.global(), {
-              currentId: 3,
-              latestId: 2,
-              protocolFee: totalFee.div(2).sub(1), // loss of precision
-              oracleFee: totalFee.div(2).div(10),
-              riskFee: totalFee.div(2).div(10),
-              donation: totalFee.div(2).mul(8).div(10),
-            })
-            expectPositionEq(await marketPayoff.position(), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_3.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
-            })
-            expectPositionEq(await marketPayoff.pendingPosition(3), {
-              ...DEFAULT_POSITION,
-              timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
-            })
-            expectVersionEq(await marketPayoff.versions(ORACLE_VERSION_3.timestamp), {
-              makerValue: {
-                _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_P2)
-                  .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123_P2)
-                  .div(10)
-                  .sub(1), // loss of precision
-              },
-              longValue: { _value: 0 },
-              shortValue: {
-                _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123_P2)
-                  .add(EXPECTED_INTEREST_5_123_P2)
-                  .div(5)
-                  .mul(-1),
-              },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
-            })
-          })
-        })
-      })
-
-      context('skew scale', async () => {
+      context('funding skew', async () => {
         // rate_0 = 0
         // rate_1 = rate_0 + (elapsed * skew / k)
         // funding = (rate_0 + rate_1) / 2 * elapsed * taker * price / time_in_years
@@ -15169,8 +18224,10 @@ describe('Market', () => {
 
         beforeEach(async () => {
           const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.skewScale = parse6decimal('15')
-          await market.connect(owner).updateRiskParameter(riskParameter)
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.scale = parse6decimal('15')
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter, false)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
@@ -15178,8 +18235,19 @@ describe('Market', () => {
         context('long', async () => {
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -15202,18 +18270,18 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_V).sub(EXPECTED_INTEREST_5_123),
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              long: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -15222,18 +18290,18 @@ describe('Market', () => {
               collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(13), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123_V.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -15243,6 +18311,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10),
               riskFee: totalFee.div(2).div(10),
               donation: totalFee.div(2).mul(8).div(10).add(2), // loss of precision
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -15250,13 +18320,12 @@ describe('Market', () => {
               maker: POSITION,
               long: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              long: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10).sub(1), // loss of precision
               },
@@ -15264,32 +18333,49 @@ describe('Market', () => {
                 _value: EXPECTED_FUNDING_WITH_FEE_1_5_123_V.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
               shortValue: { _value: 0 },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.skewScale = parse6decimal('1')
-            await market.connect(owner).updateRiskParameter(riskParameter)
+            const riskParameterTakerFee = { ...riskParameter.takerFee }
+            riskParameterTakerFee.scale = parse6decimal('1')
+            riskParameter.takerFee = riskParameterTakerFee
+            await market.updateRiskParameter(riskParameter, false)
 
-            await market.connect(user).update(user.address, 0, POSITION, 0, 0, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(market.connect(user).update(user.address, 0, POSITION, 0, 0, false)).to.not.reverted
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+            ).to.not.reverted
           })
         })
 
         context('short', async () => {
           beforeEach(async () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market.connect(user).update(user.address, 0, 0, POSITION.div(2), COLLATERAL, false)
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                0,
+                POSITION.div(2),
+                COLLATERAL,
+                false,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -15312,18 +18398,18 @@ describe('Market', () => {
               currentId: 3,
               latestId: 2,
               collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123_V).sub(EXPECTED_INTEREST_5_123).add(5), // excess fundingFee taken from long
-              reward: 0,
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPositions(user.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(user.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              short: POSITION.div(2),
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
@@ -15332,18 +18418,18 @@ describe('Market', () => {
               collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(13), // loss of precision
-              reward: 0,
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
               maker: POSITION,
             })
-            expectPositionEq(await market.pendingPositions(userB.address, 3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrders(userB.address, 3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              delta: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
             })
             const totalFee = EXPECTED_FUNDING_FEE_1_5_123_V.add(EXPECTED_INTEREST_FEE_5_123)
             expectGlobalEq(await market.global(), {
@@ -15353,6 +18439,8 @@ describe('Market', () => {
               oracleFee: totalFee.div(2).div(10),
               riskFee: totalFee.div(2).div(10),
               donation: totalFee.div(2).mul(8).div(10).add(2), // loss of precision
+              latestPrice: PRICE,
+              exposure: 0,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
@@ -15360,13 +18448,12 @@ describe('Market', () => {
               maker: POSITION,
               short: POSITION.div(2),
             })
-            expectPositionEq(await market.pendingPosition(3), {
-              ...DEFAULT_POSITION,
+            expectOrderEq(await market.pendingOrder(3), {
+              ...DEFAULT_ORDER,
               timestamp: ORACLE_VERSION_4.timestamp,
-              maker: POSITION,
-              short: POSITION.div(2),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
               makerValue: {
                 _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10).sub(1), // loss of precision
               },
@@ -15374,24 +18461,30 @@ describe('Market', () => {
               shortValue: {
                 _value: EXPECTED_FUNDING_WITH_FEE_1_5_123_V.add(EXPECTED_INTEREST_5_123).div(5).mul(-1).add(1), // loss of precision (fundingFee)
               },
-              makerReward: { _value: 0 },
-              longReward: { _value: 0 },
-              shortReward: { _value: 0 },
+              liquidationFee: { _value: -riskParameter.liquidationFee },
             })
           })
 
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
-            riskParameter.skewScale = parse6decimal('1')
-            await market.connect(owner).updateRiskParameter(riskParameter)
+            const riskParameterTakerFee = { ...riskParameter.takerFee }
+            riskParameterTakerFee.scale = parse6decimal('1')
+            riskParameter.takerFee = riskParameterTakerFee
+            await market.updateRiskParameter(riskParameter, false)
 
-            await market.connect(user).update(user.address, 0, 0, POSITION, 0, false)
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false)).to.not.reverted
+            await expect(
+              market
+                .connect(user)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+            ).to.not.reverted
           })
         })
       })
@@ -15411,12 +18504,30 @@ describe('Market', () => {
           oracle.request.returns()
 
           dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, positionMaker, 0, 0, collateral, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              positionMaker,
+              0,
+              0,
+              collateral,
+              false,
+            )
 
           // Increase current version so multiple pending positions are unsettled
           oracle.status.returns([oracleVersion, oracleVersion.timestamp + 200])
           dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, positionMaker, 0, 0, collateral, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              positionMaker,
+              0,
+              0,
+              collateral,
+              false,
+            )
 
           // Fulfill oracle version 2 (invalid)
           const oracleVersion2 = {
@@ -15428,7 +18539,7 @@ describe('Market', () => {
 
           // Fulfill oracle version 3 (invalid)
           const oracleVersion3 = {
-            price: 0,
+            price: parse6decimal('100'),
             timestamp: TIMESTAMP + 200,
             valid: false,
           }
@@ -15447,7 +18558,11 @@ describe('Market', () => {
           oracle.request.returns()
 
           // settle
-          await expect(market.connect(userB).update(userB.address, positionMaker, 0, 0, 0, false)).to.not.be.reverted
+          await expect(
+            market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, positionMaker, 0, 0, 0, false),
+          ).to.not.be.reverted
         })
 
         it('global-local desync', async () => {
@@ -15465,7 +18580,16 @@ describe('Market', () => {
           oracle.request.returns()
 
           dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
-          await market.connect(userB).update(userB.address, positionMaker, 0, 0, collateral, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              positionMaker,
+              0,
+              0,
+              collateral,
+              false,
+            )
 
           const oracleVersion2 = {
             price: parse6decimal('100'),
@@ -15477,14 +18601,16 @@ describe('Market', () => {
           oracle.request.returns()
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, collateral.mul(1e12)).returns(true)
-          await market.connect(user).update(user.address, 0, positionLong, 0, collateral, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, positionLong, 0, collateral, false)
 
           const collateralBefore = (await market.locals(user.address)).collateral
           const collateralBeforeB = (await market.locals(userB.address)).collateral
 
           // invalid oracle version
           const oracleVersion3 = {
-            price: 0,
+            price: parse6decimal('100'),
             timestamp: TIMESTAMP + 200,
             valid: false,
           }
@@ -15503,14 +18629,18 @@ describe('Market', () => {
           oracle.request.returns()
 
           // reset to 0
-          await market.connect(user).update(user.address, 0, positionLong, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, positionLong, 0, 0, false)
 
           // oracleVersion4 commited
           oracle.status.returns([oracleVersion4, oracleVersion4.timestamp + 100])
           oracle.request.returns()
 
           // settle
-          await market.connect(userB).update(userB.address, positionMaker, 0, 0, 0, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, positionMaker, 0, 0, 0, false)
 
           const oracleVersion5 = {
             price: parse6decimal('90'),
@@ -15522,8 +18652,12 @@ describe('Market', () => {
           oracle.request.returns()
 
           // settle
-          await market.connect(userB).update(userB.address, positionMaker, 0, 0, 0, false)
-          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, positionMaker, 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
           expect((await market.locals(user.address)).collateral).to.equal(collateralBefore)
           expect((await market.locals(userB.address)).collateral).to.equal(collateralBeforeB)
@@ -15537,60 +18671,875 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
 
-        it('can switch current through reset', async () => {
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
+        it('cant switch current before settlement', async () => {
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
 
-          // switch (before any latest) -> then reset
           await expect(
-            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
-          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
-
-          // zero -> switch (before any latest)
-          await expect(market.connect(user).update(user.address, 0, 0, 0, 0, false)).to.not.be.reverted
-          await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false)).to.not.be.reverted
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+          ).to.be.revertedWithCustomError(market, 'MarketOverCloseError')
         })
 
         it('cant switch current after latest settles', async () => {
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(
-            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
-          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
           await expect(
-            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
         })
 
         it('can switch current after reset settles', async () => {
-          await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market.connect(user).update(user.address, 0, POSITION, 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(
-            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
-          await market.connect(user).update(user.address, 0, 0, 0, 0, false)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
           await expect(
-            market.connect(user).update(user.address, 0, 0, POSITION, 0, false),
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(market.connect(user).update(user.address, 0, 0, POSITION, 0, false)).to.not.be.reverted
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+          ).to.not.be.reverted
+        })
+      })
+
+      context('subtractive fee', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        })
+
+        it('opens the position and settles later with fee (maker)', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const riskParameterMakerFee = { ...riskParameter.makerFee }
+          riskParameterMakerFee.linearFee = parse6decimal('0.005')
+          riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
+          riskParameter.makerFee = riskParameterMakerFee
+          await market.updateRiskParameter(riskParameter, false)
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settlementFee = parse6decimal('0.50')
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+          const MAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.005) * price
+          const MAKER_FEE_PROPORTIONAL = parse6decimal('3.075') // position * (0.0025) * price
+
+          const MAKER_FEE = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL)
+          const MAKER_FEE_WITHOUT_IMPACT = MAKER_FEE_LINEAR.add(MAKER_FEE_PROPORTIONAL)
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                POSITION,
+                0,
+                0,
+                COLLATERAL,
+                false,
+                liquidator.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              POSITION,
+              0,
+              0,
+              COLLATERAL,
+              false,
+              liquidator.address,
+            )
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.sub(MAKER_FEE).sub(SETTLEMENT_FEE),
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(liquidator.address), {
+            ...DEFAULT_LOCAL,
+            claimable: MAKER_FEE_LINEAR.mul(2).div(10),
+          })
+          const totalFee = MAKER_FEE_WITHOUT_IMPACT.sub(MAKER_FEE_LINEAR.mul(2).div(10))
+          expectGlobalEq(await market.global(), {
+            currentId: 2,
+            latestId: 1,
+            protocolFee: totalFee.div(2),
+            oracleFee: totalFee.div(2).div(10).add(SETTLEMENT_FEE),
+            riskFee: totalFee.div(2).div(10),
+            donation: totalFee.div(2).mul(8).div(10),
+            latestPrice: PRICE,
+            exposure: 0,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+        })
+
+        it('opens the position and settles later with fee (taker)', async () => {
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter, false)
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settlementFee = parse6decimal('0.50')
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+          const TAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.01) * price
+          const TAKER_FEE_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
+          const TAKER_FEE_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
+
+          const TAKER_FEE = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL).add(TAKER_FEE_ADIABATIC)
+          const TAKER_FEE_WITHOUT_IMPACT = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL)
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+                liquidator.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              liquidator.address,
+            )
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(TAKER_FEE)
+              .sub(SETTLEMENT_FEE.div(2)),
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(SETTLEMENT_FEE.div(2))
+              .sub(8), // loss of precision
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(liquidator.address), {
+            ...DEFAULT_LOCAL,
+            claimable: TAKER_FEE_LINEAR.mul(2).div(10),
+          })
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+            .add(TAKER_FEE_WITHOUT_IMPACT)
+            .sub(TAKER_FEE_LINEAR.mul(2).div(10))
+          expectGlobalEq(await market.global(), {
+            currentId: 2,
+            latestId: 1,
+            protocolFee: totalFee.div(2).sub(3), // loss of precision
+            oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
+            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: PRICE,
+            exposure: 0,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
+            },
+            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+        })
+
+        it('opens the position and settles later with fee (self)', async () => {
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+          })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const riskParameterTakerFee = { ...riskParameter.takerFee }
+          riskParameterTakerFee.linearFee = parse6decimal('0.01')
+          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
+          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
+          riskParameter.takerFee = riskParameterTakerFee
+          await market.updateRiskParameter(riskParameter, false)
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.settlementFee = parse6decimal('0.50')
+          await market.updateParameter(beneficiary.address, coordinator.address, marketParameter)
+
+          const TAKER_FEE_LINEAR = parse6decimal('6.15') // position * (0.01) * price
+          const TAKER_FEE_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
+          const TAKER_FEE_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
+
+          const TAKER_FEE = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL).add(TAKER_FEE_ADIABATIC)
+          const TAKER_FEE_WITHOUT_IMPACT = TAKER_FEE_LINEAR.add(TAKER_FEE_PROPORTIONAL)
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+                user.address,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              user.address,
+            )
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(TAKER_FEE)
+              .sub(SETTLEMENT_FEE.div(2)),
+            claimable: TAKER_FEE_LINEAR.mul(2).div(10),
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(SETTLEMENT_FEE.div(2))
+              .sub(8), // loss of precision
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+            .add(TAKER_FEE_WITHOUT_IMPACT)
+            .sub(TAKER_FEE_LINEAR.mul(2).div(10))
+          expectGlobalEq(await market.global(), {
+            currentId: 2,
+            latestId: 1,
+            protocolFee: totalFee.div(2).sub(3), // loss of precision
+            oracleFee: totalFee.div(2).div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
+            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: PRICE,
+            exposure: 0,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
+            },
+            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+        })
+      })
+
+      context('requestless settlement', async () => {
+        beforeEach(async () => {
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+        })
+
+        it('opens the position and settles later', async () => {
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await expect(settle(market, user)) // requestless update for id 3
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
+
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns({ ...ORACLE_VERSION_0, timestamp: ORACLE_VERSION_3.timestamp }) // id 3, empty version
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4) // latest
+          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 3,
+            latestId: 2,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(EXPECTED_FUNDING_WITH_FEE_2_5_123)
+              .sub(EXPECTED_INTEREST_5_123),
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(EXPECTED_FUNDING_WITH_FEE_2_5_123)
+              .sub(EXPECTED_INTEREST_5_123),
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(21), // loss of precision
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(21), // loss of precision
+          })
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+            .add(EXPECTED_FUNDING_FEE_2_5_123)
+            .add(EXPECTED_INTEREST_FEE_5_123)
+          expectGlobalEq(await market.global(), {
+            currentId: 3,
+            latestId: 2,
+            protocolFee: totalFee.div(2).sub(5), // loss of precision
+            oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: PRICE,
+            exposure: 0,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            valid: false,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
+            },
+            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_123)
+                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .div(10)
+                .sub(2),
+            },
+            longValue: {
+              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
+                .add(EXPECTED_FUNDING_WITH_FEE_2_5_123)
+                .add(EXPECTED_INTEREST_5_123)
+                .div(5)
+                .mul(-1),
+            },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
+        })
+
+        it('sets requestless version price to latestPrice', async () => {
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                0,
+                COLLATERAL,
+                false,
+              ),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_2.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+              constants.AddressZero,
+            )
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          // Sync
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+
+          await expect(settle(market, user)) // requestless update for id 3
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_3.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
+
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns({ ...ORACLE_VERSION_0, timestamp: ORACLE_VERSION_3.timestamp }) // id 3, empty version
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+          )
+            .to.emit(market, 'Updated')
+            .withArgs(
+              user.address,
+              user.address,
+              ORACLE_VERSION_4.timestamp,
+              0,
+              POSITION.div(2),
+              0,
+              0,
+              false,
+              constants.AddressZero,
+            )
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4) // latest
+          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 4,
+            latestId: 3,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(EXPECTED_FUNDING_WITH_FEE_2_5_123)
+              .sub(EXPECTED_INTEREST_5_123),
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 3), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(EXPECTED_FUNDING_WITH_FEE_2_5_123)
+              .sub(EXPECTED_INTEREST_5_123),
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 2,
+            latestId: 1,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(21), // loss of precision
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_5.timestamp,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(21), // loss of precision
+          })
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+            .add(EXPECTED_FUNDING_FEE_2_5_123)
+            .add(EXPECTED_INTEREST_FEE_5_123)
+          expectGlobalEq(await market.global(), {
+            currentId: 4,
+            latestId: 3,
+            protocolFee: totalFee.div(2).sub(5), // loss of precision
+            oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+            donation: totalFee.div(2).mul(8).div(10).add(1), // loss of precision
+            latestPrice: PRICE,
+            exposure: 0,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_4.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrder(2), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_3.timestamp,
+          })
+          expectOrderEq(await market.pendingOrder(3), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_4.timestamp,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            valid: false,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
+            },
+            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_VERSION,
+            makerValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_123)
+                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+                .div(10)
+                .sub(2),
+            },
+            longValue: {
+              _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
+                .add(EXPECTED_FUNDING_WITH_FEE_2_5_123)
+                .add(EXPECTED_INTEREST_5_123)
+                .div(5)
+                .mul(-1),
+            },
+            liquidationFee: { _value: -riskParameter.liquidationFee },
+          })
         })
       })
     })
@@ -15617,9 +19566,20 @@ describe('Market', () => {
         oracle.request.whenCalledWith(user.address).returns()
 
         dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market.connect(userB).update(userB.address, POSITION, 0, 0, COLLATERAL, false)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
         dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market.connect(user).update(user.address, 0, POSITION.div(2), 0, COLLATERAL, false)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            user.address,
+            0,
+            POSITION.div(2),
+            0,
+            COLLATERAL,
+            false,
+          )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 

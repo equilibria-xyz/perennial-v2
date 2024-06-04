@@ -25,6 +25,9 @@ struct ProtocolParameter {
 
     /// @dev The minimum for market efficiency parameters
     UFixed6 minEfficiency;
+
+    /// @dev The default referrer fee
+    UFixed6 referralFee;
 }
 struct StoredProtocolParameter {
     /* slot 0 */
@@ -32,11 +35,12 @@ struct StoredProtocolParameter {
     uint24 maxFee;             // <= 1677%
     uint48 maxFeeAbsolute;     // <= 281m
     uint24 maxCut;             // <= 1677%
-    uint32 maxRate;            // <= 429496%
+    uint32 maxRate;            // <= 214748% (capped at 31 bits to accommodate int32 rates)
     uint24 minMaintenance;     // <= 1677%
     uint24 minEfficiency;      // <= 1677%
+    uint24 referralFee;        // <= 1677%
 }
-struct ProtocolParameterStorage { StoredProtocolParameter value; }
+struct ProtocolParameterStorage { StoredProtocolParameter value; } // SECURITY: must remain at (1) slots
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
 
 library ProtocolParameterStorageLib {
@@ -52,7 +56,8 @@ library ProtocolParameterStorageLib {
             UFixed6.wrap(uint256(value.maxCut)),
             UFixed6.wrap(uint256(value.maxRate)),
             UFixed6.wrap(uint256(value.minMaintenance)),
-            UFixed6.wrap(uint256(value.minEfficiency))
+            UFixed6.wrap(uint256(value.minEfficiency)),
+            UFixed6.wrap(uint256(value.referralFee))
         );
     }
 
@@ -66,9 +71,10 @@ library ProtocolParameterStorageLib {
 
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxFeeAbsolute.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
-        if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max / 2))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.referralFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.protocolFee)),
@@ -77,7 +83,8 @@ library ProtocolParameterStorageLib {
             uint24(UFixed6.unwrap(newValue.maxCut)),
             uint32(UFixed6.unwrap(newValue.maxRate)),
             uint24(UFixed6.unwrap(newValue.minMaintenance)),
-            uint24(UFixed6.unwrap(newValue.minEfficiency))
+            uint24(UFixed6.unwrap(newValue.minEfficiency)),
+            uint24(UFixed6.unwrap(newValue.referralFee))
         );
     }
 }

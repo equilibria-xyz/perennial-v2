@@ -25,9 +25,11 @@ const EMPTY_CHECKPOINT: CheckpointStruct = {
   redemption: 0,
   shares: 0,
   assets: 0,
-  fee: 0,
-  count: 0,
-  keeper: 0,
+  tradeFee: 0,
+  settlementFee: 0,
+  deposits: 0,
+  redemptions: 0,
+  timestamp: 0,
 }
 
 describe('Account', () => {

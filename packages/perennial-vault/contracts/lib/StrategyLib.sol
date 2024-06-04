@@ -1,10 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/Registration.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import {
+    MarketParameter,
+    RiskParameter,
+    Local,
+    Global,
+    Position,
+    PositionLib,
+    Order,
+    OracleVersion
+} from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { Registration } from "../types/Registration.sol";
 
 /// @dev The context of an underlying market
 struct MarketStrategyContext {
+    /// @dev Registration of the market
+    Registration registration;
+
     /// @dev The market parameter set
     MarketParameter marketParameter;
 
@@ -32,11 +47,20 @@ struct MarketStrategyContext {
     /// @dev The current closable amount of the vault
     UFixed6 closable;
 
-    // @dev The pending fees of the vault
-    UFixed6 pendingFee;
+    // @dev minimum position size before crossing the net position
+    UFixed6 minPosition;
+
+    // @dev maximum position size before crossing the maker limit
+    UFixed6 maxPosition;
 }
 
 struct Strategy {
+    UFixed6 totalMargin;
+
+    Fixed6 totalCollateral;
+
+    UFixed6 minAssets;
+
     MarketStrategyContext[] marketContexts;
 }
 using StrategyLib for Strategy global;
@@ -46,7 +70,8 @@ using StrategyLib for Strategy global;
 /// @dev - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library StrategyLib {
-    error StrategyLibInsufficientMarginError();
+    error StrategyLibInsufficientCollateralError();
+    error StrategyLibInsufficientAssetsError();
 
     /// @dev The maximum multiplier that is allowed for leverage
     UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
@@ -60,201 +85,125 @@ library StrategyLib {
         UFixed6 position;
     }
 
-    /// @dev Internal struct to avoid stack to deep error
-    struct _AllocateLocals {
-        UFixed6 marketCollateral;
-        UFixed6 marketAssets;
-        UFixed6 minPosition;
-        UFixed6 maxPosition;
-        UFixed6 minAssets;
-        uint256 totalWeight;
-        UFixed6 totalMargin;
-    }
-
+    /// @notice Loads the strategy context of each of the underlying markets
+    /// @param registrations The registrations of the underlying markets
+    /// @return strategy The strategy contexts of the vault
     function load(Registration[] memory registrations) internal view returns (Strategy memory strategy) {
         strategy.marketContexts = new MarketStrategyContext[](registrations.length);
-        for (uint256 marketId; marketId < registrations.length; marketId++)
+        for (uint256 marketId; marketId < registrations.length; marketId++) {
             strategy.marketContexts[marketId] = _loadContext(registrations[marketId]);
-    }
-
-    function maxRedeem(
-        Strategy memory strategy,
-        Registration[] memory registrations,
-        uint256 totalWeight,
-        UFixed6 collateral
-    ) internal pure returns (UFixed6 redemptionAssets) {
-        redemptionAssets = UFixed6Lib.MAX;
-        MarketTarget[] memory targets = _allocate(strategy, registrations, collateral, collateral);
-
-        for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
-            MarketStrategyContext memory marketContext = strategy.marketContexts[marketId];
-            Registration memory registration = registrations[marketId];
-
-            // If market has 0 weight, leverage, or position, skip
-            if (
-                registration.weight == 0 ||
-                registration.leverage.isZero() || (
-                    marketContext.latestAccountPosition.maker.isZero() &&
-                    marketContext.currentAccountPosition.maker.isZero()
-                )
-            ) continue;
-
-            (UFixed6 minPosition, ) = _positionLimit(marketContext);
-            UFixed6 availableClosable = targets[marketId].position.sub(minPosition.min(targets[marketId].position));
-
-            if (minPosition.isZero()) continue; // entire position can be closed, don't limit in cases of price deviation
-
-            redemptionAssets = availableClosable
-                .muldiv(marketContext.latestPrice.abs(), registration.leverage) // available collateral
-                .muldiv(totalWeight, registration.weight)                       // collateral in market
-                .min(redemptionAssets);
+            strategy.totalMargin = strategy.totalMargin.add(strategy.marketContexts[marketId].margin);
+            strategy.totalCollateral = strategy.totalCollateral.add(strategy.marketContexts[marketId].local.collateral);
+            strategy.minAssets = strategy.minAssets.max(
+                (registrations[marketId].leverage.isZero() || registrations[marketId].weight.isZero()) ?
+                    UFixed6Lib.ZERO : // skip if no leverage or weight
+                    strategy.marketContexts[marketId].minPosition
+                        .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
+                        .div(registrations[marketId].weight)
+            );
         }
     }
 
     /// @notice Compute the target allocation for each market
     /// @param strategy The strategy of the vault
-    /// @param registrations The registrations of the markets
-    /// @param collateral The amount of collateral to allocate
-    /// @param assets The amount of collateral that is eligible for positions
+    /// @param deposit The amount of assets that are being deposited into the vault
+    /// @param withdrawal The amount of assets to make available for withdrawal
+    /// @param ineligible The amount of assets that are inapplicable for allocation
     function allocate(
         Strategy memory strategy,
-        Registration[] memory registrations,
-        UFixed6 collateral,
-        UFixed6 assets
+        UFixed6 deposit,
+        UFixed6 withdrawal,
+        UFixed6 ineligible
     ) internal pure returns (MarketTarget[] memory targets) {
-        targets = _allocate(strategy, registrations, collateral, assets);
+        UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
+        UFixed6 assets = collateral.unsafeSub(ineligible);
 
-        for (uint256 marketId; marketId < registrations.length; marketId++) {
-            (UFixed6 minPosition, UFixed6 maxPosition) = _positionLimit(strategy.marketContexts[marketId]);
-            targets[marketId].position = targets[marketId].position.max(minPosition).min(maxPosition);
+        if (collateral.lt(strategy.totalMargin)) revert StrategyLibInsufficientCollateralError();
+        if (assets.lt(strategy.minAssets)) revert StrategyLibInsufficientAssetsError();
+
+        targets = new MarketTarget[](strategy.marketContexts.length);
+        UFixed6 totalMarketCollateral;
+        for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
+            UFixed6 marketCollateral;
+            (targets[marketId], marketCollateral) = _allocateMarket(
+                strategy.marketContexts[marketId],
+                strategy.totalMargin,
+                collateral,
+                assets
+            );
+            totalMarketCollateral = totalMarketCollateral.add(marketCollateral);
         }
+
+        if (strategy.marketContexts.length != 0)
+            targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(collateral.sub(totalMarketCollateral)));
     }
 
-    function _allocate(
-        Strategy memory strategy,
-        Registration[] memory registrations,
+    /// @notice Compute the target allocation for a market
+    /// @param marketContext The context of the market
+    /// @param totalMargin The total margin requirement of the vault
+    /// @param collateral The total amount of collateral of the vault
+    /// @param assets The total amount of collateral available for allocation
+    function _allocateMarket(
+        MarketStrategyContext memory marketContext,
+        UFixed6 totalMargin,
         UFixed6 collateral,
         UFixed6 assets
-    ) internal pure returns (MarketTarget[] memory targets) {
-        _AllocateLocals memory _locals;
-        (_locals.totalWeight, _locals.totalMargin) = _aggregate(registrations, strategy.marketContexts);
+    ) private pure returns (MarketTarget memory target, UFixed6 marketCollateral) {
+        marketCollateral = marketContext.margin
+            .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
 
-        if (collateral.lt(_locals.totalMargin)) revert StrategyLibInsufficientMarginError();
+        UFixed6 marketAssets = assets
+            .mul(marketContext.registration.weight)
+            .min(marketCollateral.mul(LEVERAGE_BUFFER));
 
-        targets = new MarketTarget[](registrations.length);
-        for (uint256 marketId; marketId < registrations.length; marketId++) {
+        target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
 
-            _locals.marketCollateral = strategy.marketContexts[marketId].margin
-                .add(collateral.sub(_locals.totalMargin).muldiv(registrations[marketId].weight, _locals.totalWeight));
+        UFixed6 minAssets = marketContext.riskParameter.minMargin
+            .unsafeDiv(marketContext.registration.leverage.mul(marketContext.riskParameter.maintenance));
 
-            _locals.marketAssets = assets
-                .sub(strategy.marketContexts[marketId].pendingFee.min(assets))
-                .muldiv(registrations[marketId].weight, _locals.totalWeight)
-                .min(_locals.marketCollateral.mul(LEVERAGE_BUFFER));
+        if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
 
-            _locals.minAssets = strategy.marketContexts[marketId].riskParameter.minMargin
-                .unsafeDiv(registrations[marketId].leverage.mul(strategy.marketContexts[marketId].riskParameter.maintenance));
-            if (strategy.marketContexts[marketId].marketParameter.closed || _locals.marketAssets.lt(_locals.minAssets))
-                _locals.marketAssets = UFixed6Lib.ZERO;
-
-            (targets[marketId].collateral, targets[marketId].position) = (
-                Fixed6Lib.from(_locals.marketCollateral).sub(strategy.marketContexts[marketId].local.collateral),
-                _locals.marketAssets
-                    .muldiv(registrations[marketId].leverage, strategy.marketContexts[marketId].latestPrice.abs())
-            );
-        }
+        target.position = marketAssets
+            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
+            .max(marketContext.minPosition)
+            .min(marketContext.maxPosition);
     }
 
     /// @notice Load the context of a market
     /// @param registration The registration of the market
     /// @return marketContext The context of the market
-    function _loadContext(Registration memory registration) private view returns (MarketStrategyContext memory marketContext) {
+    function _loadContext(
+        Registration memory registration
+    ) private view returns (MarketStrategyContext memory marketContext) {
+        marketContext.registration = registration;
         marketContext.marketParameter = registration.market.parameter();
         marketContext.riskParameter = registration.market.riskParameter();
         marketContext.local = registration.market.locals(address(this));
-        Global memory global = registration.market.global();
-        marketContext.latestPrice = global.latestPrice;
+        OracleVersion memory latestVersion = registration.market.oracle().latest();
 
-        // latest position
-        UFixed6 previousClosable;
-        previousClosable = _loadPosition(
-            marketContext,
-            marketContext.latestAccountPosition = registration.market.positions(address(this)),
-            previousClosable
+        marketContext.latestAccountPosition = registration.market.positions(address(this));
+        marketContext.currentAccountPosition = marketContext.latestAccountPosition.clone();
+
+        Order memory pendingLocal = registration.market.pendings(address(this));
+        marketContext.currentAccountPosition.update(pendingLocal);
+
+        marketContext.margin = PositionLib.margin(
+            marketContext.latestAccountPosition.magnitude().add(pendingLocal.pos()),
+            latestVersion,
+            marketContext.riskParameter
         );
-        marketContext.closable = marketContext.latestAccountPosition.maker;
+        marketContext.latestPrice = latestVersion.price;
 
-        // pending positions
-        for (uint256 id = marketContext.local.latestId + 1; id <= marketContext.local.currentId; id++)
-            previousClosable = _loadPosition(
-                marketContext,
-                marketContext.currentAccountPosition = registration.market.pendingPositions(address(this), id),
-                previousClosable
-            );
+        marketContext.closable = marketContext.latestAccountPosition.magnitude().sub(pendingLocal.neg());
 
         // current position
-        Position memory latestPosition = registration.market.position();
-        marketContext.currentPosition = registration.market.pendingPosition(global.currentId);
-        marketContext.currentPosition.adjust(latestPosition);
-        marketContext.pendingFee = marketContext.pendingFee
-            .add(marketContext.local.pendingLiquidationFee(marketContext.latestAccountPosition));
-    }
-
-    /// @notice Loads one position for the context calculation
-    /// @param marketContext The context of the market
-    /// @param position The position to load
-    /// @param previousMaker The previous maker position
-    /// @return nextMaker The next maker position
-    function _loadPosition(
-        MarketStrategyContext memory marketContext,
-        Position memory position,
-        UFixed6 previousMaker
-    ) private pure returns (UFixed6 nextMaker) {
-        position.adjust(marketContext.latestAccountPosition);
-
-        marketContext.margin = position
-            .margin(OracleVersion(0, marketContext.latestPrice, true), marketContext.riskParameter)
-            .max(marketContext.margin);
-        marketContext.closable = marketContext.closable.sub(previousMaker.sub(position.maker.min(previousMaker)));
-        marketContext.pendingFee = marketContext.pendingFee
-            .add(UFixed6Lib.from(position.fee.max(Fixed6Lib.ZERO))) // don't allocate negative fees
-            .add(position.keeper);
-        nextMaker = position.maker;
-    }
-
-    /// @notice Aggregate the context of all markets
-    /// @param registrations The registrations of the markets
-    /// @param marketContexts The contexts of the markets
-    /// @return totalWeight The total weight of all markets
-    /// @return totalMargin The total margin of all markets
-    function _aggregate(
-        Registration[] memory registrations,
-        MarketStrategyContext[] memory marketContexts
-    ) private pure returns (uint256 totalWeight, UFixed6 totalMargin) {
-        for (uint256 marketId; marketId < registrations.length; marketId++) {
-            totalWeight += registrations[marketId].weight;
-            totalMargin = totalMargin.add(marketContexts[marketId].margin);
-        }
-    }
-
-    /// @notice Compute the position limit of a market
-    /// @param marketContext The context of the market
-    /// @return The minimum position size before crossing the net position
-    /// @return The maximum position size before crossing the maker limit
-    function _positionLimit(MarketStrategyContext memory marketContext) private pure returns (UFixed6, UFixed6) {
-        return (
-            // minimum position size before crossing the net position
-            marketContext.currentAccountPosition.maker.sub(
-            marketContext.currentPosition.maker
-                    .sub(marketContext.currentPosition.net().min(marketContext.currentPosition.maker))
-                    .min(marketContext.currentAccountPosition.maker)
-                    .min(marketContext.closable)
-            ),
-            // maximum position size before crossing the maker limit
-            marketContext.currentAccountPosition.maker.add(
-            marketContext.riskParameter.makerLimit
-                    .sub(marketContext.currentPosition.maker.min(marketContext.riskParameter.makerLimit))
-            )
-        );
+        Order memory pendingGlobal = registration.market.pending();
+        marketContext.currentPosition = registration.market.position();
+        marketContext.currentPosition.update(pendingGlobal);
+        marketContext.minPosition = marketContext.currentAccountPosition.maker
+            .unsafeSub(marketContext.currentPosition.maker
+                .unsafeSub(marketContext.currentPosition.skew().abs()).min(marketContext.closable));
+        marketContext.maxPosition = marketContext.currentAccountPosition.maker
+            .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
     }
 }

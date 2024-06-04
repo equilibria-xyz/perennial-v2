@@ -4,7 +4,6 @@ import { BigNumber, utils, ContractTransaction, constants } from 'ethers'
 
 import { impersonate } from '../../../../common/testutil'
 
-// extensions types
 import {
   IERC20Metadata,
   IERC20Metadata__factory,
@@ -27,12 +26,20 @@ import {
   Oracle__factory,
   OracleFactory__factory,
   IOracle__factory,
-  PayoffFactory__factory,
-  PayoffFactory,
-  RiskParameterStorageLib__factory,
-  MarketParameterStorageLib__factory,
   IOracleFactory,
+  InvariantLib__factory,
+  VersionLib__factory,
+  GlobalStorageLib__factory,
+  MarketParameterStorageLib__factory,
+  PositionStorageGlobalLib__factory,
+  PositionStorageLocalLib__factory,
+  RiskParameterStorageLib__factory,
+  VersionStorageLib__factory,
+  MarketFactory,
+  MarketFactory__factory,
 } from '../../../types/generated'
+import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
+import { CheckpointLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
@@ -43,11 +50,6 @@ import {
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
 import {
-  ERC20PresetMinterPauser,
-  ERC20PresetMinterPauser__factory,
-  IMarketFactory__factory,
-  MarketFactory,
-  MarketFactory__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
@@ -64,7 +66,6 @@ export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainl
 export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
-const RESERVE_ADDRESS = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 const LEGACY_ORACLE_DELAY = 3600
 
@@ -78,7 +79,6 @@ export interface InstanceVars {
   beneficiaryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
-  payoffFactory: PayoffFactory
   marketFactory: MarketFactory
   payoff: IPayoffProvider
   dsu: IERC20Metadata
@@ -87,7 +87,6 @@ export interface InstanceVars {
   chainlink: ChainlinkContext
   oracle: IOracleProvider
   marketImpl: Market
-  rewardToken: ERC20PresetMinterPauser
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
@@ -99,7 +98,12 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const chainlink =
     chainlinkContext ??
-    (await new ChainlinkContext(CHAINLINK_CUSTOM_CURRENCIES.ETH, CHAINLINK_CUSTOM_CURRENCIES.USD, 1).init())
+    (await new ChainlinkContext(
+      CHAINLINK_CUSTOM_CURRENCIES.ETH,
+      CHAINLINK_CUSTOM_CURRENCIES.USD,
+      { provider: payoff, decimals: -5 },
+      1,
+    ).init())
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -114,30 +118,43 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
-  const payoffFactoryImpl = await new PayoffFactory__factory(owner).deploy()
-  const payoffFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
-    payoffFactoryImpl.address,
-    proxyAdmin.address,
-    [],
-  )
-  const payoffFactory = new PayoffFactory__factory(owner).attach(payoffFactoryProxy.address)
   const marketImpl = await new Market__factory(
     {
+      '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
+        await new CheckpointLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/libs/InvariantLib.sol:InvariantLib': (
+        await new InvariantLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/libs/VersionLib.sol:VersionLib': (
+        await new VersionLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Global.sol:GlobalStorageLib': (
+        await new GlobalStorageLib__factory(owner).deploy()
+      ).address,
       '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
         await new MarketParameterStorageLib__factory(owner).deploy()
       ).address,
+      '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageGlobalLib': (
+        await new PositionStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageLocalLib': (
+        await new PositionStorageLocalLib__factory(owner).deploy()
+      ).address,
       '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
         await new RiskParameterStorageLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/types/Version.sol:VersionStorageLib': (
+        await new VersionStorageLib__factory(owner).deploy()
       ).address,
     },
     owner,
   ).deploy()
 
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(
-    oracleFactory.address,
-    payoffFactory.address,
-    marketImpl.address,
-  )
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -148,8 +165,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address, usdc.address, RESERVE_ADDRESS)
-  await payoffFactory.connect(owner).initialize()
+  await oracleFactory.connect(owner).initialize(dsu.address)
   await marketFactory.connect(owner).initialize()
 
   // Params
@@ -162,8 +178,8 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
+    referralFee: 0,
   })
-  await payoffFactory.connect(owner).register(payoff.address)
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).authorize(marketFactory.address)
   const oracle = IOracle__factory.connect(
@@ -180,8 +196,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   await fundWalletUSDC(usdc, user)
 
-  const rewardToken = await new ERC20PresetMinterPauser__factory(owner).deploy('Incentive Token', 'ITKN')
-
   return {
     owner,
     pauser,
@@ -192,7 +206,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     beneficiaryB,
     proxyAdmin,
     oracleFactory,
-    payoffFactory,
     marketFactory,
     chainlink,
     payoff,
@@ -201,7 +214,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     usdcHolder,
     oracle,
     marketImpl,
-    rewardToken,
   }
 }
 
@@ -242,30 +254,33 @@ export async function createMarket(
   name?: string,
   symbol?: string,
   oracleOverride?: IOracleProvider,
-  payoff?: IPayoffProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
-  const { owner, marketFactory, beneficiaryB, oracle, rewardToken, dsu } = instanceVars
+  const { owner, marketFactory, beneficiaryB, oracle, dsu } = instanceVars
 
   const definition = {
     token: dsu.address,
     oracle: (oracleOverride ?? oracle).address,
-    payoff: (payoff ?? instanceVars.payoff).address,
   }
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
-    takerFee: 0,
-    takerSkewFee: 0,
-    takerImpactFee: 0,
-    makerFee: 0,
-    makerImpactFee: 0,
-    makerLimit: parse6decimal('1000'),
+    takerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('100'),
+    },
+    makerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
+    makerLimit: parse6decimal('10000'),
     efficiencyLimit: parse6decimal('0.2'),
     liquidationFee: parse6decimal('0.50'),
-    minLiquidationFee: parse6decimal('0'),
-    maxLiquidationFee: parse6decimal('1000'),
     utilizationCurve: {
       minRate: 0,
       maxRate: parse6decimal('5.00'),
@@ -274,11 +289,11 @@ export async function createMarket(
     },
     pController: {
       k: parse6decimal('40000'),
+      min: parse6decimal('-1.20'),
       max: parse6decimal('1.20'),
     },
     minMargin: parse6decimal('500'),
     minMaintenance: parse6decimal('500'),
-    skewScale: 0,
     staleAfter: 7200,
     makerReceiveOnly: false,
     ...riskParamOverrides,
@@ -291,9 +306,6 @@ export async function createMarket(
     positionFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    makerRewardRate: 0,
-    longRewardRate: 0,
-    shortRewardRate: 0,
     settlementFee: 0,
     makerCloseAlways: false,
     takerCloseAlways: false,
@@ -307,18 +319,23 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
 
-  await market.updateRiskParameter(riskParameter)
+  await market.updateRiskParameter(riskParameter, false)
   await market.updateParameter(beneficiaryB.address, constants.AddressZero, marketParameter)
 
   return market
 }
 
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  const local = await market.locals(account.address)
-  const currentPosition = await market.pendingPositions(account.address, local.currentId)
   return market
     .connect(account)
-    .update(account.address, currentPosition.maker, currentPosition.long, currentPosition.short, 0, false)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      account.address,
+      constants.MaxUint256,
+      constants.MaxUint256,
+      constants.MaxUint256,
+      0,
+      false,
+    )
 }
 
 export async function createVault(
@@ -392,25 +409,46 @@ export async function createVault(
   )
   await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
 
-  const _marketFactory = IMarketFactory__factory.connect(instanceVars.marketFactory.address, owner)
   const ethMarket = await deployProductOnMainnetFork({
-    factory: _marketFactory,
+    factory: marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: ethOracle.address,
     payoff: constants.AddressZero,
     makerLimit: parse6decimal('1000'),
     minMaintenance: parse6decimal('50'),
-    maxLiquidationFee: parse6decimal('25000'),
+    takerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
+    makerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
   })
   const btcMarket = await deployProductOnMainnetFork({
-    factory: _marketFactory,
+    factory: marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: btcOracle.address,
     payoff: constants.AddressZero,
     minMaintenance: parse6decimal('50'),
-    maxLiquidationFee: parse6decimal('25000'),
+    takerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
+    makerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('10'),
+    },
   })
   const vaultImpl = await new Vault__factory(owner).deploy()
   const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
@@ -428,8 +466,10 @@ export async function createVault(
   await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip')
 
   await vault.register(btcMarket.address)
-  await vault.updateMarket(0, 4, leverage ?? parse6decimal('4.0'))
-  await vault.updateMarket(1, 1, leverage ?? parse6decimal('4.0'))
+  await vault.updateLeverage(0, leverage ?? parse6decimal('4.0'))
+  await vault.updateLeverage(1, leverage ?? parse6decimal('4.0'))
+  await vault.updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
+
   await vault.updateParameter({
     cap: maxCollateral ?? parse6decimal('500000'),
   })
@@ -456,10 +496,46 @@ export async function createVault(
   await asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
 
   // Seed markets with some activity
-  await ethMarket.connect(user).update(user.address, parse6decimal('100'), 0, 0, parse6decimal('100000'), false)
-  await ethMarket.connect(user2).update(user2.address, 0, parse6decimal('50'), 0, parse6decimal('100000'), false)
-  await btcMarket.connect(btcUser1).update(btcUser1.address, parse6decimal('20'), 0, 0, parse6decimal('100000'), false)
-  await btcMarket.connect(btcUser2).update(btcUser2.address, 0, parse6decimal('10'), 0, parse6decimal('100000'), false)
+  await ethMarket
+    .connect(user)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      user.address,
+      parse6decimal('100'),
+      0,
+      0,
+      parse6decimal('100000'),
+      false,
+    )
+  await ethMarket
+    .connect(user2)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      user2.address,
+      0,
+      parse6decimal('50'),
+      0,
+      parse6decimal('100000'),
+      false,
+    )
+  await btcMarket
+    .connect(btcUser1)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      btcUser1.address,
+      parse6decimal('20'),
+      0,
+      0,
+      parse6decimal('100000'),
+      false,
+    )
+  await btcMarket
+    .connect(btcUser2)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](
+      btcUser2.address,
+      0,
+      parse6decimal('10'),
+      0,
+      parse6decimal('100000'),
+      false,
+    )
 
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
 }

@@ -14,53 +14,18 @@ contract LocalTester {
         return local.store(newLocal);
     }
 
-    function update(Fixed6 collateral) external {
+    function update(Fixed6 transfer) external {
         Local memory newLocal = local.read();
-        newLocal.update(collateral);
+        newLocal.update(transfer);
         local.store(newLocal);
     }
 
-    function accumulate(
-        uint256 latestId,
-        Position memory fromPosition,
-        Position memory toPosition,
-        Version memory fromVersion,
-        Version memory toVersion
-    ) external returns (LocalAccumulationResult memory values) {
+    function update(
+        uint256 newId,
+        CheckpointAccumulationResult memory accumulation
+    ) external {
         Local memory newLocal = local.read();
-        values = newLocal.accumulate(latestId, fromPosition, toPosition, fromVersion, toVersion);
+        newLocal.update(newId, accumulation);
         local.store(newLocal);
-    }
-
-    function processProtection(
-        Position memory latestPosition,
-        Version memory version
-    ) external returns (bool result) {
-        Local memory newLocal = local.read();
-        result = newLocal.processProtection(latestPosition, version);
-        local.store(newLocal);
-    }
-
-    function processLiquidationFee(Local memory initiateeLocal) external {
-        Local memory newLocal = local.read();
-        newLocal.processLiquidationFee(initiateeLocal);
-        local.store(newLocal);
-    }
-
-    function protect(
-        RiskParameter memory riskParameter,
-        OracleVersion memory latestVersion,
-        uint256 currentTimestamp,
-        Order memory newOrder,
-        address initiator,
-        bool tryProtect
-    ) external returns (bool result) {
-        Local memory newLocal = local.read();
-        result = newLocal.protect(riskParameter, latestVersion, currentTimestamp, newOrder, initiator, tryProtect);
-        local.store(newLocal);
-    }
-
-    function pendingLiquidationFee(Position memory latestPosition) external view returns (UFixed6) {
-        return local.read().pendingLiquidationFee(latestPosition);
     }
 }

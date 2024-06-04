@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/root/attribute/Factory.sol";
@@ -9,10 +9,10 @@ import "./interfaces/IOracleFactory.sol";
 /// @title OracleFactory
 /// @notice Factory for creating and managing oracles
 contract OracleFactory is IOracleFactory, Factory {
-    /// @notice The token that is paid out as a reward to oracle keepers
+    /// @notice The token that is paid out as a fee to oracle keepers
     Token18 public incentive;
 
-    /// @notice The maximum amount of tokens that can be rewarded in a single price update
+    /// @notice The maximum amount of tokens that can be awarded in a single price update
     UFixed6 public maxClaim;
 
     /// @notice Mapping of which factory's instances are authorized to request from this contract
@@ -29,20 +29,13 @@ contract OracleFactory is IOracleFactory, Factory {
     constructor(address implementation_) Factory(implementation_) { }
 
     /// @notice Initializes the contract state
-    /// @param incentive_ The token that is paid out as a reward to oracle keepers
-    /// @param usdc_ USDC address
-    /// @param reserve_ EmptySetReserve address
-    function initialize(Token18 incentive_, Token6 usdc_, IEmptySetReserve reserve_) external initializer(2) {
+    /// @param incentive_ The token that is paid out as a fee to oracle keepers
+    function initialize(Token18 incentive_) external initializer(3) {
         // Re-initialize if owner is unset
         if (owner() == address(0))
             __Factory__initialize();
 
         incentive = incentive_;
-
-        // One-time wrap of USDC to DSU.
-        usdc_.approve(address(reserve_));
-        reserve_.mint(UFixed18Lib.from(usdc_.balanceOf()));
-        usdc_.approve(address(reserve_), UFixed6Lib.ZERO);
     }
 
     /// @notice Registers a new oracle provider factory to be used in the underlying oracle instances
@@ -90,13 +83,14 @@ contract OracleFactory is IOracleFactory, Factory {
         oracle.update(oracleProvider);
     }
 
-    /// @notice Updates the maximum amount of tokens that can be rewarded in a single price update
+    /// @notice Updates the maximum amount of tokens that can be ewarded in a single price update
+    /// @param newMaxClaim The new maximum amount
     function updateMaxClaim(UFixed6 newMaxClaim) external onlyOwner {
         maxClaim = newMaxClaim;
         emit MaxClaimUpdated(newMaxClaim);
     }
 
-    /// @notice Claims an amount of incentive tokens, to be paid out as a reward to the keeper
+    /// @notice Claims an amount of incentive tokens, to be paid out as a fee to the keeper
     /// @dev Can only be called by a registered underlying oracle provider factory
     /// @param amount The amount of tokens to claim
     function claim(UFixed6 amount) external {

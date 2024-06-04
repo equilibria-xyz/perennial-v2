@@ -1,5 +1,5 @@
 import { utils, constants } from 'ethers'
-import { HardhatRuntimeEnvironment } from 'hardhat/types'
+import { HardhatRuntimeEnvironment, Libraries } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
@@ -11,65 +11,30 @@ import {
 import { forkNetwork, isFork, isMainnet } from '../../common/testutil/network'
 import { ORACLE_IDS } from './003_deploy_oracle'
 import { getLabsMultisig } from '../../common/testutil/constants'
+import { DEFAULT_MARKET_PARAMETER, DEFAULT_PROTOCOL_PARAMETER, DEFAULT_RISK_PARAMETERS } from '../util/constants'
 
-// TODO: 2x what expected gauntlet values are
-const DEFAULT_PROTOCOL_PARAMETER = {
-  protocolFee: 0,
-  maxFee: utils.parseUnits('0.002', 6), // 0.2%
-  maxFeeAbsolute: utils.parseUnits('50', 6), // $50
-  maxCut: utils.parseUnits('0.1', 6), // 10%
-  maxRate: utils.parseUnits('5.00', 6), // 500%
-  minMaintenance: utils.parseUnits('0.004', 6), // 0.4%
-  minEfficiency: utils.parseUnits('0.25', 6), // 25%
-}
-
-const DEFAULT_MARKET_PARAMETER = {
-  fundingFee: utils.parseUnits('0.05', 6),
-  interestFee: utils.parseUnits('0.05', 6),
-  positionFee: utils.parseUnits('0.05', 6),
-  oracleFee: 0,
-  riskFee: utils.parseUnits('1', 6),
-  maxPendingGlobal: 12,
-  maxPendingLocal: 6,
-  makerRewardRate: 0,
-  longRewardRate: 0,
-  shortRewardRate: 0,
-  settlementFee: utils.parseUnits('1.5', 6),
-  makerCloseAlways: false,
-  takerCloseAlways: true,
-  closed: false,
-  settle: false,
-}
-
-const DEFAULT_RISK_PARAMETERS = {
-  margin: utils.parseUnits('0.0095', 6),
-  maintenance: utils.parseUnits('0.008', 6),
-  takerFee: utils.parseUnits('0.0002', 6),
-  takerSkewFee: utils.parseUnits('0.001', 6),
-  takerImpactFee: utils.parseUnits('0.001', 6),
-  makerFee: utils.parseUnits('0.0001', 6),
-  makerImpactFee: 0,
-  makerLimit: utils.parseUnits('1', 6),
-  efficiencyLimit: utils.parseUnits('0.5', 6),
-  liquidationFee: utils.parseUnits('0.05', 6),
-  minLiquidationFee: utils.parseUnits('5', 6),
-  maxLiquidationFee: utils.parseUnits('25', 6),
-  utilizationCurve: {
-    minRate: 0,
-    maxRate: utils.parseUnits('0.155', 6),
-    targetRate: utils.parseUnits('0.055', 6),
-    targetUtilization: utils.parseUnits('0.60', 6),
+// enumerates libraries required for deployment of Market implementation contract
+export const MARKET_LIBRARIES: Array<{
+  name: string // as named in linkReferences of ABI
+  contract: string | undefined // only needed to disambiguate name clashes
+}> = [
+  {
+    name: 'CheckpointLib',
+    contract: '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib',
   },
-  pController: {
-    k: utils.parseUnits('20000', 6),
-    max: utils.parseUnits('2.50', 6),
+  { name: 'InvariantLib', contract: undefined },
+  { name: 'VersionLib', contract: undefined },
+  {
+    name: 'CheckpointStorageLib',
+    contract: '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib',
   },
-  minMargin: utils.parseUnits('10', 6),
-  minMaintenance: utils.parseUnits('10', 6),
-  skewScale: 0,
-  staleAfter: 7200,
-  makerReceiveOnly: false,
-}
+  { name: 'GlobalStorageLib', contract: undefined },
+  { name: 'MarketParameterStorageLib', contract: undefined },
+  { name: 'PositionStorageGlobalLib', contract: undefined },
+  { name: 'PositionStorageLocalLib', contract: undefined },
+  { name: 'RiskParameterStorageLib', contract: undefined },
+  { name: 'VersionStorageLib', contract: undefined },
+]
 
 const MARKETS: { [key: string]: string[][] } = {
   arbitrum: [
@@ -101,33 +66,32 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
+  // Deploy Libraries
+  const marketLibrariesBuilt: Libraries = {}
+  for (const library of MARKET_LIBRARIES) {
+    marketLibrariesBuilt[library.name] = (
+      await deploy(library.name, {
+        contract: library.contract,
+        from: deployer,
+        skipIfAlreadyDeployed: true,
+        log: true,
+        autoMine: true,
+      })
+    ).address
+  }
+
   // Deploy Implementations
-  const marketParamaterStorage = await deploy('MarketParameterStorageLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
-  const riskParamaterStorage = await deploy('RiskParameterStorageLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: true,
-    log: true,
-    autoMine: true,
-  })
   const marketImpl = await deploy('MarketImpl', {
     contract: 'Market',
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
     autoMine: true,
-    libraries: {
-      MarketParameterStorageLib: marketParamaterStorage.address,
-      RiskParameterStorageLib: riskParamaterStorage.address,
-    },
+    libraries: marketLibrariesBuilt,
   })
   await deploy('MarketFactoryImpl', {
     contract: 'MarketFactory',
-    args: [(await get('OracleFactory')).address, (await get('PayoffFactory')).address, marketImpl.address],
+    args: [(await get('OracleFactory')).address, marketImpl.address],
     from: deployer,
     skipIfAlreadyDeployed: true,
     log: true,
@@ -169,32 +133,22 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     console.log('Deploying Markets...')
     for (const marketDefinition of Object.values(markets)) {
       const oracleAddress = await oracleFactory.oracles(marketDefinition[0])
-      const payoffAddress =
-        marketDefinition[1] === '' ? ethers.constants.AddressZero : (await get(marketDefinition[1])).address
 
-      if (
-        (await marketFactory.markets(oracleAddress, payoffAddress)).toLowerCase() ===
-        ethers.constants.AddressZero.toLowerCase()
-      ) {
+      if ((await marketFactory.markets(oracleAddress)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
         process.stdout.write(`Creating market with oracle ${marketDefinition[0]} and payoff ${marketDefinition[1]}...`)
         const marketAddress = await marketFactory.callStatic.create({
           token: (await get('DSU')).address,
           oracle: oracleAddress,
-          payoff: payoffAddress,
         })
         process.stdout.write(`deploying at ${marketAddress}...`)
         await (
           await marketFactory.create({
             token: (await get('DSU')).address,
             oracle: oracleAddress,
-            payoff: payoffAddress,
           })
         ).wait()
 
-        const market = Market__factory.connect(
-          await marketFactory.markets(oracleAddress, payoffAddress),
-          deployerSigner,
-        )
+        const market = Market__factory.connect(await marketFactory.markets(oracleAddress), deployerSigner)
 
         await market.updateParameter(constants.AddressZero, constants.AddressZero, DEFAULT_MARKET_PARAMETER)
         await market.updateRiskParameter(DEFAULT_RISK_PARAMETERS)

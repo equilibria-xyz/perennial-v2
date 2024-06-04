@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "../types/Version.sol";
+import "../libs/VersionLib.sol";
 
 contract VersionTester {
     VersionStorage public version;
@@ -17,18 +18,19 @@ contract VersionTester {
     function accumulate(
         Global memory global,
         Position memory fromPosition,
-        Position memory toPosition,
+        Order memory order,
         OracleVersion memory fromOracleVersion,
         OracleVersion memory toOracleVersion,
         MarketParameter memory marketParameter,
         RiskParameter memory riskParameter
-    ) external returns (VersionAccumulationResult memory values, UFixed6 totalFee) {
+    ) external returns (Global memory nextGlobal, VersionAccumulationResult memory values) {
         Version memory newVersion = version.read();
 
-        (values, totalFee) = newVersion.accumulate(
+        (newVersion, nextGlobal, values) = VersionLib.accumulate(
+            newVersion,
             global,
             fromPosition,
-            toPosition,
+            order,
             fromOracleVersion,
             toOracleVersion,
             marketParameter,

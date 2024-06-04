@@ -108,6 +108,7 @@ library AccountLib {
 }
 
 library AccountStorageLib {
+    // sig: 0xb8a09499
     error AccountStorageInvalidError();
 
     function read(AccountStorage storage self) internal view returns (Account memory) {

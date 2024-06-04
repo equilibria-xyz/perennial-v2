@@ -22,18 +22,6 @@ export function setGlobalPrice(market: FakeContract<IMarket>, price: BigNumberis
   market.global.returns(['0', '0', '0', '0', '0', '0', ['0', '0'], price])
 }
 
-export function setPendingPosition(
-  market: FakeContract<IMarket>,
-  user: SignerWithAddress,
-  currentId: BigNumberish,
-  position: PositionStruct,
-): void {
-  market.locals.reset()
-  market.pendingPosition.reset()
-  market.locals.whenCalledWith(user).returns(currentId)
-  market.pendingPositions.whenCalledWith(user.address, currentId).returns(position)
-}
-
 export enum Dir {
   M = 0,
   L = 1,
@@ -89,57 +77,22 @@ export const openTriggerOrder = ({
   }
 }
 
-export const openPosition = ({
-  maker,
-  long,
-  short,
-  collateral,
-  timestamp,
-}: {
-  maker?: BigNumberish
-  long?: BigNumberish
-  short?: BigNumberish
-  collateral?: BigNumberish
-  timestamp?: BigNumberish
-}): PositionStruct => {
-  const position: PositionStruct = {
-    timestamp: timestamp ? timestamp : '0',
-    maker: maker ? maker : '0',
-    long: long ? long : '0',
-    short: short ? short : '0',
-    fee: '0',
-    collateral: collateral ? collateral : '0',
-    delta: '0',
-    keeper: '0',
-    invalidation: {
-      maker: 0,
-      long: 0,
-      short: 0,
-    },
-  }
-
-  return position
-}
-
 export const changePosition = ({
   position,
   makerDelta,
   longDelta,
   shortDelta,
-  collateralDelta,
   timestampDelta,
 }: {
   position: PositionStruct
   makerDelta?: BigNumberish
   longDelta?: BigNumberish
   shortDelta?: BigNumberish
-  collateralDelta?: BigNumberish
   timestampDelta?: BigNumberish
 }): PositionStruct => {
   position.maker = makerDelta ? BigNumber.from(position.maker).add(makerDelta) : position.maker
   position.long = longDelta ? BigNumber.from(position.long).add(longDelta) : position.long
   position.short = shortDelta ? BigNumber.from(position.short).add(shortDelta) : position.short
-  position.collateral = collateralDelta ? BigNumber.from(position.collateral).add(collateralDelta) : position.collateral
   position.timestamp = timestampDelta ? BigNumber.from(position.timestamp).add(timestampDelta) : position.timestamp
 
   return position
@@ -147,10 +100,8 @@ export const changePosition = ({
 
 module.exports = {
   setMarketPosition,
-  setPendingPosition,
   setGlobalPrice,
   openTriggerOrder,
-  openPosition,
   changePosition,
   Compare,
   Dir,

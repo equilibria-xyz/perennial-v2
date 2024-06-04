@@ -71,9 +71,6 @@ describe('Verify Markets', () => {
     expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
-    expect(parameter.makerRewardRate).to.equal(0)
-    expect(parameter.longRewardRate).to.equal(0)
-    expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
     expect(parameter.makerCloseAlways).to.be.false
     expect(parameter.takerCloseAlways).to.be.true
@@ -83,10 +80,10 @@ describe('Verify Markets', () => {
     expect(riskParameter.margin).to.equal(utils.parseUnits('0.0095', 6))
     expect(riskParameter.maintenance).to.equal(utils.parseUnits('0.008', 6))
     expect(riskParameter.takerFee).to.equal(utils.parseUnits('0.0002', 6))
-    expect(riskParameter.takerSkewFee).to.equal(utils.parseUnits('0.001', 6))
-    expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.takerMagnitudeFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.impactFee).to.equal(utils.parseUnits('0.001', 6))
     expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
-    expect(riskParameter.makerImpactFee).to.equal(0)
+    expect(riskParameter.makerMagnitudeFee).to.equal(0)
     expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3008', 6)) // $5M
     expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
     expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
@@ -121,9 +118,6 @@ describe('Verify Markets', () => {
     expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
-    expect(parameter.makerRewardRate).to.equal(0)
-    expect(parameter.longRewardRate).to.equal(0)
-    expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
     expect(parameter.makerCloseAlways).to.be.false
     expect(parameter.takerCloseAlways).to.be.true
@@ -133,10 +127,10 @@ describe('Verify Markets', () => {
     expect(riskParameter.margin).to.equal(utils.parseUnits('0.0095', 6))
     expect(riskParameter.maintenance).to.equal(utils.parseUnits('0.008', 6))
     expect(riskParameter.takerFee).to.equal(utils.parseUnits('0.0002', 6))
-    expect(riskParameter.takerSkewFee).to.equal(utils.parseUnits('0.001', 6))
-    expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.takerMagnitudeFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.impactFee).to.equal(utils.parseUnits('0.001', 6))
     expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
-    expect(riskParameter.makerImpactFee).to.equal(0)
+    expect(riskParameter.makerMagnitudeFee).to.equal(0)
     expect(riskParameter.makerLimit).to.equal(utils.parseUnits('185.76', 6)) // $5M
     expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
     expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
@@ -171,9 +165,6 @@ describe('Verify Markets', () => {
     expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
-    expect(parameter.makerRewardRate).to.equal(0)
-    expect(parameter.longRewardRate).to.equal(0)
-    expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
     expect(parameter.makerCloseAlways).to.be.false
     expect(parameter.takerCloseAlways).to.be.true
@@ -183,10 +174,10 @@ describe('Verify Markets', () => {
     expect(riskParameter.margin).to.equal(utils.parseUnits('0.0195', 6))
     expect(riskParameter.maintenance).to.equal(utils.parseUnits('0.016', 6))
     expect(riskParameter.takerFee).to.equal(utils.parseUnits('0.0002', 6))
-    expect(riskParameter.takerSkewFee).to.equal(utils.parseUnits('0.001', 6))
-    expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.takerMagnitudeFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.impactFee).to.equal(utils.parseUnits('0.001', 6))
     expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
-    expect(riskParameter.makerImpactFee).to.equal(0)
+    expect(riskParameter.makerMagnitudeFee).to.equal(0)
     expect(riskParameter.makerLimit).to.equal(utils.parseUnits('98570.724', 6)) // $2M
     expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
     expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))
@@ -221,9 +212,6 @@ describe('Verify Markets', () => {
     expect(parameter.riskFee).to.equal(utils.parseUnits('1', 6))
     expect(parameter.maxPendingGlobal).to.equal(12)
     expect(parameter.maxPendingLocal).to.equal(6)
-    expect(parameter.makerRewardRate).to.equal(0)
-    expect(parameter.longRewardRate).to.equal(0)
-    expect(parameter.shortRewardRate).to.equal(0)
     expect(parameter.settlementFee).to.equal(utils.parseUnits('1.50', 6))
     expect(parameter.makerCloseAlways).to.be.false
     expect(parameter.takerCloseAlways).to.be.true
@@ -233,10 +221,10 @@ describe('Verify Markets', () => {
     expect(riskParameter.margin).to.equal(utils.parseUnits('0.0195', 6))
     expect(riskParameter.maintenance).to.equal(utils.parseUnits('0.016', 6))
     expect(riskParameter.takerFee).to.equal(utils.parseUnits('0.0002', 6))
-    expect(riskParameter.takerSkewFee).to.equal(utils.parseUnits('0.001', 6))
-    expect(riskParameter.takerImpactFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.takerMagnitudeFee).to.equal(utils.parseUnits('0.001', 6))
+    expect(riskParameter.impactFee).to.equal(utils.parseUnits('0.001', 6))
     expect(riskParameter.makerFee).to.equal(utils.parseUnits('0.0001', 6))
-    expect(riskParameter.makerImpactFee).to.equal(0)
+    expect(riskParameter.makerMagnitudeFee).to.equal(0)
     expect(riskParameter.makerLimit).to.equal(utils.parseUnits('3794490.40', 6)) // $2M
     expect(riskParameter.efficiencyLimit).to.equal(utils.parseUnits('0.5', 6))
     expect(riskParameter.liquidationFee).to.equal(utils.parseUnits('0.05', 6))

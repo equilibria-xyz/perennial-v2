@@ -20,16 +20,21 @@ describe('Coordinator', () => {
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
-    takerFee: 0,
-    takerSkewFee: 0,
-    takerImpactFee: 0,
-    makerFee: 0,
-    makerImpactFee: 0,
+    takerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('100'),
+    },
+    makerFee: {
+      linearFee: 0,
+      proportionalFee: 0,
+      adiabaticFee: 0,
+      scale: parse6decimal('100'),
+    },
     makerLimit: parse6decimal('1000'),
     efficiencyLimit: parse6decimal('0.2'),
     liquidationFee: parse6decimal('0.50'),
-    minLiquidationFee: parse6decimal('0'),
-    maxLiquidationFee: parse6decimal('1000'),
     utilizationCurve: {
       minRate: 0,
       maxRate: parse6decimal('5.00'),
@@ -38,11 +43,11 @@ describe('Coordinator', () => {
     },
     pController: {
       k: parse6decimal('40000'),
+      min: parse6decimal('-1.20'),
       max: parse6decimal('1.20'),
     },
     minMargin: parse6decimal('500'),
     minMaintenance: parse6decimal('500'),
-    skewScale: 0,
     staleAfter: 7200,
     makerReceiveOnly: false,
   }

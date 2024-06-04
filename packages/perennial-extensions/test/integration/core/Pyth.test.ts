@@ -18,7 +18,7 @@ import {
   PythFactory__factory,
 } from '../../../types/generated'
 
-import { InstanceVars, RESERVE, USDC, createInvoker, createMarket, deployProtocol } from '../helpers/setupHelpers'
+import { InstanceVars, createInvoker, createMarket, deployProtocol } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { increase } from '../../../../common/testutil/time'
 
@@ -60,7 +60,7 @@ describe('PythOracleFactory', () => {
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address, USDC, RESERVE)
+    await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
@@ -86,13 +86,18 @@ describe('PythOracleFactory', () => {
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
-    await pythOracleFactory.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED)
 
     keeperOracle = KeeperOracle__factory.connect(
-      await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED),
+      await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      }),
       owner,
     )
-    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
+    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+      provider: ethers.constants.AddressZero,
+      decimals: 0,
+    })
 
     oracle = Oracle__factory.connect(
       await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
@@ -119,7 +124,7 @@ describe('PythOracleFactory', () => {
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
-      await multiInvoker.connect(user).invoke(
+      await multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
         [
           {
             action: 6,
@@ -147,7 +152,7 @@ describe('PythOracleFactory', () => {
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
-      await multiInvoker.connect(user).invoke(
+      await multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
         [
           {
             action: 6,
@@ -174,7 +179,7 @@ describe('PythOracleFactory', () => {
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
       await expect(
-        multiInvoker.connect(user).invoke(
+        multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
           [
             {
               action: 6,
@@ -199,7 +204,7 @@ describe('PythOracleFactory', () => {
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
-      await multiInvoker.connect(user).invoke(
+      await multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
         [
           {
             action: 6,
@@ -226,7 +231,7 @@ describe('PythOracleFactory', () => {
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
       await expect(
-        multiInvoker.connect(user).invoke(
+        multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
           [
             {
               action: 6,
@@ -250,7 +255,7 @@ describe('PythOracleFactory', () => {
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
       await expect(
-        multiInvoker.connect(user).invoke(
+        multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
           [
             {
               action: 6,
@@ -270,7 +275,7 @@ describe('PythOracleFactory', () => {
       const startingBalance = await user.getBalance()
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
-      const tx = await multiInvoker.connect(user).invoke(
+      const tx = await multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
         [
           {
             action: 6,
@@ -298,7 +303,7 @@ describe('PythOracleFactory', () => {
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
-      await multiInvoker.connect(user).invoke(
+      await multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
         [
           {
             action: 6,

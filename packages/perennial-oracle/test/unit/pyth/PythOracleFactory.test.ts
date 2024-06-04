@@ -5,7 +5,6 @@ import HRE from 'hardhat'
 import {
   AbstractPyth,
   AggregatorV3Interface,
-  IEmptySetReserve,
   IERC20Metadata,
   IMarket,
   IPythStaticFee,
@@ -56,7 +55,6 @@ describe('PythOracleFactory', () => {
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: FakeContract<IERC20Metadata>
-  let usdc: FakeContract<IERC20Metadata>
   let oracleSigner: SignerWithAddress
   let market: FakeContract<IMarket>
   let marketFactory: FakeContract<IMarketFactory>
@@ -89,15 +87,6 @@ describe('PythOracleFactory', () => {
 
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu.transfer.returns(true)
-    usdc = await smock.fake<IERC20Metadata>('IERC20Metadata')
-    usdc.transfer.returns(true)
-    usdc.approve.returns(true)
-    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-
-    market = await smock.fake<IMarket>('IMarket')
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    market.factory.returns(marketFactory.address)
-    marketFactory.instances.whenCalledWith(market.address).returns(true)
 
     market = await smock.fake<IMarket>('IMarket')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
@@ -106,7 +95,7 @@ describe('PythOracleFactory', () => {
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address, usdc.address, reserve.address)
+    await oracleFactory.initialize(dsu.address)
     await oracleFactory.updateMaxClaim(parse6decimal('10'))
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
@@ -132,13 +121,18 @@ describe('PythOracleFactory', () => {
     await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
-    await pythOracleFactory.associate(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED)
 
     keeperOracle = KeeperOracle__factory.connect(
-      await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED),
+      await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+        provider: ethers.constants.AddressZero,
+        decimals: 0,
+      }),
       owner,
     )
-    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED)
+    await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+      provider: ethers.constants.AddressZero,
+      decimals: 0,
+    })
 
     oracle = Oracle__factory.connect(
       await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),

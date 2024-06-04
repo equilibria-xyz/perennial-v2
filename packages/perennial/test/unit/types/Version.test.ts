@@ -3,17 +3,25 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { VersionTester, VersionTester__factory } from '../../../types/generated'
+import {
+  VersionLib,
+  VersionLib__factory,
+  VersionStorageLib,
+  VersionStorageLib__factory,
+  VersionTester,
+  VersionTester__factory,
+} from '../../../types/generated'
 import { BigNumber } from 'ethers'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORDER, DEFAULT_VERSION, parse6decimal } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
   MarketParameterStruct,
-  OracleVersionStruct,
+  OrderStruct,
   PositionStruct,
   RiskParameterStruct,
   VersionStruct,
 } from '../../../types/generated/contracts/Market'
+import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 import { VALID_MARKET_PARAMETER } from './MarketParameter.test'
 import { VALID_RISK_PARAMETER } from './RiskParameter.test'
 
@@ -25,19 +33,16 @@ const VALID_VERSION: VersionStruct = {
   makerValue: { _value: 1 },
   longValue: { _value: 2 },
   shortValue: { _value: 3 },
-  makerReward: { _value: 4 },
-  longReward: { _value: 5 },
-  shortReward: { _value: 6 },
-}
-
-const EMPTY_VERSION: VersionStruct = {
-  valid: true,
-  makerValue: { _value: 0 },
-  longValue: { _value: 0 },
-  shortValue: { _value: 0 },
-  makerReward: { _value: 0 },
-  longReward: { _value: 0 },
-  shortReward: { _value: 0 },
+  makerLinearFee: { _value: 14 },
+  makerProportionalFee: { _value: 15 },
+  takerLinearFee: { _value: 16 },
+  takerProportionalFee: { _value: 17 },
+  makerPosFee: { _value: 4 },
+  makerNegFee: { _value: 5 },
+  takerPosFee: { _value: 6 },
+  takerNegFee: { _value: 7 },
+  settlementFee: { _value: -8 },
+  liquidationFee: { _value: -9 },
 }
 
 const GLOBAL: GlobalStruct = {
@@ -51,12 +56,8 @@ const GLOBAL: GlobalStruct = {
     _value: 6,
     _skew: 7,
   },
-  latestPrice: 8,
-  latestInvalidation: {
-    maker: 10,
-    long: 11,
-    short: 12,
-  },
+  latestPrice: 0,
+  exposure: 0,
 }
 
 const FROM_POSITION: PositionStruct = {
@@ -64,31 +65,21 @@ const FROM_POSITION: PositionStruct = {
   maker: 3,
   long: 4,
   short: 5,
-  fee: 6,
-  keeper: 7,
-  collateral: 8,
-  delta: 9,
-  invalidation: {
-    maker: 10,
-    long: 11,
-    short: 12,
-  },
 }
 
-const TO_POSITION: PositionStruct = {
+const ORDER: OrderStruct = {
   timestamp: 20,
-  maker: 30,
-  long: 40,
-  short: 50,
-  fee: 60,
-  keeper: 70,
-  collateral: 80,
-  delta: 90,
-  invalidation: {
-    maker: 10,
-    long: 11,
-    short: 12,
-  },
+  orders: 4,
+  collateral: 1000,
+  makerPos: 30,
+  makerNeg: 3,
+  longPos: 36,
+  longNeg: 0,
+  shortPos: 45,
+  shortNeg: 0,
+  protection: 1,
+  makerReferral: 10,
+  takerReferral: 11,
 }
 
 const TIMESTAMP = 1636401093
@@ -108,21 +99,23 @@ const ORACLE_VERSION_2: OracleVersionStruct = {
 
 describe('Version', () => {
   let owner: SignerWithAddress
+  let versionLib: VersionLib
+  let versionStorageLib: VersionStorageLib
   let version: VersionTester
 
   const accumulateWithReturn = async (
     global: GlobalStruct,
     fromPosition: PositionStruct,
-    toPosition: PositionStruct,
+    order: OrderStruct,
     fromOracleVersion: OracleVersionStruct,
     toOracleVersion: OracleVersionStruct,
     marketParameter: MarketParameterStruct,
     riskParameter: RiskParameterStruct,
   ) => {
-    const ret = await version.callStatic.accumulate(
+    const accumulationResult = await version.callStatic.accumulate(
       global,
       fromPosition,
-      toPosition,
+      order,
       fromOracleVersion,
       toOracleVersion,
       marketParameter,
@@ -131,7 +124,7 @@ describe('Version', () => {
     await version.accumulate(
       global,
       fromPosition,
-      toPosition,
+      order,
       fromOracleVersion,
       toOracleVersion,
       marketParameter,
@@ -139,13 +132,21 @@ describe('Version', () => {
     )
 
     const value = await version.read()
-    return { ret, value }
+    return { ret: accumulationResult[1], value, nextGlobal: accumulationResult[0] }
   }
 
   beforeEach(async () => {
     ;[owner] = await ethers.getSigners()
 
-    version = await new VersionTester__factory(owner).deploy()
+    versionLib = await new VersionLib__factory(owner).deploy()
+    versionStorageLib = await new VersionStorageLib__factory(owner).deploy()
+    version = await new VersionTester__factory(
+      {
+        'contracts/libs/VersionLib.sol:VersionLib': versionLib.address,
+        'contracts/types/Version.sol:VersionStorageLib': versionStorageLib.address,
+      },
+      owner,
+    ).deploy()
   })
 
   describe('#store', () => {
@@ -157,9 +158,27 @@ describe('Version', () => {
       expect(value.makerValue._value).to.equal(1)
       expect(value.longValue._value).to.equal(2)
       expect(value.shortValue._value).to.equal(3)
-      expect(value.makerReward._value).to.equal(4)
-      expect(value.longReward._value).to.equal(5)
-      expect(value.shortReward._value).to.equal(6)
+      expect(value.makerLinearFee._value).to.equal(14)
+      expect(value.makerProportionalFee._value).to.equal(15)
+      expect(value.takerLinearFee._value).to.equal(16)
+      expect(value.takerProportionalFee._value).to.equal(17)
+      expect(value.makerPosFee._value).to.equal(4)
+      expect(value.makerNegFee._value).to.equal(5)
+      expect(value.takerPosFee._value).to.equal(6)
+      expect(value.takerNegFee._value).to.equal(7)
+      expect(value.settlementFee._value).to.equal(-8)
+      expect(value.liquidationFee._value).to.equal(-9)
+    })
+
+    describe('.valid', async () => {
+      it('saves', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          valid: true,
+        })
+        const value = await version.read()
+        expect(value.valid).to.equal(true)
+      })
     })
 
     describe('.makerValue', async () => {
@@ -188,7 +207,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -197,7 +216,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             makerValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -227,7 +246,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             longValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -236,7 +255,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             longValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
@@ -266,7 +285,7 @@ describe('Version', () => {
             ...VALID_VERSION,
             shortValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
 
       it('reverts if out of range (below)', async () => {
@@ -275,148 +294,468 @@ describe('Version', () => {
             ...VALID_VERSION,
             shortValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.makerReward', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
+    describe('.makerLinearFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.makerReward._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerLinearFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if out of range', async () => {
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.makerLinearFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.longReward', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
+    describe('.makerProportionalFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          longReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.longReward._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerProportionalFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if out of range', async () => {
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.makerProportionalFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            longReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.shortReward', async () => {
-      const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
+    describe('.takerLinearFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          shortReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.shortReward._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.takerLinearFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if out of range', async () => {
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.takerLinearFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            shortReward: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
-        ).to.be.revertedWithCustomError(version, 'VersionStorageInvalidError')
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerLinearFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.takerProportionalFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.takerProportionalFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.takerProportionalFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerProportionalFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.makerPosFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.makerPosFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.makerPosFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.makerNegFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.makerNegFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.makerNegFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.takerPosFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.takerPosFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.takerPosFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerPosFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.takerNegFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.takerNegFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.takerNegFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerNegFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.settlementFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          settlementFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.settlementFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          settlementFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.settlementFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            settlementFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            settlementFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.liquidationFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.liquidationFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.liquidationFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            liquidationFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
   })
 
   describe('#accumulate', () => {
     context('market closed', () => {
-      it('does not accumulate', async () => {
-        await version.store(VALID_VERSION)
-
-        const ret = await version.callStatic.accumulate(
-          GLOBAL,
-          FROM_POSITION,
-          { ...TO_POSITION, fee: 0 },
-          ORACLE_VERSION_1,
-          ORACLE_VERSION_2,
-          { ...VALID_MARKET_PARAMETER, closed: true },
-          VALID_RISK_PARAMETER,
-        )
-        await version.accumulate(
-          GLOBAL,
-          FROM_POSITION,
-          { ...TO_POSITION, fee: 0 },
-          ORACLE_VERSION_1,
-          ORACLE_VERSION_2,
-          { ...VALID_MARKET_PARAMETER, closed: true },
-          VALID_RISK_PARAMETER,
-        )
-
-        const value = await version.read()
-
-        expect(value.valid).to.be.true
-        expect(value.makerValue._value).to.equal(1)
-        expect(value.longValue._value).to.equal(2)
-        expect(value.shortValue._value).to.equal(3)
-        expect(value.makerReward._value).to.equal(4)
-        expect(value.longReward._value).to.equal(5)
-        expect(value.shortReward._value).to.equal(6)
-
-        expect(ret.totalFee).to.equal(0)
-        // All values should be 0 (default value)
-        ret[0].forEach(v => expect(v).to.equal(0))
-      })
-
       it('only accumulates fee', async () => {
         await version.store(VALID_VERSION)
 
         const ret = await version.callStatic.accumulate(
           GLOBAL,
-          FROM_POSITION,
-          TO_POSITION,
+          { ...FROM_POSITION, long: parse6decimal('10'), short: parse6decimal('10'), maker: parse6decimal('10') },
+          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
-          { ...VALID_MARKET_PARAMETER, closed: true },
-          VALID_RISK_PARAMETER,
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('2'), closed: true },
+          {
+            ...VALID_RISK_PARAMETER,
+            takerFee: {
+              linearFee: parse6decimal('0.1'),
+              proportionalFee: parse6decimal('0.2'),
+              adiabaticFee: parse6decimal('0.3'),
+              scale: parse6decimal('100'),
+            },
+          },
         )
         await version.accumulate(
           GLOBAL,
-          FROM_POSITION,
-          TO_POSITION,
+          { ...FROM_POSITION, long: parse6decimal('10'), short: parse6decimal('10'), maker: parse6decimal('10') },
+          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
-          { ...VALID_MARKET_PARAMETER, closed: true },
-          VALID_RISK_PARAMETER,
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('2'), closed: true },
+          {
+            ...VALID_RISK_PARAMETER,
+            takerFee: {
+              linearFee: parse6decimal('0.1'),
+              proportionalFee: parse6decimal('0.2'),
+              adiabaticFee: parse6decimal('0.3'),
+              scale: parse6decimal('100'),
+            },
+          },
         )
 
         const value = await version.read()
 
         expect(value.valid).to.be.true
-        expect(value.makerValue._value).to.equal(parse6decimal('20').add(1))
+        expect(value.makerValue._value).to.equal(BigNumber.from('14759956'))
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
-        expect(value.makerReward._value).to.equal(4)
-        expect(value.longReward._value).to.equal(5)
-        expect(value.shortReward._value).to.equal(6)
 
-        expect(ret.totalFee).to.equal(0)
-        // All values should be 0 (default value)
-        expect(ret[0].positionFeeMaker).to.equal(60)
+        expect(ret[1].positionFee).to.equal(BigNumber.from('147600000'))
+        expect(ret[1].positionFeeMaker).to.equal(BigNumber.from('147599558'))
+        expect(ret[1].positionFeeProtocol).to.equal(BigNumber.from('442'))
+        expect(ret[1].positionFeeExposure).to.equal(0)
+        expect(ret[1].positionFeeExposureMaker).to.equal(0)
+        expect(ret[1].positionFeeExposureProtocol).to.equal(0)
+        expect(ret[1].positionFeeImpact).to.equal(BigNumber.from('18450000'))
+        expect(ret[1].fundingMaker).to.equal(0)
+        expect(ret[1].fundingLong).to.equal(0)
+        expect(ret[1].fundingShort).to.equal(0)
+        expect(ret[1].fundingFee).to.equal(0)
+        expect(ret[1].interestMaker).to.equal(0)
+        expect(ret[1].interestLong).to.equal(0)
+        expect(ret[1].interestShort).to.equal(0)
+        expect(ret[1].interestFee).to.equal(0)
+        expect(ret[1].pnlMaker).to.equal(0)
+        expect(ret[1].pnlLong).to.equal(0)
+        expect(ret[1].pnlShort).to.equal(0)
+        expect(ret[1].settlementFee).to.equal(parse6decimal('2'))
+        expect(ret[1].liquidationFee).to.equal(9)
       })
     })
 
@@ -427,7 +766,7 @@ describe('Version', () => {
           await version.accumulate(
             GLOBAL,
             FROM_POSITION,
-            TO_POSITION,
+            ORDER,
             ORACLE_VERSION_1,
             { ...ORACLE_VERSION_2, valid: false },
             VALID_MARKET_PARAMETER,
@@ -445,7 +784,7 @@ describe('Version', () => {
           await version.accumulate(
             GLOBAL,
             FROM_POSITION,
-            TO_POSITION,
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             VALID_MARKET_PARAMETER,
@@ -463,7 +802,7 @@ describe('Version', () => {
           await version.accumulate(
             GLOBAL,
             FROM_POSITION,
-            TO_POSITION,
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             { ...VALID_MARKET_PARAMETER, closed: true },
@@ -476,51 +815,526 @@ describe('Version', () => {
       })
     })
 
-    describe('position fee accumulation', () => {
-      context('no makers', () => {
-        it('allocates fees to protocol', async () => {
-          await version.store(VALID_VERSION)
+    describe('settlement fee accumulation', () => {
+      const riskParameters = {
+        ...VALID_RISK_PARAMETER,
+        pController: { min: 0, max: 0, k: parse6decimal('1') },
+        utilizationCurve: {
+          minRate: 0,
+          maxRate: 0,
+          targetRate: 0,
+          targetUtilization: 0,
+        },
+        makerFee: {
+          linearFee: parse6decimal('0.02'),
+          proportionalFee: parse6decimal('0.10'),
+          adiabaticFee: parse6decimal('0.20'),
+          scale: parse6decimal('100'),
+        },
+        takerFee: {
+          linearFee: parse6decimal('0.01'),
+          proportionalFee: parse6decimal('0.05'),
+          adiabaticFee: parse6decimal('0.10'),
+          scale: parse6decimal('100'),
+        },
+      }
 
-          const { ret, value } = await accumulateWithReturn(
-            GLOBAL,
-            { ...FROM_POSITION, maker: 0 },
-            { ...TO_POSITION, fee: parse6decimal('1.01') },
-            ORACLE_VERSION_1,
-            ORACLE_VERSION_2,
-            VALID_MARKET_PARAMETER,
-            VALID_RISK_PARAMETER,
-          )
+      let position = {
+        ...FROM_POSITION,
+        maker: parse6decimal('13'),
+        long: parse6decimal('83'),
+        short: parse6decimal('5'),
+      }
 
-          expect(value.makerValue._value).to.equal(1)
-          expect(ret[0].positionFeeFee).to.equal(parse6decimal('1.01'))
-        })
+      const order = {
+        ...ORDER,
+        orders: 0,
+        makerNeg: 0,
+        makerPos: 0,
+        longPos: 0,
+        longNeg: 0,
+        shortPos: 0,
+        shortNeg: 0,
+        makerReferral: 0,
+        takerReferral: 0,
+      }
+
+      beforeEach(async () => {
+        // set an initial state with a meaningful position
+        await version.store(VALID_VERSION)
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          { ...order, orders: 1, makerPos: parse6decimal('4') },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.05')) // 0 - (0.05 / 1)
+        expect(ret.settlementFee).to.equal(parse6decimal('0.05')) // market parameter
+
+        // update initial state prior to the test
+        position = { ...position, maker: position.maker.add(parse6decimal('4')) }
       })
 
-      context('makers', () => {
-        it('allocates fees to makers and protocol', async () => {
-          await version.store(EMPTY_VERSION)
+      it('allocates zero orders', async () => {
+        // allocate zero orders to ensure fee is zero
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          order,
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.04') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(0)
+        expect(ret.settlementFee).to.equal(0)
+      })
 
-          const { ret, value } = await accumulateWithReturn(
-            GLOBAL,
-            { ...FROM_POSITION, maker: parse6decimal('10') },
-            { ...TO_POSITION, fee: parse6decimal('101') },
-            ORACLE_VERSION_1,
-            ORACLE_VERSION_1,
-            { ...VALID_MARKET_PARAMETER, positionFee: parse6decimal('0.1') },
-            VALID_RISK_PARAMETER,
-          )
+      it('allocates single order', async () => {
+        // accumulate single order to decrease short position by 2 without changing settlement fee
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          { ...order, orders: 1, shortNeg: parse6decimal('2') },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.05'))
+        expect(ret.settlementFee).to.equal(parse6decimal('0.05'))
+      })
 
-          expect(value.makerValue._value).to.equal(parse6decimal('9.09'))
-          expect(ret[0].positionFeeMaker).to.equal(parse6decimal('90.9'))
-          expect(ret[0].positionFeeFee).to.equal(parse6decimal('10.1'))
-        })
+      it('allocates multiple orders', async () => {
+        // accumulate multiple orders with an increase in settlement fee
+        const orderCount = 4
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          {
+            ...order,
+            orders: orderCount,
+            makerNeg: parse6decimal('3'),
+            longPos: parse6decimal('6'),
+            shortPos: parse6decimal('5'),
+            shortNeg: parse6decimal('9'),
+          },
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.06') },
+          riskParameters,
+        )
+        expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount))
+        expect(ret.settlementFee).to.equal(parse6decimal('0.06'))
+      })
+    })
+
+    describe('liquidation fee accumulation', () => {
+      let riskParameters = {
+        ...VALID_RISK_PARAMETER,
+        pController: { min: 0, max: 0, k: parse6decimal('1') },
+        liquidationFee: parse6decimal('0.20'),
+        utilizationCurve: {
+          minRate: 0,
+          maxRate: 0,
+          targetRate: 0,
+          targetUtilization: 0,
+        },
+        makerFee: {
+          linearFee: parse6decimal('0.02'),
+          proportionalFee: parse6decimal('0.10'),
+          adiabaticFee: parse6decimal('0.20'),
+          scale: parse6decimal('100'),
+        },
+        takerFee: {
+          linearFee: parse6decimal('0.01'),
+          proportionalFee: parse6decimal('0.05'),
+          adiabaticFee: parse6decimal('0.10'),
+          scale: parse6decimal('100'),
+        },
+      }
+
+      const position = {
+        ...FROM_POSITION,
+        maker: parse6decimal('6'),
+        long: parse6decimal('9'),
+        short: parse6decimal('3'),
+      }
+
+      const order = {
+        ...ORDER,
+        orders: 1,
+        makerNeg: 0,
+        makerPos: 0,
+        longPos: parse6decimal('1'),
+        longNeg: 0,
+        shortPos: 0,
+        shortNeg: 0,
+        makerReferral: 0,
+        takerReferral: 0,
+      }
+
+      it('allocates without fee change', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          order,
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.20'))
+        expect(ret.liquidationFee).to.equal(parse6decimal('0.20')) // risk parameter
+      })
+
+      it('allocates with a reduced fee', async () => {
+        await version.store(VALID_VERSION)
+
+        riskParameters = { ...riskParameters, liquidationFee: parse6decimal('0.15') }
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          order,
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.15'))
+        expect(ret.liquidationFee).to.equal(parse6decimal('0.15'))
+      })
+
+      it('handles invalid oracle version', async () => {
+        await version.store(VALID_VERSION)
+
+        riskParameters = { ...riskParameters, liquidationFee: parse6decimal('0.175') }
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          order,
+          { ...ORACLE_VERSION_1 },
+          { ...ORACLE_VERSION_2, valid: false },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        expect(value.liquidationFee._value).to.equal(0)
+        expect(ret.liquidationFee).to.equal(0)
+      })
+    })
+
+    describe('exposure accumulation', () => {
+      const riskParameters = {
+        ...VALID_RISK_PARAMETER,
+        pController: { min: 0, max: 0, k: parse6decimal('1') },
+        utilizationCurve: {
+          minRate: 0,
+          maxRate: 0,
+          targetRate: 0,
+          targetUtilization: 0,
+        },
+        makerFee: {
+          linearFee: parse6decimal('0.02'),
+          proportionalFee: parse6decimal('0.10'),
+          adiabaticFee: parse6decimal('0.15'),
+          scale: parse6decimal('100'),
+        },
+        takerFee: {
+          linearFee: parse6decimal('0.01'),
+          proportionalFee: parse6decimal('0.05'),
+          adiabaticFee: parse6decimal('0.15'),
+          scale: parse6decimal('100'),
+        },
+      }
+
+      const position = {
+        ...FROM_POSITION,
+        maker: parse6decimal('1.2'),
+        long: parse6decimal('5'),
+        short: parse6decimal('3'),
+      }
+
+      const order = {
+        ...ORDER,
+        orders: 1,
+        makerNeg: 0,
+        makerPos: parse6decimal('0.4'),
+        longPos: 0,
+        longNeg: 0,
+        shortPos: 0,
+        shortNeg: 0,
+        makerReferral: 0,
+        takerReferral: 0,
+      }
+
+      beforeEach(async () => {
+        await version.store(VALID_VERSION)
+      })
+
+      it('exposure unchanged with same price', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          { ...ORDER },
+          { ...ORACLE_VERSION_1 }, // 123
+          { ...ORACLE_VERSION_2 }, // 123
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        // no exposure without price change
+        expect(ret.positionFeeExposure).to.equal(0)
+        expect(ret.positionFeeExposureMaker).to.equal(0)
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+      })
+
+      it('exposure changes with updated price', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          position,
+          { ...ORDER },
+          { ...ORACLE_VERSION_1 }, // 123
+          { ...ORACLE_VERSION_2, price: parse6decimal('138') },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        // takerFeeExposure (linear adiabatic) = skew * adiabaticFee * skew/scale / 2
+        //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
+
+        // maker position excludes the pending order
+        // makerFeeExposure (inverse adiabatic) = change * adiabaticFee * (2 + changeScaled) / 2
+        //    with                       change = scale-makerPosition-scale = 100-1.2-100  = -1.2
+        //     and                 changeScaled = change/scale       = -1.2/100 = −0.012
+        //    =   -1.2 * 0.15 * (2 + −0.012) / 2 = -0.18 * 1.988 / 2 = −0.17892
+
+        // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
+        //                     = (138 - 123) * (0.003 + −0.17892) = −2.6388
+        // positionFeeExposureMaker = positionFeeExposure * -1
+        // positionFeeExposureProtocol is 0 unless maker position is 0
+
+        expect(ret.positionFeeExposure).to.equal(parse6decimal('-2.6388'))
+        expect(ret.positionFeeExposureMaker).to.equal(parse6decimal('2.6388'))
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+      })
+
+      it('exposure with no maker position', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...position, maker: 0 },
+          { ...order, makerPos: parse6decimal('0.7'), longPos: 0 },
+          { ...ORACLE_VERSION_1, price: parse6decimal('142') },
+          { ...ORACLE_VERSION_2, price: parse6decimal('137') },
+          { ...VALID_MARKET_PARAMETER },
+          riskParameters,
+        )
+
+        // takerFeeExposure (linear adiabatic) = skew * adiabaticFee * skew/scale / 2
+        //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
+
+        // makerFeeExposure (inverse adiabatic) = change * adiabaticFee * (2 + changeScaled) / 2
+        //    with                       change = scale-makerPosition-scale = 0
+        //     and                 changeScaled = change/scale              = 0
+
+        // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
+        //                     = (137 - 142) * (0.003 + 0) = -0.015
+        // positionFeeExposureMaker = 0
+        // positionFeeExposureProtocol = positionFeeExposure * -1 = 0.015
+
+        expect(ret.positionFeeExposure).to.equal(parse6decimal('-0.015'))
+        expect(ret.positionFeeExposureMaker).to.equal(0)
+        expect(ret.positionFeeExposureProtocol).to.equal(parse6decimal('0.015'))
+      })
+    })
+
+    describe('position fee accumulation', () => {
+      it('allocates when no makers', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: 0 },
+          {
+            ...ORDER,
+            makerNeg: parse6decimal('0'),
+            makerPos: parse6decimal('10'),
+            longPos: parse6decimal('30'),
+            longNeg: parse6decimal('10'),
+            shortPos: parse6decimal('50'),
+            shortNeg: parse6decimal('20'),
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...ORACLE_VERSION_1, price: parse6decimal('121') },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+            makerFee: {
+              linearFee: parse6decimal('0.02'),
+              proportionalFee: parse6decimal('0.10'),
+              adiabaticFee: parse6decimal('0.20'),
+              scale: parse6decimal('100'),
+            },
+            takerFee: {
+              linearFee: parse6decimal('0.01'),
+              proportionalFee: parse6decimal('0.05'),
+              adiabaticFee: parse6decimal('0.10'),
+              scale: parse6decimal('100'),
+            },
+          },
+        )
+
+        const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
+        const makerExposure = parse6decimal('0.0') // 100 -> 100 / 100 = 199 / 100 = 1.0 * 0 * 0.2
+        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
+
+        const linear1 = parse6decimal('0.2') // 10 * 0.02
+        const linear2 = parse6decimal('1.1') // 110 * 0.01
+        const linear = linear1.add(linear2).mul(123) // price
+
+        const proportional1 = parse6decimal('0.1') // 10 * 0.01
+        const proportional2 = parse6decimal('6.05') // 110 * 0.055
+        const proportional = proportional1.add(proportional2).mul(123) // price
+
+        const fee = linear.add(proportional)
+
+        const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
+        const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
+        const impact3 = parse6decimal('0')
+        const impact4 = parse6decimal('-1.9') // 100 -> 90 / 100 = -95 / 100 = -0.95 * 10 * 0.2
+        const impact = impact1.add(impact2).add(impact3).add(impact4).mul(123) // price
+
+        expect(value.makerValue._value).to.equal(1)
+        expect(value.longValue._value).to.equal(parse6decimal('2').add(2)) // pnl
+        expect(value.shortValue._value).to.equal(parse6decimal('-2').mul(2).div(3).sub(1).add(3)) // pnl
+        expect(value.makerLinearFee._value).to.equal(linear1.mul(-1).mul(123).div(10))
+        expect(value.makerProportionalFee._value).to.equal(proportional1.mul(-1).mul(123).div(10))
+        expect(value.takerLinearFee._value).to.equal(linear2.mul(-1).mul(123).div(110))
+        expect(value.takerProportionalFee._value).to.equal(proportional2.mul(-1).mul(123).div(110))
+        expect(value.makerPosFee._value).to.equal(impact4.mul(-1).mul(123).div(10))
+        expect(value.makerNegFee._value).to.equal(0)
+        expect(value.takerPosFee._value).to.equal(impact1.mul(-1).mul(123).div(50))
+        expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
+        expect(value.settlementFee._value).to.equal(-2) // 0 -(-1*6 / 4) = 0 - 2 due to rounding
+
+        expect(ret.positionFee).to.equal(fee)
+        expect(ret.positionFeeMaker).to.equal(0)
+        expect(ret.positionFeeProtocol).to.equal(fee)
+        expect(ret.positionFeeExposure).to.equal(exposure)
+        expect(ret.positionFeeExposureProtocol).to.equal(-exposure)
+        expect(ret.positionFeeExposureMaker).to.equal(0)
+        expect(ret.positionFeeImpact).to.equal(impact)
+      })
+
+      it('allocates when makers', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: parse6decimal('50') },
+          {
+            ...ORDER,
+            makerNeg: parse6decimal('10'),
+            makerPos: parse6decimal('20'),
+            longPos: parse6decimal('30'),
+            longNeg: parse6decimal('10'),
+            shortPos: parse6decimal('50'),
+            shortNeg: parse6decimal('20'),
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...ORACLE_VERSION_1, price: parse6decimal('121') },
+          { ...ORACLE_VERSION_2 },
+          { ...VALID_MARKET_PARAMETER, positionFee: parse6decimal('0.1') },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+            makerFee: {
+              linearFee: parse6decimal('0.02'),
+              proportionalFee: parse6decimal('0.10'),
+              adiabaticFee: parse6decimal('0.20'),
+              scale: parse6decimal('100'),
+            },
+            takerFee: {
+              linearFee: parse6decimal('0.01'),
+              proportionalFee: parse6decimal('0.05'),
+              adiabaticFee: parse6decimal('0.10'),
+              scale: parse6decimal('100'),
+            },
+          },
+        )
+
+        const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
+        const makerExposure = parse6decimal('-7.5') // 100 -> 50 / 100 = 75 / 100 = 0.75 * 50 * 0.2
+        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
+
+        const linear1 = parse6decimal('0.6') // 30 * 0.02
+        const linear2 = parse6decimal('1.1') // 110 * 0.01
+        const linear = linear1.add(linear2).mul(123) // price
+
+        const proportional1 = parse6decimal('0.9') // 30 * 0.03
+        const proportional2 = parse6decimal('6.05') // 110 * 0.055
+        const proportional = proportional1.add(proportional2).mul(123) // price
+
+        const fee = linear.add(proportional)
+
+        const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
+        const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
+        const impact3 = parse6decimal('1.1') // 50 -> 60 / 100 = 55 / 100 = 0.55 * 10 * 0.2
+        const impact4 = parse6decimal('-2.0') // 60 -> 40 / 100 = -50 / 100 = -.5 * 20 * 0.2
+        const impact = impact1.add(impact2).add(impact3).add(impact4).mul(123) // price
+
+        expect(value.makerValue._value).to.equal(
+          fee.mul(9).div(10).sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1),
+        )
+        expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
+        expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
+        expect(value.makerLinearFee._value).to.equal(linear1.mul(-1).mul(123).div(30))
+        expect(value.makerProportionalFee._value).to.equal(proportional1.mul(-1).mul(123).div(30))
+        expect(value.takerLinearFee._value).to.equal(linear2.mul(-1).mul(123).div(110))
+        expect(value.takerProportionalFee._value).to.equal(proportional2.mul(-1).mul(123).div(110))
+        expect(value.makerPosFee._value).to.equal(impact4.mul(-1).mul(123).div(20))
+        expect(value.makerNegFee._value).to.equal(impact3.mul(-1).mul(123).div(10))
+        expect(value.takerPosFee._value).to.equal(impact1.mul(-1).mul(123).div(50))
+        expect(value.takerNegFee._value).to.equal(impact2.mul(-1).mul(123).div(60))
+        expect(value.settlementFee._value).to.equal(-2)
+
+        expect(ret.positionFee).to.equal(fee)
+        expect(ret.positionFeeMaker).to.equal(fee.mul(9).div(10))
+        expect(ret.positionFeeProtocol).to.equal(fee.div(10))
+        expect(ret.positionFeeExposure).to.equal(exposure)
+        expect(ret.positionFeeExposureMaker).to.equal(-exposure)
+        expect(ret.positionFeeExposureProtocol).to.equal(0)
+        expect(ret.positionFeeImpact).to.equal(impact)
       })
     })
 
     describe('funding accumulation', () => {
       context('no time elapsed', () => {
         it('accumulates 0 funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -530,7 +1344,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             {
@@ -540,7 +1354,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -549,10 +1363,10 @@ describe('Version', () => {
               },
             },
           )
-          expect(ret[0].fundingFee).to.equal(0)
-          expect(ret[0].fundingMaker).to.equal(0)
-          expect(ret[0].fundingLong).to.equal(0)
-          expect(ret[0].fundingShort).to.equal(0)
+          expect(ret.fundingFee).to.equal(0)
+          expect(ret.fundingMaker).to.equal(0)
+          expect(ret.fundingLong).to.equal(0)
+          expect(ret.fundingShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -562,7 +1376,7 @@ describe('Version', () => {
 
       context('no positions', () => {
         it('accumulates 0 funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -572,7 +1386,11 @@ describe('Version', () => {
               long: 0,
               short: 0,
             },
-            { ...TO_POSITION, fee: 0 },
+            {
+              ...ORDER,
+              makerPos: ORDER.makerPos,
+              makerNeg: 0,
+            },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -582,7 +1400,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -591,10 +1409,10 @@ describe('Version', () => {
               },
             },
           )
-          expect(ret[0].fundingFee).to.equal(0)
-          expect(ret[0].fundingMaker).to.equal(0)
-          expect(ret[0].fundingLong).to.equal(0)
-          expect(ret[0].fundingShort).to.equal(0)
+          expect(ret.fundingFee).to.equal(0)
+          expect(ret.fundingMaker).to.equal(0)
+          expect(ret.fundingLong).to.equal(0)
+          expect(ret.fundingShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -604,7 +1422,7 @@ describe('Version', () => {
 
       context('longs > shorts', () => {
         it('accumulates funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -614,10 +1432,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('8'),
             },
-            {
-              ...TO_POSITION,
-              fee: 0,
-            },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -627,7 +1442,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -637,10 +1452,10 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].fundingFee).to.equal(BigNumber.from('35'))
-          expect(ret[0].fundingMaker).to.equal(BigNumber.from('584'))
-          expect(ret[0].fundingLong).to.equal(BigNumber.from('-1788'))
-          expect(ret[0].fundingShort).to.equal(BigNumber.from('1169'))
+          expect(ret.fundingFee).to.equal(BigNumber.from('35'))
+          expect(ret.fundingMaker).to.equal(BigNumber.from('584'))
+          expect(ret.fundingLong).to.equal(BigNumber.from('-1788'))
+          expect(ret.fundingShort).to.equal(BigNumber.from('1169'))
 
           expect(value.makerValue._value).to.equal(BigNumber.from('58'))
           expect(value.longValue._value).to.equal(BigNumber.from('-149'))
@@ -650,7 +1465,7 @@ describe('Version', () => {
 
       context('shorts > longs', () => {
         it('accumulates funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -660,10 +1475,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('12'),
             },
-            {
-              ...TO_POSITION,
-              fee: 0,
-            },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -673,7 +1485,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -683,10 +1495,10 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].fundingFee).to.equal(BigNumber.from('35'))
-          expect(ret[0].fundingMaker).to.equal(BigNumber.from('-595'))
-          expect(ret[0].fundingLong).to.equal(BigNumber.from('-1193'))
-          expect(ret[0].fundingShort).to.equal(BigNumber.from('1753'))
+          expect(ret.fundingFee).to.equal(BigNumber.from('35'))
+          expect(ret.fundingMaker).to.equal(BigNumber.from('-595'))
+          expect(ret.fundingLong).to.equal(BigNumber.from('-1193'))
+          expect(ret.fundingShort).to.equal(BigNumber.from('1753'))
 
           expect(value.makerValue._value).to.equal(BigNumber.from('-60'))
           expect(value.longValue._value).to.equal(BigNumber.from('-150'))
@@ -696,7 +1508,7 @@ describe('Version', () => {
 
       context('makerReceiveOnly', () => {
         it('accumulates funding', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -706,10 +1518,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('12'),
             },
-            {
-              ...TO_POSITION,
-              fee: 0,
-            },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -720,7 +1529,7 @@ describe('Version', () => {
             {
               ...VALID_RISK_PARAMETER,
               makerReceiveOnly: true,
-              pController: { max: parse6decimal('40000'), k: parse6decimal('1.2') },
+              pController: { min: parse6decimal('-40000'), max: parse6decimal('40000'), k: parse6decimal('1.2') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -730,10 +1539,10 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].fundingFee).to.equal(BigNumber.from('35'))
-          expect(ret[0].fundingMaker).to.equal(BigNumber.from('583'))
-          expect(ret[0].fundingLong).to.equal(BigNumber.from('1169'))
-          expect(ret[0].fundingShort).to.equal(BigNumber.from('-1787'))
+          expect(ret.fundingFee).to.equal(BigNumber.from('35'))
+          expect(ret.fundingMaker).to.equal(BigNumber.from('583'))
+          expect(ret.fundingLong).to.equal(BigNumber.from('1169'))
+          expect(ret.fundingShort).to.equal(BigNumber.from('-1787'))
 
           expect(value.makerValue._value).to.equal(BigNumber.from('58'))
           expect(value.longValue._value).to.equal(BigNumber.from('146'))
@@ -745,7 +1554,7 @@ describe('Version', () => {
     describe('interest accumulation', () => {
       context('no time elapsed', () => {
         it('accumulates 0 interest', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -755,7 +1564,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
             {
@@ -765,7 +1574,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: parse6decimal('0.1'),
                 maxRate: parse6decimal('0.1'),
@@ -774,10 +1583,10 @@ describe('Version', () => {
               },
             },
           )
-          expect(ret[0].interestFee).to.equal(0)
-          expect(ret[0].interestMaker).to.equal(0)
-          expect(ret[0].interestLong).to.equal(0)
-          expect(ret[0].interestShort).to.equal(0)
+          expect(ret.interestFee).to.equal(0)
+          expect(ret.interestMaker).to.equal(0)
+          expect(ret.interestLong).to.equal(0)
+          expect(ret.interestShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -787,7 +1596,7 @@ describe('Version', () => {
 
       context('long + short > maker', () => {
         it('uses maker notional to calculate interest', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -797,7 +1606,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -807,7 +1616,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: parse6decimal('0.1'),
                 maxRate: parse6decimal('0.1'),
@@ -823,10 +1632,10 @@ describe('Version', () => {
           // interestMaker =.014041 - 0.00028 = 0.013761
           // interestLong = .014041 * 12 / 14 * -1 = -0.012035
           // interestShort = (.014041 - .012035) * -1 = -0.002006
-          expect(ret[0].interestFee).to.equal(parse6decimal('0.00028'))
-          expect(ret[0].interestMaker).to.equal(parse6decimal('0.013761'))
-          expect(ret[0].interestLong).to.equal(parse6decimal('-0.012035'))
-          expect(ret[0].interestShort).to.equal(parse6decimal('-0.002006'))
+          expect(ret.interestFee).to.equal(parse6decimal('0.00028'))
+          expect(ret.interestMaker).to.equal(parse6decimal('0.013761'))
+          expect(ret.interestLong).to.equal(parse6decimal('-0.012035'))
+          expect(ret.interestShort).to.equal(parse6decimal('-0.002006'))
 
           expect(value.makerValue._value).to.equal(parse6decimal('0.001376'))
           expect(value.longValue._value).to.equal(parse6decimal('-0.001003'))
@@ -836,7 +1645,7 @@ describe('Version', () => {
 
       context('long + short < maker', () => {
         it('uses long+short notional to calculate interest', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -846,7 +1655,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('2'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -856,7 +1665,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: parse6decimal('0.1'),
                 maxRate: parse6decimal('0.1'),
@@ -872,10 +1681,10 @@ describe('Version', () => {
           // interestMaker =.014041 - 0.00028 = 0.013761
           // interestLong = .014041 * 8 / 10 * -1 = -0.0112328
           // interestShort = (.014041 - 0.0112328) * -1 = -0.002809
-          expect(ret[0].interestFee).to.equal(parse6decimal('0.00028'))
-          expect(ret[0].interestMaker).to.equal(parse6decimal('0.013761'))
-          expect(ret[0].interestLong).to.equal(parse6decimal('-0.0112328'))
-          expect(ret[0].interestShort).to.equal(parse6decimal('-0.002809'))
+          expect(ret.interestFee).to.equal(parse6decimal('0.00028'))
+          expect(ret.interestMaker).to.equal(parse6decimal('0.013761'))
+          expect(ret.interestLong).to.equal(parse6decimal('-0.0112328'))
+          expect(ret.interestShort).to.equal(parse6decimal('-0.002809'))
 
           expect(value.makerValue._value).to.equal(parse6decimal('0.000688'))
           expect(value.longValue._value).to.equal(parse6decimal('-0.0014041'))
@@ -885,7 +1694,7 @@ describe('Version', () => {
 
       context('major is 0', () => {
         it('accumulates 0 interest', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -895,7 +1704,7 @@ describe('Version', () => {
               long: 0,
               short: 0,
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -905,7 +1714,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: parse6decimal('0.1'),
                 maxRate: parse6decimal('0.1'),
@@ -915,10 +1724,10 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].interestFee).to.equal(0)
-          expect(ret[0].interestMaker).to.equal(0)
-          expect(ret[0].interestLong).to.equal(0)
-          expect(ret[0].interestShort).to.equal(0)
+          expect(ret.interestFee).to.equal(0)
+          expect(ret.interestMaker).to.equal(0)
+          expect(ret.interestLong).to.equal(0)
+          expect(ret.interestShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -930,7 +1739,7 @@ describe('Version', () => {
     describe('pnl accumulation', () => {
       context('no price change', () => {
         it('accumulates 0 pnl', async () => {
-          await version.store(EMPTY_VERSION)
+          await version.store(DEFAULT_VERSION)
 
           const { ret, value } = await accumulateWithReturn(
             GLOBAL,
@@ -940,7 +1749,7 @@ describe('Version', () => {
               long: parse6decimal('2'),
               short: parse6decimal('9'),
             },
-            { ...TO_POSITION, fee: 0 },
+            ORDER,
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
             {
@@ -950,7 +1759,7 @@ describe('Version', () => {
             },
             {
               ...VALID_RISK_PARAMETER,
-              pController: { max: 0, k: parse6decimal('999999') },
+              pController: { min: 0, max: 0, k: parse6decimal('999999') },
               utilizationCurve: {
                 minRate: 0,
                 maxRate: 0,
@@ -960,9 +1769,9 @@ describe('Version', () => {
             },
           )
 
-          expect(ret[0].pnlMaker).to.equal(0)
-          expect(ret[0].pnlLong).to.equal(0)
-          expect(ret[0].pnlShort).to.equal(0)
+          expect(ret.pnlMaker).to.equal(0)
+          expect(ret.pnlLong).to.equal(0)
+          expect(ret.pnlShort).to.equal(0)
 
           expect(value.makerValue._value).to.equal(0)
           expect(value.longValue._value).to.equal(0)
@@ -973,7 +1782,7 @@ describe('Version', () => {
       context('positive price change', () => {
         context('no maker exposure', () => {
           it('accumulates pnl to long/shorts', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -983,7 +1792,7 @@ describe('Version', () => {
                 long: parse6decimal('9'),
                 short: parse6decimal('9'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -996,7 +1805,19 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                pController: { max: 0, k: parse6decimal('999999') },
+                makerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                takerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1006,9 +1827,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('0'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('18'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('-18'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('0'))
+            expect(ret.pnlLong).to.equal(parse6decimal('18'))
+            expect(ret.pnlShort).to.equal(parse6decimal('-18'))
 
             expect(value.makerValue._value).to.equal(0)
             expect(value.longValue._value).to.equal(parse6decimal('2'))
@@ -1018,7 +1839,7 @@ describe('Version', () => {
 
         context('maker long exposure', () => {
           it('accumulates pnl to long/shorts/makers', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1028,7 +1849,7 @@ describe('Version', () => {
                 long: parse6decimal('2'),
                 short: parse6decimal('9'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1041,7 +1862,19 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                pController: { max: 0, k: parse6decimal('999999') },
+                makerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                takerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1051,9 +1884,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('14'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('4'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('-18'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('14'))
+            expect(ret.pnlLong).to.equal(parse6decimal('4'))
+            expect(ret.pnlShort).to.equal(parse6decimal('-18'))
 
             expect(value.makerValue._value).to.equal(parse6decimal('1.4'))
             expect(value.longValue._value).to.equal(parse6decimal('2'))
@@ -1063,7 +1896,7 @@ describe('Version', () => {
 
         context('maker short exposure', () => {
           it('accumulates pnl to long/shorts/makers', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1073,7 +1906,7 @@ describe('Version', () => {
                 long: parse6decimal('20'),
                 short: parse6decimal('15'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1086,7 +1919,19 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                pController: { max: 0, k: parse6decimal('999999') },
+                makerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                takerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1096,9 +1941,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('-10'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('40'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('-30'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('-10'))
+            expect(ret.pnlLong).to.equal(parse6decimal('40'))
+            expect(ret.pnlShort).to.equal(parse6decimal('-30'))
 
             expect(value.makerValue._value).to.equal(parse6decimal('-2'))
             expect(value.longValue._value).to.equal(parse6decimal('2'))
@@ -1110,7 +1955,7 @@ describe('Version', () => {
       context('negative price change', () => {
         context('no maker exposure', () => {
           it('accumulates pnl to long/shorts', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1120,7 +1965,7 @@ describe('Version', () => {
                 long: parse6decimal('9'),
                 short: parse6decimal('9'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1133,7 +1978,19 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                pController: { max: 0, k: parse6decimal('999999') },
+                makerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                takerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1143,9 +2000,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('0'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('-18'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('18'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('0'))
+            expect(ret.pnlLong).to.equal(parse6decimal('-18'))
+            expect(ret.pnlShort).to.equal(parse6decimal('18'))
 
             expect(value.makerValue._value).to.equal(0)
             expect(value.longValue._value).to.equal(parse6decimal('-2'))
@@ -1155,7 +2012,7 @@ describe('Version', () => {
 
         context('maker long exposure', () => {
           it('accumulates 0 pnl', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1165,7 +2022,7 @@ describe('Version', () => {
                 long: parse6decimal('2'),
                 short: parse6decimal('9'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1178,7 +2035,19 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                pController: { max: 0, k: parse6decimal('999999') },
+                makerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                takerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1188,9 +2057,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('-14'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('-4'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('18'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('-14'))
+            expect(ret.pnlLong).to.equal(parse6decimal('-4'))
+            expect(ret.pnlShort).to.equal(parse6decimal('18'))
 
             expect(value.makerValue._value).to.equal(parse6decimal('-1.4'))
             expect(value.longValue._value).to.equal(parse6decimal('-2'))
@@ -1200,7 +2069,7 @@ describe('Version', () => {
 
         context('maker short exposure', () => {
           it('accumulates pnl to long/shorts/makers', async () => {
-            await version.store(EMPTY_VERSION)
+            await version.store(DEFAULT_VERSION)
 
             const { ret, value } = await accumulateWithReturn(
               GLOBAL,
@@ -1210,7 +2079,7 @@ describe('Version', () => {
                 long: parse6decimal('20'),
                 short: parse6decimal('15'),
               },
-              { ...TO_POSITION, fee: 0 },
+              ORDER,
               ORACLE_VERSION_1,
               {
                 ...ORACLE_VERSION_2,
@@ -1223,7 +2092,19 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                pController: { max: 0, k: parse6decimal('999999') },
+                makerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                takerFee: {
+                  linearFee: 0,
+                  proportionalFee: 0,
+                  adiabaticFee: 0,
+                  scale: parse6decimal('100'),
+                },
+                pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
                   maxRate: 0,
@@ -1233,9 +2114,9 @@ describe('Version', () => {
               },
             )
 
-            expect(ret[0].pnlMaker).to.equal(parse6decimal('10'))
-            expect(ret[0].pnlLong).to.equal(parse6decimal('-40'))
-            expect(ret[0].pnlShort).to.equal(parse6decimal('30'))
+            expect(ret.pnlMaker).to.equal(parse6decimal('10'))
+            expect(ret.pnlLong).to.equal(parse6decimal('-40'))
+            expect(ret.pnlShort).to.equal(parse6decimal('30'))
 
             expect(value.makerValue._value).to.equal(parse6decimal('2'))
             expect(value.longValue._value).to.equal(parse6decimal('-2'))
@@ -1245,61 +2126,76 @@ describe('Version', () => {
       })
     })
 
-    describe('reward accumulation', () => {
-      context('no time elapsed', () => {
-        it('accumulates 0 rewards', async () => {
-          await version.store(EMPTY_VERSION)
+    describe('global accumulator', () => {
+      it('returns updated global accumulator values', async () => {
+        await version.store(DEFAULT_VERSION)
 
-          const { ret, value } = await accumulateWithReturn(
-            GLOBAL,
-            {
-              ...FROM_POSITION,
-              maker: parse6decimal('10'),
-              long: parse6decimal('12'),
-              short: parse6decimal('2'),
+        const { nextGlobal } = await accumulateWithReturn(
+          GLOBAL,
+          {
+            ...FROM_POSITION,
+            maker: parse6decimal('10'),
+            long: parse6decimal('2'),
+            short: parse6decimal('9'),
+          },
+          ORDER,
+          ORACLE_VERSION_1,
+          ORACLE_VERSION_2,
+          {
+            ...VALID_MARKET_PARAMETER,
+            interestFee: 0,
+            fundingFee: 0,
+          },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('999999') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: parse6decimal('0.8'),
             },
-            { ...TO_POSITION, fee: 0 },
-            ORACLE_VERSION_1,
-            ORACLE_VERSION_1,
-            VALID_MARKET_PARAMETER,
-            VALID_RISK_PARAMETER,
-          )
-          expect(ret[0].rewardMaker).to.equal(0)
-          expect(ret[0].rewardLong).to.equal(0)
-          expect(ret[0].rewardShort).to.equal(0)
+          },
+        )
 
-          expect(value.makerReward._value).to.equal(0)
-          expect(value.longReward._value).to.equal(0)
-          expect(value.shortReward._value).to.equal(0)
-        })
+        expect(nextGlobal.pAccumulator._value).to.equal(0)
+        expect(nextGlobal.pAccumulator._skew).to.equal('-1000000')
       })
+    })
 
-      context('no positions', () => {
-        it('accumulates 0 rewards', async () => {
-          await version.store(EMPTY_VERSION)
+    describe('global latestPrice', () => {
+      it('returns updated global latestPrice values', async () => {
+        await version.store(DEFAULT_VERSION)
 
-          const { ret, value } = await accumulateWithReturn(
-            GLOBAL,
-            {
-              ...FROM_POSITION,
-              maker: 0,
-              long: 0,
-              short: 0,
+        const { nextGlobal } = await accumulateWithReturn(
+          GLOBAL,
+          {
+            ...FROM_POSITION,
+            maker: parse6decimal('10'),
+            long: parse6decimal('2'),
+            short: parse6decimal('9'),
+          },
+          ORDER,
+          ORACLE_VERSION_1,
+          ORACLE_VERSION_2,
+          {
+            ...VALID_MARKET_PARAMETER,
+            interestFee: 0,
+            fundingFee: 0,
+          },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('999999') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: parse6decimal('0.8'),
             },
-            { ...TO_POSITION, fee: 0 },
-            ORACLE_VERSION_1,
-            ORACLE_VERSION_2,
-            VALID_MARKET_PARAMETER,
-            VALID_RISK_PARAMETER,
-          )
-          expect(ret[0].rewardMaker).to.equal(0)
-          expect(ret[0].rewardLong).to.equal(0)
-          expect(ret[0].rewardShort).to.equal(0)
+          },
+        )
 
-          expect(value.makerReward._value).to.equal(0)
-          expect(value.longReward._value).to.equal(0)
-          expect(value.shortReward._value).to.equal(0)
-        })
+        expect(nextGlobal.latestPrice).to.equal(ORACLE_VERSION_2.price)
       })
     })
   })

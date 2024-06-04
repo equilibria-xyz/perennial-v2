@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.19;
+pragma solidity 0.8.24;
 
 import { Ownable } from "@equilibria/root/attribute/Ownable.sol";
 import { ICoordinator, IMarket, RiskParameter, Token18 } from "./interfaces/ICoordinator.sol";
@@ -45,6 +45,6 @@ contract Coordinator is ICoordinator, Ownable {
     /// @param riskParameter The new risk parameter
     function updateRiskParameter(IMarket market, RiskParameter calldata riskParameter) external {
         if (msg.sender != coordinator) revert NotCoordinator();
-        market.updateRiskParameter(riskParameter);
+        market.updateRiskParameter(riskParameter, false);
     }
 }
