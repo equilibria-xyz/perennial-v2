@@ -41,7 +41,7 @@ import {
 } from '@equilibria/perennial-v2-oracle/types/generated'
 const { deployments, ethers } = HRE
 
-export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
+export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export interface InstanceVars {
