@@ -24,6 +24,9 @@ contract OracleFactory is IOracleFactory, Factory {
     /// @notice Mapping of factory to whether it is registered
     mapping(IOracleProviderFactory => bool) public factories;
 
+    /// @notice Mapping of oracle instance to oracle id
+    mapping(IOracleProvider => bytes32) public ids;
+
     /// @notice Constructs the contract
     /// @param implementation_ The implementation contract for the oracle
     constructor(address implementation_) Factory(implementation_) { }
@@ -36,6 +39,14 @@ contract OracleFactory is IOracleFactory, Factory {
             __Factory__initialize();
 
         incentive = incentive_;
+    }
+
+    /// @notice Retroactively sets the mapping of the oracle id to the oracle instance
+    /// @dev Part of the v2.3 migration
+    /// @param oracleProvider The oracle instance
+    /// @param id The id of the oracle
+    function updateId(IOracleProvider oracleProvider, bytes32 id) external onlyOwner {
+        ids[oracleProvider] = id;
     }
 
     /// @notice Registers a new oracle provider factory to be used in the underlying oracle instances
@@ -65,6 +76,7 @@ contract OracleFactory is IOracleFactory, Factory {
 
         newOracle = IOracle(address(_create(abi.encodeCall(IOracle.initialize, (oracleProvider)))));
         oracles[id] = newOracle;
+        ids[newOracle] = id;
 
         emit OracleCreated(newOracle, id);
     }
