@@ -29,10 +29,9 @@ describe('Controller', () => {
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
   let lastNonce = 0
-  let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
+  async function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
     return {
       action: {
         maxFee: feeOverride,
@@ -41,7 +40,7 @@ describe('Controller', () => {
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
-          expiry: currentTime.add(expiresInSeconds),
+          expiry: (await currentBlockTimestamp()) + expiresInSeconds,
         },
       },
     }
@@ -50,7 +49,7 @@ describe('Controller', () => {
   // deploys a collateral account for the specified user and returns the address
   async function createCollateralAccount(user: SignerWithAddress): Promise<Address> {
     const deployAccountMessage = {
-      ...createAction(user.address),
+      ...(await createAction(user.address)),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signatureCreate)
@@ -83,7 +82,6 @@ describe('Controller', () => {
 
   beforeEach(async () => {
     await loadFixture(fixture)
-    currentTime = BigNumber.from(await currentBlockTimestamp())
   })
 
   describe('#creation', () => {
@@ -108,7 +106,7 @@ describe('Controller', () => {
 
     it('creates collateral accounts from a signed message', async () => {
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -125,7 +123,7 @@ describe('Controller', () => {
 
       // create a message to create collateral account for userA but sign it as userB
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
 
@@ -189,7 +187,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
@@ -205,7 +203,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
 
       // assign the delegate
@@ -227,7 +225,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signSignerUpdate(userB, verifier, updateSignerMessage)
 
@@ -254,7 +252,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: false,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
