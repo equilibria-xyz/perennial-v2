@@ -129,6 +129,8 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @param referrer The referrer to update
     /// @param newReferralFee The new referral fee
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
+        if (newReferralFee.gt(UFixed6Lib.ONE)) revert MarketFactoryInvalidReferralFeeError();
+
         referralFees[referrer] = newReferralFee;
         emit ReferralFeeUpdated(referrer, newReferralFee);
     }
