@@ -90,7 +90,7 @@ contract Verifier is VerifierBase, IVerifier {
         )) revert VerifierInvalidSignerError();
     }
 
-    /// @notice Verifies the signature of a acess update batch type
+    /// @notice Verifies the signature of an access update batch type
     /// @dev Cancels the nonce after verifying the signature
     ///      Reverts if the signature does not match the signer
     /// @param accessUpdateBatch The batch access update (operator and signer) message to verify

@@ -254,6 +254,13 @@ describe('MarketFactory', () => {
         factory.connect(user).updateReferralFee(user.address, parse6decimal('0.3')),
       ).to.be.revertedWithCustomError(factory, 'OwnableNotOwnerError')
     })
+
+    it('reverts if too highr', async () => {
+      await expect(factory.updateReferralFee(user.address, parse6decimal('2.3'))).to.be.revertedWithCustomError(
+        factory,
+        'MarketFactoryInvalidReferralFeeError',
+      )
+    })
   })
 
   describe('#updateExtension', async () => {

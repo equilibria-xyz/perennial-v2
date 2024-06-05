@@ -93,11 +93,6 @@ describe('PythOracleFactory', () => {
     market.factory.returns(marketFactory.address)
     marketFactory.instances.whenCalledWith(market.address).returns(true)
 
-    market = await smock.fake<IMarket>('IMarket')
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    market.factory.returns(marketFactory.address)
-    marketFactory.instances.whenCalledWith(market.address).returns(true)
-
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
     await oracleFactory.initialize(dsu.address)
@@ -175,5 +170,24 @@ describe('PythOracleFactory', () => {
         },
       )
     expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2000', 6))
+  })
+
+  describe('#updateId', async () => {
+    it('updates max claim', async () => {
+      expect(await pythOracleFactory.ids(keeperOracle.address)).to.equal(PYTH_ETH_USD_PRICE_FEED)
+      await pythOracleFactory.updateId(
+        keeperOracle.address,
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(await pythOracleFactory.ids(keeperOracle.address)).to.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(
+        pythOracleFactory.connect(user).updateId(keeperOracle.address, PYTH_ETH_USD_PRICE_FEED),
+      ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
+    })
   })
 })
