@@ -9,7 +9,7 @@ struct AccessUpdate {
     /// @dev The generic signer or operator to approve for the signing account
     address accessor;
 
-    /// @dev The new status of the signer ro operator
+    /// @dev The new status of the signer or operator
     bool approved;
 }
 using AccessUpdateLib for AccessUpdate global;

@@ -74,7 +74,7 @@ contract Verifier is VerifierBase, IVerifier {
         return ECDSA.recover(_hashTypedDataV4(SignerUpdateLib.hash(signerUpdate)), signature);
     }
 
-    /// @notice Verifies the signature of a acess update batch type
+    /// @notice Verifies the signature of an access update batch type
     /// @dev Cancels the nonce after verifying the signature
     /// @param accessUpdateBatch The batch access update (operator and signer) message to verify
     /// @param signature The signature of the account for the batch access update
