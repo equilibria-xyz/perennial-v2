@@ -31,10 +31,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     bytes32 private __unused1__;
 
     /// @dev Beneficiary of the market, receives donations
-    address private beneficiary;
+    address public beneficiary;
 
     /// @dev Risk coordinator of the market
-    address private coordinator;
+    address public coordinator;
 
     /// @dev Risk parameters of the market
     RiskParameterStorage private _riskParameter;

@@ -128,6 +128,8 @@ interface IMarket is IInstance {
     function initialize(MarketDefinition calldata definition_) external;
     function token() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
+    function beneficiary() external view returns (address);
+    function coordinator() external view returns (address);
     function payoff() external view returns (address);
     function positions(address account) external view returns (Position memory);
     function pendingOrders(address account, uint256 id) external view returns (Order memory);
