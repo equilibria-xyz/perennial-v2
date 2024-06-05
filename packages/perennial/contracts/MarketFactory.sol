@@ -124,6 +124,40 @@ contract MarketFactory is IMarketFactory, Factory {
         emit SignerUpdated(account, signer, newEnabled);
     }
 
+    /// @notice Updates the status of the list of operators and signers for the caller
+    /// @param newOperators The list of operators to update
+    /// @param newSigners The list of signers to update
+    function updateAccessBatch(AccessUpdate[] calldata newOperators, AccessUpdate[] calldata newSigners) external {
+        _updateAccessBatch(msg.sender, newOperators, newSigners);
+    }
+
+    /// @notice Updates the status of the list of operators and signers for the caller verified via a signed message
+    /// @param accessUpdateBatch The batch access update message to process
+    /// @param signature The signature of the batch access update message
+    function updateAccessBatchWithSignature(
+        AccessUpdateBatch calldata accessUpdateBatch,
+        bytes calldata signature
+    ) external {
+        address signer = verifier.verifyAccessUpdateBatch(accessUpdateBatch, signature);
+        if (signer != accessUpdateBatch.common.account) revert MarketFactoryInvalidSignerError();
+
+        _updateAccessBatch(accessUpdateBatch.common.account, accessUpdateBatch.operators, accessUpdateBatch.signers);
+    }
+
+    /// @notice Updates the status of the list of operators and signers for the caller
+    /// @param account The account to update the operators and signers for
+    /// @param newOperators The list of operators to update
+    /// @param newSigners The list of signers to update
+    function _updateAccessBatch(
+        address account,
+        AccessUpdate[] calldata newOperators,
+        AccessUpdate[] calldata newSigners
+    ) private {
+        for (uint256 i = 0; i < newOperators.length; i++)
+            _updateOperator(account, newOperators[i].accessor, newOperators[i].approved);
+        for (uint256 i = 0; i < newSigners.length; i++)
+            _updateSigner(account, newSigners[i].accessor, newSigners[i].approved);
+    }
 
     /// @notice Updates the referral fee for orders
     /// @param referrer The referrer to update

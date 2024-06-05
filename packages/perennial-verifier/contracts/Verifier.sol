@@ -11,6 +11,7 @@ import { Intent, IntentLib } from "./types/Intent.sol";
 import { Fill, FillLib } from "./types/Fill.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
+import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBatch.sol";
 
 /// @title Verifier
 /// @notice Singleton ERC712 signed message verifier for the Perennial protocol.
@@ -71,5 +72,17 @@ contract Verifier is VerifierBase, IVerifier {
         validateAndCancel(signerUpdate.common, signature) returns (address)
     {
         return ECDSA.recover(_hashTypedDataV4(SignerUpdateLib.hash(signerUpdate)), signature);
+    }
+
+    /// @notice Verifies the signature of an access update batch type
+    /// @dev Cancels the nonce after verifying the signature
+    /// @param accessUpdateBatch The batch access update (operator and signer) message to verify
+    /// @param signature The signature of the account for the batch access update
+    /// @return The address corresponding to the signature
+    function verifyAccessUpdateBatch(AccessUpdateBatch calldata accessUpdateBatch, bytes calldata signature)
+        external
+        validateAndCancel(accessUpdateBatch.common, signature) returns (address)
+    {
+        return ECDSA.recover(_hashTypedDataV4(AccessUpdateBatchLib.hash(accessUpdateBatch)), signature);
     }
 }
