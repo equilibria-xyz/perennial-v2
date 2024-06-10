@@ -16611,6 +16611,7 @@ describe('Market', () => {
             solver: owner.address,
             common: {
               account: user.address,
+              signer: liquidator.address,
               domain: market.address,
               nonce: 0,
               group: 0,
@@ -16629,16 +16630,15 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-          verifier.verifyIntent.returns(liquidator.address)
+          verifier.verifyIntent.returns()
           factory.signers.whenCalledWith(user.address, liquidator.address).returns(true)
 
           await expect(
             market
               .connect(userC)
-              ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                intent,
-                DEFAULT_SIGNATURE,
-              ),
+              [
+                'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](intent, DEFAULT_SIGNATURE),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -16782,6 +16782,7 @@ describe('Market', () => {
             solver: owner.address,
             common: {
               account: user.address,
+              signer: liquidator.address,
               domain: market.address,
               nonce: 0,
               group: 0,
@@ -16800,16 +16801,15 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-          verifier.verifyIntent.returns(liquidator.address)
+          verifier.verifyIntent.returns()
           factory.signers.whenCalledWith(user.address, liquidator.address).returns(false)
 
           await expect(
             market
               .connect(userC)
-              ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                intent,
-                DEFAULT_SIGNATURE,
-              ),
+              [
+                'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
       })
@@ -19235,6 +19235,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -19253,15 +19254,14 @@ describe('Market', () => {
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -19437,6 +19437,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -19455,15 +19456,14 @@ describe('Market', () => {
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -19639,6 +19639,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -19657,15 +19658,14 @@ describe('Market', () => {
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -19841,6 +19841,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -19859,15 +19860,14 @@ describe('Market', () => {
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20034,6 +20034,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -20076,15 +20077,14 @@ describe('Market', () => {
               },
             })
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20252,6 +20252,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -20294,15 +20295,14 @@ describe('Market', () => {
               },
             })
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20470,6 +20470,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -20512,15 +20513,14 @@ describe('Market', () => {
               },
             })
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20690,6 +20690,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -20732,15 +20733,14 @@ describe('Market', () => {
               },
             })
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20910,6 +20910,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -20958,15 +20959,14 @@ describe('Market', () => {
               },
             })
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -21136,6 +21136,7 @@ describe('Market', () => {
               solver: owner.address,
               common: {
                 account: user.address,
+                signer: user.address,
                 domain: market.address,
                 nonce: 0,
                 group: 0,
@@ -21184,15 +21185,14 @@ describe('Market', () => {
               },
             })
 
-            verifier.verifyIntent.returns(user.address)
+            verifier.verifyIntent.returns()
 
             await expect(
               market
                 .connect(userC)
-                ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                  intent,
-                  DEFAULT_SIGNATURE,
-                ),
+                [
+                  'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                ](intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -21359,6 +21359,7 @@ describe('Market', () => {
             solver: constants.AddressZero,
             common: {
               account: user.address,
+              signer: userB.address,
               domain: market.address,
               nonce: 0,
               group: 0,
@@ -21377,15 +21378,14 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-          verifier.verifyIntent.returns(userB.address)
+          verifier.verifyIntent.returns()
 
           await expect(
             market
               .connect(userC)
-              ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                intent,
-                DEFAULT_SIGNATURE,
-              ),
+              [
+                'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
 
@@ -21415,6 +21415,7 @@ describe('Market', () => {
             solver: constants.AddressZero,
             common: {
               account: user.address,
+              signer: user.address,
               domain: market.address,
               nonce: 0,
               group: 0,
@@ -21433,15 +21434,14 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-          verifier.verifyIntent.returns(user.address)
+          verifier.verifyIntent.returns()
 
           await expect(
             market
               .connect(userC)
-              ['update((int256,int256,uint256,address,address,(address,address,uint256,uint256,uint256)),bytes)'](
-                intent,
-                DEFAULT_SIGNATURE,
-              ),
+              [
+                'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketInvalidIntentFeeError')
         })
       })

@@ -41,12 +41,18 @@ describe('Controller', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, feeOverride = utils.parseEther('14'), expiresInSeconds = 16) {
+  function createAction(
+    userAddress: Address,
+    signerAddress: Address,
+    feeOverride = utils.parseEther('14'),
+    expiresInSeconds = 16,
+  ) {
     return {
       action: {
         maxFee: feeOverride,
         common: {
           account: userAddress,
+          signer: signerAddress,
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
@@ -84,7 +90,7 @@ describe('Controller', () => {
     const accountAddressA = await controller.getAccountAddress(userA.address)
     await dsu.connect(userA).transfer(accountAddressA, utils.parseEther('15000'))
     const deployAccountMessage = {
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
     await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature)
@@ -103,7 +109,7 @@ describe('Controller', () => {
       const withdrawalMessage = {
         amount: withdrawalAmount,
         unwrap: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 
@@ -126,7 +132,7 @@ describe('Controller', () => {
       const withdrawalMessage = {
         amount: constants.MaxUint256,
         unwrap: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userB.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 
@@ -146,7 +152,7 @@ describe('Controller', () => {
       const withdrawalMessage = {
         amount: parse6decimal('2000'),
         unwrap: false,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userB.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 

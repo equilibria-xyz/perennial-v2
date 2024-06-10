@@ -24,7 +24,7 @@ library AccessUpdateBatchLib {
     bytes32 constant public STRUCT_HASH = keccak256(
         "AccessUpdateBatch(AccessUpdate[] operators,AccessUpdate[] signers,Common common)"
         "AccessUpdate(address accessor,bool approved)"
-        "Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)"
+        "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     function hash(AccessUpdateBatch memory self) internal pure returns (bytes32) {

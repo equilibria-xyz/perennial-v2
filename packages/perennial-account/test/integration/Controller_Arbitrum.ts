@@ -48,12 +48,18 @@ describe('Controller_Arbitrum', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, feeOverride = DEFAULT_MAX_FEE, expiresInSeconds = 16) {
+  function createAction(
+    userAddress: Address,
+    signerAddress: Address,
+    feeOverride = DEFAULT_MAX_FEE,
+    expiresInSeconds = 16,
+  ) {
     return {
       action: {
         maxFee: feeOverride,
         common: {
           account: userAddress,
+          signer: signerAddress,
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
@@ -68,7 +74,7 @@ describe('Controller_Arbitrum', () => {
     const accountAddress = await controller.getAccountAddress(user.address)
     await dsu.connect(userA).transfer(accountAddress, amount, { maxFeePerGas: 100000000 })
     const deployAccountMessage = {
-      ...createAction(user.address),
+      ...createAction(user.address, user.address),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller
@@ -150,7 +156,7 @@ describe('Controller_Arbitrum', () => {
 
       // sign a message to deploy the account
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -172,7 +178,7 @@ describe('Controller_Arbitrum', () => {
       // sign a message with maxFee smaller than the calculated keeper fee (~0.0033215)
       const maxFee = parse6decimal('0.000789')
       const deployAccountMessage = {
-        ...createAction(userA.address, maxFee),
+        ...createAction(userA.address, userA.address, maxFee),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -206,7 +212,7 @@ describe('Controller_Arbitrum', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
 
       // assign the delegate
@@ -222,7 +228,7 @@ describe('Controller_Arbitrum', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
 
       // assign the delegate
@@ -260,7 +266,7 @@ describe('Controller_Arbitrum', () => {
       const withdrawalMessage = {
         amount: withdrawalAmount,
         unwrap: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userB.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 

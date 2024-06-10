@@ -301,6 +301,7 @@ describe('MarketFactory', () => {
       approved: false,
       common: {
         account: constants.AddressZero,
+        signer: constants.AddressZero,
         domain: constants.AddressZero,
         nonce: 0,
         group: 0,
@@ -313,11 +314,16 @@ describe('MarketFactory', () => {
         ...DEFAULT_OPERATOR_UPDATE,
         operator: owner.address,
         approved: true,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: user.address, domain: factory.address },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: user.address,
+          signer: user.address,
+          domain: factory.address,
+        },
       }
       const signature = await signOperatorUpdate(user, verifier, operatorUpdate)
 
-      verifier.verifyOperatorUpdate.returns(user.address)
+      verifier.verifyOperatorUpdate.returns()
 
       await expect(factory.connect(owner).updateOperatorWithSignature(operatorUpdate, signature))
         .to.emit(factory, 'OperatorUpdated')
@@ -329,11 +335,17 @@ describe('MarketFactory', () => {
         ...DEFAULT_OPERATOR_UPDATE,
         operator: owner.address,
         approval: false,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: user.address, domain: factory.address, nonce: 1 },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: user.address,
+          signer: user.address,
+          domain: factory.address,
+          nonce: 1,
+        },
       }
       const signature2 = await signOperatorUpdate(user, verifier, operatorUpdate2)
 
-      verifier.verifyOperatorUpdate.returns(user.address)
+      verifier.verifyOperatorUpdate.returns()
 
       await expect(factory.connect(owner).updateOperatorWithSignature(operatorUpdate2, signature2))
         .to.emit(factory, 'OperatorUpdated')
@@ -347,11 +359,16 @@ describe('MarketFactory', () => {
         ...DEFAULT_OPERATOR_UPDATE,
         operator: owner.address,
         approved: true,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: user.address, domain: factory.address },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: user.address,
+          signer: owner.address,
+          domain: factory.address,
+        },
       }
       const signature = await signOperatorUpdate(user, verifier, operatorUpdate)
 
-      verifier.verifyOperatorUpdate.returns(owner.address)
+      verifier.verifyOperatorUpdate.returns()
 
       await expect(
         factory.connect(owner).updateOperatorWithSignature(operatorUpdate, signature),
@@ -381,6 +398,7 @@ describe('MarketFactory', () => {
       approved: false,
       common: {
         account: constants.AddressZero,
+        signer: constants.AddressZero,
         domain: constants.AddressZero,
         nonce: 0,
         group: 0,
@@ -393,11 +411,16 @@ describe('MarketFactory', () => {
         ...DEFAULT_SIGNER_UPDATE,
         signer: owner.address,
         approved: true,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: user.address, domain: factory.address },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: user.address,
+          signer: user.address,
+          domain: factory.address,
+        },
       }
       const signature = await signSignerUpdate(user, verifier, signerUpdate)
 
-      verifier.verifySignerUpdate.returns(user.address)
+      verifier.verifySignerUpdate.returns()
 
       await expect(factory.connect(owner).updateSignerWithSignature(signerUpdate, signature))
         .to.emit(factory, 'SignerUpdated')
@@ -409,11 +432,17 @@ describe('MarketFactory', () => {
         ...DEFAULT_SIGNER_UPDATE,
         signer: owner.address,
         approval: false,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: user.address, domain: factory.address, nonce: 1 },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: user.address,
+          signer: user.address,
+          domain: factory.address,
+          nonce: 1,
+        },
       }
       const signature2 = await signSignerUpdate(user, verifier, signerUpdate2)
 
-      verifier.verifySignerUpdate.returns(user.address)
+      verifier.verifySignerUpdate.returns()
 
       await expect(factory.connect(owner).updateSignerWithSignature(signerUpdate2, signature2))
         .to.emit(factory, 'SignerUpdated')
@@ -427,11 +456,16 @@ describe('MarketFactory', () => {
         ...DEFAULT_SIGNER_UPDATE,
         signer: owner.address,
         approved: true,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: user.address, domain: factory.address },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: user.address,
+          signer: owner.address,
+          domain: factory.address,
+        },
       }
       const signature = await signSignerUpdate(user, verifier, signerUpdate)
 
-      verifier.verifySignerUpdate.returns(owner.address)
+      verifier.verifySignerUpdate.returns()
 
       await expect(
         factory.connect(owner).updateSignerWithSignature(signerUpdate, signature),
@@ -501,6 +535,7 @@ describe('MarketFactory', () => {
       signers: [{ accessor: constants.AddressZero, approved: false }],
       common: {
         account: constants.AddressZero,
+        signer: constants.AddressZero,
         domain: constants.AddressZero,
         nonce: 0,
         group: 0,
@@ -519,11 +554,16 @@ describe('MarketFactory', () => {
           { accessor: signer.address, approved: true },
           { accessor: signer2.address, approved: true },
         ],
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: user.address, domain: factory.address },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: user.address,
+          signer: user.address,
+          domain: factory.address,
+        },
       }
       const signature = await signAccessUpdateBatch(user, verifier, accessUpdateBatch)
 
-      verifier.verifyAccessUpdateBatch.returns(user.address)
+      verifier.verifyAccessUpdateBatch.returns()
 
       await expect(factory.connect(owner).updateAccessBatchWithSignature(accessUpdateBatch, signature))
         .to.emit(factory, 'OperatorUpdated')
@@ -550,11 +590,17 @@ describe('MarketFactory', () => {
           { accessor: signer.address, approved: false },
           { accessor: signer2.address, approved: false },
         ],
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: user.address, domain: factory.address, nonce: 1 },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: user.address,
+          signer: user.address,
+          domain: factory.address,
+          nonce: 1,
+        },
       }
       const signature2 = await signAccessUpdateBatch(user, verifier, accessUpdateBatch2)
 
-      verifier.verifyAccessUpdateBatch.returns(user.address)
+      verifier.verifyAccessUpdateBatch.returns()
 
       await expect(factory.connect(owner).updateAccessBatchWithSignature(accessUpdateBatch2, signature2))
         .to.emit(factory, 'OperatorUpdated')
@@ -583,11 +629,16 @@ describe('MarketFactory', () => {
           { accessor: signer.address, approved: false },
           { accessor: signer2.address, approved: false },
         ],
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: user.address, domain: factory.address },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: user.address,
+          signer: owner.address,
+          domain: factory.address,
+        },
       }
       const signature = await signAccessUpdateBatch(user, verifier, accessUpdateBatch)
 
-      verifier.verifyAccessUpdateBatch.returns(owner.address)
+      verifier.verifyAccessUpdateBatch.returns()
 
       await expect(
         factory.connect(owner).updateAccessBatchWithSignature(accessUpdateBatch, signature),
