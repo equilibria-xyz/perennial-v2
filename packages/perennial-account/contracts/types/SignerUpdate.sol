@@ -15,14 +15,14 @@ struct SignerUpdate {
 using SignerUpdateLib for SignerUpdate global;
 
 /// @title SignerUpdateLib
-/// @notice Library used to hash and verify action to assign/enable/disable a delegate signer 
+/// @notice Library used to hash and verify action to assign/enable/disable a delegate signer
 /// for a collateral account
 library SignerUpdateLib {
     /// @dev used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
         "SignerUpdate(address signer,bool approved,Action action)"
         "Action(uint256 maxFee,Common common)"
-        "Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)"
+        "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     /// @dev used to create a signed message

@@ -26,12 +26,18 @@ describe('Verifier', () => {
   let accountAddress: Address
 
   // create a default action for the specified user
-  function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
+  function createAction(
+    userAddress: Address,
+    signerAddress: Address,
+    feeOverride = utils.parseEther('12'),
+    expiresInSeconds = 6,
+  ) {
     return {
       action: {
         maxFee: feeOverride,
         common: {
           account: userAddress,
+          signer: signerAddress,
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
@@ -66,6 +72,7 @@ describe('Verifier', () => {
     const nonce = nextNonce()
     const commonMessage = {
       account: userA.address,
+      signer: userA.address,
       domain: verifier.address,
       nonce: nonce,
       group: 0,
@@ -73,12 +80,11 @@ describe('Verifier', () => {
     }
     const signature = await signCommon(userA, verifier, commonMessage)
 
-    const verifyResult = await verifier.connect(verifierSigner).callStatic.verifyCommon(commonMessage, signature)
+    await verifier.connect(verifierSigner).callStatic.verifyCommon(commonMessage, signature)
     await expect(verifier.connect(verifierSigner).verifyCommon(commonMessage, signature))
       .to.emit(verifier, 'NonceCancelled')
       .withArgs(userA.address, nonce)
 
-    expect(verifyResult).to.eq(userA.address)
     expect(await verifier.nonces(userA.address, nonce)).to.eq(true)
   })
 
@@ -90,6 +96,7 @@ describe('Verifier', () => {
       maxFee: utils.parseEther('12'),
       common: {
         account: userB.address,
+        signer: userB.address,
         domain: verifier.address,
         nonce: nonce,
         group: 0,
@@ -109,7 +116,7 @@ describe('Verifier', () => {
 
   it('verifies deployAccount messages', async () => {
     const deployAccountMessage = {
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -123,7 +130,7 @@ describe('Verifier', () => {
     const updateSignerMessage = {
       signer: userB.address,
       approved: true,
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
@@ -138,7 +145,7 @@ describe('Verifier', () => {
     const withdrawalMessage = {
       amount: parse6decimal('55.5'),
       unwrap: false,
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 
