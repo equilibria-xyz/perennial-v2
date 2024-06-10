@@ -105,12 +105,10 @@ describe('Verifier', () => {
     }
     const signature = await signAction(userB, verifier, actionMessage)
 
-    const verifyResult = await verifier.connect(verifierSigner).callStatic.verifyAction(actionMessage, signature)
     await expect(verifier.connect(verifierSigner).verifyAction(actionMessage, signature))
       .to.emit(verifier, 'NonceCancelled')
       .withArgs(userB.address, nonce)
 
-    expect(verifyResult).to.eq(userB.address)
     expect(await verifier.nonces(userB.address, nonce)).to.eq(true)
   })
 
@@ -120,10 +118,8 @@ describe('Verifier', () => {
     }
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifyDeployAccount(deployAccountMessage, signature)
-    expect(signerResult).to.eq(userA.address)
+    await expect(verifier.connect(controllerSigner).callStatic.verifyDeployAccount(deployAccountMessage, signature)).to
+      .not.be.reverted
   })
 
   it('verifies signerUpdate messages', async () => {
@@ -134,10 +130,8 @@ describe('Verifier', () => {
     }
     const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifySignerUpdate(updateSignerMessage, signature)
-    expect(signerResult).to.eq(userA.address)
+    await expect(verifier.connect(controllerSigner).callStatic.verifySignerUpdate(updateSignerMessage, signature)).to
+      .not.be.reverted
   })
 
   it('verifies withdrawal messages', async () => {
@@ -149,9 +143,7 @@ describe('Verifier', () => {
     }
     const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifyWithdrawal(withdrawalMessage, signature)
-    expect(signerResult).to.eq(userA.address)
+    await expect(verifier.connect(controllerSigner).callStatic.verifyWithdrawal(withdrawalMessage, signature)).to.not.be
+      .reverted
   })
 })

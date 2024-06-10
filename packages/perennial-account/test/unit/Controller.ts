@@ -129,7 +129,7 @@ describe('Controller', () => {
 
       // create a message to create collateral account for userA but sign it as userB
       const deployAccountMessage = {
-        ...(await createAction(userA.address, userA.address)),
+        ...(await createAction(userA.address, userB.address)),
       }
       const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
 
