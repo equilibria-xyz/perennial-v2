@@ -582,6 +582,8 @@ describe('Market', () => {
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition)
+      await market.connect(owner).updateBeneficiary(beneficiary.address)
+      await market.connect(owner).updateCoordinator(coordinator.address)
       await market.connect(owner).updateRiskParameter(riskParameter)
     })
 
