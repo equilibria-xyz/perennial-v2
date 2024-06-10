@@ -38,7 +38,7 @@ describe('Closed Market', () => {
     await chainlink.next()
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
-    await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
+    await market.updateParameter(parameters)
 
     expect((await market.parameter()).closed).to.be.true
   })
@@ -62,7 +62,7 @@ describe('Closed Market', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
       const parameters = { ...(await market.parameter()) }
       parameters.closed = true
-      await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
+      await market.updateParameter(parameters)
     })
 
     it('reverts on new open positions', async () => {
@@ -109,7 +109,7 @@ describe('Closed Market', () => {
     await chainlink.next()
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
-    await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
+    await market.updateParameter(parameters)
     await settle(market, user)
     await settle(market, userB)
 
@@ -158,7 +158,7 @@ describe('Closed Market', () => {
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
-    await market.updateParameter(beneficiaryB.address, AddressZero, parameters)
+    await market.updateParameter(parameters)
     await chainlink.next()
 
     await settle(market, user)

@@ -154,7 +154,9 @@ interface IMarket is IInstance {
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
-    function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
+    function updateBeneficiary(address newBeneficiary) external;
+    function updateCoordinator(address newCoordinator) external;
+    function updateParameter(MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
     function claimFee() external;
 }

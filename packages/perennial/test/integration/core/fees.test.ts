@@ -196,7 +196,7 @@ describe('Fees', () => {
       const marketParams = { ...(await market.parameter()) }
       const previousMarketParams = { ...marketParams }
       marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(AddressZero, AddressZero, marketParams)
+      await market.updateParameter(marketParams)
 
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
@@ -220,7 +220,7 @@ describe('Fees', () => {
       await settle(market, user)
 
       await market.updateRiskParameter(previousRiskParams)
-      await market.updateParameter(AddressZero, AddressZero, previousMarketParams)
+      await market.updateParameter(previousMarketParams)
       await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
       // Settle the market with a new oracle version
@@ -292,7 +292,7 @@ describe('Fees', () => {
 
       const marketParams = { ...(await market.parameter()) }
       marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(AddressZero, AddressZero, marketParams)
+      await market.updateParameter(marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
@@ -414,7 +414,7 @@ describe('Fees', () => {
 
       const marketParams = { ...(await market.parameter()) }
       marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(AddressZero, AddressZero, marketParams)
+      await market.updateParameter(marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
@@ -574,7 +574,7 @@ describe('Fees', () => {
           adiabaticFee: BigNumber.from('0'),
         },
       })
-      await market.updateParameter(AddressZero, AddressZero, {
+      await market.updateParameter({
         ...marketParams,
         fundingFee: BigNumber.from('0'),
         makerFee: 0,
@@ -629,7 +629,7 @@ describe('Fees', () => {
           adiabaticFee: BigNumber.from('0'),
         },
       })
-      await market.updateParameter(AddressZero, AddressZero, {
+      await market.updateParameter({
         ...marketParams,
         fundingFee: BigNumber.from('0'),
         makerFee: 0,
@@ -743,7 +743,7 @@ describe('Fees', () => {
 
       const marketParams = { ...(await market.parameter()) }
       marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(AddressZero, AddressZero, marketParams)
+      await market.updateParameter(marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
@@ -865,7 +865,7 @@ describe('Fees', () => {
 
       const marketParams = { ...(await market.parameter()) }
       marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(AddressZero, AddressZero, marketParams)
+      await market.updateParameter(marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
@@ -1025,7 +1025,7 @@ describe('Fees', () => {
           adiabaticFee: BigNumber.from('0'),
         },
       })
-      await market.updateParameter(AddressZero, AddressZero, {
+      await market.updateParameter({
         ...marketParams,
         fundingFee: BigNumber.from('0'),
         makerFee: 0,
@@ -1080,7 +1080,7 @@ describe('Fees', () => {
           adiabaticFee: BigNumber.from('0'),
         },
       })
-      await market.updateParameter(AddressZero, AddressZero, {
+      await market.updateParameter({
         ...marketParams,
         fundingFee: BigNumber.from('0'),
         makerFee: 0,
@@ -1206,7 +1206,7 @@ describe('Fees', () => {
             adiabaticFee: BigNumber.from('0'),
           },
         })
-        await market.updateParameter(AddressZero, AddressZero, {
+        await market.updateParameter({
           ...marketParams,
           makerFee: 0,
           takerFee: 0,
@@ -1315,7 +1315,7 @@ describe('Fees', () => {
             adiabaticFee: parse6decimal('0.02'),
           },
         })
-        await market.updateParameter(AddressZero, AddressZero, {
+        await market.updateParameter({
           ...marketParams,
           makerFee: 0,
           takerFee: 0,
@@ -1505,7 +1505,7 @@ describe('Fees', () => {
             adiabaticFee: BigNumber.from('0'),
           },
         })
-        await market.updateParameter(AddressZero, AddressZero, {
+        await market.updateParameter({
           ...marketParams,
           makerFee: 0,
           takerFee: 0,
@@ -1523,7 +1523,7 @@ describe('Fees', () => {
         await nextWithConstantPrice()
         await settle(market, user)
 
-        await market.updateParameter(AddressZero, AddressZero, {
+        await market.updateParameter({
           ...marketParams,
           settlementFee: parse6decimal('1.23'),
           makerFee: 0,
