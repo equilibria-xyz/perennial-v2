@@ -47,6 +47,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev State for the order data
     mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
+    /// @dev Mapping of allowed operators for each account
+    mapping(address => mapping(address => bool)) public operators;
+
     /// @notice Constructs the MultiInvoker contract
     /// @param usdc_ USDC stablecoin address
     /// @param dsu_ DSU address
@@ -110,9 +113,33 @@ contract MultiInvoker is IMultiInvoker, Kept {
         return order.fillable(market.oracle().latest());
     }
 
-    /// @notice entry to perform invocations
+    /// @notice Updates the status of an operator for the caller
+    /// @param operator The operator to update
+    /// @param newEnabled The new status of the operator
+    function updateOperator(address operator, bool newEnabled) external {
+        operators[msg.sender][operator] = newEnabled;
+        emit OperatorUpdated(msg.sender, operator, newEnabled);
+    }
+
+    /// @notice entry to perform invocations for msg.sender
     /// @param invocations List of actions to execute in order
     function invoke(Invocation[] calldata invocations) external payable {
+        _invoke(msg.sender, invocations);
+    }
+
+    /// @notice entry to perform invocations for account
+    /// @param account Account to perform invocations for
+    /// @param invocations List of actions to execute in order
+    function invoke(address account, Invocation[] calldata invocations) external payable {
+        _invoke(account, invocations);
+    }
+
+    /// @notice Performs a batch of invocations for an account
+    /// @param account Account to perform invocations for
+    /// @param invocations List of actions to execute in order
+    function _invoke(address account, Invocation[] calldata invocations) private {
+        if (msg.sender != account && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
+
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
@@ -129,25 +156,25 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     InterfaceFee memory interfaceFee2
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
 
-                _update(msg.sender, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
+                _update(account, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
 
-                _vaultUpdate(vault, depositAssets, redeemShares, claimAssets, wrap);
+                _vaultUpdate(account, vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
                 (IMarket market, TriggerOrder memory order) = abi.decode(invocation.args, (IMarket, TriggerOrder));
 
-                _placeOrder(msg.sender, market, order);
+                _placeOrder(account, market, order);
             } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
                 (IMarket market, uint256 nonce) = abi.decode(invocation.args, (IMarket, uint256));
 
-                _cancelOrder(msg.sender, market, nonce);
+                _cancelOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address account, IMarket market, uint256 nonce)
+                (address execAccount, IMarket market, uint256 nonce)
                     = abi.decode(invocation.args, (address, IMarket, uint256));
 
-                _executeOrder(account, market, nonce);
+                _executeOrder(execAccount, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
                 (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
                     abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
@@ -159,8 +186,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 _approve(target);
             }
         }
-        // Eth must not remain in this contract at rest
-        payable(msg.sender).transfer(address(this).balance);
+        // ETH must not remain in this contract at rest
+        Address.sendValue(payable(msg.sender), address(this).balance);
     }
 
     /// @notice Updates market on behalf of account
@@ -187,9 +214,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
         Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
 
         // collateral is transferred here as DSU then an optional interface fee is charged from it
-        if (collateral.sign() == 1) _deposit(collateral.abs(), wrap);
+        if (collateral.sign() == 1) _deposit(account, collateral.abs(), wrap);
 
-        market.update(account, newMaker, newLong, newShort, collateral, false);
+        market.update(
+            account,
+            newMaker,
+            newLong,
+            newShort,
+            collateral,
+            false,
+            interfaceFee1.receiver == address(0) ? interfaceFee2.receiver : interfaceFee1.receiver
+        );
 
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
         if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
@@ -199,13 +234,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
         _chargeFee(account, market, interfaceFee2);
     }
 
-    /// @notice Update vault on behalf of msg.sender
+    /// @notice Update vault on behalf of account
+    /// @param account Address of account to update
     /// @param vault Address of vault to update
     /// @param depositAssets Amount of assets to deposit into vault
     /// @param redeemShares Amount of shares to redeem from vault
     /// @param claimAssets Amount of assets to claim from vault
     /// @param wrap Whether to wrap assets before depositing
     function _vaultUpdate(
+        address account,
         IVault vault,
         UFixed6 depositAssets,
         UFixed6 redeemShares,
@@ -213,12 +250,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
         bool wrap
     ) internal isVaultInstance(vault) {
         if (!depositAssets.isZero()) {
-            _deposit(depositAssets, wrap);
+            _deposit(account, depositAssets, wrap);
         }
 
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        vault.update(msg.sender, depositAssets, redeemShares, claimAssets);
+        vault.update(account, depositAssets, redeemShares, claimAssets);
 
         // handle socialization, settlement fees, and magic values
         UFixed6 claimAmount = claimAssets.isZero() ?
@@ -226,7 +263,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
 
         if (!claimAmount.isZero()) {
-            _withdraw(msg.sender, claimAmount, wrap);
+            _withdraw(account, claimAmount, wrap);
         }
     }
 
@@ -255,15 +292,16 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit InterfaceFeeCharged(account, market, interfaceFee);
     }
 
-    /// @notice Pull DSU or wrap and deposit USDC from msg.sender to this address for market usage
+    /// @notice Pull DSU or wrap and deposit USDC from `account` to this address for market usage
+    /// @param account Account to pull DSU or USDC from
     /// @param amount Amount to transfer
     /// @param wrap Flag to wrap USDC to DSU
-    function _deposit(UFixed6 amount, bool wrap) internal {
+    function _deposit(address account, UFixed6 amount, bool wrap) internal {
         if (wrap) {
-            USDC.pull(msg.sender, amount);
+            USDC.pull(account, amount);
             _wrap(address(this), UFixed18Lib.from(amount));
         } else {
-            DSU.pull(msg.sender, UFixed18Lib.from(amount));
+            DSU.pull(account, UFixed18Lib.from(amount));
         }
     }
 
@@ -389,7 +427,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         return UFixed18Lib.from(raisedKeeperFee);
     }
 
-    /// @notice Places order on behalf of msg.sender from the invoker
+    /// @notice Places order on behalf of account from the invoker
     /// @param account Account to place order for
     /// @param market Market to place order in
     /// @param order Order state to place
@@ -409,7 +447,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit OrderPlaced(account, market, latestNonce, order);
     }
 
-    /// @notice Cancels an open order for msg.sender
+    /// @notice Cancels an open order for account
     /// @param account Account to cancel order for
     /// @param market Market order is open in
     /// @param nonce UID of order
@@ -430,7 +468,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param market Market to settle
     /// @param account Account to settle
     function _marketSettle(IMarket market, address account) private {
-        _marketWithdraw(market, account, UFixed6Lib.ZERO);
+        market.settle(account);
     }
 
     /// @notice Target market must be created by MarketFactory

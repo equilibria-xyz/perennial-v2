@@ -196,21 +196,20 @@ describe('ProtocolParameter', () => {
     })
 
     context('.referralFee', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
         await protocolParameter.validateAndStore({
           ...VALID_PROTOCOL_PARAMETER,
-          referralFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          referralFee: parse6decimal('1'),
         })
         const value = await protocolParameter.read()
-        expect(value.referralFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.referralFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if out of range', async () => {
         await expect(
           protocolParameter.validateAndStore({
             ...VALID_PROTOCOL_PARAMETER,
-            referralFee: BigNumber.from(2).pow(STORAGE_SIZE),
+            referralFee: parse6decimal('1').add(1),
           }),
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })

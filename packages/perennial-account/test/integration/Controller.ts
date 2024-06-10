@@ -41,10 +41,10 @@ describe('ControllerBase', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, feeOverride = utils.parseEther('14'), expiresInSeconds = 60) {
+  function createAction(userAddress: Address, maxFee = utils.parseEther('14'), expiresInSeconds = 60) {
     return {
       action: {
-        maxFee: feeOverride,
+        maxFee: maxFee,
         common: {
           account: userAddress,
           domain: controller.address,

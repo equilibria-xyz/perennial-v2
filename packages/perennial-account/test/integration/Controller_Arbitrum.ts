@@ -51,10 +51,10 @@ describe('Controller_Arbitrum', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, feeOverride = DEFAULT_MAX_FEE, expiresInSeconds = 45) {
+  function createAction(userAddress: Address, maxFee = DEFAULT_MAX_FEE, expiresInSeconds = 45) {
     return {
       action: {
-        maxFee: feeOverride,
+        maxFee: maxFee,
         common: {
           account: userAddress,
           domain: controller.address,

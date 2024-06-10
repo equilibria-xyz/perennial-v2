@@ -32,10 +32,10 @@ describe('Verifier', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user
-  function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
+  function createAction(userAddress: Address, maxFee = utils.parseEther('12'), expiresInSeconds = 6) {
     return {
       action: {
-        maxFee: feeOverride,
+        maxFee: maxFee,
         common: {
           account: userAddress,
           domain: controller.address,

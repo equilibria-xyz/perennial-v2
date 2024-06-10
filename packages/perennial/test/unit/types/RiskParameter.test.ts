@@ -605,7 +605,7 @@ describe('RiskParameter', () => {
           {
             ...VALID_RISK_PARAMETER,
             makerFee: {
-              ...VALID_RISK_PARAMETER.takerFee,
+              ...VALID_RISK_PARAMETER.makerFee,
               linearFee: parse6decimal('1'),
             },
           },
@@ -637,7 +637,7 @@ describe('RiskParameter', () => {
           {
             ...VALID_RISK_PARAMETER,
             makerFee: {
-              ...VALID_RISK_PARAMETER.takerFee,
+              ...VALID_RISK_PARAMETER.makerFee,
               proportionalFee: parse6decimal('1'),
             },
           },
