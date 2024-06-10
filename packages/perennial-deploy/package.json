@@ -1,12 +1,9 @@
 {
   "name": "@equilibria/perennial-v2-deploy",
-  "version": "1.1.0-rc1",
+  "version": "1.2.0",
   "description": "Perennial V2 Deployment Tooling",
   "files": [
-    "contracts",
-    "artifacts/contracts",
-    "deployments/!(localhost)",
-    "dist"
+    "deployments/!(localhost)"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
