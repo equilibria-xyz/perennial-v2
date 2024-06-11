@@ -72,7 +72,7 @@ library RebalanceLib {
                     message.configs[i]
                 );
             }
-            emit IController.RebalanceGroupConfigured(owner, self.lastGroupId);
+            emit IController.RebalanceGroupConfigured(owner, self.lastGroupId, message.markets.length);
 
         // update an existing group
         } else {
@@ -112,7 +112,7 @@ library RebalanceLib {
                 );
             }
 
-            emit IController.RebalanceGroupConfigured(owner, message.group);
+            emit IController.RebalanceGroupConfigured(owner, message.group, message.markets.length);
         }
 
         // if not deleting the group, ensure rebalance targets add to 100%

@@ -360,7 +360,7 @@ describe('Controller', () => {
           .to.emit(controller, 'RebalanceMarketConfigured')
           .withArgs(userA.address, 1, ethMarket.address, message.configs[1])
           .to.emit(controller, 'RebalanceGroupConfigured')
-          .withArgs(userA.address, 1)
+          .withArgs(userA.address, 1, 2)
 
         await verifyConfigAgainstMessage(userA, message, 1)
       })
@@ -428,7 +428,7 @@ describe('Controller', () => {
         let signature = await signRebalanceConfigChange(userA, verifier, message)
         await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
           .to.emit(controller, 'RebalanceGroupConfigured')
-          .withArgs(userA.address, 1)
+          .withArgs(userA.address, 1, 2)
 
         // attempt to create a group with BTC and SOL markets
         const solMarket = await smock.fake('IMarket')
@@ -515,7 +515,7 @@ describe('Controller', () => {
           .to.emit(controller, 'RebalanceMarketConfigured')
           .withArgs(userA.address, group, ethMarket.address, message.configs[1])
           .to.emit(controller, 'RebalanceGroupConfigured')
-          .withArgs(userA.address, group)
+          .withArgs(userA.address, group, 2)
 
         await verifyConfigAgainstMessage(userA, message, group)
       })
@@ -545,7 +545,7 @@ describe('Controller', () => {
           .to.emit(controller, 'RebalanceMarketConfigured')
           .withArgs(userA.address, group, solMarket.address, message.configs[2])
           .to.emit(controller, 'RebalanceGroupConfigured')
-          .withArgs(userA.address, group)
+          .withArgs(userA.address, group, 3)
 
         await verifyConfigAgainstMessage(userA, message, group)
       })
@@ -565,7 +565,7 @@ describe('Controller', () => {
           .to.emit(controller, 'RebalanceMarketConfigured')
           .withArgs(userA.address, group, ethMarket.address, message.configs[0])
           .to.emit(controller, 'RebalanceGroupConfigured')
-          .withArgs(userA.address, group)
+          .withArgs(userA.address, group, 1)
 
         await verifyConfigAgainstMessage(userA, message, group)
       })
@@ -636,7 +636,7 @@ describe('Controller', () => {
         // delete the group
         await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
           .to.emit(controller, 'RebalanceGroupConfigured')
-          .withArgs(userA.address, group)
+          .withArgs(userA.address, group, 0)
 
         await verifyConfigAgainstMessage(userA, message, group)
       })

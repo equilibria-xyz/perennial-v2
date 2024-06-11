@@ -24,8 +24,8 @@ interface IController {
     /// @notice Emitted when a rebalance group is created or updated
     /// @param owner Owner of the collateral account for which the rebalance group was created or modified
     /// @param group Uniquely identifies the rebalance group
-    event RebalanceGroupConfigured(address indexed owner, uint256 indexed group);
-    // TODO: consider adding a deleted flag; would make things easier for subgraph
+    /// @param markets Number of markets in the group (0 if group was deleted)
+    event RebalanceGroupConfigured(address indexed owner, uint256 indexed group, uint256 markets);
 
     /// @notice Emitted for each market in a rebalance group upon creation of the group
     /// or when any changes are made to the group
