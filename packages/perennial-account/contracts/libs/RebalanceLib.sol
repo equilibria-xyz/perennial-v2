@@ -115,7 +115,8 @@ library RebalanceLib {
             emit IController.RebalanceGroupConfigured(owner, message.group);
         }
 
-        if (!totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
+        // if not deleting the group, ensure rebalance targets add to 100%
+        if (message.markets.length != 0 && !totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
             revert IController.ControllerInvalidRebalanceTargets();
     }
 }

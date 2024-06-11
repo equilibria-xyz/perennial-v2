@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Action, ActionLib } from "./Action.sol";
+import { IController } from "../interfaces/IController.sol";
 
 /// @dev Rebalancing configuration for a single market
 struct RebalanceConfig {
@@ -86,6 +87,11 @@ library RebalanceConfigChangeLib {
     function hash(RebalanceConfigChange memory self) internal pure returns (bytes32) {
         bytes32[] memory encodedAddresses = new bytes32[](self.markets.length);
         bytes32[] memory encodedConfigs = new bytes32[](self.configs.length);
+
+        // ensure consistent error for length mismatch
+        if (self.markets.length != self.configs.length)
+            revert IController.ControllerInvalidRebalanceConfig();
+
         for (uint256 i = 0; i < self.markets.length; ++i) {
             encodedAddresses[i] = keccak256(abi.encode(self.markets[i]));
             encodedConfigs[i] = RebalanceConfigLib.hash(self.configs[i]);

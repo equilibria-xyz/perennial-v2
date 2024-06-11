@@ -326,7 +326,6 @@ describe('Controller', () => {
       return eventArgs.group
     }
 
-    // TODO: eliminate group argument?
     async function verifyConfigAgainstMessage(
       user: SignerWithAddress,
       message: RebalanceConfigChangeStruct,
@@ -379,7 +378,7 @@ describe('Controller', () => {
         // panic occurs during message verification
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithPanic(0x32) // Array accessed at an out-of-bounds or negative index
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceConfig')
 
         message = {
           group: constants.Zero,
@@ -392,10 +391,9 @@ describe('Controller', () => {
         }
 
         // await controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)
-        // FIXME: reason is misleading; might want to implicitly induce the same panic with a length check
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceConfig')
       })
 
       it('rejects groups where targets do not add to 100%', async () => {
@@ -625,9 +623,24 @@ describe('Controller', () => {
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
         ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
       })
-    })
 
-    // TODO: delete a group
+      it('can delete a group', async () => {
+        const message = {
+          group: group,
+          markets: [],
+          configs: [],
+          ...(await createAction(userA.address)),
+        }
+        const signature = await signRebalanceConfigChange(userA, verifier, message)
+
+        // delete the group
+        await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
+          .to.emit(controller, 'RebalanceGroupConfigured')
+          .withArgs(userA.address, group)
+
+        await verifyConfigAgainstMessage(userA, message, group)
+      })
+    })
   })
 
   describe('#transfer', () => {

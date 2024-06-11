@@ -50,8 +50,12 @@ interface IController {
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
     error ControllerCannotPayKeeper();
 
+    // sig: 0x1444bc5d
+    /// @custom:error A RebalanceConfigChange message had a mismatch in number of markets and configs
+    error ControllerInvalidRebalanceConfig();
+
     // sig: 0xc640159e
-    /// @custom:error The group specified either does not exist or is not associated with the specified owner.
+    /// @custom:error The group specified either does not exist or is not associated with the specified owner
     error ControllerInvalidRebalanceGroup();
 
     // sig: 0xcbe71ce7
