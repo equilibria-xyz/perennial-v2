@@ -16,7 +16,7 @@ library DeployAccountLib {
     bytes32 constant public STRUCT_HASH = keccak256(
         "DeployAccount(Action action)"
         "Action(uint256 maxFee,Common common)"
-        "Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)"
+        "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     /// @dev used to create a signed message

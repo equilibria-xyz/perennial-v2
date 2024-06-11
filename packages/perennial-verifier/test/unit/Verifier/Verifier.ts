@@ -1,4 +1,4 @@
-import { smock } from '@defi-wonderland/smock'
+import { smock, FakeContract } from '@defi-wonderland/smock'
 import { constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
@@ -6,7 +6,7 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { Verifier, Verifier__factory } from '../../../types/generated'
+import { Verifier, Verifier__factory, IERC1271 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { signIntent, signFill, signOperatorUpdate, signSignerUpdate, signAccessUpdateBatch } from '../../helpers/erc712'
 
@@ -21,11 +21,13 @@ describe('Verifier', () => {
   let signer: SignerWithAddress
   let operator: SignerWithAddress
   let verifier: Verifier
+  let scSigner: FakeContract<IERC1271>
 
   beforeEach(async () => {
     ;[owner, market, caller, caller2, signer, operator] = await ethers.getSigners()
 
     verifier = await new Verifier__factory(owner).deploy()
+    scSigner = await smock.fake<IERC1271>('IERC1271')
   })
 
   describe('#verifyIntent', () => {
@@ -37,6 +39,7 @@ describe('Verifier', () => {
       solver: constants.AddressZero,
       common: {
         account: constants.AddressZero,
+        signer: constants.AddressZero,
         domain: constants.AddressZero,
         nonce: 0,
         group: 0,
@@ -47,33 +50,83 @@ describe('Verifier', () => {
     it('should verify default intent', async () => {
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: caller.address },
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: caller.address, domain: caller.address },
       }
       const signature = await signIntent(caller, verifier, intent)
 
-      const result = await verifier.connect(caller).callStatic.verifyIntent(intent, signature)
       await expect(verifier.connect(caller).verifyIntent(intent, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify default intent w/ sc signer', async () => {
+      const intent = {
+        ...DEFAULT_INTENT,
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: scSigner.address, domain: caller.address },
+      }
+      const signature = await signIntent(caller, verifier, intent)
+
+      scSigner.isValidSignature.returns(0x1626ba7e)
+
+      await expect(verifier.connect(caller).verifyIntent(intent, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject intent w/ invalid signer', async () => {
+      const intent = {
+        ...DEFAULT_INTENT,
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: market.address, domain: caller.address },
+      }
+      const signature = await signIntent(caller, verifier, intent)
+
+      await expect(verifier.connect(caller).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject intent w/ invalid sc signer', async () => {
+      const intent = {
+        ...DEFAULT_INTENT,
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: scSigner.address, domain: caller.address },
+      }
+      const signature = await signIntent(caller, verifier, intent)
+
+      scSigner.isValidSignature.returns(false)
+
+      await expect(verifier.connect(caller).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })
 
     it('should verify intent w/ expiry', async () => {
       const now = await time.latest()
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: caller.address, expiry: now + 2 },
+        common: {
+          ...DEFAULT_INTENT.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now + 2,
+        },
       } // callstatic & call each take one second
       const signature = await signIntent(caller, verifier, intent)
 
-      const result = await verifier.connect(caller).callStatic.verifyIntent(intent, signature)
       await expect(verifier.connect(caller).verifyIntent(intent, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
@@ -81,7 +134,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: caller.address, expiry: now },
+        common: {
+          ...DEFAULT_INTENT.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now,
+        },
       }
       const signature = await signIntent(caller, verifier, intent)
 
@@ -97,7 +156,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: caller.address, expiry: 0 },
+        common: {
+          ...DEFAULT_INTENT.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: 0,
+        },
       }
       const signature = await signIntent(caller, verifier, intent)
 
@@ -112,23 +177,21 @@ describe('Verifier', () => {
     it('should verify intent w/ domain', async () => {
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: market.address },
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: caller.address, domain: market.address },
       }
       const signature = await signIntent(caller, verifier, intent)
 
-      const result = await verifier.connect(market).callStatic.verifyIntent(intent, signature)
       await expect(verifier.connect(market).verifyIntent(intent, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
     it('should reject intent w/ invalid domain', async () => {
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: market.address },
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: caller.address, domain: market.address },
       }
       const signature = await signIntent(caller, verifier, intent)
 
@@ -141,7 +204,10 @@ describe('Verifier', () => {
     })
 
     it('should reject intent w/ invalid domain (zero)', async () => {
-      const intent = { ...DEFAULT_INTENT, common: { ...DEFAULT_INTENT.common, account: caller.address } }
+      const intent = {
+        ...DEFAULT_INTENT,
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: caller.address },
+      }
       const signature = await signIntent(caller, verifier, intent)
 
       await expect(verifier.connect(caller).verifyIntent(intent, signature)).to.revertedWithCustomError(
@@ -155,7 +221,7 @@ describe('Verifier', () => {
     it('should reject intent w/ invalid signature (too small)', async () => {
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: caller.address },
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: caller.address, domain: caller.address },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
@@ -171,7 +237,7 @@ describe('Verifier', () => {
     it('should reject intent w/ invalid signature (too large)', async () => {
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: caller.address },
+        common: { ...DEFAULT_INTENT.common, account: caller.address, signer: caller.address, domain: caller.address },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
@@ -187,7 +253,13 @@ describe('Verifier', () => {
     it('should reject intent w/ invalid nonce', async () => {
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: caller.address, nonce: 17 },
+        common: {
+          ...DEFAULT_INTENT.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          nonce: 17,
+        },
       }
       const signature = await signIntent(caller, verifier, intent)
 
@@ -204,7 +276,13 @@ describe('Verifier', () => {
     it('should reject intent w/ invalid nonce', async () => {
       const intent = {
         ...DEFAULT_INTENT,
-        common: { ...DEFAULT_INTENT.common, account: caller.address, domain: caller.address, group: 17 },
+        common: {
+          ...DEFAULT_INTENT.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          group: 17,
+        },
       }
       const signature = await signIntent(caller, verifier, intent)
 
@@ -229,6 +307,7 @@ describe('Verifier', () => {
         solver: constants.AddressZero,
         common: {
           account: constants.AddressZero,
+          signer: constants.AddressZero,
           domain: constants.AddressZero,
           nonce: 0,
           group: 0,
@@ -237,6 +316,7 @@ describe('Verifier', () => {
       },
       common: {
         account: constants.AddressZero,
+        signer: constants.AddressZero,
         domain: constants.AddressZero,
         nonce: 0,
         group: 0,
@@ -247,33 +327,83 @@ describe('Verifier', () => {
     it('should verify default fill', async () => {
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: caller.address },
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: caller.address, domain: caller.address },
       }
       const signature = await signFill(caller, verifier, fill)
 
-      const result = await verifier.connect(caller).callStatic.verifyFill(fill, signature)
       await expect(verifier.connect(caller).verifyFill(fill, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify default fill w/ sc signer', async () => {
+      const fill = {
+        ...DEFAULT_FILL,
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: scSigner.address, domain: caller.address },
+      }
+      const signature = await signFill(caller, verifier, fill)
+
+      scSigner.isValidSignature.returns(0x1626ba7e)
+
+      await expect(verifier.connect(caller).verifyFill(fill, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject fill w/ invalid signer', async () => {
+      const fill = {
+        ...DEFAULT_FILL,
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: market.address, domain: caller.address },
+      }
+      const signature = await signFill(caller, verifier, fill)
+
+      await expect(verifier.connect(caller).verifyFill(fill, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject fill w/ invalid sc signer', async () => {
+      const fill = {
+        ...DEFAULT_FILL,
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: scSigner.address, domain: caller.address },
+      }
+      const signature = await signFill(caller, verifier, fill)
+
+      scSigner.isValidSignature.returns(false)
+
+      await expect(verifier.connect(caller).verifyFill(fill, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })
 
     it('should verify fill w/ expiry', async () => {
       const now = await time.latest()
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: caller.address, expiry: now + 2 },
+        common: {
+          ...DEFAULT_FILL.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now + 2,
+        },
       } // callstatic & call each take one second
       const signature = await signFill(caller, verifier, fill)
 
-      const result = await verifier.connect(caller).callStatic.verifyFill(fill, signature)
       await expect(verifier.connect(caller).verifyFill(fill, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
@@ -281,7 +411,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: caller.address, expiry: now },
+        common: {
+          ...DEFAULT_FILL.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now,
+        },
       }
       const signature = await signFill(caller, verifier, fill)
 
@@ -297,7 +433,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: caller.address, expiry: 0 },
+        common: {
+          ...DEFAULT_FILL.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: 0,
+        },
       }
       const signature = await signFill(caller, verifier, fill)
 
@@ -312,23 +454,21 @@ describe('Verifier', () => {
     it('should verify fill w/ domain', async () => {
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: market.address },
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: caller.address, domain: market.address },
       }
       const signature = await signFill(caller, verifier, fill)
 
-      const result = await verifier.connect(market).callStatic.verifyFill(fill, signature)
       await expect(verifier.connect(market).verifyFill(fill, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
     it('should reject fill w/ invalid domain', async () => {
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: market.address },
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: caller.address, domain: market.address },
       }
       const signature = await signFill(caller, verifier, fill)
 
@@ -341,7 +481,10 @@ describe('Verifier', () => {
     })
 
     it('should reject fill w/ invalid domain (zero)', async () => {
-      const fill = { ...DEFAULT_FILL, common: { ...DEFAULT_FILL.common, account: caller.address } }
+      const fill = {
+        ...DEFAULT_FILL,
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: caller.address },
+      }
       const signature = await signFill(caller, verifier, fill)
 
       await expect(verifier.connect(caller).verifyFill(fill, signature)).to.revertedWithCustomError(
@@ -355,7 +498,7 @@ describe('Verifier', () => {
     it('should reject fill w/ invalid signature (too small)', async () => {
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: caller.address },
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: caller.address, domain: caller.address },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
@@ -371,7 +514,7 @@ describe('Verifier', () => {
     it('should reject fill w/ invalid signature (too large)', async () => {
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: caller.address },
+        common: { ...DEFAULT_FILL.common, account: caller.address, signer: caller.address, domain: caller.address },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
@@ -387,7 +530,13 @@ describe('Verifier', () => {
     it('should reject fill w/ invalid nonce', async () => {
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: caller.address, nonce: 17 },
+        common: {
+          ...DEFAULT_FILL.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          nonce: 17,
+        },
       }
       const signature = await signFill(caller, verifier, fill)
 
@@ -404,7 +553,13 @@ describe('Verifier', () => {
     it('should reject fill w/ invalid nonce', async () => {
       const fill = {
         ...DEFAULT_FILL,
-        common: { ...DEFAULT_FILL.common, account: caller.address, domain: caller.address, group: 17 },
+        common: {
+          ...DEFAULT_FILL.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          group: 17,
+        },
       }
       const signature = await signFill(caller, verifier, fill)
 
@@ -425,6 +580,7 @@ describe('Verifier', () => {
       approved: false,
       common: {
         account: constants.AddressZero,
+        signer: constants.AddressZero,
         domain: constants.AddressZero,
         nonce: 0,
         group: 0,
@@ -437,17 +593,85 @@ describe('Verifier', () => {
         ...DEFAULT_OPERATOR_UPDATE,
         operator: owner.address,
         approved: true,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
-      const result = await verifier.connect(caller).callStatic.verifyOperatorUpdate(operatorUpdate, signature)
       await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify default operator update w/ sc signer', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        operator: owner.address,
+        approved: true,
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: scSigner.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      scSigner.isValidSignature.returns(0x1626ba7e)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject operator update w/ invalid signer', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: market.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject operator update w/ invalid sc signer', async () => {
+      const operatorUpdate = {
+        ...DEFAULT_OPERATOR_UPDATE,
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: scSigner.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
+
+      scSigner.isValidSignature.returns(false)
+
+      await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })
 
     it('should verify operator update w/ expiry', async () => {
@@ -457,18 +681,17 @@ describe('Verifier', () => {
         common: {
           ...DEFAULT_OPERATOR_UPDATE.common,
           account: caller.address,
+          signer: caller.address,
           domain: caller.address,
           expiry: now + 2,
         },
       } // callstatic & call each take one second
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
-      const result = await verifier.connect(caller).callStatic.verifyOperatorUpdate(operatorUpdate, signature)
       await expect(verifier.connect(caller).verifyOperatorUpdate(operatorUpdate, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
@@ -476,7 +699,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address, expiry: now },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now,
+        },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
@@ -492,7 +721,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address, expiry: 0 },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: 0,
+        },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
@@ -507,23 +742,31 @@ describe('Verifier', () => {
     it('should verify operator update w/ domain', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: market.address },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: market.address,
+        },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
-      const result = await verifier.connect(market).callStatic.verifyOperatorUpdate(operatorUpdate, signature)
       await expect(verifier.connect(market).verifyOperatorUpdate(operatorUpdate, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
     it('should reject operator update w/ invalid domain', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: market.address },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: market.address,
+        },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
@@ -538,7 +781,7 @@ describe('Verifier', () => {
     it('should reject operator update w/ invalid domain (zero)', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address },
+        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, signer: caller.address },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
@@ -553,7 +796,12 @@ describe('Verifier', () => {
     it('should reject operator update w/ invalid signature (too small)', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
@@ -569,7 +817,12 @@ describe('Verifier', () => {
     it('should reject operator update w/ invalid signature (too large)', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
@@ -585,7 +838,13 @@ describe('Verifier', () => {
     it('should reject operator update w/ invalid nonce', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address, nonce: 17 },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          nonce: 17,
+        },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
@@ -602,7 +861,13 @@ describe('Verifier', () => {
     it('should reject operator update w/ invalid nonce', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        common: { ...DEFAULT_OPERATOR_UPDATE.common, account: caller.address, domain: caller.address, group: 17 },
+        common: {
+          ...DEFAULT_OPERATOR_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          group: 17,
+        },
       }
       const signature = await signOperatorUpdate(caller, verifier, operatorUpdate)
 
@@ -623,6 +888,7 @@ describe('Verifier', () => {
       approved: false,
       common: {
         account: constants.AddressZero,
+        signer: constants.AddressZero,
         domain: constants.AddressZero,
         nonce: 0,
         group: 0,
@@ -635,17 +901,85 @@ describe('Verifier', () => {
         ...DEFAULT_SIGNER_UPDATE,
         signer: owner.address,
         approved: true,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
-      const result = await verifier.connect(caller).callStatic.verifySignerUpdate(signerUpdate, signature)
       await expect(verifier.connect(caller).verifySignerUpdate(signerUpdate, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify default group cancellationc w/ sc signer', async () => {
+      const signerUpdate = {
+        ...DEFAULT_SIGNER_UPDATE,
+        signer: owner.address,
+        approved: true,
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: scSigner.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signSignerUpdate(caller, verifier, signerUpdate)
+
+      scSigner.isValidSignature.returns(0x1626ba7e)
+
+      await expect(verifier.connect(caller).verifySignerUpdate(signerUpdate, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject group cancellation w/ invalid signer', async () => {
+      const signerUpdate = {
+        ...DEFAULT_SIGNER_UPDATE,
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: market.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signSignerUpdate(caller, verifier, signerUpdate)
+
+      await expect(verifier.connect(caller).verifySignerUpdate(signerUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid sc signer', async () => {
+      const signerUpdate = {
+        ...DEFAULT_SIGNER_UPDATE,
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: market.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signSignerUpdate(caller, verifier, signerUpdate)
+
+      scSigner.isValidSignature.returns(false)
+
+      await expect(verifier.connect(caller).verifySignerUpdate(signerUpdate, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })
 
     it('should verify group cancellation w/ expiry', async () => {
@@ -655,18 +989,17 @@ describe('Verifier', () => {
         common: {
           ...DEFAULT_SIGNER_UPDATE.common,
           account: caller.address,
+          signer: caller.address,
           domain: caller.address,
           expiry: now + 2,
         },
       } // callstatic & call each take one second
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
-      const result = await verifier.connect(caller).callStatic.verifySignerUpdate(signerUpdate, signature)
       await expect(verifier.connect(caller).verifySignerUpdate(signerUpdate, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
@@ -674,7 +1007,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: caller.address, expiry: now },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now,
+        },
       }
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
@@ -690,7 +1029,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: caller.address, expiry: 0 },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: 0,
+        },
       }
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
@@ -705,23 +1050,31 @@ describe('Verifier', () => {
     it('should verify group cancellation w/ domain', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: market.address },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: market.address,
+        },
       }
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
-      const result = await verifier.connect(market).callStatic.verifySignerUpdate(signerUpdate, signature)
       await expect(verifier.connect(market).verifySignerUpdate(signerUpdate, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
     it('should reject group cancellation w/ invalid domain', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: market.address },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: market.address,
+        },
       }
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
@@ -736,7 +1089,7 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid domain (zero)', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address },
+        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, signer: caller.address },
       }
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
@@ -751,7 +1104,12 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid signature (too small)', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
@@ -767,7 +1125,12 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid signature (too large)', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
@@ -783,7 +1146,13 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid nonce', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: caller.address, nonce: 17 },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          nonce: 17,
+        },
       }
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
@@ -800,7 +1169,13 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid nonce', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        common: { ...DEFAULT_SIGNER_UPDATE.common, account: caller.address, domain: caller.address, group: 17 },
+        common: {
+          ...DEFAULT_SIGNER_UPDATE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          group: 17,
+        },
       }
       const signature = await signSignerUpdate(caller, verifier, signerUpdate)
 
@@ -821,6 +1196,7 @@ describe('Verifier', () => {
       signers: [],
       common: {
         account: constants.AddressZero,
+        signer: constants.AddressZero,
         domain: constants.AddressZero,
         nonce: 0,
         group: 0,
@@ -833,17 +1209,83 @@ describe('Verifier', () => {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
         operators: [{ accessor: operator.address, approved: true }],
         signers: [{ accessor: signer.address, approved: true }],
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 
-      const result = await verifier.connect(caller).callStatic.verifyAccessUpdateBatch(accessUpdateBatch, signature)
       await expect(verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify default group cancellation w/ sc signer', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        operators: [{ accessor: operator.address, approved: true }],
+        signers: [{ accessor: signer.address, approved: true }],
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: scSigner.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      scSigner.isValidSignature.returns(0x1626ba7e)
+
+      await expect(verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject group cancellation w/ invalid signer', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: market.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject group cancellation w/ invalid sc signer', async () => {
+      const accessUpdateBatch = {
+        ...DEFAULT_ACCESS_UPDATE_BATCH,
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: scSigner.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
+
+      scSigner.isValidSignature.returns(false)
+
+      await expect(
+        verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature),
+      ).to.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })
 
     it('should verify group cancellation w/ expiry', async () => {
@@ -853,18 +1295,17 @@ describe('Verifier', () => {
         common: {
           ...DEFAULT_ACCESS_UPDATE_BATCH.common,
           account: caller.address,
+          signer: caller.address,
           domain: caller.address,
           expiry: now + 2,
         },
       } // callstatic & call each take one second
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 
-      const result = await verifier.connect(caller).callStatic.verifyAccessUpdateBatch(accessUpdateBatch, signature)
       await expect(verifier.connect(caller).verifyAccessUpdateBatch(accessUpdateBatch, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
@@ -872,7 +1313,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address, expiry: now },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now,
+        },
       }
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 
@@ -887,7 +1334,13 @@ describe('Verifier', () => {
       const now = await time.latest()
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address, expiry: 0 },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: 0,
+        },
       }
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 
@@ -901,23 +1354,31 @@ describe('Verifier', () => {
     it('should verify group cancellation w/ domain', async () => {
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: market.address },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: market.address,
+        },
       }
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 
-      const result = await verifier.connect(market).callStatic.verifyAccessUpdateBatch(accessUpdateBatch, signature)
       await expect(verifier.connect(market).verifyAccessUpdateBatch(accessUpdateBatch, signature))
         .to.emit(verifier, 'NonceCancelled')
         .withArgs(caller.address, 0)
 
-      expect(result).to.eq(caller.address)
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
     })
 
     it('should reject group cancellation w/ invalid domain', async () => {
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: market.address },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: market.address,
+        },
       }
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 
@@ -931,7 +1392,7 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid domain (zero)', async () => {
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address },
+        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, signer: caller.address },
       }
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 
@@ -945,7 +1406,12 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid signature (too small)', async () => {
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
@@ -960,7 +1426,12 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid signature (too large)', async () => {
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
       }
       const signature =
         '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123'
@@ -975,7 +1446,13 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid nonce', async () => {
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address, nonce: 17 },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          nonce: 17,
+        },
       }
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 
@@ -991,7 +1468,13 @@ describe('Verifier', () => {
     it('should reject group cancellation w/ invalid nonce', async () => {
       const accessUpdateBatch = {
         ...DEFAULT_ACCESS_UPDATE_BATCH,
-        common: { ...DEFAULT_ACCESS_UPDATE_BATCH.common, account: caller.address, domain: caller.address, group: 17 },
+        common: {
+          ...DEFAULT_ACCESS_UPDATE_BATCH.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          group: 17,
+        },
       }
       const signature = await signAccessUpdateBatch(caller, verifier, accessUpdateBatch)
 

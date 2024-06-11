@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 
 import { IVerifier } from "./interfaces/IVerifier.sol";
@@ -21,40 +21,60 @@ contract Verifier is VerifierBase, IVerifier {
     /// @inheritdoc IVerifier
     function verifyAction(Action calldata action, bytes calldata signature)
         external
-        validateAndCancel(action.common, signature) returns (address)
+        validateAndCancel(action.common, signature)
     {
-        return ECDSA.recover(_hashTypedDataV4(ActionLib.hash(action)), signature);
+        if (!SignatureChecker.isValidSignatureNow(
+            action.common.signer,
+            _hashTypedDataV4(ActionLib.hash(action)),
+            signature
+        )) revert VerifierInvalidSignerError();
     }
 
     /// @inheritdoc IVerifier
     function verifyDeployAccount(DeployAccount calldata deployAccount, bytes calldata signature)
         external
-        validateAndCancel(deployAccount.action.common, signature) returns (address)
+        validateAndCancel(deployAccount.action.common, signature)
     {
-        return ECDSA.recover(_hashTypedDataV4(DeployAccountLib.hash(deployAccount)), signature);
+        if (!SignatureChecker.isValidSignatureNow(
+            deployAccount.action.common.signer,
+            _hashTypedDataV4(DeployAccountLib.hash(deployAccount)),
+            signature
+        )) revert VerifierInvalidSignerError();
     }
 
     /// @inheritdoc IVerifier
-    function verifyMarketTransfer(MarketTransfer calldata marketTransfer, bytes calldata signature) 
-        external 
-        validateAndCancel(marketTransfer.action.common, signature) returns (address)
+    function verifyMarketTransfer(MarketTransfer calldata marketTransfer, bytes calldata signature)
+        external
+        validateAndCancel(marketTransfer.action.common, signature)
     {
-        return ECDSA.recover(_hashTypedDataV4(MarketTransferLib.hash(marketTransfer)), signature);
+        if (!SignatureChecker.isValidSignatureNow(
+            marketTransfer.action.common.signer,
+            _hashTypedDataV4(MarketTransferLib.hash(marketTransfer)),
+            signature
+        )) revert VerifierInvalidSignerError();
     }
 
     /// @inheritdoc IVerifier
     function verifySignerUpdate(SignerUpdate calldata signerUpdate, bytes calldata signature)
         external
-        validateAndCancel(signerUpdate.action.common, signature) returns (address)
+        validateAndCancel(signerUpdate.action.common, signature)
     {
-        return ECDSA.recover(_hashTypedDataV4(SignerUpdateLib.hash(signerUpdate)), signature);
+        if (!SignatureChecker.isValidSignatureNow(
+            signerUpdate.action.common.signer,
+            _hashTypedDataV4(SignerUpdateLib.hash(signerUpdate)),
+            signature
+        )) revert VerifierInvalidSignerError();
     }
 
     /// @inheritdoc IVerifier
     function verifyWithdrawal(Withdrawal calldata withdrawal, bytes calldata signature)
         external
-        validateAndCancel(withdrawal.action.common, signature) returns (address)
+        validateAndCancel(withdrawal.action.common, signature)
     {
-        return ECDSA.recover(_hashTypedDataV4(WithdrawalLib.hash(withdrawal)), signature);
+        if (!SignatureChecker.isValidSignatureNow(
+            withdrawal.action.common.signer,
+            _hashTypedDataV4(WithdrawalLib.hash(withdrawal)),
+            signature
+        )) revert VerifierInvalidSignerError();
     }
 }

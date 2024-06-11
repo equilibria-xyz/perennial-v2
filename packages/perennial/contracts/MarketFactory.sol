@@ -83,8 +83,8 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @param operatorUpdate The operator update message to process
     /// @param signature The signature of the operator update message
     function updateOperatorWithSignature(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external {
-        address signer = verifier.verifyOperatorUpdate(operatorUpdate, signature);
-        if (signer != operatorUpdate.common.account) revert MarketFactoryInvalidSignerError();
+        verifier.verifyOperatorUpdate(operatorUpdate, signature);
+        if (operatorUpdate.common.signer != operatorUpdate.common.account) revert MarketFactoryInvalidSignerError();
 
         _updateOperator(operatorUpdate.common.account, operatorUpdate.operator, operatorUpdate.approved);
     }
@@ -109,8 +109,8 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @param signerUpdate The signer update message to process
     /// @param signature The signature of the signer update message
     function updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) external {
-        address signer = verifier.verifySignerUpdate(signerUpdate, signature);
-        if (signer != signerUpdate.common.account) revert MarketFactoryInvalidSignerError();
+        verifier.verifySignerUpdate(signerUpdate, signature);
+        if (signerUpdate.common.signer != signerUpdate.common.account) revert MarketFactoryInvalidSignerError();
 
         _updateSigner(signerUpdate.common.account, signerUpdate.signer, signerUpdate.approved);
     }
@@ -138,8 +138,8 @@ contract MarketFactory is IMarketFactory, Factory {
         AccessUpdateBatch calldata accessUpdateBatch,
         bytes calldata signature
     ) external {
-        address signer = verifier.verifyAccessUpdateBatch(accessUpdateBatch, signature);
-        if (signer != accessUpdateBatch.common.account) revert MarketFactoryInvalidSignerError();
+        verifier.verifyAccessUpdateBatch(accessUpdateBatch, signature);
+        if (accessUpdateBatch.common.signer != accessUpdateBatch.common.account) revert MarketFactoryInvalidSignerError();
 
         _updateAccessBatch(accessUpdateBatch.common.account, accessUpdateBatch.operators, accessUpdateBatch.signers);
     }

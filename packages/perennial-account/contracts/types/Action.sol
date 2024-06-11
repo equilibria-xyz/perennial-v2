@@ -8,7 +8,7 @@ import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 struct Action {
     /// @dev largest amount to compensate relayer/keeper for the transaction
     UFixed6 maxFee;
-    /// @dev information shared across all EIP712 collateral account actions; 
+    /// @dev information shared across all EIP712 collateral account actions;
     /// populate common.account with the owner of the collateral account
     Common common;
 }
@@ -20,7 +20,7 @@ library ActionLib {
     /// @dev used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
         "Action(uint256 maxFee,Common common)"
-        "Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)"
+        "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     /// @dev used to create a signed message

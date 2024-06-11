@@ -5,8 +5,8 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { currentBlockTimestamp, increase } from '../../../common/testutil/time'
-import { Order, parse6decimal } from '../../../common/testutil/types'
+import { currentBlockTimestamp } from '../../../common/testutil/time'
+import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, Controller, IERC20Metadata, IVerifier } from '../../types/generated'
 import { IVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
 import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
@@ -41,12 +41,18 @@ describe('ControllerBase', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, maxFee = utils.parseEther('14'), expiresInSeconds = 60) {
+  function createAction(
+    userAddress: Address,
+    signerAddress: Address,
+    maxFee = utils.parseEther('14'),
+    expiresInSeconds = 60,
+  ) {
     return {
       action: {
         maxFee: maxFee,
         common: {
           account: userAddress,
+          signer: signerAddress,
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
@@ -103,7 +109,7 @@ describe('ControllerBase', () => {
     const accountAddressA = await controller.getAccountAddress(userA.address)
     await dsu.connect(userA).transfer(accountAddressA, utils.parseEther('15000'))
     const deployAccountMessage = {
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
     await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature)
@@ -130,7 +136,7 @@ describe('ControllerBase', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: amount,
-        ...createAction(user.address),
+        ...createAction(user.address, signer.address),
       }
       const signature = await signMarketTransfer(signer, verifier, marketTransferMessage)
 
@@ -251,7 +257,7 @@ describe('ControllerBase', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: constants.MinInt256,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
@@ -272,7 +278,7 @@ describe('ControllerBase', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: constants.MinInt256,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userB.address),
       }
       const signature = await signMarketTransfer(userB, verifier, marketTransferMessage)
 
@@ -290,7 +296,7 @@ describe('ControllerBase', () => {
       const withdrawalMessage = {
         amount: withdrawalAmount,
         unwrap: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 
@@ -313,7 +319,7 @@ describe('ControllerBase', () => {
       const withdrawalMessage = {
         amount: constants.MaxUint256,
         unwrap: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userB.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 
@@ -333,7 +339,7 @@ describe('ControllerBase', () => {
       const withdrawalMessage = {
         amount: parse6decimal('2000'),
         unwrap: false,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userB.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 
