@@ -1,6 +1,6 @@
 {
   "name": "@equilibria/perennial-v2-vault",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Perennial V2 Vault",
   "files": [
     "contracts/interfaces",
@@ -30,6 +30,6 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
-    "@equilibria/perennial-v2": "1.2.0"
+    "@equilibria/perennial-v2": "1.2.1"
   }
 }
