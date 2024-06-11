@@ -16,10 +16,9 @@ import { Withdrawal } from "../types/Withdrawal.sol";
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
 interface IController {
     /// @notice Emitted when a collateral account is deployed
-    // TODO: rename owner
-    /// @param user EOA for which the collateral account was created
+    /// @param owner EOA for whom the collateral account was created
     /// @param account contract address of the collateral account
-    event AccountDeployed(address indexed user, IAccount indexed account);
+    event AccountDeployed(address indexed owner, IAccount indexed account);
 
     /// @notice Emitted when a rebalance group is created or updated
     /// @param owner Owner of the collateral account for which the rebalance group was created or modified
@@ -41,10 +40,10 @@ interface IController {
     );
 
     /// @notice Emitted when a delegated signer for a collateral account is assigned, enabled, or disabled
-    /// @param account contract address of the collateral account
-    /// @param signer identifies the signer whose status to update
-    /// @param newEnabled true to assign or enable, false to disable
-    event SignerUpdated(address indexed account, address indexed signer, bool newEnabled);
+    /// @param owner User who is granting rights to interact with their collateral account
+    /// @param signer Identifies the signer whose status to update
+    /// @param newEnabled True to assign or enable, false to disable
+    event SignerUpdated(address indexed owner, address indexed signer, bool newEnabled);
 
     // sig: 0x2c51df8b
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
@@ -92,8 +91,8 @@ interface IController {
 
     /// @notice Returns the deterministic address of the collateral account for a user,
     /// regardless of whether or not it exists.
-    /// @param user Identifies the EOA for which a collateral account is desired
-    function getAccountAddress(address user) external view returns (address);
+    /// @param owner Identifies the user whose collateral account address is desired
+    function getAccountAddress(address owner) external view returns (address);
 
     /// @notice Deploys the collateral account for msg.sender and returns the address of the account
     function deployAccount() external returns (IAccount);

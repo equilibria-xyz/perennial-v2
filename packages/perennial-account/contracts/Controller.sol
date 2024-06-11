@@ -65,11 +65,11 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
-    function getAccountAddress(address user) public view returns (address) {
+    function getAccountAddress(address owner) public view returns (address) {
         // generate bytecode for an account created for the specified owner
         bytes memory bytecode = abi.encodePacked(
             type(Account).creationCode,
-            abi.encode(user),
+            abi.encode(owner),
             abi.encode(address(this)),
             abi.encode(USDC),
             abi.encode(DSU),

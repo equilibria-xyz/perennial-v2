@@ -10,8 +10,10 @@ import {
     RebalanceConfigChangeLib
 } from "../types/RebalanceConfig.sol";
 
+// TODO: move these collections back into Controller and eliminate the struct
 /// @dev abstracts away the complexity of collections required to manage Rebalance configuration
 struct RebalanceStorage {
+    // TODO: make the serial id per-owner; put this in a mapping
     /// @dev Serial identifier for rebalancing groups
     uint256 lastGroupId;
 
@@ -23,6 +25,7 @@ struct RebalanceStorage {
     /// owner => market => group
     mapping(address => mapping(address => uint256)) marketToGroup;
 
+    // TODO: eliminate once lastGroupId is removed
     /// @dev Ensures users may only modify their own groups,
     ///      and prevents users from making up their own group numbers
     /// group => owner
@@ -31,6 +34,8 @@ struct RebalanceStorage {
     /// @dev Allows iteration through markets in a group
     mapping(uint256 => address[]) groupToMarkets;
 }
+
+// TODO: limit the number of markets in a group
 
 /// @title RebalanceLib
 /// @notice Facilities for interacting with Rebalance configuration
