@@ -6,19 +6,23 @@ import {
     AggregatorV3Interface,
     Kept_Arbitrum
 } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18, UFixed18 } from "@equilibria/root/token/types/Token18.sol";
+import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Controller } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
+import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { SignerUpdate } from "./types/SignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
 /// @title Controller_Arbitrum
-/// @notice Controller which compensates keepers for processing messages on Arbitrum
+/// @notice Controller which compensates keepers for processing messages on Arbitrum L2
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     KeepConfig public keepConfig;
 
@@ -60,6 +64,25 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     }
 
     /// @inheritdoc IController
+    function marketTransferWithSignature(
+        MarketTransfer calldata marketTransfer,
+        bytes calldata signature
+    ) override external {
+        IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
+        bytes memory data = abi.encode(account, marketTransfer.action.maxFee);
+
+        // if we're depositing collateral to the market, pay the keeper before transferring funds
+        if (marketTransfer.amount.gte(Fixed6Lib.ZERO)) {
+            _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+            _marketTransferWithSignature(account, marketTransfer, signature);
+        // otherwise handle the keeper fee normally, after withdrawing to the collateral account
+        } else {
+            _marketTransferWithSignature(account, marketTransfer, signature);
+            _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        }
+    }
+
+    /// @inheritdoc IController
     function updateSignerWithSignature(
         SignerUpdate calldata signerUpdate,
         bytes calldata signature
@@ -95,6 +118,16 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         (address account, uint256 maxFee) = abi.decode(data, (address, uint256));
         // maxFee is a UFixed6; convert to 18-decimal precision
         raisedKeeperFee = amount.min(UFixed18.wrap(maxFee * 1e12));
-        keeperToken().pull(account, raisedKeeperFee);
+
+        // if the account has insufficient DSU to pay the fee, wrap
+        if (DSU.balanceOf(account).lt(raisedKeeperFee)) {
+            if (USDC.balanceOf(account).gte(UFixed6Lib.from(raisedKeeperFee)))
+                IAccount(account).wrap(raisedKeeperFee);
+            else
+                revert ControllerCannotPayKeeper();
+        }
+
+        // transfer DSU to the Controller, such that Kept can transfer to keeper
+        DSU.pull(account, raisedKeeperFee);
     }
 }

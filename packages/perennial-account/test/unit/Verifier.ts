@@ -6,7 +6,14 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { IController, Verifier, Verifier__factory } from '../../types/generated'
-import { signAction, signCommon, signDeployAccount, signSignerUpdate, signWithdrawal } from '../helpers/erc712'
+import {
+  signAction,
+  signCommon,
+  signDeployAccount,
+  signMarketTransfer,
+  signSignerUpdate,
+  signWithdrawal,
+} from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
@@ -23,18 +30,17 @@ describe('Verifier', () => {
   let userB: SignerWithAddress
   let lastNonce = 0
   let currentTime: BigNumber
-  let accountAddress: Address
 
   // create a default action for the specified user
   function createAction(
     userAddress: Address,
     signerAddress: Address,
-    feeOverride = utils.parseEther('12'),
+    maxFee = utils.parseEther('12'),
     expiresInSeconds = 6,
   ) {
     return {
       action: {
-        maxFee: feeOverride,
+        maxFee: maxFee,
         common: {
           account: userAddress,
           signer: signerAddress,
@@ -59,7 +65,6 @@ describe('Verifier', () => {
     verifier = await new Verifier__factory(owner).deploy()
     verifierSigner = await impersonate.impersonateWithBalance(verifier.address, utils.parseEther('10'))
     controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
-    accountAddress = (await smock.fake('IAccount')).address
   }
 
   beforeEach(async () => {
@@ -132,6 +137,19 @@ describe('Verifier', () => {
 
     await expect(verifier.connect(controllerSigner).callStatic.verifySignerUpdate(updateSignerMessage, signature)).to
       .not.be.reverted
+  })
+
+  it('verifies marketTransfer messages', async () => {
+    const market = await smock.fake('IMarket')
+    const marketTransferMessage = {
+      market: market.address,
+      amount: constants.MaxInt256,
+      ...createAction(userA.address, userA.address),
+    }
+    const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+    await expect(verifier.connect(controllerSigner).callStatic.verifyMarketTransfer(marketTransferMessage, signature))
+      .to.not.be.reverted
   })
 
   it('verifies withdrawal messages', async () => {

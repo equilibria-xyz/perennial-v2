@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
@@ -7,11 +7,12 @@ import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
-import { IAccount } from "./interfaces/IAccount.sol";
+import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
+import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
@@ -100,6 +101,24 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
+    function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature) virtual external {
+        IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
+        _marketTransferWithSignature(account, marketTransfer, signature);
+    }
+
+    function _marketTransferWithSignature(IAccount account, MarketTransfer calldata marketTransfer, bytes calldata signature) internal {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyMarketTransfer(marketTransfer, signature);
+        _ensureValidSigner(marketTransfer.action.common.account, marketTransfer.action.common.signer);
+
+        // only Markets with DSU collateral are supported
+        IMarket market = IMarket(marketTransfer.market);
+        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarket(address(market));
+
+        account.marketTransfer(market, marketTransfer.amount);
+    }
+
+    /// @inheritdoc IController
     function updateSigner(address signer, bool newEnabled) public {
         signers[msg.sender][signer] = newEnabled;
         emit SignerUpdated(msg.sender, signer, newEnabled);
@@ -117,7 +136,7 @@ contract Controller is Instance, IController {
         // ensure the message was signed only by the owner, not an existing delegate
         verifier.verifySignerUpdate(signerUpdate, signature);
         address owner = signerUpdate.action.common.account;
-        if (signerUpdate.action.common.signer != owner) revert InvalidSignerError();
+        if (signerUpdate.action.common.signer != owner) revert ControllerInvalidSigner();
 
         signers[owner][signerUpdate.signer] = signerUpdate.approved;
         emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
@@ -133,12 +152,13 @@ contract Controller is Instance, IController {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyWithdrawal(withdrawal, signature);
         _ensureValidSigner(withdrawal.action.common.account, withdrawal.action.common.signer);
+
         // call the account's implementation to push to owner
         account.withdraw(withdrawal.amount, withdrawal.unwrap);
     }
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !signers[owner][signer]) revert InvalidSignerError();
+        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
     }
 }

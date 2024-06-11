@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -9,6 +9,7 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
+import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Verifier
@@ -37,6 +38,18 @@ contract Verifier is VerifierBase, IVerifier {
         if (!SignatureChecker.isValidSignatureNow(
             deployAccount.action.common.signer,
             _hashTypedDataV4(DeployAccountLib.hash(deployAccount)),
+            signature
+        )) revert VerifierInvalidSignerError();
+    }
+
+    /// @inheritdoc IVerifier
+    function verifyMarketTransfer(MarketTransfer calldata marketTransfer, bytes calldata signature)
+        external
+        validateAndCancel(marketTransfer.action.common, signature)
+    {
+        if (!SignatureChecker.isValidSignatureNow(
+            marketTransfer.action.common.signer,
+            _hashTypedDataV4(MarketTransferLib.hash(marketTransfer)),
             signature
         )) revert VerifierInvalidSignerError();
     }

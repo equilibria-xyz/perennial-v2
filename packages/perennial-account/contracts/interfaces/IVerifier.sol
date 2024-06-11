@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
 import { Action } from "../types/Action.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
+import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
@@ -21,6 +22,12 @@ interface IVerifier is IVerifierBase {
     ///      Reverts if the signature does not match the signer
     /// @param deployAccount message to verify, which includes the owner of the collateral account
     function verifyDeployAccount(DeployAccount calldata deployAccount, bytes calldata signature) external;
+
+    /// @notice Verifies the signature of a request to transfer funds between a collateral account and a market
+    /// @dev Cancels the nonce after verifying the signature
+    ///      Reverts if the signature does not match the signer
+    /// @param transfer message to verify
+    function verifyMarketTransfer(MarketTransfer calldata transfer, bytes calldata signature) external;
 
     /// @notice Verifies the signature of a request to assign/enable/disable a delegated signer for the sender's collateral account
     /// @dev Cancels the nonce after verifying the signature

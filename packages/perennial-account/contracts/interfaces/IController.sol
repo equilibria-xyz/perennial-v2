@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import { IAccount } from "../interfaces/IAccount.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
+import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
@@ -19,9 +20,18 @@ interface IController {
     /// @param newEnabled true to assign or enable, false to disable
     event SignerUpdated(address indexed account, address indexed signer, bool newEnabled);
 
-    // sig: 0x35e0fb4b
+    // sig: 0x2c51df8b
+    /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
+    error ControllerCannotPayKeeper();
+
+    // sig: 0x2ee770d20
     /// @custom:error Signer is not authorized to interact with the specified collateral account
-    error InvalidSignerError();
+    error ControllerInvalidSigner();
+
+    // sig: 0x3cb60bed
+    /// @custom:error Attempt to interact with a Market which does not use DSU as collateral
+    /// @param market Market with non-DSU collateral
+    error ControllerUnsupportedMarket(address market);
 
     /// @notice Returns the deterministic address of the collateral account for a user,
     /// regardless of whether or not it exists.
@@ -35,6 +45,11 @@ interface IController {
     /// @param deployAccount Message requesting creation of a collateral account
     /// @param signature ERC712 message signature
     function deployAccountWithSignature(DeployAccount calldata deployAccount, bytes calldata signature) external;
+
+    /// @notice Transfers tokens between a collateral account and a specified Perennial Market
+    /// @param marketTransfer Message requesting a deposit to or withdrawal from the Market
+    /// @param signature ERC712 message signature
+    function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature) external;
 
     /// @notice Updates the status of a delegated signer for the caller's collateral account
     /// @param signer The signer to update
