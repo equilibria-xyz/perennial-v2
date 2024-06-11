@@ -78,7 +78,7 @@ library RebalanceConfigChangeLib {
     bytes32 constant public STRUCT_HASH = keccak256(
         "RebalanceConfigChange(uint256 group,address[] markets,RebalanceConfig[] configs,Action action)"
         "Action(uint256 maxFee,Common common)"
-        "Common(address account,address domain,uint256 nonce,uint256 group,uint256 expiry)"
+        "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
         "RebalanceConfig(uint256 target,uint256 threshold)"
     );
 

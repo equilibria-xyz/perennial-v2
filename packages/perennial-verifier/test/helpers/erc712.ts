@@ -1,5 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
+  AccessUpdateBatchStruct,
   CommonStruct,
   FillStruct,
   GroupCancellationStruct,
@@ -45,6 +46,7 @@ export async function signIntent(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -71,6 +73,7 @@ export async function signFill(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -101,6 +104,7 @@ export async function signGroupCancellation(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -123,6 +127,7 @@ export async function signOperatorUpdate(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -146,6 +151,7 @@ export async function signSignerUpdate(
   const types = {
     Common: [
       { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
       { name: 'domain', type: 'address' },
       { name: 'nonce', type: 'uint256' },
       { name: 'group', type: 'uint256' },
@@ -159,4 +165,32 @@ export async function signSignerUpdate(
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, signerUpdate)
+}
+
+export async function signAccessUpdateBatch(
+  signer: SignerWithAddress,
+  verifier: Verifier | FakeContract<IVerifier>,
+  accessUpdateBatch: AccessUpdateBatchStruct,
+): Promise<string> {
+  const types = {
+    Common: [
+      { name: 'account', type: 'address' },
+      { name: 'signer', type: 'address' },
+      { name: 'domain', type: 'address' },
+      { name: 'nonce', type: 'uint256' },
+      { name: 'group', type: 'uint256' },
+      { name: 'expiry', type: 'uint256' },
+    ],
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
+      { name: 'approved', type: 'bool' },
+    ],
+    AccessUpdateBatch: [
+      { name: 'operators', type: 'AccessUpdate[]' },
+      { name: 'signers', type: 'AccessUpdate[]' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, accessUpdateBatch)
 }

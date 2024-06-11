@@ -33,8 +33,11 @@ export const TIMESTAMP_3 = 1631114005
 export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
 
+export const PRICE = parse6decimal('1')
 export const PRICE_0 = parse6decimal('113.882975')
 export const PRICE_1 = parse6decimal('113.796498')
+export const PRICE_2 = parse6decimal('113.796498')
+export const PRICE_3 = parse6decimal('115.046259')
 export const PRICE_4 = parse6decimal('117.462552')
 
 describe('Happy Path', () => {
@@ -44,18 +47,7 @@ describe('Happy Path', () => {
   beforeEach(async () => {
     instanceVars = await loadFixture(deployProtocol)
     await instanceVars.chainlink.reset()
-  })
 
-  it('creates a market', async () => {
-    const { owner, marketFactory, beneficiaryB, payoff, oracle, dsu } = instanceVars
-
-    const definition = {
-      name: 'Squeeth',
-      symbol: 'SQTH',
-      token: dsu.address,
-      oracle: oracle.address,
-      payoff: payoff.address,
-    }
     riskParameter = {
       margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
@@ -89,6 +81,18 @@ describe('Happy Path', () => {
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
+  })
+
+  it('creates a market', async () => {
+    const { owner, marketFactory, beneficiaryB, payoff, oracle, dsu } = instanceVars
+
+    const definition = {
+      name: 'Squeeth',
+      symbol: 'SQTH',
+      token: dsu.address,
+      oracle: oracle.address,
+      payoff: payoff.address,
+    }
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
@@ -106,7 +110,7 @@ describe('Happy Path', () => {
     await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
     await market.connect(owner).updateRiskParameter(riskParameter)
-    await market.connect(owner).updateParameter(beneficiaryB.address, AddressZero, parameter)
+    await market.connect(owner).updateParameter(parameter)
   })
 
   it('opens a make position', async () => {
@@ -161,6 +165,7 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
+      latestPrice: PRICE_0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -208,6 +213,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -269,6 +275,7 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
+      latestPrice: PRICE_0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -316,6 +323,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -384,6 +392,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -457,6 +466,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -561,6 +571,7 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
+      latestPrice: PRICE_0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -593,6 +604,7 @@ describe('Happy Path', () => {
       latestId: 1,
       protocolFee: '18',
       donation: '18',
+      latestPrice: PRICE_3,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -687,6 +699,7 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
+      latestPrice: PRICE_0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -719,6 +732,7 @@ describe('Happy Path', () => {
       latestId: 1,
       protocolFee: '18',
       donation: '18',
+      latestPrice: PRICE_3,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -816,6 +830,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -904,6 +919,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
+      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -1055,7 +1071,7 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
         proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),
@@ -1094,7 +1110,7 @@ describe('Happy Path', () => {
     }
 
     const market = await createMarket(instanceVars)
-    await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
+    await market.updateParameter(parameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1163,6 +1179,7 @@ describe('Happy Path', () => {
       latestId: 2,
       protocolFee: '86263589',
       donation: '86263590',
+      latestPrice: '117462552',
     })
     expectOrderEq(await market.pendingOrder(3), {
       ...DEFAULT_ORDER,
@@ -1199,7 +1216,7 @@ describe('Happy Path', () => {
     const chainlink = await new ChainlinkContext(
       CHAINLINK_CUSTOM_CURRENCIES.ETH,
       CHAINLINK_CUSTOM_CURRENCIES.USD,
-      undefined,
+      { decimals: 0 },
       delay,
     ).init()
 
@@ -1218,7 +1235,7 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
         proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0003') : 0,
+        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),
@@ -1255,7 +1272,7 @@ describe('Happy Path', () => {
     }
 
     const market = await createMarket(instanceVars)
-    await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
+    await market.updateParameter(parameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1341,6 +1358,7 @@ describe('Happy Path', () => {
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
       donation: (await market.global()).donation,
+      latestPrice: PRICE,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(delay + 1), {

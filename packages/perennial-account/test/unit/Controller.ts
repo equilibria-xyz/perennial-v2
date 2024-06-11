@@ -34,19 +34,24 @@ describe('Controller', () => {
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
   let lastNonce = 0
-  let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, maxFee = utils.parseEther('0.3'), expiresInSeconds = 12) {
+  async function createAction(
+    userAddress: Address,
+    signerAddress = userAddress,
+    maxFee = utils.parseEther('0.3'),
+    expiresInSeconds = 12,
+  ) {
     return {
       action: {
         maxFee: maxFee,
         common: {
           account: userAddress,
+          signer: signerAddress,
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
-          expiry: currentTime.add(expiresInSeconds),
+          expiry: (await currentBlockTimestamp()) + expiresInSeconds,
         },
       },
     }
@@ -55,7 +60,7 @@ describe('Controller', () => {
   // deploys a collateral account for the specified user and returns the address
   async function createCollateralAccount(user: SignerWithAddress): Promise<IAccount> {
     const deployAccountMessage = {
-      ...createAction(user.address),
+      ...(await createAction(user.address)),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signatureCreate)
@@ -85,7 +90,6 @@ describe('Controller', () => {
 
   beforeEach(async () => {
     await loadFixture(fixture)
-    currentTime = BigNumber.from(await currentBlockTimestamp())
   })
 
   describe('#creation', () => {
@@ -110,7 +114,7 @@ describe('Controller', () => {
 
     it('creates collateral accounts from a signed message', async () => {
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -127,7 +131,7 @@ describe('Controller', () => {
 
       // create a message to create collateral account for userA but sign it as userB
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...(await createAction(userA.address, userB.address)),
       }
       const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
 
@@ -141,9 +145,17 @@ describe('Controller', () => {
     it('third party cannot create account on owners behalf', async () => {
       // create a message to create collateral account for userA but sign it as userB
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
-      const signature = await signDeployAccount(userB, verifier, deployAccountMessage)
+      let signature = await signDeployAccount(userB, verifier, deployAccountMessage)
+
+      await expect(
+        controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
+
+      // try again with message indicating signer is userB
+      deployAccountMessage.action.common.signer = userB.address
+      signature = await signDeployAccount(userB, verifier, deployAccountMessage)
 
       await expect(
         controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
@@ -197,11 +209,27 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
       // assign the delegate
+      await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
+        .to.emit(controller, 'SignerUpdated')
+        .withArgs(userA.address, userB.address, true)
+      expect(await controller.signers(userA.address, userB.address)).to.be.true
+    })
+
+    it('can assign a delegate before collateral account was created', async () => {
+      // userA signs a message assigning userB's delegation rights
+      const updateSignerMessage = {
+        signer: userB.address,
+        approved: true,
+        ...(await createAction(userA.address)),
+      }
+
+      // assign the delegate
+      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
       await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
         .to.emit(controller, 'SignerUpdated')
         .withArgs(userA.address, userB.address, true)
@@ -216,7 +244,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address, userB.address)),
       }
       const signature = await signSignerUpdate(userB, verifier, updateSignerMessage)
 
@@ -244,7 +272,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: false,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address, keeper.address)),
       }
       const signature = await signSignerUpdate(keeper, verifier, updateSignerMessage)
 
@@ -263,7 +291,7 @@ describe('Controller', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: false,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
@@ -290,7 +318,7 @@ describe('Controller', () => {
         group: constants.Zero,
         markets: markets,
         configs: configs,
-        ...createAction(userA.address),
+        ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, verifier, message)
       const tx = await controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)
@@ -322,7 +350,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.53'), threshold: parse6decimal('0.037') },
             { target: parse6decimal('0.47'), threshold: parse6decimal('0.036') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -344,7 +372,7 @@ describe('Controller', () => {
           group: constants.Zero,
           markets: [btcMarket.address, ethMarket.address],
           configs: [{ target: parse6decimal('0.51'), threshold: parse6decimal('0.04') }],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -360,14 +388,14 @@ describe('Controller', () => {
             { target: parse6decimal('0.51'), threshold: parse6decimal('0.04') },
             { target: parse6decimal('0.49'), threshold: parse6decimal('0.04') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
 
         // await controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)
         // FIXME: reason is misleading; might want to implicitly induce the same panic with a length check
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
+        ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
       })
 
       it('rejects groups where targets do not add to 100%', async () => {
@@ -379,7 +407,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.51'), threshold: parse6decimal('0.04') },
             { target: parse6decimal('0.52'), threshold: parse6decimal('0.04') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -397,7 +425,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         let signature = await signRebalanceConfigChange(userA, verifier, message)
         await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
@@ -413,7 +441,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         signature = await signRebalanceConfigChange(userA, verifier, message)
         await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
@@ -431,7 +459,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.34'), threshold: parse6decimal('0.04') },
             { target: parse6decimal('0.33'), threshold: parse6decimal('0.04') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -446,7 +474,7 @@ describe('Controller', () => {
           group: 32,
           markets: [ethMarket.address],
           configs: [{ target: parse6decimal('0.50'), threshold: parse6decimal('0.05') }],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
         await expect(
@@ -478,7 +506,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.51'), threshold: parse6decimal('0.042') },
             { target: parse6decimal('0.49'), threshold: parse6decimal('0.043') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -506,7 +534,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -530,7 +558,7 @@ describe('Controller', () => {
           group: group,
           markets: [ethMarket.address],
           configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.05') }],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -554,7 +582,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -589,7 +617,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
           ],
-          ...createAction(userA.address),
+          ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
 
@@ -615,7 +643,7 @@ describe('Controller', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: utils.parseEther('4'),
-        ...createAction(userA.address, utils.parseEther('0.3'), 24),
+        ...(await createAction(userA.address, userA.address, utils.parseEther('0.3'), 24)),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
       await expect(

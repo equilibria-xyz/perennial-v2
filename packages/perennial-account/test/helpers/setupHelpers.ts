@@ -208,7 +208,7 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateRiskParameter(riskParameter)
-  await market.updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+  await market.updateParameter(marketParameter)
 
   return market
 }

@@ -111,6 +111,8 @@ interface IMarket is IInstance {
     error MarketInvalidReferrerError();
     // sig: 0x5c5cb438
     error MarketSettleOnlyError();
+    // sig: 0x1e9d2296
+    error MarketInvalidIntentFeeError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();
@@ -128,6 +130,8 @@ interface IMarket is IInstance {
     function initialize(MarketDefinition calldata definition_) external;
     function token() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
+    function beneficiary() external view returns (address);
+    function coordinator() external view returns (address);
     function payoff() external view returns (address);
     function positions(address account) external view returns (Position memory);
     function pendingOrders(address account, uint256 id) external view returns (Order memory);
@@ -140,7 +144,7 @@ interface IMarket is IInstance {
     function guarantee(uint256 id) external view returns (Guarantee memory);
     function pending() external view returns (Order memory);
     function global() external view returns (Global memory);
-    function checkpoints(address account, uint256 id) external view returns (Checkpoint memory);
+    function checkpoints(address account, uint256 version) external view returns (Checkpoint memory);
     function liquidators(address account, uint256 id) external view returns (address);
     function orderReferrers(address account, uint256 id) external view returns (address);
     function guaranteeReferrers(address account, uint256 id) external view returns (address);
@@ -150,7 +154,9 @@ interface IMarket is IInstance {
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
-    function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
+    function updateBeneficiary(address newBeneficiary) external;
+    function updateCoordinator(address newCoordinator) external;
+    function updateParameter(MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
     function claimFee() external;
 }

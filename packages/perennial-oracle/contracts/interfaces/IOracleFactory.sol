@@ -25,6 +25,7 @@ interface IOracleFactory is IOracleProviderFactory, IFactory {
 
     function factories(IOracleProviderFactory factory) external view returns (bool);
     function initialize(Token18 incentive) external;
+    function updateId(IOracleProvider oracleProvider, bytes32 id) external;
     function register(IOracleProviderFactory factory) external;
     function create(bytes32 id, IOracleProviderFactory factory) external returns (IOracle newOracle);
     function update(bytes32 id, IOracleProviderFactory factory) external;

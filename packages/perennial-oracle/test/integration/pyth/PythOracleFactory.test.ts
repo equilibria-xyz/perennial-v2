@@ -313,7 +313,7 @@ testOracles.forEach(testOracle => {
         token: dsu.address,
         oracle: oracle.address,
       })
-      await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
+      await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
 
       market2 = Market__factory.connect(
@@ -327,7 +327,7 @@ testOracles.forEach(testOracle => {
         token: dsu.address,
         oracle: oracle2.address,
       })
-      await market2.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
+      await market2.updateParameter(marketParameter)
       await market2.updateRiskParameter(riskParameter)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))

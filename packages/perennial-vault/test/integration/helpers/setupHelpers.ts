@@ -5,7 +5,9 @@ import { IERC20Metadata, IMarket, IMarket__factory, IMarketFactory } from '../..
 import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 
 export interface DeployProductParams
-  extends Partial<Omit<RiskParameterStruct & MarketParameterStruct, 'payoffDefinition'>> {
+  extends Partial<
+    Omit<RiskParameterStruct & Omit<MarketParameterStruct, 'makerFee' | 'takerFee'>, 'payoffDefinition'>
+  > {
   marketMakerFee?: BigNumberish
   marketTakerFee?: BigNumberish
   factory: IMarketFactory
@@ -99,7 +101,7 @@ export async function deployProductOnMainnetFork({
 
   const market = IMarket__factory.connect(productAddress, owner)
   await market.connect(owner).updateRiskParameter(riskParameter)
-  await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+  await market.connect(owner).updateParameter(marketParameter)
 
   return market
 }

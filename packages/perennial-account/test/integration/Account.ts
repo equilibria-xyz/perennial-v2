@@ -48,10 +48,6 @@ describe('Account', () => {
     await loadFixture(fixture)
   })
 
-  beforeEach(async () => {
-    await loadFixture(fixture)
-  })
-
   after(async () => {
     // return user funds to avoid impacting other tests
     await returnUSDC(userA)

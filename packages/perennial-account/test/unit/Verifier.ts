@@ -33,12 +33,18 @@ describe('Verifier', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user
-  function createAction(userAddress: Address, feeOverride = utils.parseEther('12'), expiresInSeconds = 6) {
+  function createAction(
+    userAddress: Address,
+    signerAddress: Address,
+    maxFee = utils.parseEther('12'),
+    expiresInSeconds = 6,
+  ) {
     return {
       action: {
-        maxFee: feeOverride,
+        maxFee: maxFee,
         common: {
           account: userAddress,
+          signer: signerAddress,
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
@@ -72,6 +78,7 @@ describe('Verifier', () => {
     const nonce = nextNonce()
     const commonMessage = {
       account: userA.address,
+      signer: userA.address,
       domain: verifier.address,
       nonce: nonce,
       group: 0,
@@ -79,12 +86,11 @@ describe('Verifier', () => {
     }
     const signature = await signCommon(userA, verifier, commonMessage)
 
-    const verifyResult = await verifier.connect(verifierSigner).callStatic.verifyCommon(commonMessage, signature)
+    await verifier.connect(verifierSigner).callStatic.verifyCommon(commonMessage, signature)
     await expect(verifier.connect(verifierSigner).verifyCommon(commonMessage, signature))
       .to.emit(verifier, 'NonceCancelled')
       .withArgs(userA.address, nonce)
 
-    expect(verifyResult).to.eq(userA.address)
     expect(await verifier.nonces(userA.address, nonce)).to.eq(true)
   })
 
@@ -96,6 +102,7 @@ describe('Verifier', () => {
       maxFee: utils.parseEther('12'),
       common: {
         account: userB.address,
+        signer: userB.address,
         domain: verifier.address,
         nonce: nonce,
         group: 0,
@@ -104,25 +111,33 @@ describe('Verifier', () => {
     }
     const signature = await signAction(userB, verifier, actionMessage)
 
-    const verifyResult = await verifier.connect(verifierSigner).callStatic.verifyAction(actionMessage, signature)
     await expect(verifier.connect(verifierSigner).verifyAction(actionMessage, signature))
       .to.emit(verifier, 'NonceCancelled')
       .withArgs(userB.address, nonce)
 
-    expect(verifyResult).to.eq(userB.address)
     expect(await verifier.nonces(userB.address, nonce)).to.eq(true)
   })
 
   it('verifies deployAccount messages', async () => {
     const deployAccountMessage = {
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifyDeployAccount(deployAccountMessage, signature)
-    expect(signerResult).to.eq(userA.address)
+    await expect(verifier.connect(controllerSigner).verifyDeployAccount(deployAccountMessage, signature)).to.not.be
+      .reverted
+  })
+
+  it('verifies signerUpdate messages', async () => {
+    const updateSignerMessage = {
+      signer: userB.address,
+      approved: true,
+      ...createAction(userA.address, userA.address),
+    }
+    const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
+
+    await expect(verifier.connect(controllerSigner).verifySignerUpdate(updateSignerMessage, signature)).to.not.be
+      .reverted
   })
 
   it('verifies marketTransfer messages', async () => {
@@ -130,14 +145,12 @@ describe('Verifier', () => {
     const marketTransferMessage = {
       market: market.address,
       amount: constants.MaxInt256,
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifyMarketTransfer(marketTransferMessage, signature)
-    expect(signerResult).to.eq(userA.address)
+    await expect(verifier.connect(controllerSigner).verifyMarketTransfer(marketTransferMessage, signature)).to.not.be
+      .reverted
   })
 
   it('verifies rebalanceConfigChange messages', async () => {
@@ -151,28 +164,13 @@ describe('Verifier', () => {
         { target: parse6decimal('0.55'), threshold: parse6decimal('0.038') },
         { target: parse6decimal('0.45'), threshold: parse6decimal('0.031') },
       ],
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signRebalanceConfigChange(userA, verifier, rebalanceConfigChangeMessage)
 
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifyRebalanceConfigChange(rebalanceConfigChangeMessage, signature)
-    expect(signerResult).to.eq(userA.address)
-  })
-
-  it('verifies signerUpdate messages', async () => {
-    const updateSignerMessage = {
-      signer: userB.address,
-      approved: true,
-      ...createAction(userA.address),
-    }
-    const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifySignerUpdate(updateSignerMessage, signature)
-    expect(signerResult).to.eq(userA.address)
+    await expect(
+      verifier.connect(controllerSigner).verifyRebalanceConfigChange(rebalanceConfigChangeMessage, signature),
+    ).to.not.be.reverted
   })
 
   it('verifies withdrawal messages', async () => {
@@ -180,13 +178,10 @@ describe('Verifier', () => {
     const withdrawalMessage = {
       amount: parse6decimal('55.5'),
       unwrap: false,
-      ...createAction(userA.address),
+      ...createAction(userA.address, userA.address),
     }
     const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 
-    const signerResult = await verifier
-      .connect(controllerSigner)
-      .callStatic.verifyWithdrawal(withdrawalMessage, signature)
-    expect(signerResult).to.eq(userA.address)
+    await expect(verifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature)).to.not.be.reverted
   })
 })

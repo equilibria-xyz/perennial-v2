@@ -51,12 +51,13 @@ describe('Controller_Arbitrum', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, feeOverride = DEFAULT_MAX_FEE, expiresInSeconds = 45) {
+  function createAction(userAddress: Address, signerAddress: Address, maxFee = DEFAULT_MAX_FEE, expiresInSeconds = 45) {
     return {
       action: {
-        maxFee: feeOverride,
+        maxFee: maxFee,
         common: {
           account: userAddress,
+          signer: signerAddress,
           domain: controller.address,
           nonce: nextNonce(),
           group: 0,
@@ -71,7 +72,7 @@ describe('Controller_Arbitrum', () => {
     const accountAddress = await controller.getAccountAddress(user.address)
     await usdc.connect(userA).transfer(accountAddress, amount, { maxFeePerGas: 100000000 })
     const deployAccountMessage = {
-      ...createAction(user.address),
+      ...createAction(user.address, user.address),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller
@@ -155,7 +156,7 @@ describe('Controller_Arbitrum', () => {
   })
 
   describe('#deployment', () => {
-    let accountAddressA
+    let accountAddressA: Address
 
     // fund the account with 15k USDC
     beforeEach(async () => {
@@ -168,7 +169,7 @@ describe('Controller_Arbitrum', () => {
 
       // sign a message to deploy the account
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -193,7 +194,7 @@ describe('Controller_Arbitrum', () => {
       // sign a message with maxFee smaller than the calculated keeper fee (~0.0033215)
       const maxFee = parse6decimal('0.000789')
       const deployAccountMessage = {
-        ...createAction(userA.address, maxFee),
+        ...createAction(userA.address, userA.address, maxFee),
       }
       const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
@@ -218,7 +219,7 @@ describe('Controller_Arbitrum', () => {
 
       // sign a message to deploy the account
       const deployAccountMessage = {
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
 
       // ensure the request fails with a meaningful revert reason
@@ -243,7 +244,7 @@ describe('Controller_Arbitrum', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
 
       // assign the delegate
@@ -259,7 +260,7 @@ describe('Controller_Arbitrum', () => {
       const updateSignerMessage = {
         signer: userB.address,
         approved: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
 
       // assign the delegate
@@ -300,7 +301,7 @@ describe('Controller_Arbitrum', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: amount,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
@@ -324,7 +325,7 @@ describe('Controller_Arbitrum', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: transferAmount,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
@@ -353,7 +354,7 @@ describe('Controller_Arbitrum', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: withdrawal,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
@@ -361,7 +362,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 200000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 250000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
@@ -393,7 +394,7 @@ describe('Controller_Arbitrum', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: constants.MinInt256,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
@@ -424,7 +425,7 @@ describe('Controller_Arbitrum', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: withdrawal,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
@@ -474,7 +475,7 @@ describe('Controller_Arbitrum', () => {
       const withdrawalMessage = {
         amount: withdrawalAmount,
         unwrap: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userB.address),
       }
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 
@@ -497,7 +498,7 @@ describe('Controller_Arbitrum', () => {
       const withdrawalMessage = {
         amount: constants.MaxUint256,
         unwrap: true,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address),
       }
       const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 

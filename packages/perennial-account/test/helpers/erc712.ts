@@ -27,6 +27,7 @@ function erc721Domain(verifier: IVerifier | FakeContract<IVerifier>): {
 const commonType = {
   Common: [
     { name: 'account', type: 'address' },
+    { name: 'signer', type: 'address' },
     { name: 'domain', type: 'address' },
     { name: 'nonce', type: 'uint256' },
     { name: 'group', type: 'uint256' },

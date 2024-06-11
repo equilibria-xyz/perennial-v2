@@ -96,8 +96,8 @@ contract Controller is Instance, IController {
         bytes calldata signature
     ) internal returns (IAccount account) {
         address owner = deployAccount_.action.common.account;
-        address signer = verifier.verifyDeployAccount(deployAccount_, signature);
-        _ensureValidSigner(owner, signer);
+        verifier.verifyDeployAccount(deployAccount_, signature);
+        _ensureValidSigner(owner, deployAccount_.action.common.signer);
 
         // create the account
         account = _createAccount(owner);
@@ -116,8 +116,8 @@ contract Controller is Instance, IController {
 
     function _marketTransferWithSignature(IAccount account, MarketTransfer calldata marketTransfer, bytes calldata signature) internal {
         // ensure the message was signed by the owner or a delegated signer
-        address signer = verifier.verifyMarketTransfer(marketTransfer, signature);
-        _ensureValidSigner(marketTransfer.action.common.account, signer);
+        verifier.verifyMarketTransfer(marketTransfer, signature);
+        _ensureValidSigner(marketTransfer.action.common.account, marketTransfer.action.common.signer);
 
         // only Markets with DSU collateral are supported
         IMarket market = IMarket(marketTransfer.market);
@@ -132,8 +132,8 @@ contract Controller is Instance, IController {
         bytes calldata signature
     ) virtual external {
         // ensure the message was signed by the owner or a delegated signer
-        address signer = verifier.verifyRebalanceConfigChange(configChange, signature);
-        _ensureValidSigner(configChange.action.common.account, signer);
+        verifier.verifyRebalanceConfigChange(configChange, signature);
+        _ensureValidSigner(configChange.action.common.account, configChange.action.common.signer);
 
         RebalanceLib.changeConfig(rebalance, configChange);
     }
@@ -163,9 +163,9 @@ contract Controller is Instance, IController {
 
     function _updateSignerWithSignature(SignerUpdate calldata signerUpdate,  bytes calldata signature) internal {
         // ensure the message was signed only by the owner, not an existing delegate
-        address messageSigner = verifier.verifySignerUpdate(signerUpdate, signature);
+        verifier.verifySignerUpdate(signerUpdate, signature);
         address owner = signerUpdate.action.common.account;
-        if (messageSigner != owner) revert ControllerInvalidSigner();
+        if (signerUpdate.action.common.signer != owner) revert ControllerInvalidSigner();
 
         signers[owner][signerUpdate.signer] = signerUpdate.approved;
         emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
@@ -179,8 +179,8 @@ contract Controller is Instance, IController {
 
     function _withdrawWithSignature(IAccount account, Withdrawal calldata withdrawal, bytes calldata signature) internal {
         // ensure the message was signed by the owner or a delegated signer
-        address signer = verifier.verifyWithdrawal(withdrawal, signature);
-        _ensureValidSigner(withdrawal.action.common.account, signer);
+        verifier.verifyWithdrawal(withdrawal, signature);
+        _ensureValidSigner(withdrawal.action.common.account, withdrawal.action.common.signer);
 
         // call the account's implementation to push to owner
         account.withdraw(withdrawal.amount, withdrawal.unwrap);
