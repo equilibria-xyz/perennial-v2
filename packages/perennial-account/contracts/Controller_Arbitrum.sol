@@ -18,6 +18,7 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Controller } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
+import { RebalanceConfigChange } from "./types/RebalanceConfig.sol";
 import { SignerUpdate } from "./types/SignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
@@ -51,6 +52,18 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
+    }
+
+    /// @inheritdoc IController
+    function changeRebalanceConfigWithSignature(
+        RebalanceConfigChange calldata configChange,
+        bytes calldata signature
+    ) override external {
+        _changeRebalanceConfigWithSignature(configChange, signature);
+        // for this message, account address is only needed for keeper compensation
+        IAccount account = IAccount(getAccountAddress(configChange.action.common.account));
+        bytes memory data = abi.encode(address(account), configChange.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @inheritdoc IController

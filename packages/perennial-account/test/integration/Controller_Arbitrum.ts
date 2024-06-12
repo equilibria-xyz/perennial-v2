@@ -19,7 +19,13 @@ import {
   IVerifier,
   Verifier__factory,
 } from '../../types/generated'
-import { signDeployAccount, signMarketTransfer, signSignerUpdate, signWithdrawal } from '../helpers/erc712'
+import {
+  signDeployAccount,
+  signMarketTransfer,
+  signRebalanceConfigChange,
+  signSignerUpdate,
+  signWithdrawal,
+} from '../helpers/erc712'
 import {
   createMarketFactory,
   createMarketForOracle,
@@ -51,7 +57,12 @@ describe('Controller_Arbitrum', () => {
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
-  function createAction(userAddress: Address, signerAddress: Address, maxFee = DEFAULT_MAX_FEE, expiresInSeconds = 45) {
+  function createAction(
+    userAddress: Address,
+    signerAddress = userAddress,
+    maxFee = DEFAULT_MAX_FEE,
+    expiresInSeconds = 45,
+  ) {
     return {
       action: {
         maxFee: maxFee,
@@ -445,6 +456,34 @@ describe('Controller_Arbitrum', () => {
         parse6decimal('9999'),
         parse6decimal('10000'),
       ) // 12k-2k
+    })
+  })
+
+  describe('#rebalance', async () => {
+    it('collects fee for changing rebalance configuration', async () => {
+      // record keeper balance, create and fund userA's collateral account
+      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+      await createCollateralAccount(userA, parse6decimal('5'))
+
+      // sign message to create a new group
+      const message = {
+        group: 5,
+        markets: [market.address],
+        configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.0901') }],
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, verifier, message)
+
+      // create the group
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
+        .to.emit(controller, 'RebalanceMarketConfigured')
+        .withArgs(userA.address, message.group, market.address, message.configs[0])
+        .to.emit(controller, 'RebalanceGroupConfigured')
+        .withArgs(userA.address, message.group, 1)
+
+      // ensure keeper was compensated
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
   })
 

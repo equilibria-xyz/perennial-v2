@@ -142,11 +142,24 @@ contract Controller is Instance, IController {
         RebalanceConfigChange calldata configChange,
         bytes calldata signature
     ) virtual external {
+        _changeRebalanceConfigWithSignature(configChange, signature);
+    }
+
+    function _changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature) internal {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRebalanceConfigChange(configChange, signature);
         _ensureValidSigner(configChange.action.common.account, configChange.action.common.signer);
 
-        _changeConfig(configChange);
+        // sum of the target allocations of all markets in the group
+        UFixed6 totalAllocation;
+        // put this on the stack for readability
+        address owner = configChange.action.common.account;
+
+        totalAllocation = _updateRebalanceGroup(configChange, owner);
+
+        // if not deleting the group, ensure rebalance targets add to 100%
+        if (configChange.markets.length != 0 && !totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
+            revert IController.ControllerInvalidRebalanceTargets();
     }
 
     /// @inheritdoc IController
@@ -210,22 +223,10 @@ contract Controller is Instance, IController {
         if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
     }
 
-    /// @notice Creates a new rebalance group or updates/deletes an existing rebalance group
-    /// @param message User request to create/update/delete
-    function _changeConfig(RebalanceConfigChange calldata message) internal {
-        // sum of the target allocations of all markets in the group
-        UFixed6 totalAllocation;
-        // put this on the stack for readability
-        address owner = message.action.common.account;
-
-        totalAllocation = _updateGroup(message, owner);
-
-        // if not deleting the group, ensure rebalance targets add to 100%
-        if (message.markets.length != 0 && !totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
-            revert IController.ControllerInvalidRebalanceTargets();
-    }
-
-    function _updateGroup(
+    /// @dev overwrites rebalance configuration of all markets for a particular owner and group
+    /// @param message already-verified message with new configuration
+    /// @param owner identifies the owner of the collateral account
+    function _updateRebalanceGroup(
         RebalanceConfigChange calldata message,
         address owner
     ) private returns (UFixed6 totalAllocation) {
