@@ -58,7 +58,8 @@ contract Controller is Instance, IController {
     mapping(address => mapping(address => uint256)) marketToGroup;
 
     /// @dev Allows iteration through markets in a rebalance group
-    mapping(uint256 => address[]) groupToMarkets;
+    /// owner => group => markets
+    mapping(address => mapping(uint256 => address[])) groupToMarkets;
 
     /// @inheritdoc IController
     function initialize(
@@ -153,8 +154,16 @@ contract Controller is Instance, IController {
         address owner,
         uint256 group,
         address market
-    ) external view returns (RebalanceConfig memory config_){
+    ) external view returns (RebalanceConfig memory config_) {
         config_ = config[owner][group][market];
+    }
+
+    /// @inheritdoc IController
+    function rebalanceGroupMarkets(
+        address owner,
+        uint256 group
+    ) external view returns (address[] memory markets) {
+        markets = groupToMarkets[owner][group];
     }
 
     /// @inheritdoc IController
@@ -228,12 +237,12 @@ contract Controller is Instance, IController {
             revert IController.ControllerInvalidRebalanceMarkets();
 
         // delete the existing group
-        for (uint256 i; i < groupToMarkets[message.group].length; ++i) {
-            address market = groupToMarkets[message.group][i];
+        for (uint256 i; i < groupToMarkets[owner][message.group].length; ++i) {
+            address market = groupToMarkets[owner][message.group][i];
             delete config[owner][message.group][market];
             delete marketToGroup[owner][market];
         }
-        delete groupToMarkets[message.group];
+        delete groupToMarkets[owner][message.group];
 
         for (uint256 i; i < message.markets.length; ++i) {
             // ensure market is not pointing to a different group
@@ -244,7 +253,7 @@ contract Controller is Instance, IController {
             // rewrite over all the old configuration
             marketToGroup[owner][message.markets[i]] = message.group;
             config[owner][message.group][message.markets[i]] = message.configs[i];
-            groupToMarkets[message.group].push(message.markets[i]);
+            groupToMarkets[owner][message.group].push(message.markets[i]);
 
             // ensure target allocation across all markets totals 100%
             // read from storage to trap duplicate markets in the message

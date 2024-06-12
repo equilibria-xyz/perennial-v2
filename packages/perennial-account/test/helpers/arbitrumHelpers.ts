@@ -16,12 +16,10 @@ import {
   IMarket,
   IOracleProvider,
   IOracleProvider__factory,
-  RebalanceLib__factory,
   Verifier__factory,
 } from '../../types/generated'
 import type { IKept } from '../../contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
-import { ethers } from 'hardhat'
 
 const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
 const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
@@ -78,12 +76,7 @@ export async function deployControllerArbitrum(
   keepConfig: IKept.KeepConfigStruct,
   overrides?: CallOverrides,
 ) {
-  const controller = await new Controller_Arbitrum__factory(
-    {
-      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy(keepConfig, overrides ?? {})
+  const controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig, overrides ?? {})
   return controller
 }
 

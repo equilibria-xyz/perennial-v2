@@ -127,6 +127,15 @@ interface IController {
         address market
     ) external view returns (RebalanceConfig memory config);
 
+    /// @notice Retrieves array of markets in an owner's rebalance group
+    /// @param owner User for whom the collateral account was created
+    /// @param group Identifies which collection of markets is desired for the owner
+    /// @return markets Array containing the of address of each market in the rebalance group
+    function rebalanceGroupMarkets(
+        address owner,
+        uint256 group
+    ) external view returns (address[] memory markets);
+
     /// @notice Updates the status of a delegated signer for the caller's collateral account
     /// @param signer The signer to update
     /// @param newEnabled The new status of the opersignerator

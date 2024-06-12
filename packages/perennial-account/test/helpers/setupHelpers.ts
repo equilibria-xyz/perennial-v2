@@ -6,7 +6,7 @@ import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 
-import { Controller__factory, IERC20Metadata, RebalanceLib__factory } from '../../types/generated'
+import { Controller__factory, IERC20Metadata } from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
