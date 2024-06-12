@@ -302,8 +302,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newRiskParameter = _riskParameter.read();
 
         // update global exposure
-        newGlobal.exposure = newGlobal.exposure.sub(latestRiskParameter.takerFee
-                .update(newRiskParameter.takerFee, latestPosition.skew(), newGlobal.latestPrice.abs()));
+        Fixed6 exposureChange = latestRiskParameter.takerFee
+            .exposure(newRiskParameter.takerFee, latestPosition.skew(), newGlobal.latestPrice.abs());
+        newGlobal.exposure = newGlobal.exposure.sub(exposureChange);
         _global.store(newGlobal);
 
         emit RiskParameterUpdated(newRiskParameter);
