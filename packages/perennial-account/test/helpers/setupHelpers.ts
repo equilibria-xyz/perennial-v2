@@ -135,12 +135,7 @@ export async function createMarket(
   return market
 }
 export async function deployController(owner: SignerWithAddress): Promise<Controller> {
-  const controller = await new Controller__factory(
-    {
-      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy()
+  const controller = await new Controller__factory(owner).deploy()
   return controller
 }
 

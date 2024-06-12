@@ -15,7 +15,6 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
-import { RebalanceStorage, RebalanceLib } from "./libs/RebalanceLib.sol";
 import {
     RebalanceConfig,
     RebalanceConfigLib,
@@ -30,6 +29,9 @@ import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 contract Controller is Instance, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
+
+    uint256 constant MAX_GROUPS_PER_OWNER = 8;
+    uint256 constant MAX_MARKETS_PER_GROUP = 4;
 
     /// @dev USDC stablecoin address
     Token6 public USDC; // solhint-disable-line var-name-mixedcase
@@ -47,8 +49,16 @@ contract Controller is Instance, IController {
     /// owner => delegate => enabled flag
     mapping(address => mapping(address => bool)) public signers;
 
-    /// @dev Collections required to manage Rebalance configuration
-    RebalanceStorage internal rebalance;
+    /// @dev Mapping of rebalance configuration
+    /// owner => group => market => config
+    mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) config;
+
+    /// @dev Prevents markets from being added to multiple rebalance groups
+    /// owner => market => group
+    mapping(address => mapping(address => uint256)) marketToGroup;
+
+    /// @dev Allows iteration through markets in a rebalance group
+    mapping(uint256 => address[]) groupToMarkets;
 
     /// @inheritdoc IController
     function initialize(
@@ -135,7 +145,7 @@ contract Controller is Instance, IController {
         verifier.verifyRebalanceConfigChange(configChange, signature);
         _ensureValidSigner(configChange.action.common.account, configChange.action.common.signer);
 
-        RebalanceLib.changeConfig(rebalance, configChange);
+        _changeConfig(configChange);
     }
 
     /// @inheritdoc IController
@@ -143,8 +153,8 @@ contract Controller is Instance, IController {
         address owner,
         uint256 group,
         address market
-    ) external view returns (RebalanceConfig memory config){
-        config = rebalance.config[owner][group][market];
+    ) external view returns (RebalanceConfig memory config_){
+        config_ = config[owner][group][market];
     }
 
     /// @inheritdoc IController
@@ -189,5 +199,67 @@ contract Controller is Instance, IController {
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner, address signer) private view {
         if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
+    }
+
+    /// @notice Creates a new rebalance group or updates/deletes an existing rebalance group
+    /// @param message User request to create/update/delete
+    function _changeConfig(RebalanceConfigChange calldata message) internal {
+        // sum of the target allocations of all markets in the group
+        UFixed6 totalAllocation;
+        // put this on the stack for readability
+        address owner = message.action.common.account;
+
+        totalAllocation = _updateGroup(message, owner);
+
+        // if not deleting the group, ensure rebalance targets add to 100%
+        if (message.markets.length != 0 && !totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
+            revert IController.ControllerInvalidRebalanceTargets();
+    }
+
+    function _updateGroup(
+        RebalanceConfigChange calldata message,
+        address owner
+    ) private returns (UFixed6 totalAllocation) {
+        // ensure group index is valid
+        if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER)
+            revert IController.ControllerInvalidRebalanceGroup();
+
+        if (message.markets.length > MAX_MARKETS_PER_GROUP)
+            revert IController.ControllerInvalidRebalanceMarkets();
+
+        // delete the existing group
+        for (uint256 i; i < groupToMarkets[message.group].length; ++i) {
+            address market = groupToMarkets[message.group][i];
+            delete config[owner][message.group][market];
+            delete marketToGroup[owner][market];
+        }
+        delete groupToMarkets[message.group];
+
+        for (uint256 i; i < message.markets.length; ++i) {
+            // ensure market is not pointing to a different group
+            uint256 currentGroup = marketToGroup[owner][message.markets[i]];
+            if (currentGroup != 0)
+                revert IController.ControllerMarketAlreadyInGroup(message.markets[i], currentGroup);
+
+            // rewrite over all the old configuration
+            marketToGroup[owner][message.markets[i]] = message.group;
+            config[owner][message.group][message.markets[i]] = message.configs[i];
+            groupToMarkets[message.group].push(message.markets[i]);
+
+            // ensure target allocation across all markets totals 100%
+            // read from storage to trap duplicate markets in the message
+            totalAllocation = totalAllocation.add(
+                config[owner][message.group][message.markets[i]].target
+            );
+
+            emit IController.RebalanceMarketConfigured(
+                owner,
+                message.group,
+                message.markets[i],
+                message.configs[i]
+            );
+        }
+
+        emit IController.RebalanceGroupConfigured(owner, message.group, message.markets.length);
     }
 }
