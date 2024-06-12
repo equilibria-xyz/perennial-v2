@@ -57,6 +57,10 @@ interface IController {
     /// @custom:error Group number was out-of-range; each collateral account may have up to 8 groups, indexed 1-8
     error ControllerInvalidRebalanceGroup();
 
+    // sig: 0xf065594a
+    /// @custom:error Group has too many markets; each group may have 1-4 markets
+    error ControllerInvalidRebalanceMarkets();
+
     // sig: 0xcbe71ce7
     /// @custom:error The sum of `target` collateral allocations for each market in a group does not total 100%.
     /// This could also indicate a duplicate market was in the list.

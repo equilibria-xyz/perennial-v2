@@ -483,6 +483,31 @@ describe('Controller', () => {
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
         ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceGroup')
       })
+
+      it('limits number of markets per group', async () => {
+        const solMarket = await smock.fake('IMarket')
+        const maticMarket = await smock.fake('IMarket')
+        const shibMarket = await smock.fake('IMarket')
+
+        // attempt to create a group with 5 markets
+        const message = {
+          group: 1,
+          markets: [ethMarket.address, btcMarket.address, solMarket.address, maticMarket.address, shibMarket.address],
+          configs: [
+            { target: parse6decimal('0.2'), threshold: parse6decimal('0.044') },
+            { target: parse6decimal('0.2'), threshold: parse6decimal('0.044') },
+            { target: parse6decimal('0.2'), threshold: parse6decimal('0.044') },
+            { target: parse6decimal('0.2'), threshold: parse6decimal('0.044') },
+            { target: parse6decimal('0.2'), threshold: parse6decimal('0.044') },
+          ],
+          ...(await createAction(userA.address)),
+        }
+        const signature = await signRebalanceConfigChange(userA, verifier, message)
+
+        await expect(
+          controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceMarkets')
+      })
     })
 
     context('update group', async () => {

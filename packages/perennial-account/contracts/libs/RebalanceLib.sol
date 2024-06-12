@@ -31,7 +31,6 @@ struct RebalanceStorage {
 /// @notice Facilities for interacting with Rebalance configuration
 library RebalanceLib {
     uint256 constant MAX_GROUPS_PER_OWNER = 8;
-    // TODO: limit the number of markets in a group
     uint256 constant MAX_MARKETS_PER_GROUP = 4;
 
     /// @notice Creates a new rebalance group or updates/deletes an existing rebalance group
@@ -60,6 +59,9 @@ library RebalanceLib {
         // ensure group index is valid
         if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER)
             revert IController.ControllerInvalidRebalanceGroup();
+
+        if (message.markets.length > MAX_MARKETS_PER_GROUP)
+            revert IController.ControllerInvalidRebalanceMarkets();
 
         // delete the existing group
         for (uint256 i; i < self.groupToMarkets[message.group].length; ++i) {
