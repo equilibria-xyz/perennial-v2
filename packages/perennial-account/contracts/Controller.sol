@@ -48,7 +48,7 @@ contract Controller is Instance, IController {
     mapping(address => mapping(address => bool)) public signers;
 
     /// @dev Collections required to manage Rebalance configuration
-    RebalanceStorage public rebalance;
+    RebalanceStorage internal rebalance;
 
     /// @inheritdoc IController
     function initialize(

@@ -313,9 +313,13 @@ describe('Controller', () => {
     })
 
     // helper which creates a new rebalance group and returns the group number
-    async function createGroup(markets: Array<Address>, configs: Array<RebalanceConfigStruct>): Promise<number> {
+    async function createGroup(
+      group: number,
+      markets: Array<Address>,
+      configs: Array<RebalanceConfigStruct>,
+    ): Promise<number> {
       const message = {
-        group: constants.Zero,
+        group: group,
         markets: markets,
         configs: configs,
         ...(await createAction(userA.address)),
@@ -343,7 +347,7 @@ describe('Controller', () => {
       it('can configure a new group', async () => {
         // sign message to create a new group
         const message = {
-          group: constants.Zero,
+          group: 1,
           markets: [btcMarket.address, ethMarket.address],
           configs: [
             { target: parse6decimal('0.53'), threshold: parse6decimal('0.037') },
@@ -356,19 +360,19 @@ describe('Controller', () => {
         // create the group
         await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
           .to.emit(controller, 'RebalanceMarketConfigured')
-          .withArgs(userA.address, 1, btcMarket.address, message.configs[0])
+          .withArgs(userA.address, message.group, btcMarket.address, message.configs[0])
           .to.emit(controller, 'RebalanceMarketConfigured')
-          .withArgs(userA.address, 1, ethMarket.address, message.configs[1])
+          .withArgs(userA.address, message.group, ethMarket.address, message.configs[1])
           .to.emit(controller, 'RebalanceGroupConfigured')
-          .withArgs(userA.address, 1, 2)
+          .withArgs(userA.address, message.group, 2)
 
-        await verifyConfigAgainstMessage(userA, message, 1)
+        await verifyConfigAgainstMessage(userA, message, message.group)
       })
 
       it('rejects messages with mismatching array length', async () => {
         // sign invalid message
         let message = {
-          group: constants.Zero,
+          group: 1,
           markets: [btcMarket.address, ethMarket.address],
           configs: [{ target: parse6decimal('0.51'), threshold: parse6decimal('0.04') }],
           ...(await createAction(userA.address)),
@@ -381,7 +385,7 @@ describe('Controller', () => {
         ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceConfig')
 
         message = {
-          group: constants.Zero,
+          group: 1,
           markets: [btcMarket.address],
           configs: [
             { target: parse6decimal('0.51'), threshold: parse6decimal('0.04') },
@@ -399,7 +403,7 @@ describe('Controller', () => {
       it('rejects groups where targets do not add to 100%', async () => {
         // sign message with invalid configuration
         const message = {
-          group: constants.Zero,
+          group: 1,
           markets: [btcMarket.address, ethMarket.address],
           configs: [
             { target: parse6decimal('0.51'), threshold: parse6decimal('0.04') },
@@ -417,7 +421,7 @@ describe('Controller', () => {
       it('prevents markets from being added to multiple groups', async () => {
         // create a group with BTC and ETH markets
         let message = {
-          group: constants.Zero,
+          group: 1,
           markets: [btcMarket.address, ethMarket.address],
           configs: [
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
@@ -433,7 +437,7 @@ describe('Controller', () => {
         // attempt to create a group with BTC and SOL markets
         const solMarket = await smock.fake('IMarket')
         message = {
-          group: constants.Zero,
+          group: 2,
           markets: [btcMarket.address, solMarket.address],
           configs: [
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
@@ -450,7 +454,7 @@ describe('Controller', () => {
       it('rejects groups with duplicate markets when creating a new group', async () => {
         // sign message with invalid configuration
         const message = {
-          group: constants.Zero,
+          group: 1,
           markets: [btcMarket.address, ethMarket.address, btcMarket.address],
           configs: [
             { target: parse6decimal('0.33'), threshold: parse6decimal('0.04') },
@@ -466,10 +470,10 @@ describe('Controller', () => {
         ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
       })
 
-      it('prevents owner from making up their own group number', async () => {
+      it('limits number of groups per collateral account', async () => {
         // attempt to update a group which does not already exist
         const message = {
-          group: 32,
+          group: 9,
           markets: [ethMarket.address],
           configs: [{ target: parse6decimal('0.50'), threshold: parse6decimal('0.05') }],
           ...(await createAction(userA.address)),
@@ -486,6 +490,7 @@ describe('Controller', () => {
 
       beforeEach(async () => {
         group = await createGroup(
+          1,
           [btcMarket.address, ethMarket.address],
           [
             { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
@@ -592,12 +597,12 @@ describe('Controller', () => {
 
       it('rejects updating a market with a market which exists in another group', async () => {
         // test setup offers a BTC,ETH group
-        const btcEthGroup = group
 
         // create a SOL,MATIC group
         const solMarket = await smock.fake('IMarket')
         const maticMarket = await smock.fake('IMarket')
         const solMaticGroup = await createGroup(
+          2,
           [solMarket.address, maticMarket.address],
           [
             { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
@@ -608,7 +613,7 @@ describe('Controller', () => {
 
         // try to modifiy the latter to add ETH
         const message = {
-          group: group,
+          group: 2,
           markets: [solMarket.address, maticMarket.address, ethMarket.address],
           configs: [
             { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
@@ -622,6 +627,55 @@ describe('Controller', () => {
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
         ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
+      })
+
+      it('can move market from one group to another', async () => {
+        // test setup offers a BTC,ETH group
+        const btcEthGroup = group
+
+        // create a SOL group
+        const solMarket = await smock.fake('IMarket')
+        const solGroup = await createGroup(
+          2,
+          [solMarket.address],
+          [{ target: parse6decimal('1'), threshold: parse6decimal('0.05') }],
+        )
+        expect(solGroup).to.equal(2)
+
+        // remove ETH from group 1
+        let message = {
+          group: btcEthGroup,
+          markets: [btcMarket.address],
+          configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.05') }],
+          ...(await createAction(userA.address)),
+        }
+        let signature = await signRebalanceConfigChange(userA, verifier, message)
+        await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, btcEthGroup, btcMarket.address, message.configs[0])
+          .to.emit(controller, 'RebalanceGroupConfigured')
+          .withArgs(userA.address, btcEthGroup, 1)
+        await verifyConfigAgainstMessage(userA, message, btcEthGroup)
+
+        // add ETH to group 2
+        message = {
+          group: solGroup,
+          markets: [solMarket.address, ethMarket.address],
+          configs: [
+            { target: parse6decimal('0.41'), threshold: parse6decimal('0.061') },
+            { target: parse6decimal('0.59'), threshold: parse6decimal('0.062') },
+          ],
+          ...(await createAction(userA.address)),
+        }
+        signature = await signRebalanceConfigChange(userA, verifier, message)
+        await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, solGroup, solMarket.address, message.configs[0])
+          .to.emit(controller, 'RebalanceMarketConfigured')
+          .withArgs(userA.address, solGroup, ethMarket.address, message.configs[1])
+          .to.emit(controller, 'RebalanceGroupConfigured')
+          .withArgs(userA.address, solGroup, 2)
+        await verifyConfigAgainstMessage(userA, message, solGroup)
       })
 
       it('can delete a group', async () => {

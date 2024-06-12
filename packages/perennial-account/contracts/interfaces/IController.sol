@@ -54,7 +54,7 @@ interface IController {
     error ControllerInvalidRebalanceConfig();
 
     // sig: 0xc640159e
-    /// @custom:error The group specified either does not exist or is not associated with the specified owner
+    /// @custom:error Group number was out-of-range; each collateral account may have up to 8 groups, indexed 1-8
     error ControllerInvalidRebalanceGroup();
 
     // sig: 0xcbe71ce7

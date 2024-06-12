@@ -60,9 +60,9 @@ library RebalanceConfigLib {
 
 /// @dev Action message to change configuration for a group of markets
 struct RebalanceConfigChange {
-    /// @dev Identifies the group to update; set to 0 to create a new group
+    /// @dev Identifies which group to change; indexed 1-8
     uint256 group;
-    /// @dev List of 1-8 markets in which collateral shall be managed.
+    /// @dev List of 1-4 markets in which collateral shall be managed.
     /// Markets may be added to or removed from an existing group. Leave empty to delete the group.
     address[] markets;
     /// @dev Target allocation for markets in the aforementioned array

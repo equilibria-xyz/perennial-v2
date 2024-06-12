@@ -10,13 +10,10 @@ import {
     RebalanceConfigChangeLib
 } from "../types/RebalanceConfig.sol";
 
-// TODO: move these collections back into Controller and eliminate the struct
+// TODO: move these collections back into Controller and eliminate this struct
+// TODO: uint256 could be shortened to uint8
 /// @dev abstracts away the complexity of collections required to manage Rebalance configuration
 struct RebalanceStorage {
-    // TODO: make the serial id per-owner; put this in a mapping
-    /// @dev Serial identifier for rebalancing groups
-    uint256 lastGroupId;
-
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
     mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) config;
@@ -25,21 +22,18 @@ struct RebalanceStorage {
     /// owner => market => group
     mapping(address => mapping(address => uint256)) marketToGroup;
 
-    // TODO: eliminate once lastGroupId is removed
-    /// @dev Ensures users may only modify their own groups,
-    ///      and prevents users from making up their own group numbers
-    /// group => owner
-    mapping(uint256 => address) groupToOwner;
-
     /// @dev Allows iteration through markets in a group
     mapping(uint256 => address[]) groupToMarkets;
 }
 
-// TODO: limit the number of markets in a group
 
 /// @title RebalanceLib
 /// @notice Facilities for interacting with Rebalance configuration
 library RebalanceLib {
+    uint256 constant MAX_GROUPS_PER_OWNER = 8;
+    // TODO: limit the number of markets in a group
+    uint256 constant MAX_MARKETS_PER_GROUP = 4;
+
     /// @notice Creates a new rebalance group or updates/deletes an existing rebalance group
     /// @param self Instance of rebalance storage
     /// @param message User request to create/update/delete
@@ -51,51 +45,11 @@ library RebalanceLib {
         // put this on the stack for readability
         address owner = message.action.common.account;
 
-        // create a new group
-        if (message.group == 0) {
-            totalAllocation = createGroup(self, message, owner);
-
-        // update an existing group
-        } else {
-            totalAllocation = updateGroup(self, message, owner);
-        }
+        totalAllocation = updateGroup(self, message, owner);
 
         // if not deleting the group, ensure rebalance targets add to 100%
         if (message.markets.length != 0 && !totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
             revert IController.ControllerInvalidRebalanceTargets();
-    }
-
-    function createGroup(
-        RebalanceStorage storage self,
-        RebalanceConfigChange calldata message,
-        address owner
-    ) private returns (UFixed6 totalAllocation) {
-        self.lastGroupId++;
-        for (uint256 i; i < message.markets.length; ++i)
-        {
-            // ensure market isn't already pointing to a group
-            uint256 currentGroup = self.marketToGroup[owner][message.markets[i]];
-            if (currentGroup != 0)
-                revert IController.ControllerMarketAlreadyInGroup(message.markets[i], currentGroup);
-
-            // update state
-            self.groupToOwner[self.lastGroupId] = owner;
-            self.marketToGroup[owner][message.markets[i]] = self.lastGroupId;
-            self.config[owner][self.lastGroupId][message.markets[i]] = message.configs[i];
-            self.groupToMarkets[self.lastGroupId].push(message.markets[i]);
-
-            // Ensure target allocation across all markets totals 100%.
-            totalAllocation = totalAllocation.add(message.configs[i].target);
-
-            emit IController.RebalanceMarketConfigured(
-                owner,
-                self.lastGroupId,
-                message.markets[i],
-                message.configs[i]
-            );
-        }
-
-        emit IController.RebalanceGroupConfigured(owner, self.lastGroupId, message.markets.length);
     }
 
     function updateGroup(
@@ -103,8 +57,8 @@ library RebalanceLib {
         RebalanceConfigChange calldata message,
         address owner
     ) private returns (UFixed6 totalAllocation) {
-        // ensure this group was created for the owner, preventing user from assigning their own number
-        if (self.groupToOwner[message.group] != owner)
+        // ensure group index is valid
+        if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER)
             revert IController.ControllerInvalidRebalanceGroup();
 
         // delete the existing group
@@ -124,6 +78,7 @@ library RebalanceLib {
             // rewrite over all the old configuration
             self.marketToGroup[owner][message.markets[i]] = message.group;
             self.config[owner][message.group][message.markets[i]] = message.configs[i];
+            self.groupToMarkets[message.group].push(message.markets[i]);
 
             // ensure target allocation across all markets totals 100%
             // read from storage to trap duplicate markets in the message
