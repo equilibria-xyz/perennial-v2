@@ -44,6 +44,7 @@ struct MarketParameterStorage { uint256 slot0; uint256 slot1; } // SECURITY: mus
 using MarketParameterStorageLib for MarketParameterStorage global;
 
 /// @dev Manually encodes and decodes the MarketParameter struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///    struct StoredMarketParameter {
 ///        /* slot 0 */

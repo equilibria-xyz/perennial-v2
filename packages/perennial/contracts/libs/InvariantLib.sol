@@ -12,6 +12,7 @@ import "../types/Version.sol";
 import "../types/Checkpoint.sol";
 
 /// @title InvariantLib
+/// @dev (external-safe): this library is safe to externalize
 /// @notice Manages the logic for the system invariant
 library InvariantLib {
     /// @notice Verifies the invariant of the market
