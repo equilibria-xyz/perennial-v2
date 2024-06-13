@@ -3,12 +3,11 @@ import HRE from 'hardhat'
 import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { BigNumber, constants, utils } from 'ethers'
+import { BigNumber, utils } from 'ethers'
 import {
   Controller,
   IAccount,
   IAccount__factory,
-  IController,
   IERC20,
   IERC20Metadata,
   IEmptySetReserve,

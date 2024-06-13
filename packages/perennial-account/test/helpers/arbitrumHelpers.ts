@@ -10,7 +10,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { createMarket, deployController, deployProtocolForOracle } from './setupHelpers'
 import {
   Controller,
+  Controller_Arbitrum,
   Controller_Arbitrum__factory,
+  IController,
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
@@ -75,7 +77,7 @@ export async function deployControllerArbitrum(
   owner: SignerWithAddress,
   keepConfig: IKept.KeepConfigStruct,
   overrides?: CallOverrides,
-) {
+): Promise<Controller_Arbitrum> {
   const controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig, overrides ?? {})
   return controller
 }

@@ -174,7 +174,6 @@ describe('Verifier', () => {
   })
 
   it('verifies withdrawal messages', async () => {
-    const usdc = await smock.fake('IERC20')
     const withdrawalMessage = {
       amount: parse6decimal('55.5'),
       unwrap: false,
