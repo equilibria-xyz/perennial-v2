@@ -320,7 +320,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 250000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 350000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, anyValue) // scale to token precision
@@ -373,7 +373,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 250000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 500000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
@@ -428,7 +428,7 @@ describe('Controller_Arbitrum', () => {
       // deposit 12k
       await deposit()
       // withdraw dust so it cannot be used to pay the keeper
-      await accountA.withdraw(constants.MaxUint256, true, { maxFeePerGas: 150000000 })
+      await accountA.withdraw(constants.MaxUint256, true, { maxFeePerGas: 300000000 })
       expect(await dsu.balanceOf(accountA.address)).to.equal(0)
 
       // sign a message to withdraw 2k from the market back into the collateral account
@@ -444,7 +444,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 150000000 }),
+          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 300000000 }),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, anyValue)
@@ -475,7 +475,9 @@ describe('Controller_Arbitrum', () => {
       const signature = await signRebalanceConfigChange(userA, verifier, message)
 
       // create the group
-      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
+      await expect(
+        controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, { maxFeePerGas: 150000000 }),
+      )
         .to.emit(controller, 'RebalanceMarketConfigured')
         .withArgs(userA.address, message.group, market.address, message.configs[0])
         .to.emit(controller, 'RebalanceGroupConfigured')
