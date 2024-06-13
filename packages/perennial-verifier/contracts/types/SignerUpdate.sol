@@ -7,7 +7,7 @@ import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { AccessUpdate, AccessUpdateLib } from "./AccessUpdate.sol";
 
 struct SignerUpdate {
-    /// @dev The operator access to update
+    /// @dev The signer access to update
     AccessUpdate access;
 
     /// @dev The common information for the intent
