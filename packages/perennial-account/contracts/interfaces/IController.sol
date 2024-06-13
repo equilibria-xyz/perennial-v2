@@ -123,7 +123,7 @@ interface IController {
     /// @param market Identifies which Perennial market for which the configuration is desired
     function rebalanceConfig(
         address owner,
-        uint256 group,
+        uint8 group,
         address market
     ) external view returns (RebalanceConfig memory config);
 
@@ -133,7 +133,7 @@ interface IController {
     /// @return markets Array containing the of address of each market in the rebalance group
     function rebalanceGroupMarkets(
         address owner,
-        uint256 group
+        uint8 group
     ) external view returns (address[] memory markets);
 
     /// @notice Updates the status of a delegated signer for the caller's collateral account

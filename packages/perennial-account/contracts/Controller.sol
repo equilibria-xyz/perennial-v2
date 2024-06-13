@@ -30,8 +30,8 @@ contract Controller is Instance, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
-    uint256 constant MAX_GROUPS_PER_OWNER = 8;
-    uint256 constant MAX_MARKETS_PER_GROUP = 4;
+    uint8 constant MAX_GROUPS_PER_OWNER = 8;
+    uint8 constant MAX_MARKETS_PER_GROUP = 4;
 
     /// @dev USDC stablecoin address
     Token6 public USDC; // solhint-disable-line var-name-mixedcase
@@ -51,15 +51,15 @@ contract Controller is Instance, IController {
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
-    mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) config;
+    mapping(address => mapping(uint8 => mapping(address => RebalanceConfig))) config;
 
     /// @dev Prevents markets from being added to multiple rebalance groups
     /// owner => market => group
-    mapping(address => mapping(address => uint256)) marketToGroup;
+    mapping(address => mapping(address => uint8)) marketToGroup;
 
     /// @dev Allows iteration through markets in a rebalance group
     /// owner => group => markets
-    mapping(address => mapping(uint256 => address[])) groupToMarkets;
+    mapping(address => mapping(uint8 => address[])) groupToMarkets;
 
     /// @inheritdoc IController
     function initialize(
@@ -165,7 +165,7 @@ contract Controller is Instance, IController {
     /// @inheritdoc IController
     function rebalanceConfig(
         address owner,
-        uint256 group,
+        uint8 group,
         address market
     ) external view returns (RebalanceConfig memory config_) {
         config_ = config[owner][group][market];
@@ -174,7 +174,7 @@ contract Controller is Instance, IController {
     /// @inheritdoc IController
     function rebalanceGroupMarkets(
         address owner,
-        uint256 group
+        uint8 group
     ) external view returns (address[] memory markets) {
         markets = groupToMarkets[owner][group];
     }
@@ -247,7 +247,7 @@ contract Controller is Instance, IController {
 
         for (uint256 i; i < message.markets.length; ++i) {
             // ensure market is not pointing to a different group
-            uint256 currentGroup = marketToGroup[owner][message.markets[i]];
+            uint8 currentGroup = marketToGroup[owner][message.markets[i]];
             if (currentGroup != 0)
                 revert IController.ControllerMarketAlreadyInGroup(message.markets[i], currentGroup);
 

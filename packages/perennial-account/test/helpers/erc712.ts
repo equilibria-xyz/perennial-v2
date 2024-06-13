@@ -83,7 +83,7 @@ export async function signRebalanceConfigChange(
 ): Promise<string> {
   const types = {
     RebalanceConfigChange: [
-      { name: 'group', type: 'uint256' },
+      { name: 'group', type: 'uint8' },
       { name: 'markets', type: 'address[]' },
       { name: 'configs', type: 'RebalanceConfig[]' },
       { name: 'action', type: 'Action' },

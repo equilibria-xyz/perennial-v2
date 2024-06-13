@@ -12,8 +12,7 @@ struct RebalanceConfig {
     /// @dev Percentage away from the target at which keepers may rebalance
     UFixed6 threshold;
 }
-// FIXME: Naming is pretty confusing here; maybe the struct above should be RebalanceMarketConfig and
-// this could be renamed RebalanceMarketConfigStorage and the library RebalanceMarketConfigLib
+
 struct RebalanceConfigStorage { uint256 slot0; }
 using RebalanceConfigLib for RebalanceConfigStorage global;
 
@@ -26,7 +25,7 @@ library RebalanceConfigLib {
         "RebalanceConfig(uint256 target,uint256 threshold)"
     );
 
-    /// sig: 0xd673935e
+    // sig: 0xd673935e
     error RebalanceConfigStorageInvalidError();
 
     /// @dev hashes this instance for inclusion in an EIP-712 message
@@ -61,7 +60,7 @@ library RebalanceConfigLib {
 /// @dev Action message to change configuration for a group of markets
 struct RebalanceConfigChange {
     /// @dev Identifies which group to change; indexed 1-8
-    uint256 group;
+    uint8 group;
     /// @dev List of 1-4 markets in which collateral shall be managed.
     /// Markets may be added to or removed from an existing group. Leave empty to delete the group.
     address[] markets;
@@ -77,7 +76,7 @@ using RebalanceConfigChangeLib for RebalanceConfigChange global;
 library RebalanceConfigChangeLib {
     /// @dev used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "RebalanceConfigChange(uint256 group,address[] markets,RebalanceConfig[] configs,Action action)"
+        "RebalanceConfigChange(uint8 group,address[] markets,RebalanceConfig[] configs,Action action)"
         "Action(uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
         "RebalanceConfig(uint256 target,uint256 threshold)"
