@@ -42,6 +42,9 @@ const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // p
 const DEFAULT_MAX_FEE = utils.parseEther('0.5')
 const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
+// hack around issues estimating gas for instrumented contracts when running tests under coverage
+const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
+
 describe('Controller_Arbitrum', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
@@ -81,20 +84,20 @@ describe('Controller_Arbitrum', () => {
   // deploys and funds a collateral account
   async function createCollateralAccount(user: SignerWithAddress, amount: BigNumber): Promise<Account> {
     const accountAddress = await controller.getAccountAddress(user.address)
-    await usdc.connect(userA).transfer(accountAddress, amount, { maxFeePerGas: 100000000 })
+    await usdc.connect(userA).transfer(accountAddress, amount, TX_OVERRIDES)
     const deployAccountMessage = {
       ...createAction(user.address, user.address),
     }
     const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
     const tx = await controller
       .connect(keeper)
-      .deployAccountWithSignature(deployAccountMessage, signatureCreate, { maxFeePerGas: 100000000 })
+      .deployAccountWithSignature(deployAccountMessage, signatureCreate, TX_OVERRIDES)
     // verify the address from event arguments
     const creationArgs = await getEventArguments(tx, 'AccountDeployed')
     expect(creationArgs.account).to.equal(accountAddress)
 
     // approve the collateral account as operator
-    await marketFactory.connect(user).updateOperator(accountAddress, true, { maxFeePerGas: 100000000 })
+    await marketFactory.connect(user).updateOperator(accountAddress, true, TX_OVERRIDES)
 
     return Account__factory.connect(accountAddress, user)
   }
@@ -318,9 +321,7 @@ describe('Controller_Arbitrum', () => {
 
       // perform transfer
       await expect(
-        controller
-          .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 350000000 }),
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, anyValue) // scale to token precision
@@ -342,9 +343,7 @@ describe('Controller_Arbitrum', () => {
 
       // perform transfer
       await expect(
-        controller
-          .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 100000000 }),
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, transferAmount.mul(1e12)) // scale to token precision
@@ -371,9 +370,7 @@ describe('Controller_Arbitrum', () => {
 
       // perform transfer
       await expect(
-        controller
-          .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 500000000 }),
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
@@ -387,7 +384,7 @@ describe('Controller_Arbitrum', () => {
     it('collects fee for withdrawing native deposit from market', async () => {
       // user directly deposits collateral to the market
       const depositAmount = parse6decimal('13000')
-      await fundWalletDSU(userA, depositAmount.mul(1e12), { maxFeePerGas: 150000000 })
+      await fundWalletDSU(userA, depositAmount.mul(1e12), TX_OVERRIDES)
       await market
         .connect(userA)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -397,7 +394,7 @@ describe('Controller_Arbitrum', () => {
           constants.MaxUint256,
           depositAmount,
           false,
-          { maxFeePerGas: 100000000 },
+          { maxFeePerGas: 150000000 },
         )
       expect((await market.locals(userA.address)).collateral).to.equal(depositAmount)
 
@@ -411,9 +408,7 @@ describe('Controller_Arbitrum', () => {
 
       // perform transfer
       await expect(
-        controller
-          .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 150000000 }),
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
@@ -428,7 +423,7 @@ describe('Controller_Arbitrum', () => {
       // deposit 12k
       await deposit()
       // withdraw dust so it cannot be used to pay the keeper
-      await accountA.withdraw(constants.MaxUint256, true, { maxFeePerGas: 300000000 })
+      await accountA.withdraw(constants.MaxUint256, true, TX_OVERRIDES)
       expect(await dsu.balanceOf(accountA.address)).to.equal(0)
 
       // sign a message to withdraw 2k from the market back into the collateral account
@@ -442,9 +437,7 @@ describe('Controller_Arbitrum', () => {
 
       // perform transfer
       await expect(
-        controller
-          .connect(keeper)
-          .marketTransferWithSignature(marketTransferMessage, signature, { maxFeePerGas: 300000000 }),
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       )
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, anyValue)
@@ -475,9 +468,7 @@ describe('Controller_Arbitrum', () => {
       const signature = await signRebalanceConfigChange(userA, verifier, message)
 
       // create the group
-      await expect(
-        controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, { maxFeePerGas: 150000000 }),
-      )
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES))
         .to.emit(controller, 'RebalanceMarketConfigured')
         .withArgs(userA.address, message.group, market.address, message.configs[0])
         .to.emit(controller, 'RebalanceGroupConfigured')
@@ -509,7 +500,7 @@ describe('Controller_Arbitrum', () => {
 
     it('collects fee for partial withdrawal from a delegated signer', async () => {
       // configure userB as delegated signer
-      await controller.connect(userA).updateSigner(userB.address, true, { maxFeePerGas: 100000000 })
+      await controller.connect(userA).updateSigner(userB.address, true, TX_OVERRIDES)
 
       // delegate signs message for partial withdrawal
       const withdrawalAmount = parse6decimal('7000')
@@ -521,9 +512,7 @@ describe('Controller_Arbitrum', () => {
       const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
 
       // perform withdrawal and check balance
-      await expect(
-        controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, { maxFeePerGas: 100000000 }),
-      )
+      await expect(controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, TX_OVERRIDES))
         .to.emit(usdc, 'Transfer')
         .withArgs(accountA.address, userA.address, anyValue)
         .to.emit(controller, 'KeeperCall')
@@ -544,9 +533,7 @@ describe('Controller_Arbitrum', () => {
       const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 
       // perform withdrawal and check balances
-      await expect(
-        controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, { maxFeePerGas: 100000000 }),
-      )
+      await expect(controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, TX_OVERRIDES))
         .to.emit(usdc, 'Transfer')
         .withArgs(accountA.address, userA.address, anyValue)
         .to.emit(controller, 'KeeperCall')

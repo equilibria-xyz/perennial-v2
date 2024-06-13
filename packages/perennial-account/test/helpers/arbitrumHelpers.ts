@@ -12,7 +12,6 @@ import {
   Controller,
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
-  IController,
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
