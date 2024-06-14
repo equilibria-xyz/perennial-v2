@@ -6,7 +6,7 @@ import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 
-import { Controller__factory, IERC20Metadata } from '../../types/generated'
+import { Controller__factory, IERC20Metadata, RebalanceLib__factory } from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -135,7 +135,12 @@ export async function createMarket(
   return market
 }
 export async function deployController(owner: SignerWithAddress): Promise<Controller> {
-  const controller = await new Controller__factory(owner).deploy()
+  const controller = await new Controller__factory(
+    {
+      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy()
   return controller
 }
 

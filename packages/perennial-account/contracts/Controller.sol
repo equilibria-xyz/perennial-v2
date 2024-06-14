@@ -8,12 +8,12 @@ import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-// TODO: only needed for checking rebalance; can probably move to external library
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
+import { RebalanceLib } from "./libs/RebalanceLib.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
@@ -25,7 +25,6 @@ import {
 } from "./types/RebalanceConfig.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
-import "hardhat/console.sol";
 
 /// @title Controller
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
@@ -221,26 +220,25 @@ contract Controller is Instance, IController {
         account.withdraw(withdrawal.amount, withdrawal.unwrap);
     }
 
-    // TODO: interface and doco
-    function checkGroup(address owner, uint8 group) public returns (address[] memory marketsToRebalance) {
-        // TODO: can we make this O(n) instead of O(2n)?
-
-        Fixed6 totalGroupCollateral;
+    /// @inheritdoc IController
+    function checkGroup(address owner, uint8 group) public returns (Fixed6 groupCollateral, bool canRebalance) {
+        // query owner's collateral in each market and calculate sum
         Fixed6[] memory actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
-        for (uint256 i; i < groupToMarkets[owner][group].length; ++i) {
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
             IMarket market = IMarket(groupToMarkets[owner][group][i]);
             Fixed6 collateral = market.locals(owner).collateral;
             actualCollateral[i] = collateral;
-            totalGroupCollateral = totalGroupCollateral.add(collateral);
+            groupCollateral = groupCollateral.add(collateral);
         }
 
-        for (uint256 i; i < actualCollateral.length; ++i) {
+        // determine if anything is outside the rebalance threshold
+        for (uint256 i; i < actualCollateral.length; i++) {
             address marketAddress = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketConfig = config[owner][group][marketAddress];
-            Fixed6 desired = totalGroupCollateral.mul(Fixed6Lib.from(marketConfig.target));
-            Fixed6 pctDifference = desired.div(actualCollateral[i]);
-            console.log("market %s has pctDifference", i);
-            console.logInt(Fixed6.unwrap(pctDifference));
+            (, bool canMarketRebalance) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
+            if (canMarketRebalance) {
+                return (groupCollateral, true);
+            }
         }
     }
 

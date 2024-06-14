@@ -11,7 +11,7 @@ import { Account, Account__factory, Controller, IERC20Metadata, IVerifier } from
 import { IVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
 import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
-import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helpers/erc712'
+import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
 import {
   createMarketFactory,
@@ -30,7 +30,7 @@ describe('ControllerBase', () => {
   let controller: Controller
   let verifier: IVerifier
   let marketFactory: IMarketFactory
-  let market: IMarket
+  let ethMarket: IMarket
   let keeperOracle: IKeeperOracle
   let accountA: Account
   let owner: SignerWithAddress
@@ -44,7 +44,7 @@ describe('ControllerBase', () => {
   // create a default action for the specified user with reasonable fee and expiry
   function createAction(
     userAddress: Address,
-    signerAddress: Address,
+    signerAddress = userAddress,
     maxFee = utils.parseEther('14'),
     expiresInSeconds = 60,
   ) {
@@ -66,12 +66,12 @@ describe('ControllerBase', () => {
   // updates the oracle (optionally changing price) and settles the market
   async function advanceAndSettle(user: SignerWithAddress, timestamp = currentTime, price = lastPrice) {
     await advanceToPrice(keeperOracle, timestamp, price)
-    await market.settle(user.address)
+    await ethMarket.settle(user.address)
   }
 
   // ensures user has expected amount of collateral in a market
   async function expectMarketCollateralBalance(user: SignerWithAddress, amount: BigNumber) {
-    const local = await market.locals(user.address)
+    const local = await ethMarket.locals(user.address)
     expect(local.collateral).to.equal(amount)
   }
 
@@ -93,14 +93,19 @@ describe('ControllerBase', () => {
     newLong = constants.MaxUint256,
     newShort = constants.MaxUint256,
   ): Promise<BigNumber> {
-    const tx = await market
+    const tx = await ethMarket
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, newMaker, newLong, newShort, 0, false)
     return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
   }
 
   // performs a market transfer, returning the timestamp of the order produced
-  async function transfer(amount: BigNumber, user: SignerWithAddress, signer = user): Promise<BigNumber> {
+  async function transfer(
+    amount: BigNumber,
+    user: SignerWithAddress,
+    market = ethMarket,
+    signer = user,
+  ): Promise<BigNumber> {
     const marketTransferMessage = {
       market: market.address,
       amount: amount,
@@ -146,7 +151,7 @@ describe('ControllerBase', () => {
     const accountAddressA = await controller.getAccountAddress(userA.address)
     await dsu.connect(userA).transfer(accountAddressA, utils.parseEther('15000'))
     const deployAccountMessage = {
-      ...createAction(userA.address, userA.address),
+      ...createAction(userA.address),
     }
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
     await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature)
@@ -155,7 +160,7 @@ describe('ControllerBase', () => {
     // create a market
     marketFactory = await createMarketFactory(owner)
     let oracle: IOracleProvider
-    ;[market, oracle, keeperOracle] = await createMarketETH(owner, marketFactory, dsu)
+    ;[ethMarket, oracle, keeperOracle] = await createMarketETH(owner, marketFactory, dsu)
     lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
 
     // approve the collateral account as operator
@@ -167,20 +172,49 @@ describe('ControllerBase', () => {
     await loadFixture(fixture)
   })
 
-  describe('#rebalance', () => {
-    let btcMarket
+  describe.only('#rebalance', () => {
+    let btcMarket: IMarket
 
-    before(async () => {
-      currentTime = BigNumber.from(await currentBlockTimestamp())
-      await loadFixture(fixture)
+    beforeEach(async () => {
+      // create another market
       let btcOracle
       ;[btcMarket, btcOracle] = await createMarketBTC(owner, marketFactory, dsu)
       console.log('btc price', (await btcOracle.status())[0].price)
+
+      // configure a group with both markets
+      const message = {
+        group: 1,
+        markets: [ethMarket.address, btcMarket.address],
+        configs: [
+          { target: parse6decimal('0.65'), threshold: parse6decimal('0.04') },
+          { target: parse6decimal('0.35'), threshold: parse6decimal('0.03') },
+        ],
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)).to.not.be.reverted
     })
 
-    it('can check a group', async () => {
-      // transfer all funds to the market
-      await transfer(parse6decimal('15000'), userA)
+    it('can check a group within targets', async () => {
+      // transfer funds to the markets
+      await transfer(parse6decimal('9700'), userA, ethMarket)
+      await transfer(parse6decimal('5000'), userA, btcMarket)
+
+      // check the group
+      const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
+      expect(groupCollateral).to.equal(parse6decimal('14700'))
+      expect(canRebalance).to.be.false
+    })
+
+    it('can check a group outside of targets', async () => {
+      // transfer funds to the markets
+      await transfer(parse6decimal('5000'), userA, ethMarket)
+      await transfer(parse6decimal('5000'), userA, btcMarket)
+
+      // check the group
+      const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
+      expect(groupCollateral).to.equal(parse6decimal('10000'))
+      expect(canRebalance).to.be.true
     })
   })
 
@@ -220,7 +254,7 @@ describe('ControllerBase', () => {
 
       // sign a message to deposit 4k from the collateral account to the market
       const transferAmount = parse6decimal('4000')
-      await transfer(transferAmount, userA, userB)
+      await transfer(transferAmount, userA, ethMarket, userB)
 
       // verify balances
       await expectMarketCollateralBalance(userA, transferAmount)
@@ -269,20 +303,20 @@ describe('ControllerBase', () => {
       // create a maker position
       currentTime = await changePosition(userA, parse6decimal('1.5'))
       await advanceAndSettle(userA)
-      expect((await market.positions(userA.address)).maker).to.equal(parse6decimal('1.5'))
+      expect((await ethMarket.positions(userA.address)).maker).to.equal(parse6decimal('1.5'))
 
       // sign a message to fully withdraw from the market
       const marketTransferMessage = {
-        market: market.address,
+        market: ethMarket.address,
         amount: constants.MinInt256,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
       // ensure transfer reverts
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
-      ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+      ).to.be.revertedWithCustomError(ethMarket, 'MarketInsufficientMarginError')
 
       await expectMarketCollateralBalance(userA, parse6decimal('7000'))
     })
@@ -294,7 +328,7 @@ describe('ControllerBase', () => {
       // unauthorized user signs transfer message
       expect(await controller.signers(accountA.address, userB.address)).to.be.false
       const marketTransferMessage = {
-        market: market.address,
+        market: ethMarket.address,
         amount: constants.MinInt256,
         ...createAction(userA.address, userB.address),
       }
@@ -314,7 +348,7 @@ describe('ControllerBase', () => {
       const withdrawalMessage = {
         amount: withdrawalAmount,
         unwrap: true,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 

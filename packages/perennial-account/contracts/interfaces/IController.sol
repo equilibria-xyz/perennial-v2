@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
@@ -116,6 +117,13 @@ interface IController {
     /// @param signature ERC712 message signature
     function changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange,
         bytes calldata signature) external;
+
+    /// @notice Checks all markets in a rebalance group to see if anything may be rebalanced
+    /// @param owner User whose collateral account may be rebalanced using this group
+    /// @param group Identifies the group within the context of the owner
+    /// @return groupCollateral Sum of ower's collateral across each market in the group
+    /// @return canRebalance True if one or more markets in the group are eligible for rebalancing
+    function checkGroup(address owner, uint8 group) external returns (Fixed6 groupCollateral, bool canRebalance);
 
     /// @notice Retrieves rebalance configuration for a specified owner, group, and market
     /// @param owner User for whom the collateral account was created
