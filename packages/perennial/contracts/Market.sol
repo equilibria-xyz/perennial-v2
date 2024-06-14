@@ -292,17 +292,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
+        // load latest state
         Global memory newGlobal = _global.read();
-
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
 
+        // update risk parameter (first to capture truncation)
+        _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
+        newRiskParameter = _riskParameter.read();
+
+        // update global exposure
         newGlobal.exposure = newGlobal.exposure.sub(latestRiskParameter.takerFee
                 .update(newRiskParameter.takerFee, latestPosition.skew(), newGlobal.latestPrice.abs()));
-
-        // update
         _global.store(newGlobal);
-        _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
 
         emit RiskParameterUpdated(newRiskParameter);
     }
