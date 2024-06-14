@@ -15,10 +15,11 @@ import { signDeployAccount, signMarketTransfer, signWithdrawal } from '../helper
 import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
 import {
   createMarketFactory,
-  createMarketForOracle,
+  createMarketETH,
   deployAndInitializeController,
   fundWalletDSU,
   fundWalletUSDC,
+  createMarketBTC,
 } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
@@ -98,6 +99,42 @@ describe('ControllerBase', () => {
     return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
   }
 
+  // performs a market transfer, returning the timestamp of the order produced
+  async function transfer(amount: BigNumber, user: SignerWithAddress, signer = user): Promise<BigNumber> {
+    const marketTransferMessage = {
+      market: market.address,
+      amount: amount,
+      ...createAction(user.address, signer.address),
+    }
+    const signature = await signMarketTransfer(signer, verifier, marketTransferMessage)
+
+    // determine expected event parameters
+    let expectedFrom: Address, expectedTo: Address, expectedAmount: BigNumber
+    if (amount.gt(constants.Zero)) {
+      // deposits transfer from collateral account into market
+      expectedFrom = accountA.address
+      expectedTo = market.address
+      if (amount === constants.MaxInt256) expectedAmount = await dsu.balanceOf(accountA.address)
+      else expectedAmount = amount.mul(1e12)
+    } else {
+      // withdrawals transfer from market into account
+      expectedFrom = market.address
+      expectedTo = accountA.address
+      if (amount === constants.MinInt256) expectedAmount = (await market.locals(user.address)).collateral.mul(1e12)
+      else expectedAmount = amount.mul(-1e12)
+    }
+
+    // perform transfer
+    await expect(await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+      .to.emit(dsu, 'Transfer')
+      .withArgs(expectedFrom, expectedTo, expectedAmount)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(userA.address, anyValue, anyValue)
+
+    const order = await market.pendingOrders(user.address, (await market.global()).currentId)
+    return order.timestamp
+  }
+
   const fixture = async () => {
     // set up users and deploy artifacts
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
@@ -118,7 +155,7 @@ describe('ControllerBase', () => {
     // create a market
     marketFactory = await createMarketFactory(owner)
     let oracle: IOracleProvider
-    ;[market, oracle, keeperOracle] = await createMarketForOracle(owner, marketFactory, dsu)
+    ;[market, oracle, keeperOracle] = await createMarketETH(owner, marketFactory, dsu)
     lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
 
     // approve the collateral account as operator
@@ -130,43 +167,24 @@ describe('ControllerBase', () => {
     await loadFixture(fixture)
   })
 
+  describe('#rebalance', () => {
+    let btcMarket
+
+    before(async () => {
+      currentTime = BigNumber.from(await currentBlockTimestamp())
+      await loadFixture(fixture)
+      let btcOracle
+      ;[btcMarket, btcOracle] = await createMarketBTC(owner, marketFactory, dsu)
+      console.log('btc price', (await btcOracle.status())[0].price)
+    })
+
+    it('can check a group', async () => {
+      // transfer all funds to the market
+      await transfer(parse6decimal('15000'), userA)
+    })
+  })
+
   describe('#transfer', () => {
-    // performs a market transfer, returning the timestamp of the order produced
-    async function transfer(amount: BigNumber, user: SignerWithAddress, signer = user): Promise<BigNumber> {
-      const marketTransferMessage = {
-        market: market.address,
-        amount: amount,
-        ...createAction(user.address, signer.address),
-      }
-      const signature = await signMarketTransfer(signer, verifier, marketTransferMessage)
-
-      // determine expected event parameters
-      let expectedFrom: Address, expectedTo: Address, expectedAmount: BigNumber
-      if (amount.gt(constants.Zero)) {
-        // deposits transfer from collateral account into market
-        expectedFrom = accountA.address
-        expectedTo = market.address
-        if (amount === constants.MaxInt256) expectedAmount = await dsu.balanceOf(accountA.address)
-        else expectedAmount = amount.mul(1e12)
-      } else {
-        // withdrawals transfer from market into account
-        expectedFrom = market.address
-        expectedTo = accountA.address
-        if (amount === constants.MinInt256) expectedAmount = (await market.locals(user.address)).collateral.mul(1e12)
-        else expectedAmount = amount.mul(-1e12)
-      }
-
-      // perform transfer
-      await expect(await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
-        .to.emit(dsu, 'Transfer')
-        .withArgs(expectedFrom, expectedTo, expectedAmount)
-        .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
-
-      const order = await market.pendingOrders(user.address, (await market.global()).currentId)
-      return order.timestamp
-    }
-
     it('can deposit funds to a market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
       const transferAmount = parse6decimal('6000')

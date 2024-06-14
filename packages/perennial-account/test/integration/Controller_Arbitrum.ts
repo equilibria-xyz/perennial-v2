@@ -28,7 +28,7 @@ import {
 } from '../helpers/erc712'
 import {
   createMarketFactory,
-  createMarketForOracle,
+  createMarketETH,
   deployAndInitializeController,
   deployControllerArbitrum,
   fundWalletDSU,
@@ -118,7 +118,7 @@ describe('Controller_Arbitrum', () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
     ;[dsu, usdc] = await deployAndInitializeController(owner)
     marketFactory = await createMarketFactory(owner)
-    ;[market, ,] = await createMarketForOracle(owner, marketFactory, dsu)
+    ;[market, ,] = await createMarketETH(owner, marketFactory, dsu)
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
     // set up users and deploy artifacts
