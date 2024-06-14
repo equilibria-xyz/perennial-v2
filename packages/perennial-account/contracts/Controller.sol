@@ -224,10 +224,10 @@ contract Controller is Instance, IController {
     ) private {
         // ensure group index is valid
         if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER)
-            revert IController.ControllerInvalidRebalanceGroup();
+            revert ControllerInvalidRebalanceGroup();
 
         if (message.markets.length > MAX_MARKETS_PER_GROUP)
-            revert IController.ControllerInvalidRebalanceMarkets();
+            revert ControllerInvalidRebalanceMarkets();
 
         // delete the existing group
         for (uint256 i; i < groupToMarkets[owner][message.group].length; i++) {
@@ -242,7 +242,7 @@ contract Controller is Instance, IController {
             // ensure market is not pointing to a different group
             uint256 currentGroup = marketToGroup[owner][message.markets[i]];
             if (currentGroup != 0)
-                revert IController.ControllerMarketAlreadyInGroup(message.markets[i], currentGroup);
+                revert ControllerMarketAlreadyInGroup(message.markets[i], currentGroup);
 
             // rewrite over all the old configuration
             marketToGroup[owner][message.markets[i]] = message.group;
@@ -253,7 +253,7 @@ contract Controller is Instance, IController {
             // read from storage to trap duplicate markets in the message
             totalAllocation = totalAllocation.add(message.configs[i].target);
 
-            emit IController.RebalanceMarketConfigured(
+            emit RebalanceMarketConfigured(
                 owner,
                 message.group,
                 message.markets[i],
@@ -263,8 +263,8 @@ contract Controller is Instance, IController {
 
         // if not deleting the group, ensure rebalance targets add to 100%
         if (message.markets.length != 0 && !totalAllocation.eq(UFixed6Lib.ONE))
-            revert IController.ControllerInvalidRebalanceTargets();
+            revert ControllerInvalidRebalanceTargets();
 
-        emit IController.RebalanceGroupConfigured(owner, message.group, message.markets.length);
+        emit RebalanceGroupConfigured(owner, message.group, message.markets.length);
     }
 }
