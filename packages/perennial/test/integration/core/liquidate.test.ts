@@ -39,7 +39,7 @@ describe('Liquidate', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
         { ...DEFAULT_GUARANTEE },
-        constants.AddressZero,
+        userB.address,
         constants.AddressZero,
         constants.AddressZero,
       )
@@ -180,7 +180,7 @@ describe('Liquidate', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
         { ...DEFAULT_GUARANTEE },
-        constants.AddressZero,
+        userB.address,
         constants.AddressZero,
         constants.AddressZero,
       )
@@ -294,7 +294,7 @@ describe('Liquidate', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_3, orders: 1, makerNeg: parse6decimal('5'), protection: 1 },
         { ...DEFAULT_GUARANTEE },
-        constants.AddressZero,
+        userC.address,
         constants.AddressZero,
         constants.AddressZero,
       )
@@ -366,8 +366,8 @@ describe('Liquidate', () => {
           makerReferral: parse6decimal('1.2'),
         },
         { ...DEFAULT_GUARANTEE },
-        constants.AddressZero,
-        constants.AddressZero,
+        userB.address,
+        userC.address,
         constants.AddressZero,
       )
 
