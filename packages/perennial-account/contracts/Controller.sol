@@ -230,7 +230,7 @@ contract Controller is Instance, IController {
             revert IController.ControllerInvalidRebalanceMarkets();
 
         // delete the existing group
-        for (uint256 i; i < groupToMarkets[owner][message.group].length; ++i) {
+        for (uint256 i; i < groupToMarkets[owner][message.group].length; i++) {
             address market = groupToMarkets[owner][message.group][i];
             delete config[owner][message.group][market];
             delete marketToGroup[owner][market];
@@ -238,7 +238,7 @@ contract Controller is Instance, IController {
         delete groupToMarkets[owner][message.group];
 
         UFixed6 totalAllocation;
-        for (uint256 i; i < message.markets.length; ++i) {
+        for (uint256 i; i < message.markets.length; i++) {
             // ensure market is not pointing to a different group
             uint256 currentGroup = marketToGroup[owner][message.markets[i]];
             if (currentGroup != 0)
