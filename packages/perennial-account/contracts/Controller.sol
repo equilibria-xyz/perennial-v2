@@ -251,8 +251,8 @@ contract Controller is Instance, IController {
 
             // ensure target allocation across all markets totals 100%
             // read from storage to trap duplicate markets in the message
-            totalAllocation = totalAllocation.add(
-                config[owner][message.group][message.markets[i]].target
+            totalAllocation = totalAllocation
+                .add(config[owner][message.group][message.markets[i]].target
             );
 
             emit IController.RebalanceMarketConfigured(
