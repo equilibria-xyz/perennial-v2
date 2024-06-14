@@ -491,7 +491,7 @@ describe('Orders', () => {
             { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
-            constants.AddressZero,
+            userB.address,
             constants.AddressZero,
           )
           .to.emit(market, 'OrderCreated')
@@ -506,7 +506,7 @@ describe('Orders', () => {
             },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
-            constants.AddressZero,
+            userB.address,
             constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
@@ -559,7 +559,7 @@ describe('Orders', () => {
             { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
-            constants.AddressZero,
+            userB.address,
             constants.AddressZero,
           )
           .to.emit(market, 'OrderCreated')
@@ -568,7 +568,7 @@ describe('Orders', () => {
             { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition, takerReferral: 5e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
-            constants.AddressZero,
+            userB.address,
             constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
@@ -623,7 +623,7 @@ describe('Orders', () => {
             { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
-            constants.AddressZero,
+            userB.address,
             constants.AddressZero,
           )
           .to.emit(market, 'OrderCreated')
@@ -632,7 +632,7 @@ describe('Orders', () => {
             { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition, takerReferral: 5e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
-            constants.AddressZero,
+            userB.address,
             constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
