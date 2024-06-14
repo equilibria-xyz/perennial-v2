@@ -9,7 +9,8 @@ import { IAccount } from "../interfaces/IAccount.sol";
 import { IVerifier } from "../interfaces/IVerifier.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
-import { RebalanceConfig, RebalanceConfigChange } from "../types/RebalanceConfig.sol";
+import { RebalanceConfig } from "../types/RebalanceConfig.sol";
+import { RebalanceConfigChange } from "../types/RebalanceConfigChange.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 

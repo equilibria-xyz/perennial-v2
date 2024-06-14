@@ -15,12 +15,8 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
-import {
-    RebalanceConfig,
-    RebalanceConfigLib,
-    RebalanceConfigChange,
-    RebalanceConfigChangeLib
-} from "./types/RebalanceConfig.sol";
+import { RebalanceConfig, RebalanceConfigLib } from "./types/RebalanceConfig.sol";
+import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
