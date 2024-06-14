@@ -7,7 +7,7 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
@@ -151,15 +151,7 @@ contract Controller is Instance, IController {
         _ensureValidSigner(configChange.action.common.account, configChange.action.common.signer);
 
         // sum of the target allocations of all markets in the group
-        UFixed6 totalAllocation;
-        // put this on the stack for readability
-        address owner = configChange.action.common.account;
-
-        totalAllocation = _updateRebalanceGroup(configChange, owner);
-
-        // if not deleting the group, ensure rebalance targets add to 100%
-        if (configChange.markets.length != 0 && !totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
-            revert IController.ControllerInvalidRebalanceTargets();
+        _updateRebalanceGroup(configChange, configChange.action.common.account);
     }
 
     /// @inheritdoc IController
@@ -229,7 +221,7 @@ contract Controller is Instance, IController {
     function _updateRebalanceGroup(
         RebalanceConfigChange calldata message,
         address owner
-    ) private returns (UFixed6 totalAllocation) {
+    ) private {
         // ensure group index is valid
         if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER)
             revert IController.ControllerInvalidRebalanceGroup();
@@ -245,6 +237,7 @@ contract Controller is Instance, IController {
         }
         delete groupToMarkets[owner][message.group];
 
+        UFixed6 totalAllocation;
         for (uint256 i; i < message.markets.length; ++i) {
             // ensure market is not pointing to a different group
             uint256 currentGroup = marketToGroup[owner][message.markets[i]];
@@ -269,6 +262,10 @@ contract Controller is Instance, IController {
                 message.configs[i]
             );
         }
+
+        // if not deleting the group, ensure rebalance targets add to 100%
+        if (message.markets.length != 0 && !totalAllocation.eq(UFixed6Lib.ONE))
+            revert IController.ControllerInvalidRebalanceTargets();
 
         emit IController.RebalanceGroupConfigured(owner, message.group, message.markets.length);
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Action, ActionLib } from "./Action.sol";
 import { IController } from "../interfaces/IController.sol";
 
@@ -20,8 +20,6 @@ using RebalanceConfigLib for RebalanceConfigStorage global;
 /// @title RebalanceConfigLib
 /// @notice Library used to hash and manage storage for rebalancing configuration for a single market
 library RebalanceConfigLib {
-    UFixed6 constant public MAX_PERCENT = UFixed6.wrap(1e6); // 100%
-
     bytes32 constant public STRUCT_HASH = keccak256(
         "RebalanceConfig(uint256 target,uint256 threshold)"
     );
@@ -45,8 +43,8 @@ library RebalanceConfigLib {
 
     /// @dev ensures values do not exceed 100% and writes them to a single storage slot
     function store(RebalanceConfigStorage storage self, RebalanceConfig memory newValue) external {
-        if (newValue.target.gt(MAX_PERCENT)) revert RebalanceConfigStorageInvalidError();
-        if (newValue.threshold.gt(MAX_PERCENT)) revert RebalanceConfigStorageInvalidError();
+        if (newValue.target.gt(UFixed6Lib.ONE)) revert RebalanceConfigStorageInvalidError();
+        if (newValue.threshold.gt(UFixed6Lib.ONE)) revert RebalanceConfigStorageInvalidError();
 
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.target)    << (256 - 32)) >> (256 - 32) |
