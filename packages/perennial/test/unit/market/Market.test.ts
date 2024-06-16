@@ -19117,7 +19117,7 @@ describe('Market', () => {
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
-              constants.AddressZero,
+              liquidator.address,
               constants.AddressZero,
             )
 
@@ -19228,7 +19228,7 @@ describe('Market', () => {
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
-              constants.AddressZero,
+              liquidator.address,
               constants.AddressZero,
             )
 
@@ -19372,7 +19372,7 @@ describe('Market', () => {
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
-              constants.AddressZero,
+              user.address,
               constants.AddressZero,
             )
 
