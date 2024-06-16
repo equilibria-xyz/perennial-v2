@@ -28,9 +28,12 @@ struct ProtocolParameter {
 
     /// @dev The default referrer fee percentage for orders
     UFixed6 referralFee;
+
+    /// @dev The minimum ratio between scale vs makerLimit / efficiencyLimit
+    UFixed6 minScale;
 }
 struct StoredProtocolParameter {
-    /* slot 0 */
+    /* slot 0 (31) */
     uint24 protocolFee;             // <= 1677%
     uint24 maxFee;                  // <= 1677%
     uint48 maxFeeAbsolute;          // <= 281m
@@ -39,6 +42,7 @@ struct StoredProtocolParameter {
     uint24 minMaintenance;          // <= 1677%
     uint24 minEfficiency;           // <= 1677%
     uint24 referralFee;             // <= 1677%
+    uint24 minScale;                // <= 1677%
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; } // SECURITY: must remain at (1) slots
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -57,7 +61,8 @@ library ProtocolParameterStorageLib {
             UFixed6.wrap(uint256(value.maxRate)),
             UFixed6.wrap(uint256(value.minMaintenance)),
             UFixed6.wrap(uint256(value.minEfficiency)),
-            UFixed6.wrap(uint256(value.referralFee))
+            UFixed6.wrap(uint256(value.referralFee)),
+            UFixed6.wrap(uint256(value.minScale))
         );
     }
 
@@ -65,6 +70,7 @@ library ProtocolParameterStorageLib {
         if (self.protocolFee.gt(self.maxCut)) revert ProtocolParameterStorageInvalidError();
         if (self.maxCut.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
         if (self.referralFee.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
+        if (self.minScale.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
     }
 
     function validateAndStore(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
@@ -84,7 +90,8 @@ library ProtocolParameterStorageLib {
             uint32(UFixed6.unwrap(newValue.maxRate)),
             uint24(UFixed6.unwrap(newValue.minMaintenance)),
             uint24(UFixed6.unwrap(newValue.minEfficiency)),
-            uint24(UFixed6.unwrap(newValue.referralFee))
+            uint24(UFixed6.unwrap(newValue.referralFee)),
+            uint24(UFixed6.unwrap(newValue.minScale))
         );
     }
 }
