@@ -1,9 +1,10 @@
 {
   "name": "@equilibria/perennial-v2-extensions",
-  "version": "1.1.0-rc1",
+  "version": "1.2.1",
   "description": "Perennial V2 Extensions",
   "files": [
     "contracts/interfaces",
+    "contracts/libs",
     "contracts/types",
     "artifacts/contracts/interfaces",
     "deployments/!(localhost)"
@@ -28,8 +29,8 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@equilibria/emptyset-batcher": "^0.1.0",
-    "@equilibria/perennial-v2": "1.1.0-rc1",
-    "@equilibria/perennial-v2-oracle": "1.1.0-rc1"
+    "@equilibria/perennial-v2": "1.2.1",
+    "@equilibria/perennial-v2-oracle": "1.2.1"
   },
   "devDependencies": {
     "@ethersproject/abstract-provider": "^5"

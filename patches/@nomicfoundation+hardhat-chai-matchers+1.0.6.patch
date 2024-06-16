@@ -1,20 +1,22 @@
 diff --git a/node_modules/@nomicfoundation/hardhat-chai-matchers/internal/emit.js b/node_modules/@nomicfoundation/hardhat-chai-matchers/internal/emit.js
-index 9251f34..865651a 100644
+index 9251f34..478facb 100644
 --- a/node_modules/@nomicfoundation/hardhat-chai-matchers/internal/emit.js
 +++ b/node_modules/@nomicfoundation/hardhat-chai-matchers/internal/emit.js
-@@ -112,6 +112,12 @@ function assertArgsArraysEqual(context, Assertion, chaiUtils, expectedArgs, log,
+@@ -112,7 +112,13 @@ function assertArgsArraysEqual(context, Assertion, chaiUtils, expectedArgs, log,
                  new Assertion(actualArgs[index].hash, undefined, ssfi, true).to.equal(expectedHash, `The actual value was an indexed and hashed value of the event argument. The expected value provided to the assertion was hashed to produce ${expectedHash}. The actual hash and the expected hash did not match`);
              }
              else {
+-                new Assertion(actualArgs[index], undefined, ssfi, true).equal(expectedArgs[index]);
 +                if (isStruct(actualArgs[index])) {
 +                    new Assertion(
 +                        convertStructToPlainObject(actualArgs[index])
 +                    ).to.deep.equal(expectedArgs[index]);
-+                    return;
++                } else {
++                    new Assertion(actualArgs[index], undefined, ssfi, true).equal(expectedArgs[index]);
 +                }
-                 new Assertion(actualArgs[index], undefined, ssfi, true).equal(expectedArgs[index]);
              }
          }
+     }
 @@ -135,4 +141,23 @@ const tryAssertArgsArraysEqual = (context, Assertion, chaiUtils, expectedArgs, l
      const eventName = chaiUtils.flag(context, "eventName");
      assert(false, `The specified arguments (${util_1.default.inspect(expectedArgs)}) were not included in any of the ${context.logs.length} emitted "${eventName}" events`);
