@@ -25,6 +25,7 @@ import {
 } from "./types/RebalanceConfig.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
+import "hardhat/console.sol";
 
 /// @title Controller
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
@@ -223,28 +224,79 @@ contract Controller is Instance, IController {
     /// @inheritdoc IController
     function checkGroup(address owner, uint8 group) public returns (Fixed6 groupCollateral, bool canRebalance) {
         // query owner's collateral in each market and calculate sum
-        Fixed6[] memory actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
-        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
-            IMarket market = IMarket(groupToMarkets[owner][group][i]);
-            Fixed6 collateral = market.locals(owner).collateral;
-            actualCollateral[i] = collateral;
-            groupCollateral = groupCollateral.add(collateral);
-        }
+        Fixed6[] memory actualCollateral;
+        (actualCollateral, groupCollateral) = _queryMarketCollateral(owner, group);
 
         // determine if anything is outside the rebalance threshold
         for (uint256 i; i < actualCollateral.length; i++) {
             address marketAddress = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketConfig = config[owner][group][marketAddress];
-            (, bool canMarketRebalance) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
+            (bool canMarketRebalance, ) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
             if (canMarketRebalance) {
                 return (groupCollateral, true);
             }
         }
     }
 
+    /// @inheritdoc IController
+    function rebalanceGroup(address owner, uint8 group) public {
+        // query owner's collateral in each market and calculate sum
+        Fixed6[] memory actualCollateral;
+        Fixed6 groupCollateral;
+        (actualCollateral, groupCollateral) = _queryMarketCollateral(owner, group);
+        IAccount account = IAccount(getAccountAddress(owner));
+
+        // create an array with imbalances, pull collateral from any markets with positive imbalance
+        address marketAddress;
+        bool canMarketRebalance;
+        bool canAnyMarketRebalance;
+        Fixed6 imbalance;
+        Fixed6[] memory imbalances = new Fixed6[](actualCollateral.length);
+        for (uint256 i; i < actualCollateral.length; i++) {
+            // console.log("actualCollateral[%s] is %s", i, UFixed6.unwrap(actualCollateral[i].abs()));
+            marketAddress = groupToMarkets[owner][group][i];
+            RebalanceConfig memory marketConfig = config[owner][group][marketAddress];
+            (canMarketRebalance, imbalance) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
+            imbalances[i] = imbalance;
+            canAnyMarketRebalance = canAnyMarketRebalance || canMarketRebalance;
+            if (Fixed6.unwrap(imbalances[i]) > 0) {
+                console.log("pulling %s collateral from %s", UFixed6.unwrap(imbalances[i].abs()), marketAddress);
+                account.marketTransfer(IMarket(marketAddress), imbalances[i].mul(Fixed6Lib.NEG_ONE));
+            }
+        }
+
+        if (!canAnyMarketRebalance) revert ControllerGroupBalanced();
+
+        // push collateral to any markets with negative imbalance
+        console.log("imbalances length %s", imbalances.length);
+        for (uint256 i; i < imbalances.length; i++) {
+            marketAddress = groupToMarkets[owner][group][i];
+            if (Fixed6.unwrap(imbalances[i]) < 0) {
+                console.log("pushing %s collateral to %s", UFixed6.unwrap(imbalances[i].abs()), marketAddress);
+                account.marketTransfer(IMarket(marketAddress), imbalances[i].mul(Fixed6Lib.NEG_ONE));
+            }
+        }
+
+        emit GroupRebalanced(owner, group);
+    }
+
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner, address signer) private view {
         if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
+    }
+
+    function _queryMarketCollateral(address owner, uint8 group) private returns (
+        Fixed6[] memory actualCollateral,
+        Fixed6 groupCollateral
+    ) {
+        actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
+            IMarket market = IMarket(groupToMarkets[owner][group][i]);
+            Fixed6 collateral = market.locals(owner).collateral;
+            actualCollateral[i] = collateral;
+            // console.log("set element %s to %s", i, UFixed6.unwrap(collateral.abs()));
+            groupCollateral = groupCollateral.add(collateral);
+        }
     }
 
     /// @dev overwrites rebalance configuration of all markets for a particular owner and group

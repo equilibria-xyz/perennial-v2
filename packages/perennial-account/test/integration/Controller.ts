@@ -216,6 +216,39 @@ describe('ControllerBase', () => {
       expect(groupCollateral).to.equal(parse6decimal('10000'))
       expect(canRebalance).to.be.true
     })
+
+    it('should not rebalance an already-balanced group', async () => {
+      // transfer funds to the markets
+      await transfer(parse6decimal('9700'), userA, ethMarket)
+      await transfer(parse6decimal('5000'), userA, btcMarket)
+
+      // attempt rebalance
+      await expect(controller.rebalanceGroup(userA.address, 1)).to.be.revertedWithCustomError(
+        controller,
+        'ControllerGroupBalanced',
+      )
+    })
+
+    it('should rebalance group outside of threshold', async () => {
+      // transfer funds to the markets
+      await transfer(parse6decimal('7500'), userA, ethMarket)
+      await transfer(parse6decimal('7500'), userA, btcMarket)
+
+      console.log('ethMarket', ethMarket.address, 'btcMarket', btcMarket.address)
+
+      await expect(controller.rebalanceGroup(userA.address, 1))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(btcMarket.address, accountA.address, anyValue) // pull 2250 from btcMarket
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, ethMarket.address, anyValue) // push 2250 to ethMarket
+        .to.emit(controller, 'GroupRebalanced')
+        .withArgs(userA.address, 1)
+
+      // ensure group collateral unchanged and cannot rebalance
+      const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
+      expect(groupCollateral).to.equal(parse6decimal('15000'))
+      expect(canRebalance).to.be.false
+    })
   })
 
   describe('#transfer', () => {

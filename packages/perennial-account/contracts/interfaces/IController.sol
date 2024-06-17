@@ -21,16 +21,21 @@ interface IController {
     /// @param account contract address of the collateral account
     event AccountDeployed(address indexed owner, IAccount indexed account);
 
+    /// @notice Emitted when a group has been rebalanced
+    /// @param owner Owner of the collateral account for which the rebalance group was created or modified
+    /// @param group Identifies the rebalance group within context of owner
+    event GroupRebalanced(address indexed owner, uint256 indexed group);
+
     /// @notice Emitted when a rebalance group is created or updated
     /// @param owner Owner of the collateral account for which the rebalance group was created or modified
-    /// @param group Uniquely identifies the rebalance group
+    /// @param group Identifies the rebalance group within context of owner
     /// @param markets Number of markets in the group (0 if group was deleted)
     event RebalanceGroupConfigured(address indexed owner, uint256 indexed group, uint256 markets);
 
     /// @notice Emitted for each market in a rebalance group upon creation of the group
     /// or when any changes are made to the group
     /// @param owner Owner of the collateral account for which the rebalance group was created or modified
-    /// @param group Uniquely identifies the rebalance group
+    /// @param group Identifies the rebalance group within context of owner
     /// @param market The Perennial market for which this configuration applies
     /// @param newConfig Rebalance configuration for the market, which may or may not have changed
     event RebalanceMarketConfigured(
@@ -49,6 +54,10 @@ interface IController {
     // sig: 0x2c51df8b
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
     error ControllerCannotPayKeeper();
+
+    /// sig: 0x4f62bcd0
+    /// @custom:error Group is balanced and ineligible for rebalance
+    error ControllerGroupBalanced();
 
     // sig: 0x1444bc5d
     /// @custom:error A RebalanceConfigChange message had a mismatch in number of markets and configs
@@ -124,6 +133,11 @@ interface IController {
     /// @return groupCollateral Sum of ower's collateral across each market in the group
     /// @return canRebalance True if one or more markets in the group are eligible for rebalancing
     function checkGroup(address owner, uint8 group) external returns (Fixed6 groupCollateral, bool canRebalance);
+
+    /// @notice Called by keepers to rebalance an unbalanced group
+    /// @param owner User whose collateral account may be rebalanced using this group
+    /// @param group Identifies the group within the context of the owner
+    function rebalanceGroup(address owner, uint8 group) external;
 
     /// @notice Retrieves rebalance configuration for a specified owner, group, and market
     /// @param owner User for whom the collateral account was created

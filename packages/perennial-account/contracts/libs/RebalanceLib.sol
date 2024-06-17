@@ -14,18 +14,18 @@ library RebalanceLib {
     /// @param marketConfig Rebalance group configuration for this market
     /// @param totalGroupCollateral Owner's collateral across all markets in the group
     /// @param marketCollateral Owner's actual amount of collateral in this market
+    /// @return canRebalance True if actual collateral outside of configured threshold
+    /// @return imbalance Difference between actual collateral and target collateral
     function checkMarket(
         RebalanceConfig memory marketConfig,
         Fixed6 totalGroupCollateral,
         Fixed6 marketCollateral
-    ) external returns (Fixed6 targetCollateral, bool canRebalance) {
-        targetCollateral = totalGroupCollateral.mul(Fixed6Lib.from(marketConfig.target));
+    ) external returns (bool canRebalance, Fixed6 imbalance) {
+        Fixed6 targetCollateral = totalGroupCollateral.mul(Fixed6Lib.from(marketConfig.target));
         Fixed6 pctFromTarget = Fixed6Lib.ONE.sub(targetCollateral.div(marketCollateral));
-        console.log("market has %s collateral, target %s pctFromTarget",
-            UFixed6.unwrap(marketCollateral.abs()),
-            UFixed6.unwrap(targetCollateral.abs())
-        );
-        console.logInt(Fixed6.unwrap(pctFromTarget));
         canRebalance = pctFromTarget.abs().gt(marketConfig.threshold);
+        imbalance = marketCollateral.sub(targetCollateral);
+        console.log("target is %s, imbalance is", UFixed6.unwrap(targetCollateral.abs()));
+        console.logInt(Fixed6.unwrap(imbalance));
     }
 }
