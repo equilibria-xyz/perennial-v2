@@ -3,12 +3,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { forkNetwork, isArbitrum, isFork, isMainnet } from '../../common/testutil/network'
-import {
-  OracleFactory__factory,
-  ProxyAdmin__factory,
-  PythFactory__factory,
-  PayoffDefinitionStruct,
-} from '../types/generated'
+import { OracleFactory__factory, ProxyAdmin__factory, PythFactory__factory, IKeeperFactory } from '../types/generated'
 import { PAYOFFS } from './002_deploy_payoff'
 
 // used by other scripts to map assets to oracleId
@@ -52,7 +47,7 @@ const ORACLES: { [key: string]: { [asset: string]: OracleDefinition } } = {
       oracleId: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
       underlyingId: '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
       payoffProviderName: '',
-      payoffDecimals: BigNumber.from(-3),
+      payoffDecimals: BigNumber.from(0),
     },
   },
   base: {
@@ -84,7 +79,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
   // creates a PayoffDefinition struct by looking up the name from deployments
-  async function getPayoff(name: string, decimals: BigNumber): Promise<PayoffDefinitionStruct> {
+  async function getPayoff(name: string, decimals: BigNumber): Promise<IKeeperFactory.PayoffDefinitionStruct> {
     if (name) return { provider: (await get(name)).address, decimals: decimals }
     else return { provider: ethers.constants.AddressZero, decimals: 0 }
   }
@@ -214,7 +209,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   for (const oracle of Object.values(oracles)) {
     if ((await pythFactory.oracles(oracle.oracleId)).toLowerCase() === ethers.constants.AddressZero.toLowerCase()) {
       process.stdout.write(`Creating pyth oracle ${oracle.oracleId}...`)
-      const payoff: PayoffDefinitionStruct = await getPayoff(oracle.payoffProviderName, oracle.payoffDecimals)
+      const payoff = await getPayoff(oracle.payoffProviderName, oracle.payoffDecimals)
       const address = await pythFactory.callStatic.create(oracle.oracleId, oracle.underlyingId, payoff)
       process.stdout.write(`deploying at ${address}...`)
       await (await pythFactory.create(oracle.oracleId, oracle.underlyingId, payoff)).wait()
