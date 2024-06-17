@@ -17,6 +17,7 @@ import {
   IMarket,
   IOracleProvider,
   IOracleProvider__factory,
+  RebalanceLib__factory,
   Verifier__factory,
 } from '../../types/generated'
 import type { IKept } from '../../contracts/Controller_Arbitrum'
@@ -94,7 +95,12 @@ export async function deployControllerArbitrum(
   keepConfig: IKept.KeepConfigStruct,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
-  const controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig, overrides ?? {})
+  const controller = await new Controller_Arbitrum__factory(
+    {
+      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy(keepConfig, overrides ?? {})
   return controller
 }
 

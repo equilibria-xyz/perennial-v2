@@ -95,6 +95,8 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         }
     }
 
+    // TODO: compensate keeper for performing a rebalance
+
     /// @inheritdoc IController
     function updateSignerWithSignature(
         SignerUpdate calldata signerUpdate,

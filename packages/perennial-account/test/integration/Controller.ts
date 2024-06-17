@@ -179,7 +179,6 @@ describe('ControllerBase', () => {
       // create another market
       let btcOracle
       ;[btcMarket, btcOracle] = await createMarketBTC(owner, marketFactory, dsu)
-      console.log('btc price', (await btcOracle.status())[0].price)
 
       // configure a group with both markets
       const message = {
@@ -195,7 +194,7 @@ describe('ControllerBase', () => {
       await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)).to.not.be.reverted
     })
 
-    it('can check a group within targets', async () => {
+    it('checks a group within targets', async () => {
       // transfer funds to the markets
       await transfer(parse6decimal('9700'), userA, ethMarket)
       await transfer(parse6decimal('5000'), userA, btcMarket)
@@ -206,7 +205,7 @@ describe('ControllerBase', () => {
       expect(canRebalance).to.be.false
     })
 
-    it('can check a group outside of targets', async () => {
+    it('checks a group outside of targets', async () => {
       // transfer funds to the markets
       await transfer(parse6decimal('5000'), userA, ethMarket)
       await transfer(parse6decimal('5000'), userA, btcMarket)
@@ -229,18 +228,41 @@ describe('ControllerBase', () => {
       )
     })
 
-    it('should rebalance group outside of threshold', async () => {
+    it('rebalances group outside of threshold', async () => {
       // transfer funds to the markets
       await transfer(parse6decimal('7500'), userA, ethMarket)
       await transfer(parse6decimal('7500'), userA, btcMarket)
 
-      console.log('ethMarket', ethMarket.address, 'btcMarket', btcMarket.address)
+      await expect(controller.rebalanceGroup(userA.address, 1))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(btcMarket.address, accountA.address, utils.parseEther('2250'))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, ethMarket.address, utils.parseEther('2250'))
+        .to.emit(controller, 'GroupRebalanced')
+        .withArgs(userA.address, 1)
+
+      // ensure group collateral unchanged and cannot rebalance
+      const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
+      expect(groupCollateral).to.equal(parse6decimal('15000'))
+      expect(canRebalance).to.be.false
+    })
+
+    it('handles groups with no collateral', async () => {
+      await expect(controller.rebalanceGroup(userA.address, 1)).to.be.revertedWithCustomError(
+        controller,
+        'ControllerGroupBalanced',
+      )
+    })
+
+    it('rebalances markets with no collateral', async () => {
+      // transfer funds to one of the markets
+      await transfer(parse6decimal('15000'), userA, btcMarket)
 
       await expect(controller.rebalanceGroup(userA.address, 1))
         .to.emit(dsu, 'Transfer')
-        .withArgs(btcMarket.address, accountA.address, anyValue) // pull 2250 from btcMarket
+        .withArgs(btcMarket.address, accountA.address, utils.parseEther('9750'))
         .to.emit(dsu, 'Transfer')
-        .withArgs(accountA.address, ethMarket.address, anyValue) // push 2250 to ethMarket
+        .withArgs(accountA.address, ethMarket.address, utils.parseEther('9750'))
         .to.emit(controller, 'GroupRebalanced')
         .withArgs(userA.address, 1)
 
