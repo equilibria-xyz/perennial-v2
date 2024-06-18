@@ -13,6 +13,7 @@ import {
   Account__factory,
   ArbGasInfo,
   Controller_Arbitrum,
+  IAccount,
   IERC20Metadata,
   IMarket,
   IMarketFactory,
@@ -27,8 +28,9 @@ import {
   signWithdrawal,
 } from '../helpers/erc712'
 import {
-  createMarketFactory,
+  createMarketBTC,
   createMarketETH,
+  createMarketFactory,
   deployAndInitializeController,
   deployControllerArbitrum,
   fundWalletDSU,
@@ -111,6 +113,26 @@ describe('Controller_Arbitrum', () => {
   function nextNonce(): BigNumber {
     lastNonce += 1
     return BigNumber.from(lastNonce)
+  }
+
+  // deposit from the collateral account to the ETH market
+  async function deposit(amount: BigNumber, account: IAccount) {
+    // sign the message
+    const marketTransferMessage = {
+      market: market.address,
+      amount: amount,
+      ...createAction(userA.address, userA.address),
+    }
+    const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+    // perform transfer
+    await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES))
+      .to.emit(dsu, 'Transfer')
+      .withArgs(account.address, market.address, anyValue) // scale to token precision
+      .to.emit(market, 'OrderCreated')
+      .withArgs(userA.address, anyValue, anyValue)
+      .to.emit(controller, 'KeeperCall')
+      .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
   }
 
   const fixture = async () => {
@@ -310,34 +332,13 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
-    async function deposit(amount = parse6decimal('12000')) {
-      // sign a message to deposit everything from the collateral account to the market
-      const marketTransferMessage = {
-        market: market.address,
-        amount: amount,
-        ...createAction(userA.address, userA.address),
-      }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-
-      // perform transfer
-      await expect(
-        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
-      )
-        .to.emit(dsu, 'Transfer')
-        .withArgs(accountA.address, market.address, anyValue) // scale to token precision
-        .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
-        .to.emit(controller, 'KeeperCall')
-        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-    }
-
     it('collects fee for depositing some funds to market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
       const transferAmount = parse6decimal('6000')
       const marketTransferMessage = {
         market: market.address,
         amount: transferAmount,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
@@ -356,7 +357,7 @@ describe('Controller_Arbitrum', () => {
 
     it('collects fee for withdrawing some funds from market', async () => {
       // user deposits collateral to the market
-      await deposit(parse6decimal('12000'))
+      await deposit(parse6decimal('12000'), accountA)
       expect((await market.locals(userA.address)).collateral).to.equal(parse6decimal('12000'))
 
       // sign a message to make a partial withdrawal
@@ -421,7 +422,7 @@ describe('Controller_Arbitrum', () => {
 
     it('collects fee for withdrawing funds into empty collateral account', async () => {
       // deposit 12k
-      await deposit()
+      await deposit(parse6decimal('12000'), accountA)
       // withdraw dust so it cannot be used to pay the keeper
       await accountA.withdraw(constants.MaxUint256, true, TX_OVERRIDES)
       expect(await dsu.balanceOf(accountA.address)).to.equal(0)
@@ -453,10 +454,21 @@ describe('Controller_Arbitrum', () => {
   })
 
   describe('#rebalance', async () => {
+    let accountA: Account
+    let keeperBalanceBefore: BigNumber
+
+    beforeEach(async () => {
+      accountA = await createCollateralAccount(userA, parse6decimal('10005'))
+    })
+
+    afterEach(async () => {
+      // confirm keeper earned their fee
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+    })
+
     it('collects fee for changing rebalance configuration', async () => {
-      // record keeper balance, create and fund userA's collateral account
-      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
-      await createCollateralAccount(userA, parse6decimal('5'))
+      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
 
       // sign message to create a new group
       const message = {
@@ -477,6 +489,44 @@ describe('Controller_Arbitrum', () => {
       // ensure keeper was compensated
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+    })
+
+    it('collects fee for rebalancing a group', async () => {
+      const ethMarket = market
+      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu)
+
+      // create a new group with two markets
+      const message = {
+        group: 4,
+        markets: [ethMarket.address, btcMarket.address],
+        configs: [
+          { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
+          { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
+        ],
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES)).to
+        .not.be.reverted
+
+      // transfer all collateral to ethMarket
+      await deposit(parse6decimal('10000'), accountA)
+      expect((await ethMarket.locals(userA.address)).collateral).to.equal(parse6decimal('10000'))
+      expect((await btcMarket.locals(userA.address)).collateral).to.equal(0)
+
+      // now that test setup is complete, record keeper balance
+      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+
+      // rebalance the group
+      await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(ethMarket.address, accountA.address, utils.parseEther('5000'))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, btcMarket.address, utils.parseEther('5000'))
+        .to.emit(controller, 'GroupRebalanced')
+        .withArgs(userA.address, 4)
+        .to.emit(controller, 'KeeperCall')
+        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
     })
   })
 

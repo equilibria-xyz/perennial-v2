@@ -95,7 +95,14 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         }
     }
 
-    // TODO: compensate keeper for performing a rebalance
+        /// @inheritdoc IController
+    function rebalanceGroup(address owner, uint8 group) override external {
+        _rebalanceGroup(owner, group);
+        address account = getAccountAddress(owner);
+        // TODO: retrieve a maxFee from group configuration
+        bytes memory data = abi.encode(account, type(uint256).max / 1e12);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+    }
 
     /// @inheritdoc IController
     function updateSignerWithSignature(
