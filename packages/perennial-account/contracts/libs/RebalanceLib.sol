@@ -19,7 +19,7 @@ library RebalanceLib {
         RebalanceConfig memory marketConfig,
         Fixed6 groupCollateral,
         Fixed6 marketCollateral
-    ) external returns (bool canRebalance, Fixed6 imbalance) {
+    ) external pure returns (bool canRebalance, Fixed6 imbalance) {
         // determine how much collateral the market should have
         Fixed6 targetCollateral = groupCollateral.mul(Fixed6Lib.from(marketConfig.target));
 
@@ -30,7 +30,7 @@ library RebalanceLib {
         // if this percentage exceeds the configured threshold, the market may be rebelanced
         canRebalance = pctFromTarget.abs().gt(marketConfig.threshold);
 
-        // return the difference between target and actual collateral
+        // return negative number for surplus, positive number for deficit
         imbalance = targetCollateral.sub(marketCollateral);
     }
 }

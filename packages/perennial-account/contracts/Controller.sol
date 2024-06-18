@@ -92,6 +92,31 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
+    function changeRebalanceConfigWithSignature(
+        RebalanceConfigChange calldata configChange,
+        bytes calldata signature
+    ) virtual external {
+        _changeRebalanceConfigWithSignature(configChange, signature);
+    }
+
+    /// @inheritdoc IController
+    function checkGroup(address owner, uint8 group) public returns (Fixed6 groupCollateral, bool canRebalance) {
+        // query owner's collateral in each market and calculate sum
+        Fixed6[] memory actualCollateral;
+        (actualCollateral, groupCollateral) = _queryMarketCollateral(owner, group);
+
+        // determine if anything is outside the rebalance threshold
+        for (uint256 i; i < actualCollateral.length; i++) {
+            address marketAddress = groupToMarkets[owner][group][i];
+            RebalanceConfig memory marketConfig = config[owner][group][marketAddress];
+            (bool canMarketRebalance, ) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
+            if (canMarketRebalance) {
+                return (groupCollateral, true);
+            }
+        }
+    }
+
+    /// @inheritdoc IController
     function deployAccount() public returns (IAccount) {
         return _createAccount(msg.sender);
     }
@@ -104,64 +129,10 @@ contract Controller is Instance, IController {
         _deployAccountWithSignature(deployAccount_, signature);
     }
 
-    function _deployAccountWithSignature(
-        DeployAccount calldata deployAccount_,
-        bytes calldata signature
-    ) internal returns (IAccount account) {
-        address owner = deployAccount_.action.common.account;
-        verifier.verifyDeployAccount(deployAccount_, signature);
-        _ensureValidSigner(owner, deployAccount_.action.common.signer);
-
-        // create the account
-        account = _createAccount(owner);
-    }
-
-    function _createAccount(address owner) internal returns (IAccount account) {
-        account = new Account{salt: SALT}(owner, address(this), USDC, DSU, reserve);
-        emit AccountDeployed(owner, account);
-    }
-
     /// @inheritdoc IController
     function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature) virtual external {
         IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
         _marketTransferWithSignature(account, marketTransfer, signature);
-    }
-
-    function _marketTransferWithSignature(IAccount account, MarketTransfer calldata marketTransfer, bytes calldata signature) internal {
-        // ensure the message was signed by the owner or a delegated signer
-        verifier.verifyMarketTransfer(marketTransfer, signature);
-        _ensureValidSigner(marketTransfer.action.common.account, marketTransfer.action.common.signer);
-
-        // only Markets with DSU collateral are supported
-        IMarket market = IMarket(marketTransfer.market);
-        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarket(address(market));
-
-        account.marketTransfer(market, marketTransfer.amount);
-    }
-
-    /// @inheritdoc IController
-    function changeRebalanceConfigWithSignature(
-        RebalanceConfigChange calldata configChange,
-        bytes calldata signature
-    ) virtual external {
-        _changeRebalanceConfigWithSignature(configChange, signature);
-    }
-
-    function _changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature) internal {
-        // ensure the message was signed by the owner or a delegated signer
-        verifier.verifyRebalanceConfigChange(configChange, signature);
-        _ensureValidSigner(configChange.action.common.account, configChange.action.common.signer);
-
-        // sum of the target allocations of all markets in the group
-        UFixed6 totalAllocation;
-        // put this on the stack for readability
-        address owner = configChange.action.common.account;
-
-        totalAllocation = _updateRebalanceGroup(configChange, owner);
-
-        // if not deleting the group, ensure rebalance targets add to 100%
-        if (configChange.markets.length != 0 && !totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
-            revert IController.ControllerInvalidRebalanceTargets();
     }
 
     /// @inheritdoc IController
@@ -195,7 +166,7 @@ contract Controller is Instance, IController {
         _updateSignerWithSignature(signerUpdate, signature);
     }
 
-    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate,  bytes calldata signature) internal {
+    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) internal {
         // ensure the message was signed only by the owner, not an existing delegate
         verifier.verifySignerUpdate(signerUpdate, signature);
         address owner = signerUpdate.action.common.account;
@@ -211,7 +182,66 @@ contract Controller is Instance, IController {
         _withdrawWithSignature(account, withdrawal, signature);
     }
 
-    function _withdrawWithSignature(IAccount account, Withdrawal calldata withdrawal, bytes calldata signature) internal {
+    /// @inheritdoc IController
+    function rebalanceGroup(address owner, uint8 group) virtual external {
+        _rebalanceGroup(owner, group);
+    }
+
+    function _changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature) internal {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyRebalanceConfigChange(configChange, signature);
+        _ensureValidSigner(configChange.action.common.account, configChange.action.common.signer);
+
+        // sum of the target allocations of all markets in the group
+        UFixed6 totalAllocation;
+        // put this on the stack for readability
+        address owner = configChange.action.common.account;
+
+        totalAllocation = _updateRebalanceGroup(configChange, owner);
+
+        // if not deleting the group, ensure rebalance targets add to 100%
+        if (configChange.markets.length != 0 && !totalAllocation.eq(RebalanceConfigLib.MAX_PERCENT))
+            revert IController.ControllerInvalidRebalanceTargets();
+    }
+
+    function _createAccount(address owner) internal returns (IAccount account) {
+        account = new Account{salt: SALT}(owner, address(this), USDC, DSU, reserve);
+        emit AccountDeployed(owner, account);
+    }
+
+    function _deployAccountWithSignature(
+        DeployAccount calldata deployAccount_,
+        bytes calldata signature
+    ) internal returns (IAccount account) {
+        address owner = deployAccount_.action.common.account;
+        verifier.verifyDeployAccount(deployAccount_, signature);
+        _ensureValidSigner(owner, deployAccount_.action.common.signer);
+
+        // create the account
+        account = _createAccount(owner);
+    }
+
+    function _marketTransferWithSignature(
+        IAccount account,
+        MarketTransfer calldata marketTransfer,
+        bytes calldata signature
+    ) internal {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyMarketTransfer(marketTransfer, signature);
+        _ensureValidSigner(marketTransfer.action.common.account, marketTransfer.action.common.signer);
+
+        // only Markets with DSU collateral are supported
+        IMarket market = IMarket(marketTransfer.market);
+        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarket(address(market));
+
+        account.marketTransfer(market, marketTransfer.amount);
+    }
+
+    function _withdrawWithSignature(
+        IAccount account,
+        Withdrawal calldata withdrawal,
+        bytes calldata signature
+    ) internal {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyWithdrawal(withdrawal, signature);
         _ensureValidSigner(withdrawal.action.common.account, withdrawal.action.common.signer);
@@ -220,30 +250,30 @@ contract Controller is Instance, IController {
         account.withdraw(withdrawal.amount, withdrawal.unwrap);
     }
 
-    /// @inheritdoc IController
-    function checkGroup(address owner, uint8 group) public returns (Fixed6 groupCollateral, bool canRebalance) {
-        // query owner's collateral in each market and calculate sum
-        Fixed6[] memory actualCollateral;
-        (actualCollateral, groupCollateral) = _queryMarketCollateral(owner, group);
+    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
+    function _ensureValidSigner(address owner, address signer) private view {
+        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
+    }
 
-        // determine if anything is outside the rebalance threshold
-        for (uint256 i; i < actualCollateral.length; i++) {
-            address marketAddress = groupToMarkets[owner][group][i];
-            RebalanceConfig memory marketConfig = config[owner][group][marketAddress];
-            (bool canMarketRebalance, ) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
-            if (canMarketRebalance) {
-                return (groupCollateral, true);
-            }
+    function _queryMarketCollateral(address owner, uint8 group) private view returns (
+        Fixed6[] memory actualCollateral,
+        Fixed6 groupCollateral
+    ) {
+        actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
+            IMarket market = IMarket(groupToMarkets[owner][group][i]);
+            Fixed6 collateral = market.locals(owner).collateral;
+            actualCollateral[i] = collateral;
+            groupCollateral = groupCollateral.add(collateral);
         }
     }
 
-    /// @inheritdoc IController
-    function rebalanceGroup(address owner, uint8 group) public {
+    function _rebalanceGroup(address owner, uint8 group) internal {
         // query owner's collateral in each market and calculate sum
         (Fixed6[] memory actualCollateral, Fixed6 groupCollateral) = _queryMarketCollateral(owner, group);
         IAccount account = IAccount(getAccountAddress(owner));
 
-        // create an array with imbalances, pull collateral from any markets with positive imbalance
+        // create an array with imbalances, pull collateral from markets with surplus collateral
         Fixed6[] memory imbalances = new Fixed6[](actualCollateral.length);
         bool canAnyMarketRebalance;
         for (uint256 i; i < actualCollateral.length; i++) {
@@ -259,7 +289,7 @@ contract Controller is Instance, IController {
 
         if (!canAnyMarketRebalance) revert ControllerGroupBalanced();
 
-        // push collateral to any markets with negative imbalance
+        // push collateral to markets with insufficient collateral
         for (uint256 i; i < imbalances.length; i++) {
             address marketAddress = groupToMarkets[owner][group][i];
             if (Fixed6.unwrap(imbalances[i]) > 0) {
@@ -268,24 +298,6 @@ contract Controller is Instance, IController {
         }
 
         emit GroupRebalanced(owner, group);
-    }
-
-    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
-    function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
-    }
-
-    function _queryMarketCollateral(address owner, uint8 group) private returns (
-        Fixed6[] memory actualCollateral,
-        Fixed6 groupCollateral
-    ) {
-        actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
-        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
-            IMarket market = IMarket(groupToMarkets[owner][group][i]);
-            Fixed6 collateral = market.locals(owner).collateral;
-            actualCollateral[i] = collateral;
-            groupCollateral = groupCollateral.add(collateral);
-        }
     }
 
     /// @dev overwrites rebalance configuration of all markets for a particular owner and group

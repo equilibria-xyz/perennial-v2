@@ -172,7 +172,7 @@ describe('ControllerBase', () => {
     await loadFixture(fixture)
   })
 
-  describe.only('#rebalance', () => {
+  describe('#rebalance', () => {
     let btcMarket: IMarket
 
     beforeEach(async () => {

@@ -58,7 +58,7 @@ contract Verifier is VerifierBase, IVerifier {
     /// @inheritdoc IVerifier
     function verifyRebalanceConfigChange(RebalanceConfigChange calldata change, bytes calldata signature)
         external
-        validateAndCancel(change.action.common, signature) returns (address)
+        validateAndCancel(change.action.common, signature)
     {
         if (!SignatureChecker.isValidSignatureNow(
             change.action.common.signer,
