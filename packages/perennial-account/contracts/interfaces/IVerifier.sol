@@ -5,7 +5,7 @@ import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBas
 import { Action } from "../types/Action.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
-import { RebalanceConfigChange } from "../types/RebalanceConfig.sol";
+import { RebalanceConfigChange } from "../types/RebalanceConfigChange.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 

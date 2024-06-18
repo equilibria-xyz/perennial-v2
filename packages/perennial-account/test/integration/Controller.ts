@@ -24,6 +24,9 @@ import {
 
 const { ethers } = HRE
 
+// hack around intermittent issues estimating gas
+const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
+
 describe('ControllerBase', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
@@ -130,7 +133,9 @@ describe('ControllerBase', () => {
     }
 
     // perform transfer
-    await expect(await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+    await expect(
+      await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
+    )
       .to.emit(dsu, 'Transfer')
       .withArgs(expectedFrom, expectedTo, expectedAmount)
       .to.emit(market, 'OrderCreated')
@@ -370,7 +375,7 @@ describe('ControllerBase', () => {
 
       // ensure transfer reverts
       await expect(
-        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       ).to.be.revertedWithCustomError(ethMarket, 'MarketInsufficientMarginError')
 
       await expectMarketCollateralBalance(userA, parse6decimal('7000'))
@@ -391,7 +396,7 @@ describe('ControllerBase', () => {
 
       // ensure withdrawal fails
       await expect(
-        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
     })
   })

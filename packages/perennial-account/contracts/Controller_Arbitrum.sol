@@ -18,7 +18,7 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Controller } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
-import { RebalanceConfigChange } from "./types/RebalanceConfig.sol";
+import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
 import { SignerUpdate } from "./types/SignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
@@ -96,7 +96,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     }
 
         /// @inheritdoc IController
-    function rebalanceGroup(address owner, uint8 group) override external {
+    function rebalanceGroup(address owner, uint256 group) override external {
         _rebalanceGroup(owner, group);
         address account = getAccountAddress(owner);
         // TODO: retrieve a maxFee from group configuration

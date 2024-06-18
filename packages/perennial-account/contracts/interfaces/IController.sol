@@ -10,7 +10,8 @@ import { IAccount } from "../interfaces/IAccount.sol";
 import { IVerifier } from "../interfaces/IVerifier.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
-import { RebalanceConfig, RebalanceConfigChange } from "../types/RebalanceConfig.sol";
+import { RebalanceConfig } from "../types/RebalanceConfig.sol";
+import { RebalanceConfigChange } from "../types/RebalanceConfigChange.sol";
 import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
@@ -132,12 +133,12 @@ interface IController {
     /// @param group Identifies the group within the context of the owner
     /// @return groupCollateral Sum of ower's collateral across each market in the group
     /// @return canRebalance True if one or more markets in the group are eligible for rebalancing
-    function checkGroup(address owner, uint8 group) external returns (Fixed6 groupCollateral, bool canRebalance);
+    function checkGroup(address owner, uint256 group) external view returns (Fixed6 groupCollateral, bool canRebalance);
 
     /// @notice Called by keepers to rebalance an unbalanced group
     /// @param owner User whose collateral account may be rebalanced using this group
     /// @param group Identifies the group within the context of the owner
-    function rebalanceGroup(address owner, uint8 group) external;
+    function rebalanceGroup(address owner, uint256 group) external;
 
     /// @notice Retrieves rebalance configuration for a specified owner, group, and market
     /// @param owner User for whom the collateral account was created
@@ -145,7 +146,7 @@ interface IController {
     /// @param market Identifies which Perennial market for which the configuration is desired
     function rebalanceConfig(
         address owner,
-        uint8 group,
+        uint256 group,
         address market
     ) external view returns (RebalanceConfig memory config);
 
@@ -155,7 +156,7 @@ interface IController {
     /// @return markets Array containing the of address of each market in the rebalance group
     function rebalanceGroupMarkets(
         address owner,
-        uint8 group
+        uint256 group
     ) external view returns (address[] memory markets);
 
     /// @notice Updates the status of a delegated signer for the caller's collateral account
