@@ -68,8 +68,8 @@ describe('ControllerBase', () => {
 
   // updates the oracle (optionally changing price) and settles the market
   async function advanceAndSettle(user: SignerWithAddress, timestamp = currentTime, price = lastPrice) {
-    await advanceToPrice(keeperOracle, timestamp, price)
-    await ethMarket.settle(user.address)
+    await advanceToPrice(keeperOracle, timestamp, price, TX_OVERRIDES)
+    await ethMarket.settle(user.address, TX_OVERRIDES)
   }
 
   // ensures user has expected amount of collateral in a market
@@ -98,7 +98,15 @@ describe('ControllerBase', () => {
   ): Promise<BigNumber> {
     const tx = await ethMarket
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, newMaker, newLong, newShort, 0, false)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](
+        user.address,
+        newMaker,
+        newLong,
+        newShort,
+        0,
+        false,
+        TX_OVERRIDES,
+      )
     return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
   }
 
@@ -193,6 +201,7 @@ describe('ControllerBase', () => {
           { target: parse6decimal('0.65'), threshold: parse6decimal('0.04') },
           { target: parse6decimal('0.35'), threshold: parse6decimal('0.03') },
         ],
+        maxRebalanceFee: constants.Zero,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -227,7 +236,7 @@ describe('ControllerBase', () => {
       await transfer(parse6decimal('5000'), userA, btcMarket)
 
       // attempt rebalance
-      await expect(controller.rebalanceGroup(userA.address, 1)).to.be.revertedWithCustomError(
+      await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
         controller,
         'ControllerGroupBalanced',
       )
@@ -238,7 +247,7 @@ describe('ControllerBase', () => {
       await transfer(parse6decimal('7500'), userA, ethMarket)
       await transfer(parse6decimal('7500'), userA, btcMarket)
 
-      await expect(controller.rebalanceGroup(userA.address, 1))
+      await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES))
         .to.emit(dsu, 'Transfer')
         .withArgs(btcMarket.address, accountA.address, utils.parseEther('2250'))
         .to.emit(dsu, 'Transfer')
@@ -253,7 +262,7 @@ describe('ControllerBase', () => {
     })
 
     it('handles groups with no collateral', async () => {
-      await expect(controller.rebalanceGroup(userA.address, 1)).to.be.revertedWithCustomError(
+      await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
         controller,
         'ControllerGroupBalanced',
       )
@@ -263,7 +272,7 @@ describe('ControllerBase', () => {
       // transfer funds to one of the markets
       await transfer(parse6decimal('15000'), userA, btcMarket)
 
-      await expect(controller.rebalanceGroup(userA.address, 1))
+      await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES))
         .to.emit(dsu, 'Transfer')
         .withArgs(btcMarket.address, accountA.address, utils.parseEther('9750'))
         .to.emit(dsu, 'Transfer')

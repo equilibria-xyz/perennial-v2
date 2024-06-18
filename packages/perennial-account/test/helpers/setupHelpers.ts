@@ -1,7 +1,7 @@
 import HRE, { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { BigNumber, ContractTransaction, utils } from 'ethers'
+import { BigNumber, CallOverrides, ContractTransaction, utils } from 'ethers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -40,6 +40,7 @@ export async function advanceToPrice(
   keeperOracle: IKeeperOracle,
   timestamp: BigNumber,
   price: BigNumber,
+  overrides?: CallOverrides,
 ): Promise<number> {
   const keeperFactoryAddress = await keeperOracle.factory()
   const oracleFactory = await impersonateWithBalance(keeperFactoryAddress, utils.parseEther('10'))
@@ -54,9 +55,7 @@ export async function advanceToPrice(
     price: price,
     valid: true,
   }
-  const tx: ContractTransaction = await keeperOracle.connect(oracleFactory).commit(oracleVersion, {
-    maxFeePerGas: 100000000,
-  })
+  const tx: ContractTransaction = await keeperOracle.connect(oracleFactory).commit(oracleVersion, overrides ?? {})
 
   // inform the caller of the current timestamp
   return (await HRE.ethers.provider.getBlock(tx.blockNumber ?? 0)).timestamp

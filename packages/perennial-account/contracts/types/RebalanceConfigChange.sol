@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Action, ActionLib } from "./Action.sol";
 import { RebalanceConfig, RebalanceConfigLib } from "./RebalanceConfig.sol";
 import { IController } from "../interfaces/IController.sol";
-
 
 /// @dev Action message to change configuration for a group of markets
 struct RebalanceConfigChange {
@@ -15,6 +15,8 @@ struct RebalanceConfigChange {
     address[] markets;
     /// @dev Target allocation for markets in the aforementioned array
     RebalanceConfig[] configs;
+    /// @dev Largest amount to compensate a relayer/keeper for rebalancing the group in DSU
+    UFixed6 maxRebalanceFee;
     /// @dev Common information for collateral account actions
     Action action;
 }
@@ -23,15 +25,15 @@ using RebalanceConfigChangeLib for RebalanceConfigChange global;
 /// @title RebalanceConfigChangeLib
 /// @notice Library used to hash and verify action to change rebalancing configuration
 library RebalanceConfigChangeLib {
-    /// @dev used to verify a signed message
+    /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "RebalanceConfigChange(uint256 group,address[] markets,RebalanceConfig[] configs,Action action)"
+        "RebalanceConfigChange(uint256 group,address[] markets,RebalanceConfig[] configs,uint256 maxRebalanceFee,Action action)"
         "Action(uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
         "RebalanceConfig(uint256 target,uint256 threshold)"
     );
 
-    /// @dev used to create a signed message
+    /// @dev Used to create a signed message
     function hash(RebalanceConfigChange memory self) internal pure returns (bytes32) {
         bytes32[] memory encodedAddresses = new bytes32[](self.markets.length);
         bytes32[] memory encodedConfigs = new bytes32[](self.configs.length);
@@ -49,6 +51,7 @@ library RebalanceConfigChangeLib {
             self.group,
             keccak256(abi.encodePacked(self.markets)),
             keccak256(abi.encodePacked(encodedConfigs)),
+            self.maxRebalanceFee,
             ActionLib.hash(self.action)
         ));
     }

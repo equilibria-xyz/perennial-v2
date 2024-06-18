@@ -76,6 +76,24 @@ export async function signDeployAccount(
   return await signer._signTypedData(erc721Domain(verifier), types, message)
 }
 
+export async function signMarketTransfer(
+  signer: SignerWithAddress,
+  verifier: IVerifier | FakeContract<IVerifier>,
+  message: MarketTransferStruct,
+): Promise<string> {
+  const types = {
+    MarketTransfer: [
+      { name: 'market', type: 'address' },
+      { name: 'amount', type: 'int256' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
 export async function signRebalanceConfigChange(
   signer: SignerWithAddress,
   verifier: IVerifier | FakeContract<IVerifier>,
@@ -86,6 +104,7 @@ export async function signRebalanceConfigChange(
       { name: 'group', type: 'uint256' },
       { name: 'markets', type: 'address[]' },
       { name: 'configs', type: 'RebalanceConfig[]' },
+      { name: 'maxRebalanceFee', type: 'uint256' },
       { name: 'action', type: 'Action' },
     ],
     ...actionType,
@@ -108,24 +127,6 @@ export async function signSignerUpdate(
     SignerUpdate: [
       { name: 'signer', type: 'address' },
       { name: 'approved', type: 'bool' },
-      { name: 'action', type: 'Action' },
-    ],
-    ...actionType,
-    ...commonType,
-  }
-
-  return await signer._signTypedData(erc721Domain(verifier), types, message)
-}
-
-export async function signMarketTransfer(
-  signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
-  message: MarketTransferStruct,
-): Promise<string> {
-  const types = {
-    MarketTransfer: [
-      { name: 'market', type: 'address' },
-      { name: 'amount', type: 'int256' },
       { name: 'action', type: 'Action' },
     ],
     ...actionType,

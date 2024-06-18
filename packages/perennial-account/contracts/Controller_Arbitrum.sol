@@ -99,8 +99,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     function rebalanceGroup(address owner, uint256 group) override external {
         _rebalanceGroup(owner, group);
         address account = getAccountAddress(owner);
-        // TODO: retrieve a maxFee from group configuration
-        bytes memory data = abi.encode(account, type(uint256).max / 1e12);
+        bytes memory data = abi.encode(account, groupToMaxRebalanceFee[owner][group]);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 

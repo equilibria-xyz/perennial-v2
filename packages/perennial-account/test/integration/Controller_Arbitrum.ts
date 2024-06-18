@@ -455,26 +455,20 @@ describe('Controller_Arbitrum', () => {
 
   describe('#rebalance', async () => {
     let accountA: Account
-    let keeperBalanceBefore: BigNumber
 
     beforeEach(async () => {
       accountA = await createCollateralAccount(userA, parse6decimal('10005'))
     })
 
-    afterEach(async () => {
-      // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
-    })
-
     it('collects fee for changing rebalance configuration', async () => {
-      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
 
       // sign message to create a new group
       const message = {
         group: 5,
         markets: [market.address],
         configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.0901') }],
+        maxRebalanceFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -488,7 +482,7 @@ describe('Controller_Arbitrum', () => {
 
       // ensure keeper was compensated
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.01'), DEFAULT_MAX_FEE)
     })
 
     it('collects fee for rebalancing a group', async () => {
@@ -503,6 +497,7 @@ describe('Controller_Arbitrum', () => {
           { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
           { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
         ],
+        maxRebalanceFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -515,10 +510,10 @@ describe('Controller_Arbitrum', () => {
       expect((await btcMarket.locals(userA.address)).collateral).to.equal(0)
 
       // now that test setup is complete, record keeper balance
-      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
 
       // rebalance the group
-      await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4))
+      await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES))
         .to.emit(dsu, 'Transfer')
         .withArgs(ethMarket.address, accountA.address, utils.parseEther('5000'))
         .to.emit(dsu, 'Transfer')
@@ -527,6 +522,49 @@ describe('Controller_Arbitrum', () => {
         .withArgs(userA.address, 4)
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+
+      // confirm keeper earned their fee
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.01'), DEFAULT_MAX_FEE)
+    })
+
+    it('honors max rebalance fee when rebalancing a group', async () => {
+      const ethMarket = market
+      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu)
+
+      // create a new group with two markets and a maxRebalanceFee smaller than the actual fee
+      const message = {
+        group: 4,
+        markets: [ethMarket.address, btcMarket.address],
+        configs: [
+          { target: parse6decimal('0.75'), threshold: parse6decimal('0.06') },
+          { target: parse6decimal('0.25'), threshold: parse6decimal('0.06') },
+        ],
+        maxRebalanceFee: parse6decimal('0.00923'),
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES)).to
+        .not.be.reverted
+
+      // transfer some collateral to ethMarket and record keeper balance
+      await deposit(parse6decimal('5000'), accountA)
+      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+
+      // rebalance the group
+      await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(ethMarket.address, accountA.address, utils.parseEther('1250'))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, btcMarket.address, utils.parseEther('1250'))
+        .to.emit(controller, 'GroupRebalanced')
+        .withArgs(userA.address, 4)
+        .to.emit(controller, 'KeeperCall')
+        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+
+      // confirm keeper fee was limited as configured
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.equal(utils.parseEther('0.00923'))
     })
   })
 

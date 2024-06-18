@@ -49,15 +49,18 @@ contract Controller is Instance, IController {
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
-    mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) config;
+    mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) public config;
 
     /// @dev Prevents markets from being added to multiple rebalance groups
     /// owner => market => group
-    mapping(address => mapping(address => uint256)) marketToGroup;
+    mapping(address => mapping(address => uint256)) public marketToGroup;
 
     /// @dev Allows iteration through markets in a rebalance group
     /// owner => group => markets
-    mapping(address => mapping(uint256 => address[])) groupToMarkets;
+    mapping(address => mapping(uint256 => address[])) public groupToMarkets;
+
+    /// @dev Limits relayer/keeper compensation for rebalancing a group, in DSU
+    mapping(address => mapping(uint256 => UFixed6)) public groupToMaxRebalanceFee;
 
     /// @inheritdoc IController
     function initialize(
@@ -162,16 +165,6 @@ contract Controller is Instance, IController {
         _updateSignerWithSignature(signerUpdate, signature);
     }
 
-    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) internal {
-        // ensure the message was signed only by the owner, not an existing delegate
-        verifier.verifySignerUpdate(signerUpdate, signature);
-        address owner = signerUpdate.action.common.account;
-        if (signerUpdate.action.common.signer != owner) revert ControllerInvalidSigner();
-
-        signers[owner][signerUpdate.signer] = signerUpdate.approved;
-        emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
-    }
-
     /// @inheritdoc IController
     function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) virtual external {
         IAccount account = IAccount(getAccountAddress(withdrawal.action.common.account));
@@ -238,24 +231,6 @@ contract Controller is Instance, IController {
         account.withdraw(withdrawal.amount, withdrawal.unwrap);
     }
 
-    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
-    function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
-    }
-
-    function _queryMarketCollateral(address owner, uint256 group) private view returns (
-        Fixed6[] memory actualCollateral,
-        Fixed6 groupCollateral
-    ) {
-        actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
-        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
-            IMarket market = IMarket(groupToMarkets[owner][group][i]);
-            Fixed6 collateral = market.locals(owner).collateral;
-            actualCollateral[i] = collateral;
-            groupCollateral = groupCollateral.add(collateral);
-        }
-    }
-
     function _rebalanceGroup(address owner, uint256 group) internal {
         // query owner's collateral in each market and calculate sum
         (Fixed6[] memory actualCollateral, Fixed6 groupCollateral) = _queryMarketCollateral(owner, group);
@@ -286,6 +261,34 @@ contract Controller is Instance, IController {
         }
 
         emit GroupRebalanced(owner, group);
+    }
+
+    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) internal {
+        // ensure the message was signed only by the owner, not an existing delegate
+        verifier.verifySignerUpdate(signerUpdate, signature);
+        address owner = signerUpdate.action.common.account;
+        if (signerUpdate.action.common.signer != owner) revert ControllerInvalidSigner();
+
+        signers[owner][signerUpdate.signer] = signerUpdate.approved;
+        emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
+    }
+
+    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
+    function _ensureValidSigner(address owner, address signer) private view {
+        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
+    }
+
+    function _queryMarketCollateral(address owner, uint256 group) private view returns (
+        Fixed6[] memory actualCollateral,
+        Fixed6 groupCollateral
+    ) {
+        actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
+            IMarket market = IMarket(groupToMarkets[owner][group][i]);
+            Fixed6 collateral = market.locals(owner).collateral;
+            actualCollateral[i] = collateral;
+            groupCollateral = groupCollateral.add(collateral);
+        }
     }
 
     /// @dev overwrites rebalance configuration of all markets for a particular owner and group
@@ -321,6 +324,7 @@ contract Controller is Instance, IController {
             marketToGroup[owner][message.markets[i]] = message.group;
             config[owner][message.group][message.markets[i]] = message.configs[i];
             groupToMarkets[owner][message.group].push(message.markets[i]);
+            groupToMaxRebalanceFee[owner][message.group] = message.maxRebalanceFee;
 
             // ensure target allocation across all markets totals 100%
             // read from storage to trap duplicate markets in the message
