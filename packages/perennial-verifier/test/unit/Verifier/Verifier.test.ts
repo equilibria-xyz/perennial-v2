@@ -576,8 +576,10 @@ describe('Verifier', () => {
 
   describe('#verifyOperatorUpdate', () => {
     const DEFAULT_OPERATOR_UPDATE = {
-      operator: constants.AddressZero,
-      approved: false,
+      access: {
+        accessor: constants.AddressZero,
+        approved: false,
+      },
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,
@@ -591,8 +593,10 @@ describe('Verifier', () => {
     it('should verify default operator update', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        operator: owner.address,
-        approved: true,
+        access: {
+          accessor: owner.address,
+          approved: true,
+        },
         common: {
           ...DEFAULT_OPERATOR_UPDATE.common,
           account: caller.address,
@@ -612,8 +616,10 @@ describe('Verifier', () => {
     it('should verify default operator update w/ sc signer', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        operator: owner.address,
-        approved: true,
+        access: {
+          accessor: owner.address,
+          approved: true,
+        },
         common: {
           ...DEFAULT_OPERATOR_UPDATE.common,
           account: caller.address,
@@ -884,8 +890,10 @@ describe('Verifier', () => {
 
   describe('#verifySignerUpdate', () => {
     const DEFAULT_SIGNER_UPDATE = {
-      signer: constants.AddressZero,
-      approved: false,
+      access: {
+        accessor: constants.AddressZero,
+        approved: false,
+      },
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,
@@ -899,8 +907,10 @@ describe('Verifier', () => {
     it('should verify default group cancellation', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        signer: owner.address,
-        approved: true,
+        access: {
+          accessor: owner.address,
+          approved: true,
+        },
         common: {
           ...DEFAULT_SIGNER_UPDATE.common,
           account: caller.address,
