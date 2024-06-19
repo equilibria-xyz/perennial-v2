@@ -30,6 +30,7 @@ struct GuaranteeStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must
 using GuaranteeStorageLocalLib for GuaranteeStorageLocal global;
 
 /// @title Guarantee
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for an account's update guarantee
 library GuaranteeLib {
     /// @notice Prepares the next guarantee from the current guarantee
@@ -99,6 +100,7 @@ library GuaranteeLib {
 }
 
 /// @dev Manually encodes and decodes the global Guarantee struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredGuaranteeGlobal {
 ///         /* slot 0 */
@@ -137,6 +139,7 @@ library GuaranteeStorageGlobalLib {
 }
 
 /// @dev Manually encodes and decodes the local Guarantee struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredGuaranteeLocal {
 ///         /* slot 0 */

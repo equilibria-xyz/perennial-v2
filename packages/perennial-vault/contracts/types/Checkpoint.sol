@@ -55,6 +55,7 @@ struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
 
 /// @title Checkpoint
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for the checkpoint type
 library CheckpointLib {
     /// @notice Initializes the checkpoint
@@ -196,6 +197,7 @@ library CheckpointLib {
     }
 }
 
+/// @dev (external-safe): this library is safe to externalize
 library CheckpointStorageLib {
     // sig: 0xba85116a
     error CheckpointStorageInvalidError();

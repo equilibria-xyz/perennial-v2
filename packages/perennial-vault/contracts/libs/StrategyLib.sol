@@ -67,7 +67,8 @@ using StrategyLib for Strategy global;
 
 /// @title Strategy
 /// @notice Logic for vault capital allocation
-/// @dev - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
+/// @dev (external-safe): this library is safe to externalize
+///      - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library StrategyLib {
     error StrategyLibInsufficientCollateralError();
