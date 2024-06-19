@@ -5,7 +5,7 @@ import "./Order.sol";
 
 /// @dev Guarantee type
 struct Guarantee {
-    /// @dev The quantity of orders that are included in this guarantee
+    /// @dev The quantity of guarantees that that will be exempt from the settlement fee
     uint256 orders;
 
     /// @dev The notional of the magnitude with the price override (local only)
@@ -17,7 +17,7 @@ struct Guarantee {
     /// @dev The negative skew (close long / open short) guarantee size
     UFixed6 takerNeg;
 
-    /// @dev The magnitude of the guarantee that is applicable to the fee
+    /// @dev The magnitude of the guarantee that be exempt from the trade fee
     UFixed6 takerFee;
 
     /// @dev The referral fee multiplied by the size applicable to the referral (local only)
