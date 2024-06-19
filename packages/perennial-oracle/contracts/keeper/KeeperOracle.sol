@@ -33,6 +33,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev Mapping from version and market to a set of registered accounts for settlement callback
     mapping(uint256 => mapping(IMarket => EnumerableSet.AddressSet)) private _localCallbacks;
 
+    /// @dev Mapping of lookback links for versions requested with out a new price
+    mapping(uint256 => uint256) public links;
+
     /// @notice Constructs the contract
     /// @param timeout_ The timeout for a version to be committed
     constructor(uint256 timeout_)  {
@@ -73,16 +76,26 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Records a request for a new oracle version
     /// @param market The market to callback to
     /// @param account The account to callback to
-    function request(IMarket market, address account) external onlyAuthorized {
+    /// @param newPrice Whether a new price should be requested
+    function request(IMarket market, address account, bool newPrice) external onlyAuthorized {
         uint256 currentTimestamp = current();
 
-        _globalCallbacks[currentTimestamp].add(address(market));
-        _localCallbacks[currentTimestamp][market].add(account);
-        emit CallbackRequested(SettlementCallback(market, account, currentTimestamp));
+        if (newPrice) {
+            _globalCallbacks[currentTimestamp].add(address(market));
+            _localCallbacks[currentTimestamp][market].add(account);
+            emit CallbackRequested(SettlementCallback(market, account, currentTimestamp));
+        }
 
-        if (versions[_global.currentIndex] == currentTimestamp) return;
-        versions[++_global.currentIndex] = currentTimestamp;
-        emit OracleProviderVersionRequested(currentTimestamp);
+        if (versions[_global.currentIndex] == currentTimestamp) return; // already requested new price
+        if (newPrice) {
+            versions[++_global.currentIndex] = currentTimestamp;
+            delete links[currentTimestamp];
+            emit OracleProviderVersionRequested(currentTimestamp, true);
+        } else {
+            if (links[currentTimestamp] != 0) return; // already requested without new price
+            links[currentTimestamp] = versions[_global.currentIndex];
+            emit OracleProviderVersionRequested(currentTimestamp, false);
+        }
     }
 
     /// @notice Returns the latest synced oracle version and the current oracle version
@@ -108,6 +121,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param timestamp The timestamp of which to lookup
     /// @return oracleVersion Oracle version at version `version`
     function at(uint256 timestamp) public view returns (OracleVersion memory) {
+        if (links[timestamp] != 0) return at(links[timestamp]);
         return _prices[timestamp].read().toOracleVersion(timestamp);
     }
 

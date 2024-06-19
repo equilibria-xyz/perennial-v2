@@ -588,8 +588,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // apply referrer
         _processReferrer(updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
 
-        // request version
-        if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
+        // request version, only request new price on position change
+        oracle.request(IMarket(this), context.account, !newOrder.isEmpty());
 
         // after
         InvariantLib.validate(context, updateContext, newOrder);

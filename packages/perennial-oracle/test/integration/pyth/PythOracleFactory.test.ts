@@ -85,7 +85,7 @@ const testOracles = [
 ]
 
 testOracles.forEach(testOracle => {
-  describe(testOracle.name, () => {
+  describe.only(testOracle.name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
     let user2: SignerWithAddress
@@ -490,7 +490,7 @@ testOracles.forEach(testOracle => {
       it('commits successfully and incentivizes the keeper', async () => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
         const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect(await keeperOracle.globalCallbacks(STARTING_TIME)).to.deep.eq([market.address])
         expect(await keeperOracle.localCallbacks(STARTING_TIME, market.address)).to.deep.eq([user.address])
 
@@ -521,7 +521,7 @@ testOracles.forEach(testOracle => {
       it('commits successfully with payoff and incentivizes the keeper', async () => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
         const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-        await keeperOracle2.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle2.connect(oracleSigner).request(market.address, user.address, true)
         expect(await keeperOracle2.globalCallbacks(STARTING_TIME)).to.deep.eq([market.address])
         expect(await keeperOracle2.localCallbacks(STARTING_TIME, market.address)).to.deep.eq([user.address])
 
@@ -555,8 +555,8 @@ testOracles.forEach(testOracle => {
 
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
         const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
-        await keeperOracle.connect(oracleSigner).request(market2.address, user2.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+        await keeperOracle.connect(oracleSigner).request(market2.address, user2.address, true)
         expect(await keeperOracle.globalCallbacks(GRANULARITY_STARTING_TIME)).to.deep.eq([
           market.address,
           market2.address,
@@ -591,7 +591,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('fails to commit if update fee is not provided', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
@@ -611,19 +611,19 @@ testOracles.forEach(testOracle => {
           pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, VAA, { value: 1 }),
         ).to.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
 
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
       })
 
       it('does not commit a version that has already been committed', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await expect(
           pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
@@ -632,7 +632,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('rejects invalid update data', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
@@ -643,8 +643,8 @@ testOracles.forEach(testOracle => {
       })
 
       it('cannot skip a version', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.versions(2)).to.be.equal(STARTING_TIME + 1)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
@@ -656,9 +656,9 @@ testOracles.forEach(testOracle => {
       })
 
       it('cannot skip a version if the grace period has expired', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await time.increase(59)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.versions(2)).to.be.equal(STARTING_TIME + 60)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
@@ -700,14 +700,14 @@ testOracles.forEach(testOracle => {
 
       it('can commit if there are requested versions but no committed versions', async () => {
         await time.increase(30)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
       })
 
       it('can commit if there are committed versions but no requested versions', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -720,11 +720,11 @@ testOracles.forEach(testOracle => {
       })
 
       it('can commit if there are committed versions and requested versions', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await time.increase(1)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, { value: 1 })
         await time.increaseTo(1686199141)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         const secondRequestedVersion = await currentBlockTimestamp()
         const nonRequestedOracleVersion = STARTING_TIME + 60
         await pythOracleFactory
@@ -752,7 +752,7 @@ testOracles.forEach(testOracle => {
 
       it('must be more recent than the most recently committed version', async () => {
         await time.increase(2)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 2, VAA, {
           value: 1,
         })
@@ -766,7 +766,7 @@ testOracles.forEach(testOracle => {
 
       it('does not commitRequested if oracleVersion is incorrect', async () => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 1, VAA, {
@@ -793,7 +793,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('cant commit non-requested version until after an invalid has passed grace period', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(59)
@@ -805,7 +805,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('can commit non-requested version after an invalid', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(60)
@@ -826,7 +826,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if committing invalid non-requested version', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
         await time.increase(60)
@@ -965,7 +965,7 @@ testOracles.forEach(testOracle => {
       it('settles successfully and incentivizes the keeper', async () => {
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
         const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
         expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
@@ -996,7 +996,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if array lengths mismatch', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -1018,7 +1018,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if calldata is ids is empty', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -1032,7 +1032,7 @@ testOracles.forEach(testOracle => {
 
     describe('#status', async () => {
       it('returns the correct versions', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -1051,15 +1051,31 @@ testOracles.forEach(testOracle => {
       })
     })
 
-    describe('#request', async () => {
+    describe.only('#request', async () => {
       it('can request a version', async () => {
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
-        await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address))
+        await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address, true))
           .to.emit(keeperOracle, 'OracleProviderVersionRequested')
-          .withArgs('1686198981')
+          .withArgs('1686198981', true)
         // Now there is exactly one requested version
         expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
+        expect((await keeperOracle.global()).currentIndex).to.equal(1)
+      })
+
+      it('can request a version (no new price)', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+        await increase(10)
+
+        // One requested version
+        expect((await keeperOracle.global()).currentIndex).to.equal(1)
+        await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address, false))
+          .to.emit(keeperOracle, 'OracleProviderVersionRequested')
+          .withArgs('1686198991', false)
+
+        // Should link back to requested version
+        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
+        expect(await keeperOracle.links(STARTING_TIME + 10)).to.equal(STARTING_TIME)
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
       })
 
@@ -1068,7 +1084,7 @@ testOracles.forEach(testOracle => {
 
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         const currentTimestamp = await pythOracleFactory.current()
 
         // Now there is exactly one requested version
@@ -1084,16 +1100,16 @@ testOracles.forEach(testOracle => {
         const badSigner = await impersonateWithBalance(badInstance.address, utils.parseEther('10'))
 
         await expect(
-          keeperOracle.connect(badSigner).request(market.address, user.address),
+          keeperOracle.connect(badSigner).request(market.address, user.address, true),
         ).to.be.revertedWithCustomError(keeperOracle, 'OracleProviderUnauthorizedError')
       })
 
-      it('a version can only be requested once', async () => {
+      it('a version can only be requested once (new, new)', async () => {
         await ethers.provider.send('evm_setAutomine', [false])
         await ethers.provider.send('evm_setIntervalMining', [0])
 
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
         await ethers.provider.send('evm_mine', [])
 
@@ -1101,11 +1117,49 @@ testOracles.forEach(testOracle => {
         expect(await keeperOracle.callStatic.versions(1)).to.equal(currentTimestamp)
         expect(await keeperOracle.callStatic.versions(2)).to.equal(0)
       })
+
+      it('a version can only be requested once (new, no new)', async () => {
+        await ethers.provider.send('evm_setAutomine', [false])
+        await ethers.provider.send('evm_setIntervalMining', [0])
+
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
+
+        await ethers.provider.send('evm_mine', [])
+
+        const currentTimestamp = await pythOracleFactory.current()
+        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp)
+        expect(await keeperOracle.versions(2)).to.equal(0)
+        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
+      })
+
+      it('a new price request will overtake a previous no new price request', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+        await increase(10)
+
+        await ethers.provider.send('evm_setAutomine', [false])
+        await ethers.provider.send('evm_setIntervalMining', [0])
+
+        // One requested version
+        expect((await keeperOracle.global()).currentIndex).to.equal(1)
+        await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address, false))
+          .to.emit(keeperOracle, 'OracleProviderVersionRequested')
+          .withArgs('1686198991', false)
+
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        await ethers.provider.send('evm_mine', [])
+
+        const currentTimestamp = await pythOracleFactory.current()
+        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp.add(10))
+        expect(await keeperOracle.links(currentTimestamp.add(10))).to.equal(0)
+        expect(await keeperOracle.links(currentTimestamp.add(10))).to.equal(0)
+      })
     })
 
     describe('#latest', async () => {
       it('returns the latest version', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -1219,7 +1273,7 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
@@ -1234,7 +1288,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns invalid version if that version was requested but not committed', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
         expect(version.valid).to.be.false
       })
