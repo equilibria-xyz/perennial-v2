@@ -490,6 +490,9 @@ describe('Orders', () => {
             user.address,
             { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            userB.address,
+            constants.AddressZero,
           )
           .to.emit(market, 'OrderCreated')
           .withArgs(
@@ -502,6 +505,9 @@ describe('Orders', () => {
               takerReferral: 5e6,
             },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            userB.address,
+            constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
           .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: false })
@@ -552,12 +558,18 @@ describe('Orders', () => {
             user.address,
             { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            userB.address,
+            constants.AddressZero,
           )
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
             { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition, takerReferral: 5e6 },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            userB.address,
+            constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
           .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
@@ -610,12 +622,18 @@ describe('Orders', () => {
             user.address,
             { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            userB.address,
+            constants.AddressZero,
           )
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
             { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition, takerReferral: 5e6 },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            userB.address,
+            constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
           .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
@@ -666,6 +684,9 @@ describe('Orders', () => {
             userB.address,
             { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: collateral.div(-4) },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
           )
 
         expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(collateral.div(4)))
@@ -937,6 +958,9 @@ describe('Orders', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
         })
 

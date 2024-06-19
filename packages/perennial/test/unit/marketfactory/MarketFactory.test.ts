@@ -297,8 +297,10 @@ describe('MarketFactory', () => {
 
   describe('#updateOperatorWithSignature', async () => {
     const DEFAULT_OPERATOR_UPDATE = {
-      operator: constants.AddressZero,
-      approved: false,
+      access: {
+        accessor: constants.AddressZero,
+        approved: false,
+      },
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,
@@ -312,8 +314,10 @@ describe('MarketFactory', () => {
     it('updates the operator status', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        operator: owner.address,
-        approved: true,
+        access: {
+          accessor: owner.address,
+          approved: true,
+        },
         common: {
           ...DEFAULT_OPERATOR_UPDATE.common,
           account: user.address,
@@ -333,8 +337,10 @@ describe('MarketFactory', () => {
 
       const operatorUpdate2 = {
         ...DEFAULT_OPERATOR_UPDATE,
-        operator: owner.address,
-        approval: false,
+        access: {
+          accessor: owner.address,
+          approved: false,
+        },
         common: {
           ...DEFAULT_OPERATOR_UPDATE.common,
           account: user.address,
@@ -357,8 +363,10 @@ describe('MarketFactory', () => {
     it('reverts if signer does not match', async () => {
       const operatorUpdate = {
         ...DEFAULT_OPERATOR_UPDATE,
-        operator: owner.address,
-        approved: true,
+        access: {
+          accessor: owner.address,
+          approved: true,
+        },
         common: {
           ...DEFAULT_OPERATOR_UPDATE.common,
           account: user.address,
@@ -394,8 +402,10 @@ describe('MarketFactory', () => {
 
   describe('#updateSignerWithSignature', async () => {
     const DEFAULT_SIGNER_UPDATE = {
-      signer: constants.AddressZero,
-      approved: false,
+      access: {
+        accessor: constants.AddressZero,
+        approved: false,
+      },
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,
@@ -409,8 +419,10 @@ describe('MarketFactory', () => {
     it('updates the signer status', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        signer: owner.address,
-        approved: true,
+        access: {
+          accessor: owner.address,
+          approved: true,
+        },
         common: {
           ...DEFAULT_SIGNER_UPDATE.common,
           account: user.address,
@@ -430,8 +442,10 @@ describe('MarketFactory', () => {
 
       const signerUpdate2 = {
         ...DEFAULT_SIGNER_UPDATE,
-        signer: owner.address,
-        approval: false,
+        access: {
+          accessor: owner.address,
+          approved: false,
+        },
         common: {
           ...DEFAULT_SIGNER_UPDATE.common,
           account: user.address,
@@ -454,8 +468,10 @@ describe('MarketFactory', () => {
     it('reverts if signer does not match', async () => {
       const signerUpdate = {
         ...DEFAULT_SIGNER_UPDATE,
-        signer: owner.address,
-        approved: true,
+        access: {
+          accessor: owner.address,
+          approved: true,
+        },
         common: {
           ...DEFAULT_SIGNER_UPDATE.common,
           account: user.address,

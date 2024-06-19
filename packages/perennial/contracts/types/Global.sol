@@ -43,6 +43,22 @@ using GlobalStorageLib for GlobalStorage global;
 /// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the global market state
 library GlobalLib {
+    /// @notice Updates market exposure based on a change in the risk parameter configuration
+    /// @param self The Global object to update
+    /// @param latestRiskParameter The latest risk parameter configuration
+    /// @param newRiskParameter The new risk parameter configuration
+    /// @param latestPosition The latest position
+    function update(
+        Global memory self,
+        RiskParameter memory latestRiskParameter,
+        RiskParameter memory newRiskParameter,
+        Position memory latestPosition
+    ) internal pure {
+        Fixed6 exposureChange = latestRiskParameter.takerFee
+            .exposure(newRiskParameter.takerFee, latestPosition.skew(), self.latestPrice.abs());
+        self.exposure = self.exposure.sub(exposureChange);
+    }
+
     /// @notice Increments the fees by `amount` using current parameters
     /// @param self The Global object to update
     /// @param newLatestId The new latest position id
