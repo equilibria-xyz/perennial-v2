@@ -38,6 +38,7 @@ struct CheckpointAccumulationResult {
 }
 
 /// @title CheckpointLib
+/// @dev (external-safe): this library is safe to externalize
 /// @notice Manages the logic for the local order accumulation
 library CheckpointLib {
     /// @notice Accumulate pnl and fees from the latest position to next position

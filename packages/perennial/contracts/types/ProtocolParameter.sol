@@ -47,6 +47,7 @@ struct StoredProtocolParameter {
 struct ProtocolParameterStorage { StoredProtocolParameter value; } // SECURITY: must remain at (1) slots
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
 
+/// @dev (external-safe): this library is safe to externalize
 library ProtocolParameterStorageLib {
     // sig: 0x4dc1bc59
     error ProtocolParameterStorageInvalidError();

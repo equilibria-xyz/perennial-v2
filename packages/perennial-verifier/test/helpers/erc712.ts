@@ -133,9 +133,12 @@ export async function signOperatorUpdate(
       { name: 'group', type: 'uint256' },
       { name: 'expiry', type: 'uint256' },
     ],
-    OperatorUpdate: [
-      { name: 'operator', type: 'address' },
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
       { name: 'approved', type: 'bool' },
+    ],
+    OperatorUpdate: [
+      { name: 'access', type: 'AccessUpdate' },
       { name: 'common', type: 'Common' },
     ],
   }
@@ -157,9 +160,12 @@ export async function signSignerUpdate(
       { name: 'group', type: 'uint256' },
       { name: 'expiry', type: 'uint256' },
     ],
-    SignerUpdate: [
-      { name: 'signer', type: 'address' },
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
       { name: 'approved', type: 'bool' },
+    ],
+    SignerUpdate: [
+      { name: 'access', type: 'AccessUpdate' },
       { name: 'common', type: 'Common' },
     ],
   }
