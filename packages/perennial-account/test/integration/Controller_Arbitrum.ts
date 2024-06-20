@@ -314,7 +314,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, anyValue) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
     }
@@ -338,7 +345,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, transferAmount.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(transferAmount)
@@ -367,7 +381,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(parse6decimal('10000')) // 12k-2k
@@ -407,7 +428,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(0)
@@ -438,7 +466,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, anyValue)
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.be.within(
