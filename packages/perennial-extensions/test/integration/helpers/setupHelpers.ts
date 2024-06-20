@@ -190,6 +190,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
+    minScale: parse6decimal('0.001'),
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).authorize(marketFactory.address)
