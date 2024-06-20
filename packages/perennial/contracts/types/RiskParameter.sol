@@ -155,6 +155,10 @@ library RiskParameterStorageLib {
         if (self.minMaintenance.lt(self.liquidationFee)) revert RiskParameterStorageInvalidError();
 
         if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();
+
+        UFixed6 scaleLimit = self.makerLimit.div(self.efficiencyLimit).mul(protocolParameter.minScale);
+        if (self.takerFee.scale.lt(scaleLimit) || self.makerFee.scale.lt(scaleLimit))
+            revert RiskParameterStorageInvalidError();
     }
 
     function validateAndStore(
