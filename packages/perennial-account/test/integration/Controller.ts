@@ -7,7 +7,8 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import { Account, Account__factory, Controller, IERC20Metadata, IVerifier } from '../../types/generated'
+import { Account, Account__factory, Controller, IERC20Metadata } from '../../types/generated'
+import { IVerifier } from '../../types/generated/contracts/interfaces'
 import { IVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
 import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
@@ -154,10 +155,18 @@ describe('ControllerBase', () => {
   }
 
   const fixture = async () => {
-    // set up users and deploy artifacts
+    // set up users
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    ;[dsu, usdc, controller] = await deployAndInitializeController(owner)
+
+    // deploy controller
+    marketFactory = await createMarketFactory(owner)
+    ;[dsu, usdc, controller] = await deployAndInitializeController(owner, marketFactory)
     verifier = IVerifier__factory.connect(await controller.verifier(), owner)
+
+    // create a market
+    let oracle: IOracleProvider
+    ;[ethMarket, oracle, keeperOracle] = await createMarketETH(owner, marketFactory, dsu)
+    lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
 
     // create a collateral account for userA with 15k collateral in it
     await fundWallet(userA)
@@ -169,12 +178,6 @@ describe('ControllerBase', () => {
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
     await controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature)
     accountA = Account__factory.connect(accountAddressA, userA)
-
-    // create a market
-    marketFactory = await createMarketFactory(owner)
-    let oracle: IOracleProvider
-    ;[ethMarket, oracle, keeperOracle] = await createMarketETH(owner, marketFactory, dsu)
-    lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
 
     // approve the collateral account as operator
     await marketFactory.connect(userA).updateOperator(accountA.address, true)
@@ -319,7 +322,7 @@ describe('ControllerBase', () => {
 
     it('delegated signer can transfer funds', async () => {
       // configure a delegate
-      await controller.connect(userA).updateSigner(userB.address, true)
+      await marketFactory.connect(userA).updateSigner(userB.address, true)
 
       // sign a message to deposit 4k from the collateral account to the market
       const transferAmount = parse6decimal('4000')
@@ -395,7 +398,7 @@ describe('ControllerBase', () => {
       await transfer(parse6decimal('6000'), userA)
 
       // unauthorized user signs transfer message
-      expect(await controller.signers(accountA.address, userB.address)).to.be.false
+      expect(await marketFactory.signers(accountA.address, userB.address)).to.be.false
       const marketTransferMessage = {
         market: ethMarket.address,
         amount: constants.MinInt256,
@@ -434,7 +437,7 @@ describe('ControllerBase', () => {
 
     it('can fully withdraw from a delegated signer', async () => {
       // configure userB as delegated signer
-      await controller.connect(userA).updateSigner(userB.address, true)
+      await marketFactory.connect(userA).updateSigner(userB.address, true)
 
       // delegate signs message for full withdrawal
       const withdrawalMessage = {
@@ -454,7 +457,7 @@ describe('ControllerBase', () => {
     })
 
     it('rejects withdrawals from unauthorized signer', async () => {
-      expect(await controller.signers(accountA.address, userB.address)).to.be.false
+      expect(await marketFactory.signers(accountA.address, userB.address)).to.be.false
 
       // unauthorized user signs message for withdrawal
       const withdrawalMessage = {

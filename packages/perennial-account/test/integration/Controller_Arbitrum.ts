@@ -20,13 +20,7 @@ import {
   IVerifier,
   Verifier__factory,
 } from '../../types/generated'
-import {
-  signDeployAccount,
-  signMarketTransfer,
-  signRebalanceConfigChange,
-  signSignerUpdate,
-  signWithdrawal,
-} from '../helpers/erc712'
+import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import {
   createMarketBTC,
   createMarketETH,
@@ -138,8 +132,8 @@ describe('Controller_Arbitrum', () => {
   const fixture = async () => {
     // create a market
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    ;[dsu, usdc] = await deployAndInitializeController(owner)
     marketFactory = await createMarketFactory(owner)
+    ;[dsu, usdc] = await deployAndInitializeController(owner, marketFactory)
     ;[market, ,] = await createMarketETH(owner, marketFactory, dsu)
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
@@ -153,7 +147,8 @@ describe('Controller_Arbitrum', () => {
     controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
     verifier = await new Verifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
-    await controller['initialize(address,address,address,address,address)'](
+    await controller['initialize(address,address,address,address,address,address)'](
+      marketFactory.address,
       verifier.address,
       usdc.address,
       dsu.address,
@@ -265,53 +260,6 @@ describe('Controller_Arbitrum', () => {
           .connect(keeper)
           .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
       ).to.be.revertedWithCustomError(controller, 'ControllerCannotPayKeeper')
-    })
-  })
-
-  describe('#delegation', async () => {
-    beforeEach(async () => {
-      // keeper starts with no funds
-      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
-      expect(keeperBalanceBefore).to.equal(0)
-    })
-
-    it('cannot collect fee for assigning a delegate before account creation', async () => {
-      // userA signs a message assigning userB's delegation rights
-      const updateSignerMessage = {
-        signer: userB.address,
-        approved: true,
-        ...createAction(userA.address, userA.address),
-      }
-
-      // assign the delegate
-      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-      await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature)).to.be.reverted
-    })
-
-    it('collects fee for assigning a delegate', async () => {
-      // create and fund the account
-      await createCollateralAccount(userA, parse6decimal('12000'))
-
-      // userA signs a message assigning userB's delegation rights
-      const updateSignerMessage = {
-        signer: userB.address,
-        approved: true,
-        ...createAction(userA.address, userA.address),
-      }
-
-      // assign the delegate
-      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-      await expect(
-        controller
-          .connect(keeper)
-          .updateSignerWithSignature(updateSignerMessage, signature, { maxFeePerGas: 100000000 }),
-      )
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, true)
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-
-      const keeperFee = await dsu.balanceOf(keeper.address)
-      expect(keeperFee).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
   })
 
@@ -588,7 +536,7 @@ describe('Controller_Arbitrum', () => {
 
     it('collects fee for partial withdrawal from a delegated signer', async () => {
       // configure userB as delegated signer
-      await controller.connect(userA).updateSigner(userB.address, true, TX_OVERRIDES)
+      await marketFactory.connect(userA).updateSigner(userB.address, true, TX_OVERRIDES)
 
       // delegate signs message for partial withdrawal
       const withdrawalAmount = parse6decimal('7000')

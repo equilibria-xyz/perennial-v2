@@ -12,7 +12,6 @@ import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
-  signSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
 import { impersonate } from '../../../common/testutil'
@@ -138,18 +137,6 @@ describe('Verifier', () => {
     const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
     await expect(verifier.connect(controllerSigner).verifyMarketTransfer(marketTransferMessage, signature)).to.not.be
-      .reverted
-  })
-
-  it('verifies signerUpdate messages', async () => {
-    const updateSignerMessage = {
-      signer: userB.address,
-      approved: true,
-      ...createAction(userA.address, userA.address),
-    }
-    const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-
-    await expect(verifier.connect(controllerSigner).verifySignerUpdate(updateSignerMessage, signature)).to.not.be
       .reverted
   })
 

@@ -118,24 +118,6 @@ export async function signRebalanceConfigChange(
   return await signer._signTypedData(erc721Domain(verifier), types, message)
 }
 
-export async function signSignerUpdate(
-  signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
-  message: SignerUpdateStruct,
-): Promise<string> {
-  const types = {
-    SignerUpdate: [
-      { name: 'signer', type: 'address' },
-      { name: 'approved', type: 'bool' },
-      { name: 'action', type: 'Action' },
-    ],
-    ...actionType,
-    ...commonType,
-  }
-
-  return await signer._signTypedData(erc721Domain(verifier), types, message)
-}
-
 export async function signWithdrawal(
   signer: SignerWithAddress,
   verifier: IVerifier | FakeContract<IVerifier>,

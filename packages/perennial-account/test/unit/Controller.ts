@@ -15,18 +15,19 @@ import {
   Verifier__factory,
 } from '../../types/generated'
 // import { RebalanceConfigChangeStruct, RebalanceConfigStruct } from '../../types/generated/contracts/Controller'
-import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signSignerUpdate } from '../helpers/erc712'
-import { impersonate } from '../../../common/testutil'
+import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange } from '../helpers/erc712'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { deployController, getEventArguments, mockMarket } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { IMarket } from '@equilibria/perennial-v2-oracle/types/generated'
+import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 
 const { ethers } = HRE
 
 describe('Controller', () => {
   let controller: Controller
+  let marketFactory: FakeContract<IMarketFactory>
   let verifier: IVerifier
   let owner: SignerWithAddress
   let userA: SignerWithAddress
@@ -79,12 +80,14 @@ describe('Controller', () => {
   const fixture = async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
     controller = await deployController(owner)
+
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     verifier = await new Verifier__factory(owner).deploy()
 
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    await controller.initialize(verifier.address, usdc.address, dsu.address, reserve.address)
+    await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, reserve.address)
   }
 
   beforeEach(async () => {
@@ -126,7 +129,7 @@ describe('Controller', () => {
 
     it('creates collateral accounts from a delegated signer', async () => {
       // delegate userB to sign for userA
-      await controller.connect(userA).updateSigner(userB.address, true)
+      marketFactory.signers.whenCalledWith(userA.address, userB.address).returns(true)
 
       // create a message to create collateral account for userA but sign it as userB
       const deployAccountMessage = {
@@ -142,6 +145,9 @@ describe('Controller', () => {
     })
 
     it('third party cannot create account on owners behalf', async () => {
+      // tell mock that userB is not a delegate
+      marketFactory.signers.whenCalledWith(userA.address, userB.address).returns(false)
+
       // create a message to create collateral account for userA but sign it as userB
       const deployAccountMessage = {
         ...(await createAction(userA.address)),
@@ -159,146 +165,6 @@ describe('Controller', () => {
       await expect(
         controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
       ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
-    })
-  })
-
-  describe('#delegation', () => {
-    let accountAddressA: Address
-
-    before(async () => {
-      accountAddressA = await controller.getAccountAddress(userA.address)
-    })
-
-    it('can assign and disable a delegate', async () => {
-      // validate initial state
-      expect(await controller.signers(accountAddressA, userB.address)).to.be.false
-
-      // userA assigns userB as delegated signer for their collateral account
-      await expect(controller.connect(userA).updateSigner(userB.address, true))
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, true)
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-
-      // no-op update should neither revert nor change state
-      await expect(controller.connect(userA).updateSigner(userB.address, true))
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-
-      // userA disables userB's delegatation rights
-      await expect(controller.connect(userA).updateSigner(userB.address, false))
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, false)
-      expect(await controller.signers(userA.address, userB.address)).to.be.false
-
-      // no-op update should neither revert nor change state
-      await expect(controller.connect(userA).updateSigner(userB.address, false))
-      expect(await controller.signers(userA.address, userB.address)).to.be.false
-
-      // userA re-enables userB's delegation rights
-      await expect(controller.connect(userA).updateSigner(userB.address, true))
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, true)
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-    })
-
-    it('can assign a delegate from a signed message', async () => {
-      // validate initial state
-      expect(await controller.signers(userA.address, userB.address)).to.be.false
-
-      // userA signs a message assigning userB's delegation rights
-      const updateSignerMessage = {
-        signer: userB.address,
-        approved: true,
-        ...(await createAction(userA.address)),
-      }
-      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-
-      // assign the delegate
-      await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, true)
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-    })
-
-    it('can assign a delegate before collateral account was created', async () => {
-      // userA signs a message assigning userB's delegation rights
-      const updateSignerMessage = {
-        signer: userB.address,
-        approved: true,
-        ...(await createAction(userA.address)),
-      }
-
-      // assign the delegate
-      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-      await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, true)
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-    })
-
-    it('cannot assign a delegate from an unauthorized signer', async () => {
-      // validate initial state
-      expect(await controller.signers(userA.address, userB.address)).to.be.false
-
-      // userB signs a message granting them delegation rights to userA's collateral account
-      const updateSignerMessage = {
-        signer: userB.address,
-        approved: true,
-        ...(await createAction(userA.address, userB.address)),
-      }
-      const signature = await signSignerUpdate(userB, verifier, updateSignerMessage)
-
-      // ensure message verification fails
-      const controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
-      const signerResult = await verifier
-        .connect(controllerSigner)
-        .callStatic.verifySignerUpdate(updateSignerMessage, signature)
-      expect(signerResult).to.not.eq(userA.address)
-
-      // ensure assignment fails
-      await expect(
-        controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
-    })
-
-    it('cannot disable a delegate from an unauthorized signer', async () => {
-      // userA assigns userB as delegated signer for their collateral account
-      await expect(controller.connect(userA).updateSigner(userB.address, true))
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, true)
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-
-      // keeper signs a message disabling userB's delegation rights to userA's collateral account
-      const updateSignerMessage = {
-        signer: userB.address,
-        approved: false,
-        ...(await createAction(userA.address, keeper.address)),
-      }
-      const signature = await signSignerUpdate(keeper, verifier, updateSignerMessage)
-
-      // ensure update fails
-      await expect(
-        controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
-    })
-
-    it('can disable a delegate from a signed message', async () => {
-      // set up initial state
-      await controller.connect(userA).updateSigner(userB.address, true)
-      expect(await controller.signers(userA.address, userB.address)).to.be.true
-
-      // userA signs a message assigning userB's delegation rights
-      const updateSignerMessage = {
-        signer: userB.address,
-        approved: false,
-        ...(await createAction(userA.address)),
-      }
-      const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
-
-      // disable the delegate
-      await expect(controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature))
-        .to.emit(controller, 'SignerUpdated')
-        .withArgs(userA.address, userB.address, false)
-      expect(await controller.signers(userA.address, userB.address)).to.be.false
     })
   })
 
