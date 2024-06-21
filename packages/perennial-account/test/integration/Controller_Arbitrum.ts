@@ -435,7 +435,7 @@ describe('Controller_Arbitrum', () => {
 
     it('collects fee for rebalancing a group', async () => {
       const ethMarket = market
-      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu)
+      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu, TX_OVERRIDES)
 
       // create a new group with two markets
       const message = {
@@ -478,7 +478,7 @@ describe('Controller_Arbitrum', () => {
 
     it('honors max rebalance fee when rebalancing a group', async () => {
       const ethMarket = market
-      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu)
+      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu, TX_OVERRIDES)
 
       // create a new group with two markets and a maxRebalanceFee smaller than the actual fee
       const message = {
