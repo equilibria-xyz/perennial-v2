@@ -9,6 +9,7 @@ import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
@@ -36,7 +37,10 @@ contract Controller is Instance, IController {
     /// @dev DSU address
     Token18 public DSU; // solhint-disable-line var-name-mixedcase
 
-    /// @dev Contract used to validate messages were signed by the sender
+    /// @dev Contract used to validate delegated signers
+    IMarketFactory public marketFactory;
+
+    /// @dev Contract used to validate message signatures
     IVerifier public verifier;
 
     /// @dev DSU Reserve address
@@ -59,12 +63,14 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function initialize(
+        IMarketFactory marketFactory_,
         IVerifier verifier_,
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_
     ) external initializer(1) {
         __Instance__initialize();
+        marketFactory = marketFactory_;
         verifier = verifier_;
         USDC = usdc_;
         DSU = dsu_;
@@ -246,8 +252,7 @@ contract Controller is Instance, IController {
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner, address signer) private view {
-        // TODO: check signers in MarketFactory
-        if (signer != owner && false /*!signers[owner][signer]*/) revert ControllerInvalidSigner();
+        if (signer != owner && !marketFactory.signers(owner, signer)) revert ControllerInvalidSigner();
     }
 
     function _queryMarketCollateral(address owner, uint256 group) private view returns (

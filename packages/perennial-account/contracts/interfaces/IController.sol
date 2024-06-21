@@ -5,6 +5,7 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount } from "../interfaces/IAccount.sol";
 import { IVerifier } from "../interfaces/IVerifier.sol";
@@ -86,11 +87,13 @@ interface IController {
     error ControllerUnsupportedMarket(address market);
 
     /// @notice Sets contract addresses used for message verification and token management
-    /// @param verifier Contract used to validate messages were signed by the sender
+    /// @param marketFactory Contract used to validate delegated signers
+    /// @param verifier Contract used to validate message signatures
     /// @param usdc USDC token address
     /// @param dsu DSU token address
     /// @param reserve DSU Reserve address, used by Account
     function initialize(
+        IMarketFactory marketFactory,
         IVerifier verifier,
         Token6 usdc,
         Token18 dsu,

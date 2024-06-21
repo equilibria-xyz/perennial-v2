@@ -11,6 +11,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18, UFixed18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
@@ -26,19 +27,19 @@ import { Withdrawal } from "./types/Withdrawal.sol";
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     KeepConfig public keepConfig;
 
-    constructor(
-        KeepConfig memory keepConfig_
-    ) {
+    constructor(KeepConfig memory keepConfig_) {
         keepConfig = keepConfig_;
     }
 
     /// @notice Configures message verification and keeper compensation
+    /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate EIP-712 message signatures
     /// @param usdc_ USDC token address
     /// @param dsu_ DSU token address
     /// @param reserve_ DSU Reserve address, used by Account
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
+        IMarketFactory marketFactory_,
         IVerifier verifier_,
         Token6 usdc_,
         Token18 dsu_,
@@ -47,6 +48,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     ) external initializer(1) {
         __Instance__initialize();
         __Kept__initialize(chainlinkFeed_, dsu_);
+        marketFactory = marketFactory_;
         verifier = verifier_;
         USDC = usdc_;
         DSU = dsu_;
