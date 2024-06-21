@@ -51,11 +51,12 @@ export async function createMarketETH(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
   dsu: IERC20Metadata,
+  overrides?: CallOverrides,
 ): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
   // oracle used by the market, from which tests may query prices
   const oracle = IOracleProvider__factory.connect(ETH_USD_ORACLE, owner)
   // market in which user or collateral account may interact
-  const market = await createMarket(owner, marketFactory, dsu, oracle)
+  const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
   // tests use this to commit prices and settle the market
   const keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
   return [market, oracle, keeperOracle]
@@ -66,11 +67,12 @@ export async function createMarketBTC(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
   dsu: IERC20Metadata,
+  overrides?: CallOverrides,
 ): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
   // oracle used by the market, from which tests may query prices
   const oracle = IOracleProvider__factory.connect(BTC_USD_ORACLE, owner)
   // market in which user or collateral account may interact
-  const market = await createMarket(owner, marketFactory, dsu, oracle)
+  const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
   // tests use this to commit prices and settle the market
   const keeperOracle = await new KeeperOracle__factory(owner).attach(BTC_USD_KEEPER_ORACLE)
   return [market, oracle, keeperOracle]

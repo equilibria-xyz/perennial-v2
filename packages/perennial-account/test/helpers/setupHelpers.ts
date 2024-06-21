@@ -69,6 +69,7 @@ export async function createMarket(
   oracle: IOracleProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
+  overrides?: CallOverrides,
 ): Promise<IMarket> {
   const definition = {
     token: dsu.address,
@@ -125,11 +126,11 @@ export async function createMarket(
     ...marketParamOverrides,
   }
   const marketAddress = await marketFactory.callStatic.create(definition)
-  await marketFactory.create(definition)
+  await marketFactory.create(definition, overrides ?? {})
 
   const market = Market__factory.connect(marketAddress, owner)
-  await market.updateRiskParameter(riskParameter)
-  await market.updateParameter(marketParameter)
+  await market.updateRiskParameter(riskParameter, overrides ?? {})
+  await market.updateParameter(marketParameter, overrides ?? {})
 
   return market
 }
