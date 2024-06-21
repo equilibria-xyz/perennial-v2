@@ -19,7 +19,6 @@ import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { RebalanceConfig, RebalanceConfigLib } from "./types/RebalanceConfig.sol";
 import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
-import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Controller
@@ -42,10 +41,6 @@ contract Controller is Instance, IController {
 
     /// @dev DSU Reserve address
     IEmptySetReserve public reserve;
-
-    /// @dev Mapping of allowed signers for each account owner
-    /// owner => delegate => enabled flag
-    mapping(address => mapping(address => bool)) public signers;
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
@@ -152,20 +147,6 @@ contract Controller is Instance, IController {
     }
 
     /// @inheritdoc IController
-    function updateSigner(address signer, bool newEnabled) public {
-        signers[msg.sender][signer] = newEnabled;
-        emit SignerUpdated(msg.sender, signer, newEnabled);
-    }
-
-    /// @inheritdoc IController
-    function updateSignerWithSignature(
-        SignerUpdate calldata signerUpdate,
-        bytes calldata signature
-    ) virtual external {
-        _updateSignerWithSignature(signerUpdate, signature);
-    }
-
-    /// @inheritdoc IController
     function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) virtual external {
         IAccount account = IAccount(getAccountAddress(withdrawal.action.common.account));
         _withdrawWithSignature(account, withdrawal, signature);
@@ -263,19 +244,10 @@ contract Controller is Instance, IController {
         emit GroupRebalanced(owner, group);
     }
 
-    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) internal {
-        // ensure the message was signed only by the owner, not an existing delegate
-        verifier.verifySignerUpdate(signerUpdate, signature);
-        address owner = signerUpdate.action.common.account;
-        if (signerUpdate.action.common.signer != owner) revert ControllerInvalidSigner();
-
-        signers[owner][signerUpdate.signer] = signerUpdate.approved;
-        emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
-    }
-
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
+        // TODO: check signers in MarketFactory
+        if (signer != owner && false /*!signers[owner][signer]*/) revert ControllerInvalidSigner();
     }
 
     function _queryMarketCollateral(address owner, uint256 group) private view returns (

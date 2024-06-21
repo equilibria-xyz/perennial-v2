@@ -19,7 +19,6 @@ import { Controller } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
-import { SignerUpdate } from "./types/SignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
 /// @title Controller_Arbitrum
@@ -100,18 +99,6 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         _rebalanceGroup(owner, group);
         address account = getAccountAddress(owner);
         bytes memory data = abi.encode(account, groupToMaxRebalanceFee[owner][group]);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
-    }
-
-    /// @inheritdoc IController
-    function updateSignerWithSignature(
-        SignerUpdate calldata signerUpdate,
-        bytes calldata signature
-    ) override external {
-        _updateSignerWithSignature(signerUpdate, signature);
-        // for this message, account address is only needed for keeper compensation
-        address account = getAccountAddress(signerUpdate.action.common.account);
-        bytes memory data = abi.encode(address(account), signerUpdate.action.maxFee);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 

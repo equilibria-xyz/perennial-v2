@@ -12,7 +12,6 @@ import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { RebalanceConfig } from "../types/RebalanceConfig.sol";
 import { RebalanceConfigChange } from "../types/RebalanceConfigChange.sol";
-import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
@@ -45,12 +44,6 @@ interface IController {
         address indexed market,
         RebalanceConfig newConfig
     );
-
-    /// @notice Emitted when a delegated signer for a collateral account is assigned, enabled, or disabled
-    /// @param owner User who is granting rights to interact with their collateral account
-    /// @param signer Identifies the signer whose status to update
-    /// @param newEnabled True to assign or enable, false to disable
-    event SignerUpdated(address indexed owner, address indexed signer, bool newEnabled);
 
     // sig: 0x2c51df8b
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
@@ -158,16 +151,6 @@ interface IController {
         address owner,
         uint256 group
     ) external view returns (address[] memory markets);
-
-    /// @notice Updates the status of a delegated signer for the caller's collateral account
-    /// @param signer The signer to update
-    /// @param newEnabled The new status of the opersignerator
-    function updateSigner(address signer, bool newEnabled) external;
-
-    /// @notice Updates the status of a delegated signer for the specified collateral account
-    /// @param updateSigner Message requesting a delegation update
-    /// @param signature ERC712 message signature
-    function updateSignerWithSignature(SignerUpdate calldata updateSigner, bytes calldata signature) external;
 
     /// @notice Transfers tokens from the collateral account back to the owner of the account
     /// @param withdrawal Message requesting a withdrawal
