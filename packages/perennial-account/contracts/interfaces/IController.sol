@@ -48,39 +48,39 @@ interface IController {
 
     // sig: 0x2c51df8b
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
-    error ControllerCannotPayKeeper();
+    error ControllerCannotPayKeeperError();
 
     // sig: 0x1444bc5d
     /// @custom:error A RebalanceConfigChange message had a mismatch in number of markets and configs
-    error ControllerInvalidRebalanceConfig();
+    error ControllerInvalidRebalanceConfigError();
 
     // sig: 0xc640159e
     /// @custom:error Group number was out-of-range; each collateral account may have up to 8 groups, indexed 1-8
-    error ControllerInvalidRebalanceGroup();
+    error ControllerInvalidRebalanceGroupError();
 
     // sig: 0xf065594a
     /// @custom:error Group has too many markets; each group may have 1-4 markets
-    error ControllerInvalidRebalanceMarkets();
+    error ControllerInvalidRebalanceMarketsError();
 
     // sig: 0xcbe71ce7
     /// @custom:error The sum of `target` collateral allocations for each market in a group does not total 100%.
     /// This could also indicate a duplicate market was in the list.
-    error ControllerInvalidRebalanceTargets();
+    error ControllerInvalidRebalanceTargetsError();
 
     // sig: 0x2ee770d20
     /// @custom:error Signer is not authorized to interact with the specified collateral account
-    error ControllerInvalidSigner();
+    error ControllerInvalidSignerError();
 
     // sig: 0xcdfdf387
     /// @custom:error A market in this rebalancing configuration is already a member of a different group
     /// @param market Identifies which market in the message which is causing the problem
     /// @param group Identifies the group in which the aforementioned market is a member
-    error ControllerMarketAlreadyInGroup(address market, uint256 group);
+    error ControllerMarketAlreadyInGroupError(address market, uint256 group);
 
     // sig: 0x3cb60bed
     /// @custom:error Attempt to interact with a Market which does not use DSU as collateral
     /// @param market Market with non-DSU collateral
-    error ControllerUnsupportedMarket(address market);
+    error ControllerUnsupportedMarketError(address market);
 
     /// @notice Sets contract addresses used for message verification and token management
     /// @param verifier Contract used to validate messages were signed by the sender
