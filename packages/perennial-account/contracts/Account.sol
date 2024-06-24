@@ -3,6 +3,7 @@ pragma solidity 0.8.24;
 
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import { Initializable } from "@equilibria/root/attribute/Initializable.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
@@ -15,11 +16,11 @@ import { IMarket, Position } from "@equilibria/perennial-v2/contracts/interfaces
 
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
-contract Account is IAccount {
+contract Account is Initializable, IAccount {
     UFixed6 private constant UNCHANGED_POSITION = UFixed6Lib.MAX;
 
     /// @dev EOA of the user who owns this collateral account
-    address public immutable owner;
+    address public owner;
 
     /// @dev address of the Controller contract, used for checking permissions
     address public immutable controller;
@@ -33,30 +34,32 @@ contract Account is IAccount {
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev Construct collateral account and set approvals for controller and DSU reserve
-    /// @param owner_ EOA of the user for whom this collateral account belongs
+    /// @dev Construct collateral account
     /// @param controller_ Controller contract used for setting approvals and checking permissions
     /// @param usdc_ USDC stablecoin
     /// @param dsu_ Digital Standard Unit stablecoin
     /// @param reserve_ DSU SimpleReserve contract, used for wrapping/unwrapping USDC to/from DSU
     constructor(
-        address owner_,
         address controller_,
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_
     ) {
-        owner = owner_;
         controller = controller_;
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
+    }
 
-        dsu_.approve(controller_);
+    /// @inheritdoc IAccount
+    function initialize(address owner_) external initializer(1) {
+        owner = owner_;
+
+        DSU.approve(controller);
 
         // approve DSU facilities to wrap and unwrap USDC for this account
-        dsu_.approve(address(reserve));
-        usdc_.approve(address(reserve));
+        DSU.approve(address(reserve));
+        USDC.approve(address(reserve));
     }
 
     /// @inheritdoc IAccount

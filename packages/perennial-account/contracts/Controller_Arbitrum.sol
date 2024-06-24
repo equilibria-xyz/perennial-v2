@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import {
     AggregatorV3Interface,
     Kept_Arbitrum
@@ -32,27 +31,26 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     }
 
     /// @notice Configures message verification and keeper compensation
+    /// @param accountImpl_ Implementation contract cloned to create a new collateral account
     /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate EIP-712 message signatures
     /// @param usdc_ USDC token address
     /// @param dsu_ DSU token address
-    /// @param reserve_ DSU Reserve address, used by Account
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
+        address accountImpl_,
         IMarketFactory marketFactory_,
         IVerifier verifier_,
         Token6 usdc_,
         Token18 dsu_,
-        IEmptySetReserve reserve_,
         AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
-        __Instance__initialize();
         __Kept__initialize(chainlinkFeed_, dsu_);
+        accountImpl = accountImpl_;
         marketFactory = marketFactory_;
         verifier = verifier_;
         USDC = usdc_;
         DSU = dsu_;
-        reserve = reserve_;
     }
 
     /// @inheritdoc IController

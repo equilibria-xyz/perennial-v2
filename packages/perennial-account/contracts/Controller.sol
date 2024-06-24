@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { Initializable } from "@equilibria/root/attribute/Initializable.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
@@ -24,7 +23,7 @@ import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Controller
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
-contract Controller is Instance, IController {
+contract Controller is Initializable, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
@@ -37,14 +36,14 @@ contract Controller is Instance, IController {
     /// @dev DSU address
     Token18 public DSU; // solhint-disable-line var-name-mixedcase
 
+    /// @dev collateral account implementation contract, cloned to create new accounts
+    address public accountImpl;
+
     /// @dev Contract used to validate delegated signers
     IMarketFactory public marketFactory;
 
     /// @dev Contract used to validate message signatures
     IVerifier public verifier;
-
-    /// @dev DSU Reserve address
-    IEmptySetReserve public reserve;
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
@@ -63,32 +62,22 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function initialize(
+        address accountImpl_,
         IMarketFactory marketFactory_,
         IVerifier verifier_,
         Token6 usdc_,
-        Token18 dsu_,
-        IEmptySetReserve reserve_
+        Token18 dsu_
     ) external initializer(1) {
-        __Instance__initialize();
+        accountImpl = accountImpl_;
         marketFactory = marketFactory_;
         verifier = verifier_;
         USDC = usdc_;
         DSU = dsu_;
-        reserve = reserve_;
     }
 
     /// @inheritdoc IController
     function getAccountAddress(address owner) public view returns (address) {
-        // generate bytecode for an account created for the specified owner
-        bytes memory bytecode = abi.encodePacked(
-            type(Account).creationCode,
-            abi.encode(owner),
-            abi.encode(address(this)),
-            abi.encode(USDC),
-            abi.encode(DSU),
-            abi.encode(reserve));
-        // calculate the hash for that bytecode and compute the address
-        return Create2.computeAddress(SALT, keccak256(bytecode));
+        return Clones.predictDeterministicAddress(accountImpl, _calculateAccountHash(owner));
     }
 
     /// @inheritdoc IController
@@ -173,7 +162,8 @@ contract Controller is Instance, IController {
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
-        account = new Account{salt: SALT}(owner, address(this), USDC, DSU, reserve);
+        account = IAccount(Clones.cloneDeterministic(accountImpl, _calculateAccountHash(owner)));
+        account.initialize(owner);
         emit AccountDeployed(owner, account);
     }
 
@@ -248,6 +238,19 @@ contract Controller is Instance, IController {
         }
 
         emit GroupRebalanced(owner, group);
+    }
+
+    /// @dev creates an owner-specific salt used to determine CREATE2 address
+    function _calculateAccountHash(address owner) private view returns (bytes32) {
+        bytes memory bytecode = abi.encodePacked(
+            SALT,
+            type(Account).creationCode,
+            abi.encode(owner),
+            abi.encode(address(this)),
+            abi.encode(USDC),
+            abi.encode(DSU)
+        );
+        return keccak256(bytecode);
     }
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner

@@ -12,6 +12,10 @@ interface IAccount {
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error AccountNotAuthorizedError();
 
+    /// @notice Sets owner and runs approvals on a cloned collateral account
+    /// @param owner Address of the user for which the account was created
+    function initialize(address owner) external;
+
     /// @notice Transfer USDC collateral from msg.sender to this account
     /// @param amount Quantity of USDC to transfer in 6-decimal precision
     function deposit(UFixed6 amount) external;

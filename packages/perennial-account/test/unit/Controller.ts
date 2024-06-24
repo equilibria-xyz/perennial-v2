@@ -5,6 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
 import {
+  Account__factory,
   Controller,
   IAccount,
   IAccount__factory,
@@ -87,7 +88,13 @@ describe('Controller', () => {
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, reserve.address)
+    const accountImpl = await new Account__factory(owner).deploy(
+      controller.address,
+      usdc.address,
+      dsu.address,
+      reserve.address,
+    )
+    await controller.initialize(accountImpl.address, marketFactory.address, verifier.address, usdc.address, dsu.address)
   }
 
   beforeEach(async () => {

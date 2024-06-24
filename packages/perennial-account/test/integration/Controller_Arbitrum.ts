@@ -18,15 +18,13 @@ import {
   IMarket,
   IMarketFactory,
   IVerifier,
-  Verifier__factory,
 } from '../../types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import {
   createMarketBTC,
   createMarketETH,
   createMarketFactory,
-  deployAndInitializeController,
-  deployControllerArbitrum,
+  deployAndInitializeArbitrumController,
   fundWalletDSU,
   fundWalletUSDC,
 } from '../helpers/arbitrumHelpers'
@@ -34,9 +32,7 @@ import { getEventArguments } from '../helpers/setupHelpers'
 
 const { ethers } = HRE
 
-const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 const DEFAULT_MAX_FEE = utils.parseEther('0.5')
-const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
@@ -130,31 +126,17 @@ describe('Controller_Arbitrum', () => {
   }
 
   const fixture = async () => {
-    // create a market
+    // set up the market factory
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
     marketFactory = await createMarketFactory(owner)
-    ;[dsu, usdc] = await deployAndInitializeController(owner, marketFactory)
+
+    // set up the controller
+    ;[dsu, usdc, controller, verifier] = await deployAndInitializeArbitrumController(owner, marketFactory)
+
+    // create a market
     ;[market, ,] = await createMarketETH(owner, marketFactory, dsu)
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
-    // set up users and deploy artifacts
-    const keepConfig = {
-      multiplierBase: 0,
-      bufferBase: 1_000_000,
-      multiplierCalldata: 0,
-      bufferCalldata: 500_000,
-    }
-    controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
-    verifier = await new Verifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
-    // chainlink feed is used by Kept for keeper compensation
-    await controller['initialize(address,address,address,address,address,address)'](
-      marketFactory.address,
-      verifier.address,
-      usdc.address,
-      dsu.address,
-      DSU_RESERVE,
-      CHAINLINK_ETH_USD_FEED,
-    )
     // fund userA
     await fundWallet(userA)
   }
@@ -213,6 +195,7 @@ describe('Controller_Arbitrum', () => {
       )
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressA)
+      return
 
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)

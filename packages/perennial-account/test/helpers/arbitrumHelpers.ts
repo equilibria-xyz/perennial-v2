@@ -9,6 +9,8 @@ import {
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { createMarket, deployController, deployProtocolForOracle } from './setupHelpers'
 import {
+  Account,
+  Account__factory,
   Controller,
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
@@ -39,6 +41,8 @@ const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum b
 const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d' // Binance hot wallet has 55mm USDC.e at height 208460709
 // const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC (not USDC.e), a 6-decimal token
 // const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid deposit bridge has 340mm USDC at height 208460709
+
+const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 
 // deploys protocol using a forked Arbitrum oracle
 export async function createMarketFactory(owner: SignerWithAddress): Promise<IMarketFactory> {
@@ -87,9 +91,51 @@ export async function deployAndInitializeController(
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
   const controller = await deployController(owner)
 
+  const accountImpl = await new Account__factory(owner).deploy(
+    controller.address,
+    usdc.address,
+    dsu.address,
+    DSU_RESERVE,
+  )
   const verifier = await new Verifier__factory(owner).deploy()
-  await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, DSU_RESERVE)
+  await controller.initialize(accountImpl.address, marketFactory.address, verifier.address, usdc.address, dsu.address)
   return [dsu, usdc, controller]
+}
+
+export async function deployAndInitializeArbitrumController(
+  owner: SignerWithAddress,
+  marketFactory: IMarketFactory,
+): Promise<[IERC20Metadata, IERC20Metadata, Controller_Arbitrum, IVerifier]> {
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
+
+  // construct the controller
+  const keepConfig = {
+    multiplierBase: 0,
+    bufferBase: 1_000_000,
+    multiplierCalldata: 0,
+    bufferCalldata: 500_000,
+  }
+  const controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
+
+  // initialize the controller
+  const accountImpl = await new Account__factory(owner).deploy(
+    controller.address,
+    usdc.address,
+    dsu.address,
+    DSU_RESERVE,
+  )
+  const verifier = await new Verifier__factory(owner).deploy()
+  await controller['initialize(address,address,address,address,address,address)'](
+    accountImpl.address,
+    marketFactory.address,
+    verifier.address,
+    usdc.address,
+    dsu.address,
+    CHAINLINK_ETH_USD_FEED,
+  )
+
+  return [dsu, usdc, controller, verifier]
 }
 
 // deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
