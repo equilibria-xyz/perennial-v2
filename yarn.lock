@@ -152,10 +152,10 @@
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
-"@equilibria/root@2.3.0-rc2":
-  version "2.3.0-rc2"
-  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-2.3.0-rc2.tgz#0b33e6d7f4773579953e946ad52aaed4f7451d00"
-  integrity sha512-oTv+MZH5QBWIGwS0P9BE6HCn4RYGLvy9apyYxHhaza3Xldlg13bValyvvzKTGoWiLMmPLJK/oG20ReS087Allg==
+"@equilibria/root@2.3.0-rc3":
+  version "2.3.0-rc3"
+  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-2.3.0-rc3.tgz#d11fa30cfb158bc33de382106e9d4bd45ae27875"
+  integrity sha512-od3aZ7cwEjV1bBrlJh8fQ1Wn5yymmwEqRWu3CoximIYvR3oNhcusi+LnMpYQW3TOJAj+aDCEQ9xOljC1rTPpWA==
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
@@ -1715,7 +1715,7 @@
 
 "@nomicfoundation/hardhat-chai-matchers@^1.0.6":
   version "1.0.6"
-  resolved "https://registry.npmjs.org/@nomicfoundation/hardhat-chai-matchers/-/hardhat-chai-matchers-1.0.6.tgz"
+  resolved "https://registry.yarnpkg.com/@nomicfoundation/hardhat-chai-matchers/-/hardhat-chai-matchers-1.0.6.tgz#72a2e312e1504ee5dd73fe302932736432ba96bc"
   integrity sha512-f5ZMNmabZeZegEfuxn/0kW+mm7+yV7VNDxLpMOMGXWFJ2l/Ct3QShujzDRF9cOkK9Ui/hbDeOWGZqyQALDXVCQ==
   dependencies:
     "@ethersproject/abi" "^5.1.2"

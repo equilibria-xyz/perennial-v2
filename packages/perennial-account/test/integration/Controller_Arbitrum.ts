@@ -124,7 +124,7 @@ describe('Controller_Arbitrum', () => {
       .to.emit(dsu, 'Transfer')
       .withArgs(account.address, market.address, anyValue) // scale to token precision
       .to.emit(market, 'OrderCreated')
-      .withArgs(userA.address, anyValue, anyValue)
+      .withArgs(userA.address, anyValue, anyValue, constants.AddressZero, constants.AddressZero, constants.AddressZero)
       .to.emit(controller, 'KeeperCall')
       .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
   }
@@ -259,7 +259,7 @@ describe('Controller_Arbitrum', () => {
         controller
           .connect(keeper)
           .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
-      ).to.be.revertedWithCustomError(controller, 'ControllerCannotPayKeeper')
+      ).to.be.revertedWithCustomError(controller, 'ControllerCannotPayKeeperError')
     })
   })
 
@@ -280,6 +280,34 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
+    async function deposit(amount = parse6decimal('12000')) {
+      // sign a message to deposit everything from the collateral account to the market
+      const marketTransferMessage = {
+        market: market.address,
+        amount: amount,
+        ...createAction(userA.address, userA.address),
+      }
+      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+
+      // perform transfer
+      await expect(
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
+      )
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, market.address, anyValue) // scale to token precision
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
+        .to.emit(controller, 'KeeperCall')
+        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+    }
+
     it('collects fee for depositing some funds to market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
       const transferAmount = parse6decimal('6000')
@@ -297,7 +325,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(accountA.address, market.address, transferAmount.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(transferAmount)
@@ -324,7 +359,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(parse6decimal('10000')) // 12k-2k
@@ -362,7 +404,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(0)
@@ -391,7 +440,14 @@ describe('Controller_Arbitrum', () => {
         .to.emit(dsu, 'Transfer')
         .withArgs(market.address, accountA.address, anyValue)
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.be.within(

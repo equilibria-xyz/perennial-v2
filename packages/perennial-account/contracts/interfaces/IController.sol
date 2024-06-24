@@ -46,45 +46,45 @@ interface IController {
         RebalanceConfig newConfig
     );
 
-    // sig: 0x2c51df8b
+    // sig: 0x599f7892
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
-    error ControllerCannotPayKeeper();
+    error ControllerCannotPayKeeperError();
 
-    /// sig: 0x4f62bcd0
+    // sig: 0xdc72f280
     /// @custom:error Group is balanced and ineligible for rebalance
-    error ControllerGroupBalanced();
+    error ControllerGroupBalancedError();
 
-    // sig: 0x1444bc5d
+    // sig: 0xbd3648e9
     /// @custom:error A RebalanceConfigChange message had a mismatch in number of markets and configs
-    error ControllerInvalidRebalanceConfig();
+    error ControllerInvalidRebalanceConfigError();
 
-    // sig: 0xc640159e
+    // sig: 0xa16ba7f2
     /// @custom:error Group number was out-of-range; each collateral account may have up to 8 groups, indexed 1-8
-    error ControllerInvalidRebalanceGroup();
+    error ControllerInvalidRebalanceGroupError();
 
-    // sig: 0xf065594a
+    // sig: 0xecce9fda
     /// @custom:error Group has too many markets; each group may have 1-4 markets
-    error ControllerInvalidRebalanceMarkets();
+    error ControllerInvalidRebalanceMarketsError();
 
-    // sig: 0xcbe71ce7
+    // sig: 0x64580a1c
     /// @custom:error The sum of `target` collateral allocations for each market in a group does not total 100%.
     /// This could also indicate a duplicate market was in the list.
-    error ControllerInvalidRebalanceTargets();
+    error ControllerInvalidRebalanceTargetsError();
 
-    // sig: 0x2ee770d20
+    // sig: 0x43e749f8
     /// @custom:error Signer is not authorized to interact with the specified collateral account
-    error ControllerInvalidSigner();
+    error ControllerInvalidSignerError();
 
-    // sig: 0xcdfdf387
+    // sig: 0xe21464ba
     /// @custom:error A market in this rebalancing configuration is already a member of a different group
     /// @param market Identifies which market in the message which is causing the problem
     /// @param group Identifies the group in which the aforementioned market is a member
-    error ControllerMarketAlreadyInGroup(address market, uint256 group);
+    error ControllerMarketAlreadyInGroupError(address market, uint256 group);
 
-    // sig: 0x3cb60bed
+    // sig: 0x950cd071
     /// @custom:error Attempt to interact with a Market which does not use DSU as collateral
     /// @param market Market with non-DSU collateral
-    error ControllerUnsupportedMarket(address market);
+    error ControllerUnsupportedMarketError(address market);
 
     /// @notice Sets contract addresses used for message verification and token management
     /// @param marketFactory Contract used to validate delegated signers

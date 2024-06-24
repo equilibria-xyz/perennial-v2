@@ -148,7 +148,7 @@ describe('ControllerBase', () => {
       .to.emit(dsu, 'Transfer')
       .withArgs(expectedFrom, expectedTo, expectedAmount)
       .to.emit(market, 'OrderCreated')
-      .withArgs(userA.address, anyValue, anyValue)
+      .withArgs(userA.address, anyValue, anyValue, constants.AddressZero, constants.AddressZero, constants.AddressZero)
 
     const order = await market.pendingOrders(user.address, (await market.global()).currentId)
     return order.timestamp
@@ -241,7 +241,7 @@ describe('ControllerBase', () => {
       // attempt rebalance
       await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
         controller,
-        'ControllerGroupBalanced',
+        'ControllerGroupBalancedError',
       )
     })
 
@@ -267,7 +267,7 @@ describe('ControllerBase', () => {
     it('handles groups with no collateral', async () => {
       await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
         controller,
-        'ControllerGroupBalanced',
+        'ControllerGroupBalancedError',
       )
     })
 
@@ -409,7 +409,7 @@ describe('ControllerBase', () => {
       // ensure withdrawal fails
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
   })
 
@@ -470,7 +470,7 @@ describe('ControllerBase', () => {
       // ensure withdrawal fails
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
   })
 })
