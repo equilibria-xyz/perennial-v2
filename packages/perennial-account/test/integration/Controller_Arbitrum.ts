@@ -130,7 +130,7 @@ describe('Controller_Arbitrum', () => {
       .to.emit(dsu, 'Transfer')
       .withArgs(account.address, market.address, anyValue) // scale to token precision
       .to.emit(market, 'OrderCreated')
-      .withArgs(userA.address, anyValue, anyValue)
+      .withArgs(userA.address, anyValue, anyValue, constants.AddressZero, constants.AddressZero, constants.AddressZero)
       .to.emit(controller, 'KeeperCall')
       .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
   }
