@@ -7,10 +7,11 @@ import {
   OracleFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { createMarket, deployProtocolForOracle } from './setupHelpers'
+import { createMarket, deployController, deployProtocolForOracle } from './setupHelpers'
 import {
   Controller,
-  Controller__factory,
+  Controller_Arbitrum,
+  Controller_Arbitrum__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
@@ -18,8 +19,8 @@ import {
   IOracleProvider__factory,
   Verifier__factory,
 } from '../../types/generated'
+import type { IKept } from '../../contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
-import { ethers } from 'hardhat'
 
 const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
 const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
@@ -58,15 +59,26 @@ export async function createMarketForOracle(
 }
 
 // connects to Arbitrum stablecoins and deploys a controller configured for them
-export async function deployController(): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
-  const [owner] = await ethers.getSigners()
+export async function deployAndInitializeController(
+  owner: SignerWithAddress,
+): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
-  const controller = await new Controller__factory(owner).deploy()
+  const controller = await deployController(owner)
 
   const verifier = await new Verifier__factory(owner).deploy()
   await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_RESERVE)
   return [dsu, usdc, controller]
+}
+
+// deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
+export async function deployControllerArbitrum(
+  owner: SignerWithAddress,
+  keepConfig: IKept.KeepConfigStruct,
+  overrides?: CallOverrides,
+): Promise<Controller_Arbitrum> {
+  const controller = await new Controller_Arbitrum__factory(owner).deploy(keepConfig, overrides ?? {})
+  return controller
 }
 
 export async function fundWalletDSU(

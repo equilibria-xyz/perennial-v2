@@ -11,6 +11,7 @@ import {
   signCommon,
   signDeployAccount,
   signMarketTransfer,
+  signRebalanceConfigChange,
   signSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
@@ -123,8 +124,8 @@ describe('Verifier', () => {
     }
     const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
 
-    await expect(verifier.connect(controllerSigner).callStatic.verifyDeployAccount(deployAccountMessage, signature)).to
-      .not.be.reverted
+    await expect(verifier.connect(controllerSigner).verifyDeployAccount(deployAccountMessage, signature)).to.not.be
+      .reverted
   })
 
   it('verifies signerUpdate messages', async () => {
@@ -135,8 +136,8 @@ describe('Verifier', () => {
     }
     const signature = await signSignerUpdate(userA, verifier, updateSignerMessage)
 
-    await expect(verifier.connect(controllerSigner).callStatic.verifySignerUpdate(updateSignerMessage, signature)).to
-      .not.be.reverted
+    await expect(verifier.connect(controllerSigner).verifySignerUpdate(updateSignerMessage, signature)).to.not.be
+      .reverted
   })
 
   it('verifies marketTransfer messages', async () => {
@@ -148,12 +149,31 @@ describe('Verifier', () => {
     }
     const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
 
-    await expect(verifier.connect(controllerSigner).callStatic.verifyMarketTransfer(marketTransferMessage, signature))
-      .to.not.be.reverted
+    await expect(verifier.connect(controllerSigner).verifyMarketTransfer(marketTransferMessage, signature)).to.not.be
+      .reverted
+  })
+
+  it('verifies rebalanceConfigChange messages', async () => {
+    const btcMarket = await smock.fake('IMarket')
+    const ethMarket = await smock.fake('IMarket')
+
+    const rebalanceConfigChangeMessage = {
+      group: constants.Zero,
+      markets: [btcMarket.address, ethMarket.address],
+      configs: [
+        { target: parse6decimal('0.55'), threshold: parse6decimal('0.038') },
+        { target: parse6decimal('0.45'), threshold: parse6decimal('0.031') },
+      ],
+      ...createAction(userA.address, userA.address),
+    }
+    const signature = await signRebalanceConfigChange(userA, verifier, rebalanceConfigChangeMessage)
+
+    await expect(
+      verifier.connect(controllerSigner).verifyRebalanceConfigChange(rebalanceConfigChangeMessage, signature),
+    ).to.not.be.reverted
   })
 
   it('verifies withdrawal messages', async () => {
-    const usdc = await smock.fake('IERC20')
     const withdrawalMessage = {
       amount: parse6decimal('55.5'),
       unwrap: false,
@@ -161,7 +181,6 @@ describe('Verifier', () => {
     }
     const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
 
-    await expect(verifier.connect(controllerSigner).callStatic.verifyWithdrawal(withdrawalMessage, signature)).to.not.be
-      .reverted
+    await expect(verifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature)).to.not.be.reverted
   })
 })

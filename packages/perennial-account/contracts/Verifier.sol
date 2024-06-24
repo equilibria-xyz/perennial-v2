@@ -8,8 +8,9 @@ import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
-import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
+import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
+import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Verifier
@@ -50,6 +51,18 @@ contract Verifier is VerifierBase, IVerifier {
         if (!SignatureChecker.isValidSignatureNow(
             marketTransfer.action.common.signer,
             _hashTypedDataV4(MarketTransferLib.hash(marketTransfer)),
+            signature
+        )) revert VerifierInvalidSignerError();
+    }
+
+    /// @inheritdoc IVerifier
+    function verifyRebalanceConfigChange(RebalanceConfigChange calldata change, bytes calldata signature)
+        external
+        validateAndCancel(change.action.common, signature) returns (address)
+    {
+        if (!SignatureChecker.isValidSignatureNow(
+            change.action.common.signer,
+            _hashTypedDataV4(RebalanceConfigChangeLib.hash(change)),
             signature
         )) revert VerifierInvalidSignerError();
     }
