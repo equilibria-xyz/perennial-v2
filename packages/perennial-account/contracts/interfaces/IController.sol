@@ -56,7 +56,7 @@ interface IController {
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
     error ControllerCannotPayKeeperError();
 
-    /// sig: 0xdc72f280
+    // sig: 0xdc72f280
     /// @custom:error Group is balanced and ineligible for rebalance
     error ControllerGroupBalancedError();
 
