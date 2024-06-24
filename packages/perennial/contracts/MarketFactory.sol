@@ -86,7 +86,7 @@ contract MarketFactory is IMarketFactory, Factory {
         verifier.verifyOperatorUpdate(operatorUpdate, signature);
         if (operatorUpdate.common.signer != operatorUpdate.common.account) revert MarketFactoryInvalidSignerError();
 
-        _updateOperator(operatorUpdate.common.account, operatorUpdate.operator, operatorUpdate.approved);
+        _updateOperator(operatorUpdate.common.account, operatorUpdate.access.accessor, operatorUpdate.access.approved);
     }
 
     /// @notice Updates the status of an operator for the account
@@ -112,7 +112,7 @@ contract MarketFactory is IMarketFactory, Factory {
         verifier.verifySignerUpdate(signerUpdate, signature);
         if (signerUpdate.common.signer != signerUpdate.common.account) revert MarketFactoryInvalidSignerError();
 
-        _updateSigner(signerUpdate.common.account, signerUpdate.signer, signerUpdate.approved);
+        _updateSigner(signerUpdate.common.account, signerUpdate.access.accessor, signerUpdate.access.approved);
     }
 
     /// @notice Updates the status of a signer for the caller

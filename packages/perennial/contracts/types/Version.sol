@@ -51,6 +51,7 @@ struct VersionStorage { uint256 slot0; uint256 slot1; uint256 slot2; }
 using VersionStorageLib for VersionStorage global;
 
 /// @dev Manually encodes and decodes the Version struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredVersion {
 ///         /* slot 0 */

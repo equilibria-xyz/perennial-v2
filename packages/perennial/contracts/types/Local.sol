@@ -31,6 +31,7 @@ struct LocalStorage { uint256 slot0; uint256 slot1; }
 using LocalStorageLib for LocalStorage global;
 
 /// @title Local
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the local account state
 library LocalLib {
     /// @notice Updates the collateral with the new deposit or withdrwal
@@ -63,6 +64,7 @@ library LocalLib {
 }
 
 /// @dev Manually encodes and decodes the Local struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredLocal {
 ///         /* slot 0 */

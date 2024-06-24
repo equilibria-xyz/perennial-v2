@@ -40,7 +40,7 @@ library RebalanceConfigChangeLib {
 
         // ensure consistent error for length mismatch
         if (self.markets.length != self.configs.length)
-            revert IController.ControllerInvalidRebalanceConfig();
+            revert IController.ControllerInvalidRebalanceConfigError();
 
         for (uint256 i = 0; i < self.markets.length; ++i) {
             encodedAddresses[i] = keccak256(abi.encode(self.markets[i]));

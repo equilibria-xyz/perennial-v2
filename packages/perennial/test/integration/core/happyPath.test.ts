@@ -137,6 +137,9 @@ describe('Happy Path', () => {
           makerPos: POSITION,
         },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // Check user is in the correct state
@@ -247,6 +250,9 @@ describe('Happy Path', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION.div(2) },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // Check user is in the correct state
@@ -363,6 +369,9 @@ describe('Happy Path', () => {
           makerNeg: POSITION,
         },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // User state
@@ -437,6 +446,9 @@ describe('Happy Path', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION.div(2) },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // User state
@@ -522,6 +534,9 @@ describe('Happy Path', () => {
           longPos: POSITION_B,
         },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // User State
@@ -671,6 +686,9 @@ describe('Happy Path', () => {
         userB.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B.div(2) },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // User State
@@ -801,6 +819,9 @@ describe('Happy Path', () => {
           longNeg: POSITION_B,
         },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // User State
@@ -890,6 +911,9 @@ describe('Happy Path', () => {
         userB.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longNeg: POSITION_B.div(2) },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // User State
@@ -992,6 +1016,9 @@ describe('Happy Path', () => {
         userB.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B, collateral: COLLATERAL },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // 50 rounds (120% max)
@@ -1037,6 +1064,9 @@ describe('Happy Path', () => {
         userB.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: POSITION_B, collateral: COLLATERAL },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // 50 rounds (120% max)
@@ -1147,6 +1177,9 @@ describe('Happy Path', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_5, orders: 1, makerPos: POSITION.div(2), collateral: -1 },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // Check user is in the correct state

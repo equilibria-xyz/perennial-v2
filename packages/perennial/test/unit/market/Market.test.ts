@@ -57,14 +57,16 @@ const TIMESTAMP = 1636401093
 const PRICE = parse6decimal('123')
 
 const DEFAULT_VERSION_ACCUMULATION_RESULT = {
-  positionFee: 0,
-  positionFeeMaker: 0,
-  positionFeeProtocol: 0,
-  positionFeeSubtractive: 0,
-  positionFeeExposure: 0,
-  positionFeeExposureMaker: 0,
-  positionFeeExposureProtocol: 0,
-  positionFeeImpact: 0,
+  tradeFee: 0,
+  subtractiveFee: 0,
+
+  tradeOffset: 0,
+  tradeOffsetMaker: 0,
+  tradeOffsetMarket: 0,
+
+  adiabaticExposure: 0,
+  adiabaticExposureMaker: 0,
+  adiabaticExposureMarket: 0,
 
   fundingMaker: 0,
   fundingLong: 0,
@@ -86,12 +88,13 @@ const DEFAULT_VERSION_ACCUMULATION_RESULT = {
 
 const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   collateral: 0,
-  linearFee: 0,
-  proportionalFee: 0,
-  adiabaticFee: 0,
-  subtractiveFee: 0,
+  priceOverride: 0,
+  tradeFee: 0,
+  offset: 0,
   settlementFee: 0,
   liquidationFee: 0,
+  subtractiveFee: 0,
+  solverFee: 0,
 }
 
 const ORACLE_VERSION_0 = {
@@ -945,6 +948,9 @@ describe('Market', () => {
             userB.address,
             { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION, protection: 1 },
             { ...DEFAULT_GUARANTEE },
+            liquidator.address,
+            constants.AddressZero,
+            constants.AddressZero,
           )
         oracleVersion = {
           ...oracleVersion,
@@ -1056,6 +1062,207 @@ describe('Market', () => {
         })
       })
 
+      it('incurs exposure adding adiabatic fee with no maker position (w/ rounding)', async () => {
+        // setup from #update
+        await market.connect(owner).updateParameter(marketParameter)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        // setup from maker - userB establishes maker position
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userB.address,
+            parse6decimal('10'),
+            0,
+            0,
+            parse6decimal('450'),
+            false,
+          )
+        // user establishes long position
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            user.address,
+            0,
+            parse6decimal('6'),
+            0,
+            COLLATERAL,
+            false,
+          )
+        // userC establishes short position
+        dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userC)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userC.address,
+            0,
+            0,
+            parse6decimal('12'),
+            COLLATERAL,
+            false,
+          )
+
+        // update oracle and settle positions
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
+        oracle.request.returns()
+        await settle(market, user)
+        await settle(market, userB)
+        await settle(market, userC)
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: parse6decimal('10'),
+          long: parse6decimal('6'),
+          short: parse6decimal('12'),
+        })
+
+        // price drops, undercollateralizing the maker position
+        let oracleVersion = {
+          price: parse6decimal('45'),
+          timestamp: TIMESTAMP + 3600 * 2,
+          valid: true,
+        }
+        oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
+        oracle.status.returns([oracleVersion, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
+        oracle.request.returns()
+        await settle(market, user)
+
+        // userB gets liquidated, eliminating the maker position
+        const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
+        dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+        dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+        await expect(
+          market
+            .connect(liquidator)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
+        )
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            userB.address,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION, protection: 1 },
+            { ...DEFAULT_GUARANTEE },
+            liquidator.address,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+        oracleVersion = {
+          ...oracleVersion,
+          timestamp: TIMESTAMP + 3600 * 3,
+        }
+        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(oracleVersion)
+        oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
+        oracle.request.returns()
+        await settle(market, userB)
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_4.timestamp,
+          maker: parse6decimal('0'),
+          long: parse6decimal('6'),
+          short: parse6decimal('12'),
+        })
+
+        // takerFee.scale=5, makerFee.scale=10, skew=-6, scaledSkew=-6/5 bounded by (-1,1)=-1
+        // takerSoc = min(max(long,short), min(long,short)+maker) = 12
+        // rate_0 = 0
+        // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -1 / 40000 = -0.09
+        // funding = (rate_0 + rate_1) / 2 * elapsed * takerSoc * price / time_in_years
+        // (0 + -0.09)/2 * 3600 * 12 * 123 / (86400 * 365)
+        const EXPECTED_FUNDING_1 = BigNumber.from(-7582) // −0.007582
+        const EXPECTED_FUNDING_FEE_1 = BigNumber.from(758) // |funding| * fundingFee
+        // net         = max(long,short) / (maker+min(long,short)) = 12/(10+6) = 0.75
+        // efficiency  = max(long,short) * efficiencyLimit / maker = 12*0.2/10 = 0.24
+        // utilization = max(net, efficiency) with ceiling of 1    = 0.75
+        // rate * elapsed * min(maker, taker) * price
+        // (0.55 / 365/24/60/60) * 3600 * 10 * 123 = 0.077226
+        const EXPECTED_INTEREST_1 = BigNumber.from(77226)
+        const EXPECTED_INTEREST_FEE_1 = EXPECTED_INTEREST_1.div(10) // 7722
+
+        // rate_2 = rate_1 + (elapsed * scaledSkew / k) = -0.09 + 3600 * -1 / 40000 = -0.18
+        // (-0.09 + -0.18)/2 * 3600 * 12 * 45 / (86400 * 365)
+        const EXPECTED_FUNDING_2 = BigNumber.from(-8321) // −0.008321
+        const EXPECTED_FUNDING_FEE_2 = BigNumber.from(832) // |funding| * fundingFee
+        // (0.55 / 365/24/60/60) * 3600 * 10 * 45 = 0.028253
+        const EXPECTED_INTEREST_2 = BigNumber.from(28253)
+        const EXPECTED_INTEREST_FEE_2 = EXPECTED_INTEREST_2.div(10) // 2825
+        let totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_1)
+          .add(EXPECTED_FUNDING_FEE_2)
+          .add(EXPECTED_INTEREST_FEE_2)
+
+        expectGlobalEq(await market.global(), {
+          currentId: 4,
+          latestId: 3,
+          protocolFee: totalFee.div(2),
+          oracleFee: totalFee.div(2).div(10),
+          riskFee: totalFee.div(2).div(10),
+          donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+          latestPrice: parse6decimal('45'),
+          exposure: 0,
+        })
+
+        // update risk parameters, introducing exposure
+        await expect(
+          market.connect(owner).updateRiskParameter({
+            ...defaultRiskParameter,
+            takerFee: { ...defaultRiskParameter.takerFee, scale: parse6decimal('50.5') },
+          }),
+        ).to.emit(market, 'RiskParameterUpdated')
+
+        // maker exposure is 0, so
+        // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1] + makerExposure
+        //                = [(-6/50+0)/2 * 0.003 * -6] + 0 = 0.00108
+        // impactExposure = latestExposure * priceChange = 0.00108 * (45-0) = 0.0486
+        const EXPOSURE_BEFORE_2 = BigNumber.from(0)
+        const EXPOSURE_AFTER_2 = BigNumber.from(0).sub(parse6decimal('0.0486'))
+        expectGlobalEq(await market.global(), {
+          currentId: 4,
+          latestId: 3,
+          protocolFee: totalFee.div(2),
+          oracleFee: totalFee.div(2).div(10),
+          riskFee: totalFee.div(2).div(10),
+          donation: totalFee.div(2).mul(8).div(10).add(3), // loss of precision
+          latestPrice: parse6decimal('45'),
+          exposure: EXPOSURE_BEFORE_2.add(EXPOSURE_AFTER_2),
+        })
+
+        // settle after another oracle price update to ensure exposure changes as expected
+        oracleVersion = {
+          ...oracleVersion,
+          price: parse6decimal('62'),
+          timestamp: TIMESTAMP + 3600 * 4,
+        }
+        oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(oracleVersion)
+        oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
+        oracle.request.returns()
+        await settle(market, user)
+
+        // rate_3 = rate_2 + (elapsed * scaledSkew / k) = -0.18 + 3600 * -1 / 40000 = −0.27
+        // (-0.18 + -0.27)/2 * 3600 * 6 * 45 / (86400 * 365) = −0.006934
+        const EXPECTED_FUNDING_3 = BigNumber.from(-6934)
+        const EXPECTED_FUNDING_FEE_3 = BigNumber.from(693) // |funding| * fundingFee
+        // no EXPECTED_INTEREST_FEE_3 because no position change
+        totalFee = totalFee.add(EXPECTED_FUNDING_FEE_3)
+
+        // impactExposure = latestExposure * priceChange = 0.00108 * (62-45) =
+        const EXPOSURE_BEFORE_3 = EXPOSURE_AFTER_2
+        const EXPOSURE_AFTER_3 = BigNumber.from(0).sub(parse6decimal('0.01836'))
+        expectGlobalEq(await market.global(), {
+          currentId: 5,
+          latestId: 4,
+          protocolFee: totalFee.div(2).sub(1), // loss of precision
+          oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
+          riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
+          donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
+          latestPrice: parse6decimal('62'),
+          exposure: EXPOSURE_BEFORE_3.add(EXPOSURE_AFTER_3),
+        })
+      })
+
       it('reverts if not owner or coordinator', async () => {
         await expect(market.connect(user).updateRiskParameter(defaultRiskParameter)).to.be.revertedWithCustomError(
           market,
@@ -1105,6 +1312,9 @@ describe('Market', () => {
               collateral: COLLATERAL,
             },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
           )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -1216,6 +1426,9 @@ describe('Market', () => {
               collateral: COLLATERAL,
             },
             { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
           )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -1332,6 +1545,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -1386,6 +1602,9 @@ describe('Market', () => {
                 collateral: -COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -1432,6 +1651,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -1488,6 +1710,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, collateral: COLLATERAL.mul(-1) },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -1538,6 +1763,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, collateral: COLLATERAL },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -1594,6 +1822,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_6.timestamp, collateral: COLLATERAL.mul(-1) },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -1663,6 +1894,9 @@ describe('Market', () => {
                   makerPos: POSITION,
                 },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             expectLocalEq(await market.locals(user.address), {
@@ -1744,6 +1978,9 @@ describe('Market', () => {
                   collateral: COLLATERAL,
                 },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -1832,6 +2069,9 @@ describe('Market', () => {
                 user.address,
                 { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, makerPos: POSITION },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             expectLocalEq(await market.locals(user.address), {
@@ -1886,6 +2126,9 @@ describe('Market', () => {
                 user.address,
                 { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, makerPos: POSITION },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -1953,6 +2196,9 @@ describe('Market', () => {
                 user.address,
                 { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerPos: POSITION },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             expectLocalEq(await market.locals(user.address), {
@@ -2018,6 +2264,9 @@ describe('Market', () => {
                 user.address,
                 { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerPos: POSITION },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -2092,6 +2341,9 @@ describe('Market', () => {
                   collateral: COLLATERAL,
                 },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -2179,6 +2431,9 @@ describe('Market', () => {
                   collateral: COLLATERAL,
                 },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -2261,6 +2516,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -2318,6 +2576,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -2379,6 +2640,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -2440,6 +2704,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -2505,6 +2772,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -2570,6 +2840,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -2627,6 +2900,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -2702,6 +2978,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -2804,6 +3083,9 @@ describe('Market', () => {
                     longPos: POSITION,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -2873,6 +3155,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -2944,6 +3229,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, longPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -3006,6 +3294,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, longPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -3081,6 +3372,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -3154,6 +3448,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -3257,6 +3554,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -3378,6 +3678,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -3512,6 +3815,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -3647,6 +3953,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 expectLocalEq(await market.locals(user.address), {
@@ -3705,6 +4014,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -3799,6 +4111,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 expectLocalEq(await market.locals(user.address), {
@@ -3861,6 +4176,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -3959,6 +4277,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 await settle(market, user)
@@ -4065,6 +4386,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -4180,6 +4504,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -4290,6 +4617,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -4818,6 +5148,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -5025,6 +5358,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -5273,6 +5609,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -5401,6 +5740,9 @@ describe('Market', () => {
                   userB.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, collateral: shortfall.mul(-1) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -5497,6 +5839,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -5688,6 +6033,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -5812,6 +6160,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, collateral: shortfall.mul(-1) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -6003,6 +6354,9 @@ describe('Market', () => {
                     shortPos: POSITION,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -6073,6 +6427,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -6144,6 +6501,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, shortPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -6207,6 +6567,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, shortPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -6282,6 +6645,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -6355,6 +6721,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -6463,6 +6832,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -6588,6 +6960,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -6725,6 +7100,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -6859,6 +7237,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 expectLocalEq(await market.locals(user.address), {
@@ -6917,6 +7298,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -7012,6 +7396,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 expectLocalEq(await market.locals(user.address), {
@@ -7074,6 +7461,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -7173,6 +7563,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, shortNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 await settle(market, userB)
@@ -7279,6 +7672,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, shortNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -7396,6 +7792,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -7508,6 +7907,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -8043,6 +8445,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -8258,6 +8663,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -8483,6 +8891,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -8603,6 +9014,9 @@ describe('Market', () => {
                   userB.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, collateral: shortfall.mul(-1) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -8699,6 +9113,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -8896,6 +9313,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -9022,6 +9442,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, collateral: shortfall.mul(-1) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -9199,6 +9622,9 @@ describe('Market', () => {
                 user.address,
                 { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION.div(2) },
                 { ...DEFAULT_GUARANTEE },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
 
             const marketParameter2 = { ...(await market.parameter()) }
@@ -9354,6 +9780,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -9425,6 +9854,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9497,6 +9929,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, longPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -9561,6 +9996,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, longPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9637,6 +10075,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -9711,6 +10152,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longPos: POSITION.div(2) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -9831,6 +10275,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -9980,6 +10427,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -10110,6 +10560,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -10232,6 +10685,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -10359,6 +10815,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -10481,6 +10940,9 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -10643,6 +11105,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 expectLocalEq(await market.locals(user.address), {
@@ -10702,6 +11167,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -10811,6 +11279,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 expectLocalEq(await market.locals(user.address), {
@@ -10874,6 +11345,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -10987,6 +11461,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 await settle(market, user)
@@ -11102,6 +11579,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(4) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -11249,6 +11729,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -11348,6 +11831,9 @@ describe('Market', () => {
                     user.address,
                     { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
                     { ...DEFAULT_GUARANTEE },
+                    constants.AddressZero,
+                    constants.AddressZero,
+                    constants.AddressZero,
                   )
 
                 oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -11913,6 +12399,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -12167,6 +12656,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -12300,6 +12792,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -12541,6 +13036,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(user.address), {
@@ -12678,6 +13176,9 @@ describe('Market', () => {
                   userB.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, collateral: shortfall.mul(-1) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -12785,6 +13286,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -13036,6 +13540,9 @@ describe('Market', () => {
                     protection: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
+                  liquidator.address,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               // rate_1 = rate_0 + (elapsed * skew / k)
@@ -13187,6 +13694,9 @@ describe('Market', () => {
                   user.address,
                   { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, collateral: shortfall.mul(-1) },
                   { ...DEFAULT_GUARANTEE },
+                  constants.AddressZero,
+                  constants.AddressZero,
+                  constants.AddressZero,
                 )
 
               expectLocalEq(await market.locals(liquidator.address), {
@@ -13766,6 +14276,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(2) },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -13801,6 +14314,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, orders: 1, longNeg: POSITION.div(2) },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -14283,6 +14799,9 @@ describe('Market', () => {
                 protection: 1,
               },
               { ...DEFAULT_GUARANTEE },
+              liquidator.address,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -14460,6 +14979,9 @@ describe('Market', () => {
                 protection: 1,
               },
               { ...DEFAULT_GUARANTEE },
+              liquidator.address,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
@@ -14561,6 +15083,9 @@ describe('Market', () => {
                 protection: 1,
               },
               { ...DEFAULT_GUARANTEE },
+              liquidator.address,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at
@@ -14588,6 +15113,9 @@ describe('Market', () => {
                 protection: 1,
               },
               { ...DEFAULT_GUARANTEE },
+              liquidator.address,
+              constants.AddressZero,
+              constants.AddressZero,
             )
           await settle(market, userB)
 
@@ -15140,6 +15668,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
@@ -15296,6 +15827,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
@@ -15312,6 +15846,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longPos: POSITION.div(2) },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
@@ -15496,6 +16033,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
@@ -15512,6 +16052,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longPos: POSITION.div(2) },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
@@ -15686,6 +16229,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.status.returns([{ ...ORACLE_VERSION_2 }, ORACLE_VERSION_4.timestamp])
@@ -15701,6 +16247,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
@@ -15876,6 +16425,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.status.returns([{ ...ORACLE_VERSION_2 }, ORACLE_VERSION_4.timestamp])
@@ -15891,6 +16443,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
@@ -15908,6 +16463,9 @@ describe('Market', () => {
               user.address,
               { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, orders: 1, longPos: POSITION.div(2) },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns({ ...ORACLE_VERSION_5 })
@@ -16086,6 +16644,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -16476,6 +17037,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -16555,6 +17119,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           expectLocalEq(await market.locals(user.address), {
@@ -16696,7 +17263,17 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
               },
-              { ...DEFAULT_GUARANTEE },
+              {
+                ...DEFAULT_GUARANTEE,
+                orders: 1,
+                takerPos: POSITION.div(2),
+                notional: POSITION.div(2).mul(125),
+                takerFee: POSITION.div(2),
+                referral: 0,
+              },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -16708,7 +17285,17 @@ describe('Market', () => {
                 shortPos: POSITION.div(2),
                 takerReferral: POSITION.div(2).mul(2).div(10),
               },
-              { ...DEFAULT_GUARANTEE },
+              {
+                ...DEFAULT_GUARANTEE,
+                orders: 0,
+                takerNeg: POSITION.div(2),
+                notional: -POSITION.div(2).mul(125),
+                takerFee: 0,
+                referral: POSITION.div(2).div(10),
+              },
+              constants.AddressZero,
+              liquidator.address, // originator
+              owner.address, // solver
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -18529,6 +19116,9 @@ describe('Market', () => {
                 makerReferral: POSITION.div(5),
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              liquidator.address,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -18637,6 +19227,9 @@ describe('Market', () => {
                 takerReferral: POSITION.div(10),
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              liquidator.address,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -18778,6 +19371,9 @@ describe('Market', () => {
                 takerReferral: POSITION.div(10),
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              user.address,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -18901,6 +19497,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -18916,6 +19515,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at
@@ -19070,6 +19672,9 @@ describe('Market', () => {
                 collateral: COLLATERAL,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -19085,6 +19690,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_3.timestamp,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -19106,6 +19714,9 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_4.timestamp,
               },
               { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4) // latest
@@ -19319,7 +19930,17 @@ describe('Market', () => {
                   orders: 1,
                   longPos: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -19331,9 +19952,18 @@ describe('Market', () => {
                   shortPos: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
-
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -19521,7 +20151,17 @@ describe('Market', () => {
                   orders: 1,
                   shortPos: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -19533,7 +20173,17 @@ describe('Market', () => {
                   longPos: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -19723,7 +20373,17 @@ describe('Market', () => {
                   orders: 1,
                   longPos: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(121),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -19735,7 +20395,17 @@ describe('Market', () => {
                   shortPos: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(121),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -19925,7 +20595,17 @@ describe('Market', () => {
                   orders: 1,
                   shortPos: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(121),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -19937,7 +20617,17 @@ describe('Market', () => {
                   longPos: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(121),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -20142,7 +20832,17 @@ describe('Market', () => {
                   orders: 1,
                   longNeg: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20154,7 +20854,17 @@ describe('Market', () => {
                   longPos: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -20360,7 +21070,17 @@ describe('Market', () => {
                   orders: 1,
                   shortNeg: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20372,7 +21092,17 @@ describe('Market', () => {
                   shortPos: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -20578,7 +21308,17 @@ describe('Market', () => {
                   orders: 1,
                   shortPos: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20590,7 +21330,17 @@ describe('Market', () => {
                   shortNeg: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -20798,7 +21548,17 @@ describe('Market', () => {
                   orders: 1,
                   longPos: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -20810,7 +21570,17 @@ describe('Market', () => {
                   longNeg: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -21024,7 +21794,17 @@ describe('Market', () => {
                   orders: 1,
                   longNeg: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -21036,7 +21816,17 @@ describe('Market', () => {
                   shortNeg: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
@@ -21250,7 +22040,17 @@ describe('Market', () => {
                   orders: 1,
                   shortNeg: POSITION.div(2),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  takerPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                  referral: 0,
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
               )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -21262,7 +22062,17 @@ describe('Market', () => {
                   longNeg: POSITION.div(2),
                   takerReferral: POSITION.div(2).mul(2).div(10),
                 },
-                { ...DEFAULT_GUARANTEE },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 0,
+                  takerNeg: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  referral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)

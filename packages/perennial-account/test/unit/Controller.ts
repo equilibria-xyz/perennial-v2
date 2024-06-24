@@ -158,7 +158,7 @@ describe('Controller', () => {
 
       await expect(
         controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
   })
 
@@ -257,7 +257,7 @@ describe('Controller', () => {
       // ensure assignment fails
       await expect(
         controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
 
     it('cannot disable a delegate from an unauthorized signer', async () => {
@@ -278,7 +278,7 @@ describe('Controller', () => {
       // ensure update fails
       await expect(
         controller.connect(keeper).updateSignerWithSignature(updateSignerMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
 
     it('can disable a delegate from a signed message', async () => {
@@ -389,7 +389,7 @@ describe('Controller', () => {
         // panic occurs during message verification
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceConfig')
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceConfigError')
 
         message = {
           group: 1,
@@ -405,7 +405,7 @@ describe('Controller', () => {
         // await controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceConfig')
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceConfigError')
       })
 
       it('rejects groups where targets do not add to 100%', async () => {
@@ -424,7 +424,7 @@ describe('Controller', () => {
 
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceTargets')
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceTargetsError')
       })
 
       it('prevents markets from being added to multiple groups', async () => {
@@ -458,7 +458,7 @@ describe('Controller', () => {
         }
         signature = await signRebalanceConfigChange(userA, verifier, message)
         await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature))
-          .to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
+          .to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroupError')
           .withArgs(btcMarket.address, 1)
       })
 
@@ -479,7 +479,7 @@ describe('Controller', () => {
 
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
+        ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroupError')
       })
 
       it('prevents creating group with index 0', async () => {
@@ -494,7 +494,7 @@ describe('Controller', () => {
         const signature = await signRebalanceConfigChange(userA, verifier, message)
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceGroup')
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceGroupError')
       })
 
       it('limits number of groups per collateral account', async () => {
@@ -509,7 +509,7 @@ describe('Controller', () => {
         const signature = await signRebalanceConfigChange(userA, verifier, message)
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceGroup')
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceGroupError')
       })
 
       it('limits number of markets per group', async () => {
@@ -535,7 +535,7 @@ describe('Controller', () => {
 
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceMarkets')
+        ).to.be.revertedWithCustomError(controller, 'ControllerInvalidRebalanceMarketsError')
       })
 
       it('allows multiple users to have groups with the same index', async () => {
@@ -686,7 +686,7 @@ describe('Controller', () => {
         // perform the update
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
+        ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroupError')
       })
 
       it('rejects updating a market with a market which exists in another group', async () => {
@@ -721,7 +721,7 @@ describe('Controller', () => {
 
         await expect(
           controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature),
-        ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroup')
+        ).to.be.revertedWithCustomError(controller, 'ControllerMarketAlreadyInGroupError')
       })
 
       it('can move market from one group to another', async () => {
@@ -813,7 +813,7 @@ describe('Controller', () => {
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerUnsupportedMarket')
+      ).to.be.revertedWithCustomError(controller, 'ControllerUnsupportedMarketError')
     })
   })
 })

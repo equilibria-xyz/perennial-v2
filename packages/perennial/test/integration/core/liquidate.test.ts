@@ -39,6 +39,9 @@ describe('Liquidate', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
         { ...DEFAULT_GUARANTEE },
+        userB.address,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
@@ -177,6 +180,9 @@ describe('Liquidate', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
         { ...DEFAULT_GUARANTEE },
+        userB.address,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     await chainlink.next()
@@ -288,6 +294,9 @@ describe('Liquidate', () => {
         user.address,
         { ...DEFAULT_ORDER, timestamp: TIMESTAMP_3, orders: 1, makerNeg: parse6decimal('5'), protection: 1 },
         { ...DEFAULT_GUARANTEE },
+        userC.address,
+        constants.AddressZero,
+        constants.AddressZero,
       )
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userC.address)
@@ -357,6 +366,9 @@ describe('Liquidate', () => {
           makerReferral: parse6decimal('1.2'),
         },
         { ...DEFAULT_GUARANTEE },
+        userB.address,
+        userC.address,
+        constants.AddressZero,
       )
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)

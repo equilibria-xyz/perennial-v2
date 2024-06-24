@@ -213,7 +213,7 @@ contract Controller is Instance, IController {
 
         // only Markets with DSU collateral are supported
         IMarket market = IMarket(marketTransfer.market);
-        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarket(address(market));
+        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarketError(address(market));
 
         account.marketTransfer(market, marketTransfer.amount);
     }
@@ -263,11 +263,11 @@ contract Controller is Instance, IController {
         emit GroupRebalanced(owner, group);
     }
 
-    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) internal {
+    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate,  bytes calldata signature) internal {
         // ensure the message was signed only by the owner, not an existing delegate
         verifier.verifySignerUpdate(signerUpdate, signature);
         address owner = signerUpdate.action.common.account;
-        if (signerUpdate.action.common.signer != owner) revert ControllerInvalidSigner();
+        if (signerUpdate.action.common.signer != owner) revert ControllerInvalidSignerError();
 
         signers[owner][signerUpdate.signer] = signerUpdate.approved;
         emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
@@ -275,7 +275,7 @@ contract Controller is Instance, IController {
 
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSigner();
+        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSignerError();
     }
 
     function _queryMarketCollateral(address owner, uint256 group) private view returns (
@@ -300,10 +300,10 @@ contract Controller is Instance, IController {
     ) private {
         // ensure group index is valid
         if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER)
-            revert ControllerInvalidRebalanceGroup();
+            revert ControllerInvalidRebalanceGroupError();
 
         if (message.markets.length > MAX_MARKETS_PER_GROUP)
-            revert ControllerInvalidRebalanceMarkets();
+            revert ControllerInvalidRebalanceMarketsError();
 
         // delete the existing group
         for (uint256 i; i < groupToMarkets[owner][message.group].length; i++) {
@@ -318,7 +318,7 @@ contract Controller is Instance, IController {
             // ensure market is not pointing to a different group
             uint256 currentGroup = marketToGroup[owner][message.markets[i]];
             if (currentGroup != 0)
-                revert ControllerMarketAlreadyInGroup(message.markets[i], currentGroup);
+                revert ControllerMarketAlreadyInGroupError(message.markets[i], currentGroup);
 
             // rewrite over all the old configuration
             marketToGroup[owner][message.markets[i]] = message.group;
@@ -340,7 +340,7 @@ contract Controller is Instance, IController {
 
         // if not deleting the group, ensure rebalance targets add to 100%
         if (message.markets.length != 0 && !totalAllocation.eq(UFixed6Lib.ONE))
-            revert ControllerInvalidRebalanceTargets();
+            revert ControllerInvalidRebalanceTargetsError();
 
         emit RebalanceGroupConfigured(owner, message.group, message.markets.length);
     }
