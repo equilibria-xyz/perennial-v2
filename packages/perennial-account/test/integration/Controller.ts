@@ -238,7 +238,7 @@ describe('ControllerBase', () => {
       // attempt rebalance
       await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
         controller,
-        'ControllerGroupBalanced',
+        'ControllerGroupBalancedError',
       )
     })
 
@@ -264,7 +264,7 @@ describe('ControllerBase', () => {
     it('handles groups with no collateral', async () => {
       await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
         controller,
-        'ControllerGroupBalanced',
+        'ControllerGroupBalancedError',
       )
     })
 

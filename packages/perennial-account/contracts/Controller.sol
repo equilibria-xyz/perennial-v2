@@ -250,7 +250,7 @@ contract Controller is Instance, IController {
             }
         }
 
-        if (!canAnyMarketRebalance) revert ControllerGroupBalanced();
+        if (!canAnyMarketRebalance) revert ControllerGroupBalancedError();
 
         // push collateral to markets with insufficient collateral
         for (uint256 i; i < imbalances.length; i++) {
