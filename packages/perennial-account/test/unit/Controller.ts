@@ -15,11 +15,10 @@ import {
   IVerifier,
   Verifier__factory,
 } from '../../types/generated'
-// import { RebalanceConfigChangeStruct, RebalanceConfigStruct } from '../../types/generated/contracts/Controller'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange } from '../helpers/erc712'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { deployController, getEventArguments, mockMarket } from '../helpers/setupHelpers'
+import { deployAccountImpl, deployController, getEventArguments, mockMarket } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { IMarket } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
@@ -29,6 +28,7 @@ const { ethers } = HRE
 describe('Controller', () => {
   let controller: Controller
   let marketFactory: FakeContract<IMarketFactory>
+  let accountImpl: IAccount
   let verifier: IVerifier
   let owner: SignerWithAddress
   let userA: SignerWithAddress
@@ -88,12 +88,8 @@ describe('Controller', () => {
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    const accountImpl = await new Account__factory(owner).deploy(
-      controller.address,
-      usdc.address,
-      dsu.address,
-      reserve.address,
-    )
+    accountImpl = await deployAccountImpl(owner, controller, usdc.address, dsu.address, reserve.address)
+    accountImpl.initialize(constants.AddressZero)
     await controller.initialize(accountImpl.address, marketFactory.address, verifier.address, usdc.address, dsu.address)
   }
 
@@ -172,6 +168,18 @@ describe('Controller', () => {
       await expect(
         controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
       ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
+    })
+
+    it('cannot initialize implementation contract', async () => {
+      await expect(accountImpl.connect(userA).initialize(userA.address)).to.be.reverted
+    })
+
+    it('cannot reinitialize existing account with a new owner', async () => {
+      const accountAddress = await controller.connect(userA).callStatic.deployAccount()
+      await expect(controller.connect(userA).deployAccount()).to.not.be.reverted
+      const accountA = Account__factory.connect(accountAddress, userA)
+
+      await expect(accountA.connect(userB).initialize(userB.address)).to.be.reverted
     })
   })
 

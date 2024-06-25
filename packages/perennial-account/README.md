@@ -72,3 +72,10 @@ To get a gas report based on unit test calls:
 ```sh
 $ yarn gasReport
 ```
+
+## Deployment
+Deployment steps:
+1. Deploy the `Account` implementation contract. Initialize _owner_ to the 0 address.
+1. Deploy the `Controller_Arbitrum` contract along with `RebalanceLib` library.
+1. Deploy the `Verifier` contract.
+1. Initialize the controller.

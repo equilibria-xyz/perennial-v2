@@ -7,7 +7,7 @@ import {
   OracleFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { createMarket, deployController, deployProtocolForOracle } from './setupHelpers'
+import { createMarket, deployAccountImpl, deployController, deployProtocolForOracle } from './setupHelpers'
 import {
   Account,
   Account__factory,
@@ -91,12 +91,7 @@ export async function deployAndInitializeController(
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
   const controller = await deployController(owner)
 
-  const accountImpl = await new Account__factory(owner).deploy(
-    controller.address,
-    usdc.address,
-    dsu.address,
-    DSU_RESERVE,
-  )
+  const accountImpl = await deployAccountImpl(owner, controller, usdc.address, dsu.address, DSU_RESERVE)
   const verifier = await new Verifier__factory(owner).deploy()
   await controller.initialize(accountImpl.address, marketFactory.address, verifier.address, usdc.address, dsu.address)
   return [dsu, usdc, controller]
@@ -119,12 +114,7 @@ export async function deployAndInitializeArbitrumController(
   const controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
 
   // initialize the controller
-  const accountImpl = await new Account__factory(owner).deploy(
-    controller.address,
-    usdc.address,
-    dsu.address,
-    DSU_RESERVE,
-  )
+  const accountImpl = await deployAccountImpl(owner, controller, usdc.address, dsu.address, DSU_RESERVE)
   const verifier = await new Verifier__factory(owner).deploy()
   await controller['initialize(address,address,address,address,address,address)'](
     accountImpl.address,

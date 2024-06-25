@@ -1,12 +1,21 @@
 import HRE, { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { BigNumber, CallOverrides, ContractTransaction, utils } from 'ethers'
+import { BigNumber, CallOverrides, constants, ContractTransaction, utils } from 'ethers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 
-import { Controller__factory, IERC20Metadata, RebalanceLib__factory } from '../../types/generated'
+import {
+  Account__factory,
+  Controller,
+  Controller__factory,
+  Controller_Arbitrum,
+  IAccount,
+  IController,
+  IERC20Metadata,
+  RebalanceLib__factory,
+} from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -134,6 +143,20 @@ export async function createMarket(
 
   return market
 }
+
+// deploys the pristine collateral account implementation and initializes it to the 0 address
+export async function deployAccountImpl(
+  owner: SignerWithAddress,
+  controller: IController | Controller | Controller_Arbitrum,
+  usdc: Address,
+  dsu: Address,
+  reserve: Address,
+): Promise<IAccount> {
+  const accountImpl = await new Account__factory(owner).deploy(controller.address, usdc, dsu, reserve)
+  accountImpl.initialize(constants.AddressZero)
+  return accountImpl
+}
+
 export async function deployController(owner: SignerWithAddress): Promise<Controller> {
   const controller = await new Controller__factory(
     {
