@@ -236,14 +236,14 @@ contract Controller is Instance, IController {
     }
 
     function _rebalanceGroup(address owner, uint256 group) internal {
-        // query owner's collateral in each market and calculate sum
-        (Fixed6[] memory actualCollateral, Fixed6 groupCollateral) = _queryMarketCollateral(owner, group);
-        IAccount account = IAccount(getAccountAddress(owner));
+        // settles each markets, such that locals are up-to-date
+        _settleMarkets(owner, group);
 
         // determine imbalances
         (, bool canRebalance, Fixed6[] memory imbalances) = checkGroup(owner, group);
         if (!canRebalance) revert ControllerGroupBalancedError();
 
+        IAccount account = IAccount(getAccountAddress(owner));
         // pull collateral from markets with surplus collateral
         for (uint256 i; i < imbalances.length; i++) {
             IMarket market = groupToMarkets[owner][group][i];
@@ -278,15 +278,23 @@ contract Controller is Instance, IController {
         if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSignerError();
     }
 
+    /// @dev checks current collateral for each market in a group and aggregates collateral for the group
     function _queryMarketCollateral(address owner, uint256 group) private view returns (
         Fixed6[] memory actualCollateral,
         Fixed6 groupCollateral
     ) {
         actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
-        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
+        for (uint256 i; i < actualCollateral.length; i++) {
             Fixed6 collateral = groupToMarkets[owner][group][i].locals(owner).collateral;
             actualCollateral[i] = collateral;
             groupCollateral = groupCollateral.add(collateral);
+        }
+    }
+
+    /// @dev settles each market in a rebalancing group
+    function _settleMarkets(address owner, uint256 group) private {
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
+            groupToMarkets[owner][group][i].settle(owner);
         }
     }
 
