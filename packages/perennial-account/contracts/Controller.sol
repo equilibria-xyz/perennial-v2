@@ -83,13 +83,8 @@ contract Controller is Factory, IController {
 
     /// @inheritdoc IController
     function getAccountAddress(address owner) public view returns (address) {
-        // FIXME: should only pass owner through create2 initialization
-        bytes memory data = abi.encodeCall(
-            Account.initialize,
-            (owner, USDC, DSU, reserve)
-        );
-        // calculate the hash for that bytecode and compute the address
-        return _computeCreate2Address(data, SALT);
+        // calculate the hash for an uninitialized account for the owner
+        return _computeCreate2Address("", keccak256(abi.encode(SALT, owner)));
     }
 
     /// @inheritdoc IController
@@ -174,11 +169,9 @@ contract Controller is Factory, IController {
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
-        // FIXME: should only pass owner through create2 initialization
-        account = Account(address(_create2(
-            abi.encodeCall(Account.initialize, (owner, USDC, DSU, reserve)),
-            SALT
-        )));
+        // initialize outside of _create2, such that other init params do not impact deployment address
+        account = Account(address(_create2("", keccak256(abi.encode(SALT, owner)))));
+        account.initialize(owner, USDC, DSU, reserve);
         emit AccountDeployed(owner, account);
     }
 

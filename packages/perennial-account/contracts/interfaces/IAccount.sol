@@ -1,16 +1,31 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed18 } from "@equilibria/root/number/types/UFixed18.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 interface IAccount {
     // sig: 0x9041f6c1
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error AccountNotAuthorizedError();
+
+    /// @notice Sets owner, contract, and token addresses, and runs approvals for a collateral account
+    /// @param owner Address of the user for which the account was created
+    /// @param usdc USDC stablecoin
+    /// @param dsu Digital Standard Unit stablecoin
+    /// @param reserve DSU SimpleReserve contract, used for wrapping/unwrapping USDC to/from DSU
+    function initialize(
+        address owner,
+        Token6 usdc,
+        Token18 dsu,
+        IEmptySetReserve reserve
+    ) external;
 
     /// @notice Transfer USDC collateral from msg.sender to this account
     /// @param amount Quantity of USDC to transfer in 6-decimal precision

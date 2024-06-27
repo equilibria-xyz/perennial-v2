@@ -9,10 +9,7 @@ import { smock } from '@defi-wonderland/smock'
 import {
   Account__factory,
   Controller,
-  Controller_Arbitrum,
   Controller__factory,
-  IAccount,
-  IController,
   IERC20Metadata,
   RebalanceLib__factory,
 } from '../../types/generated'
@@ -144,6 +141,7 @@ export async function createMarket(
   return market
 }
 
+// TODO: eliminate token and reserve args, init with 0 addresses
 export async function deployController(
   owner: SignerWithAddress,
   usdc: Address,

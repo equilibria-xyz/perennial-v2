@@ -86,7 +86,7 @@ describe('Controller', () => {
 
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     verifier = await new Verifier__factory(owner).deploy()
-    await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address)
+    await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, reserve.address)
   }
 
   beforeEach(async () => {

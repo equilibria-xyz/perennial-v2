@@ -30,28 +30,28 @@ contract Account is IAccount, Instance {
     /// @dev DSU Reserve address
     IEmptySetReserve public reserve;
 
-    /// @notice Sets owner, contract, and token addresses, and runs approvals for a collateral account
-    /// @param owner_ Address of the user for which the account was created
-    /// @param usdc_ USDC stablecoin
-    /// @param dsu_ Digital Standard Unit stablecoin
-    /// @param reserve_ DSU SimpleReserve contract, used for wrapping/unwrapping USDC to/from DSU
+    /// @inheritdoc IAccount
     function initialize(
         address owner_,
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_
     ) external initializer(1) {
+        __Instance__initialize();
         owner = owner_;
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
 
         // approve the Controller to interact with this account's DSU
-        dsu_.approve(address(factory()));
+        if (address(factory()) != address(0))
+            dsu_.approve(address(factory()));
 
         // approve DSU facilities to wrap and unwrap USDC for this account
-        dsu_.approve(address(reserve));
-        usdc_.approve(address(reserve));
+        if (address(reserve) != address(0)) {
+            dsu_.approve(address(reserve));
+            usdc_.approve(address(reserve));
+        }
     }
 
     /// @inheritdoc IAccount
