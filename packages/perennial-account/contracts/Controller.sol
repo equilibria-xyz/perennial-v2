@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { Factory } from "@equilibria/root/attribute/Factory.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
@@ -24,7 +24,7 @@ import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Controller
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
-contract Controller is Instance, IController {
+contract Controller is Factory, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
@@ -61,6 +61,10 @@ contract Controller is Instance, IController {
     /// @dev Limits relayer/keeper compensation for rebalancing a group, in DSU
     mapping(address => mapping(uint256 => UFixed6)) public groupToMaxRebalanceFee;
 
+    /// @dev Creates instance of Controller
+    /// @param implementation_ Pristine 0-initialized collateral account contract
+    constructor(address implementation_) Factory(implementation_) {}
+
     /// @inheritdoc IController
     function initialize(
         IMarketFactory marketFactory_,
@@ -69,7 +73,7 @@ contract Controller is Instance, IController {
         Token18 dsu_,
         IEmptySetReserve reserve_
     ) external initializer(1) {
-        __Instance__initialize();
+        __Factory__initialize();
         marketFactory = marketFactory_;
         verifier = verifier_;
         USDC = usdc_;
@@ -79,16 +83,13 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function getAccountAddress(address owner) public view returns (address) {
-        // generate bytecode for an account created for the specified owner
-        bytes memory bytecode = abi.encodePacked(
-            type(Account).creationCode,
-            abi.encode(owner),
-            abi.encode(address(this)),
-            abi.encode(USDC),
-            abi.encode(DSU),
-            abi.encode(reserve));
+        // FIXME: should only pass owner through create2 initialization
+        bytes memory data = abi.encodeCall(
+            Account.initialize,
+            (owner, USDC, DSU, reserve)
+        );
         // calculate the hash for that bytecode and compute the address
-        return Create2.computeAddress(SALT, keccak256(bytecode));
+        return _computeCreate2Address(data, SALT);
     }
 
     /// @inheritdoc IController
@@ -173,7 +174,11 @@ contract Controller is Instance, IController {
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
-        account = new Account{salt: SALT}(owner, address(this), USDC, DSU, reserve);
+        // FIXME: should only pass owner through create2 initialization
+        account = Account(address(_create2(
+            abi.encodeCall(Account.initialize, (owner, USDC, DSU, reserve)),
+            SALT
+        )));
         emit AccountDeployed(owner, account);
     }
 

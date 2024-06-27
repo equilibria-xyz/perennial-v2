@@ -79,15 +79,14 @@ describe('Controller', () => {
 
   const fixture = async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    controller = await deployController(owner)
-
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    verifier = await new Verifier__factory(owner).deploy()
-
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, reserve.address)
+    controller = await deployController(owner, usdc.address, dsu.address, reserve.address)
+
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    verifier = await new Verifier__factory(owner).deploy()
+    await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address)
   }
 
   beforeEach(async () => {
