@@ -6,7 +6,7 @@ import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
-import { IAccount } from "../interfaces/IAccount.sol";
+import { IAccount, IMarket } from "../interfaces/IAccount.sol";
 import { IVerifier } from "../interfaces/IVerifier.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
@@ -81,16 +81,16 @@ interface IController {
     /// @custom:error Signer is not authorized to interact with the specified collateral account
     error ControllerInvalidSignerError();
 
-    // sig: 0xe21464ba
+    // sig: 0xa4a79a03
     /// @custom:error A market in this rebalancing configuration is already a member of a different group
     /// @param market Identifies which market in the message which is causing the problem
     /// @param group Identifies the group in which the aforementioned market is a member
-    error ControllerMarketAlreadyInGroupError(address market, uint256 group);
+    error ControllerMarketAlreadyInGroupError(IMarket market, uint256 group);
 
-    // sig: 0x950cd071
+    // sig: 0xdcca49cd
     /// @custom:error Attempt to interact with a Market which does not use DSU as collateral
     /// @param market Market with non-DSU collateral
-    error ControllerUnsupportedMarketError(address market);
+    error ControllerUnsupportedMarketError(IMarket market);
 
     /// @notice Sets contract addresses used for message verification and token management
     /// @param verifier Contract used to validate messages were signed by the sender
@@ -153,11 +153,11 @@ interface IController {
     /// @notice Retrieves array of markets in an owner's rebalance group
     /// @param owner User for whom the collateral account was created
     /// @param group Identifies which collection of markets is desired for the owner
-    /// @return markets Array containing the of address of each market in the rebalance group
+    /// @return markets Array containing each market in the rebalance group
     function rebalanceGroupMarkets(
         address owner,
         uint256 group
-    ) external view returns (address[] memory markets);
+    ) external view returns (IMarket[] memory markets);
 
     /// @notice Updates the status of a delegated signer for the caller's collateral account
     /// @param signer The signer to update
