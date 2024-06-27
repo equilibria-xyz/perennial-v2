@@ -86,7 +86,7 @@ export async function deployAndInitializeController(
 ): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
-  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
+  const controller = await deployController(owner)
 
   const verifier = await new Verifier__factory(owner).deploy()
   await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, DSU_RESERVE)

@@ -141,15 +141,9 @@ export async function createMarket(
   return market
 }
 
-// TODO: eliminate token and reserve args, init with 0 addresses
-export async function deployController(
-  owner: SignerWithAddress,
-  usdc: Address,
-  dsu: Address,
-  reserve: Address,
-): Promise<Controller> {
+export async function deployController(owner: SignerWithAddress): Promise<Controller> {
   const accountImpl = await new Account__factory(owner).deploy()
-  accountImpl.initialize(constants.AddressZero, usdc, dsu, reserve)
+  accountImpl.initialize(constants.AddressZero, constants.AddressZero, constants.AddressZero, constants.AddressZero)
   const controller = await new Controller__factory(
     {
       'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
