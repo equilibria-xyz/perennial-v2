@@ -133,7 +133,12 @@ interface IController {
     /// @param group Identifies the group within the context of the owner
     /// @return groupCollateral Sum of ower's collateral across each market in the group
     /// @return canRebalance True if one or more markets in the group are eligible for rebalancing
-    function checkGroup(address owner, uint256 group) external view returns (Fixed6 groupCollateral, bool canRebalance);
+    /// @return imbalances The difference between target and actual collateral for each market
+    function checkGroup(address owner, uint256 group) external view returns (
+        Fixed6 groupCollateral,
+        bool canRebalance,
+        Fixed6[] memory imbalances
+    );
 
     /// @notice Called by keepers to rebalance an unbalanced group
     /// @param owner User whose collateral account may be rebalanced using this group
