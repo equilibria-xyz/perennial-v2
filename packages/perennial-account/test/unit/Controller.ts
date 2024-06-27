@@ -322,7 +322,7 @@ describe('Controller', () => {
         group: group,
         markets: markets,
         configs: configs,
-        maxRebalanceFee: constants.Zero,
+        maxFee: constants.Zero,
         ...(await createAction(user.address)),
       }
       const signature = await signRebalanceConfigChange(user, verifier, message)
@@ -358,7 +358,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.53'), threshold: parse6decimal('0.037') },
             { target: parse6decimal('0.47'), threshold: parse6decimal('0.036') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -381,7 +381,7 @@ describe('Controller', () => {
           group: 1,
           markets: [btcMarket.address, ethMarket.address],
           configs: [{ target: parse6decimal('0.51'), threshold: parse6decimal('0.04') }],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -398,7 +398,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.51'), threshold: parse6decimal('0.04') },
             { target: parse6decimal('0.49'), threshold: parse6decimal('0.04') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
 
@@ -417,7 +417,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.51'), threshold: parse6decimal('0.04') },
             { target: parse6decimal('0.52'), threshold: parse6decimal('0.04') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -436,7 +436,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         let signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -453,7 +453,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.50'), threshold: parse6decimal('0.05') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -472,7 +472,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.34'), threshold: parse6decimal('0.04') },
             { target: parse6decimal('0.33'), threshold: parse6decimal('0.04') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -488,7 +488,7 @@ describe('Controller', () => {
           group: 0,
           markets: [ethMarket.address],
           configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.022') }],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -503,7 +503,7 @@ describe('Controller', () => {
           group: 9,
           markets: [ethMarket.address],
           configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.023') }],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -528,7 +528,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.2'), threshold: parse6decimal('0.044') },
             { target: parse6decimal('0.2'), threshold: parse6decimal('0.044') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -599,7 +599,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.51'), threshold: parse6decimal('0.042') },
             { target: parse6decimal('0.49'), threshold: parse6decimal('0.043') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -628,7 +628,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -653,7 +653,7 @@ describe('Controller', () => {
           group: group,
           markets: [ethMarket.address],
           configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.05') }],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -678,7 +678,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -714,7 +714,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.334'), threshold: parse6decimal('0.05') },
             { target: parse6decimal('0.333'), threshold: parse6decimal('0.05') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -742,7 +742,7 @@ describe('Controller', () => {
           group: btcEthGroup,
           markets: [btcMarket.address],
           configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.05') }],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         let signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -761,7 +761,7 @@ describe('Controller', () => {
             { target: parse6decimal('0.41'), threshold: parse6decimal('0.061') },
             { target: parse6decimal('0.59'), threshold: parse6decimal('0.062') },
           ],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -780,7 +780,7 @@ describe('Controller', () => {
           group: group,
           markets: [],
           configs: [],
-          maxRebalanceFee: constants.Zero,
+          maxFee: constants.Zero,
           ...(await createAction(userA.address)),
         }
         const signature = await signRebalanceConfigChange(userA, verifier, message)

@@ -104,7 +104,7 @@ export async function signRebalanceConfigChange(
       { name: 'group', type: 'uint256' },
       { name: 'markets', type: 'address[]' },
       { name: 'configs', type: 'RebalanceConfig[]' },
-      { name: 'maxRebalanceFee', type: 'uint256' },
+      { name: 'maxFee', type: 'uint256' },
       { name: 'action', type: 'Action' },
     ],
     ...actionType,

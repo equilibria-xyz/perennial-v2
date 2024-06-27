@@ -324,7 +324,7 @@ contract Controller is Instance, IController {
             marketToGroup[owner][message.markets[i]] = message.group;
             config[owner][message.group][message.markets[i]] = message.configs[i];
             groupToMarkets[owner][message.group].push(message.markets[i]);
-            groupToMaxRebalanceFee[owner][message.group] = message.maxRebalanceFee;
+            groupToMaxRebalanceFee[owner][message.group] = message.maxFee;
 
             // ensure target allocation across all markets totals 100%
             // read from storage to trap duplicate markets in the message
