@@ -85,7 +85,7 @@ const testOracles = [
 ]
 
 testOracles.forEach(testOracle => {
-  describe.only(testOracle.name, () => {
+  describe(testOracle.name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
     let user2: SignerWithAddress
@@ -1051,7 +1051,7 @@ testOracles.forEach(testOracle => {
       })
     })
 
-    describe.only('#request', async () => {
+    describe('#request', async () => {
       it('can request a version', async () => {
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
@@ -1071,11 +1071,11 @@ testOracles.forEach(testOracle => {
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
         await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address, false))
           .to.emit(keeperOracle, 'OracleProviderVersionRequested')
-          .withArgs('1686198991', false)
+          .withArgs('1686198992', false)
 
         // Should link back to requested version
         expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
-        expect(await keeperOracle.links(STARTING_TIME + 10)).to.equal(STARTING_TIME)
+        expect(await keeperOracle.links(STARTING_TIME + 11)).to.equal(STARTING_TIME)
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
       })
 
@@ -1118,6 +1118,25 @@ testOracles.forEach(testOracle => {
         expect(await keeperOracle.callStatic.versions(2)).to.equal(0)
       })
 
+      it('a version can only be requested once (no new, no new)', async () => {
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+        await increase(10)
+
+        await ethers.provider.send('evm_setAutomine', [false])
+        await ethers.provider.send('evm_setIntervalMining', [0])
+
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
+
+        await ethers.provider.send('evm_mine', [])
+
+        const currentTimestamp = await pythOracleFactory.current()
+        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
+        expect(await keeperOracle.links(currentTimestamp)).to.equal(STARTING_TIME)
+        expect(await keeperOracle.versions(2)).to.equal(0)
+        expect((await keeperOracle.global()).currentIndex).to.equal(1)
+      })
+
       it('a version can only be requested once (new, no new)', async () => {
         await ethers.provider.send('evm_setAutomine', [false])
         await ethers.provider.send('evm_setIntervalMining', [0])
@@ -1142,18 +1161,16 @@ testOracles.forEach(testOracle => {
 
         // One requested version
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
-        await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address, false))
-          .to.emit(keeperOracle, 'OracleProviderVersionRequested')
-          .withArgs('1686198991', false)
-
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
         await ethers.provider.send('evm_mine', [])
 
         const currentTimestamp = await pythOracleFactory.current()
-        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp.add(10))
-        expect(await keeperOracle.links(currentTimestamp.add(10))).to.equal(0)
-        expect(await keeperOracle.links(currentTimestamp.add(10))).to.equal(0)
+        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp.sub(11))
+        expect(await keeperOracle.versions(2)).to.equal(currentTimestamp)
+        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
+        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
       })
     })
 
