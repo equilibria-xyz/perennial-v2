@@ -89,6 +89,7 @@ struct VersionAccumulationContext {
 }
 
 /// @title VersionLib
+/// @dev (external-safe): this library is safe to externalize
 /// @notice Manages the logic for the global order accumulation
 library VersionLib {
     /// @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`

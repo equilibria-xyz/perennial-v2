@@ -40,6 +40,7 @@ struct GlobalStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain 
 using GlobalStorageLib for GlobalStorage global;
 
 /// @title Global
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the global market state
 library GlobalLib {
     /// @notice Updates market exposure based on a change in the risk parameter configuration
@@ -93,6 +94,7 @@ library GlobalLib {
 }
 
 /// @dev Manually encodes and decodes the Global struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredGlobal {
 ///         /* slot 0 */

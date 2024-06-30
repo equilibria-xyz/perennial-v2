@@ -25,6 +25,7 @@ struct StoredRegistration {
 struct RegistrationStorage { StoredRegistration value; }
 using RegistrationStorageLib for RegistrationStorage global;
 
+/// @dev (external-safe): this library is safe to externalize
 library RegistrationStorageLib {
     // sig: 0x92f03c86
     error RegistrationStorageInvalidError();

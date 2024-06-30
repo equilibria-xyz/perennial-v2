@@ -5,7 +5,7 @@ import "./Order.sol";
 
 /// @dev Guarantee type
 struct Guarantee {
-    /// @dev The quantity of orders that are included in this guarantee
+    /// @dev The quantity of guarantees that that will be exempt from the settlement fee
     uint256 orders;
 
     /// @dev The notional of the magnitude with the price override (local only)
@@ -17,7 +17,7 @@ struct Guarantee {
     /// @dev The negative skew (close long / open short) guarantee size
     UFixed6 takerNeg;
 
-    /// @dev The magnitude of the guarantee that is applicable to the fee
+    /// @dev The magnitude of the guarantee that be exempt from the trade fee
     UFixed6 takerFee;
 
     /// @dev The referral fee multiplied by the size applicable to the referral (local only)
@@ -30,6 +30,7 @@ struct GuaranteeStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must
 using GuaranteeStorageLocalLib for GuaranteeStorageLocal global;
 
 /// @title Guarantee
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for an account's update guarantee
 library GuaranteeLib {
     /// @notice Prepares the next guarantee from the current guarantee
@@ -99,6 +100,7 @@ library GuaranteeLib {
 }
 
 /// @dev Manually encodes and decodes the global Guarantee struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredGuaranteeGlobal {
 ///         /* slot 0 */
@@ -137,6 +139,7 @@ library GuaranteeStorageGlobalLib {
 }
 
 /// @dev Manually encodes and decodes the local Guarantee struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredGuaranteeLocal {
 ///         /* slot 0 */

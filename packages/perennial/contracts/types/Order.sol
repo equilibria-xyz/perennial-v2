@@ -53,6 +53,7 @@ struct OrderStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must rem
 using OrderStorageLocalLib for OrderStorageLocal global;
 
 /// @title Order
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for an account's update order
 library OrderLib {
     /// @notice Returns whether the order is ready to be settled
@@ -346,6 +347,7 @@ library OrderLib {
 }
 
 /// @dev Manually encodes and decodes the global Order struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredOrderGlobal {
 ///         /* slot 0 */

@@ -28,6 +28,7 @@ struct PositionStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must 
 using PositionStorageLocalLib for PositionStorageLocal global;
 
 /// @title Position
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for a position
 library PositionLib {
     /// @notice Returns a cloned copy of the position
@@ -295,6 +296,7 @@ library PositionLib {
 }
 
 /// @dev Manually encodes and decodes the global Position struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredPositionGlobal {
 ///         /* slot 0 */
@@ -341,6 +343,7 @@ library PositionStorageGlobalLib {
 }
 
 /// @dev Manually encodes and decodes the local Position struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredPositionLocal {
 ///         /* slot 0 */

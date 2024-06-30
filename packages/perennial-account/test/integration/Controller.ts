@@ -16,12 +16,15 @@ import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
 import {
   createMarketFactory,
   createMarketForOracle,
-  deployController,
+  deployAndInitializeController,
   fundWalletDSU,
   fundWalletUSDC,
 } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
+
+// hack around intermittent issues estimating gas
+const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
 
 describe('ControllerBase', () => {
   let dsu: IERC20Metadata
@@ -101,7 +104,7 @@ describe('ControllerBase', () => {
   const fixture = async () => {
     // set up users and deploy artifacts
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    ;[dsu, usdc, controller] = await deployController()
+    ;[dsu, usdc, controller] = await deployAndInitializeController(owner)
     verifier = IVerifier__factory.connect(await controller.verifier(), owner)
 
     // create a collateral account for userA with 15k collateral in it
@@ -157,11 +160,20 @@ describe('ControllerBase', () => {
       }
 
       // perform transfer
-      await expect(await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature))
+      await expect(
+        await controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
+      )
         .to.emit(dsu, 'Transfer')
         .withArgs(expectedFrom, expectedTo, expectedAmount)
         .to.emit(market, 'OrderCreated')
-        .withArgs(userA.address, anyValue, anyValue)
+        .withArgs(
+          userA.address,
+          anyValue,
+          anyValue,
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
 
       const order = await market.pendingOrders(user.address, (await market.global()).currentId)
       return order.timestamp
@@ -263,7 +275,7 @@ describe('ControllerBase', () => {
 
       // ensure transfer reverts
       await expect(
-        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
 
       await expectMarketCollateralBalance(userA, parse6decimal('7000'))
@@ -284,8 +296,8 @@ describe('ControllerBase', () => {
 
       // ensure withdrawal fails
       await expect(
-        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
+        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
   })
 
@@ -346,7 +358,7 @@ describe('ControllerBase', () => {
       // ensure withdrawal fails
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSigner')
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
   })
 })

@@ -27,6 +27,7 @@ struct CheckpointStorage { uint256 slot0; }
 using CheckpointStorageLib for CheckpointStorage global;
 
 /// @dev Manually encodes and decodes the Checkpoint struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredCheckpoint {
 ///         /* slot 0 */
