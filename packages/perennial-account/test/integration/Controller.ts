@@ -193,8 +193,7 @@ describe('ControllerBase', () => {
 
     beforeEach(async () => {
       // create another market
-      let btcOracle
-      ;[btcMarket, btcOracle] = await createMarketBTC(owner, marketFactory, dsu)
+      ;[btcMarket] = await createMarketBTC(owner, marketFactory, dsu)
 
       // configure a group with both markets
       const message = {

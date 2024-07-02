@@ -6,7 +6,6 @@ import {
   DeployAccountStruct,
   MarketTransferStruct,
   RebalanceConfigChangeStruct,
-  SignerUpdateStruct,
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
 
