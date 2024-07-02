@@ -42,6 +42,7 @@ using AccountStorageLib for AccountStorage global;
 
 
 /// @title Account
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for the account type
 library AccountLib {
     /// @notice Processes the position in a global context
@@ -107,6 +108,7 @@ library AccountLib {
     }
 }
 
+/// @dev (external-safe): this library is safe to externalize
 library AccountStorageLib {
     // sig: 0xb8a09499
     error AccountStorageInvalidError();

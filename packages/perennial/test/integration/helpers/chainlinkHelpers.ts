@@ -16,7 +16,7 @@ export const INITIAL_PHASE_ID = 1
 export const INITIAL_AGGREGATOR_ROUND_ID = 10000
 
 interface Payoff {
-  provider: IPayoffProvider
+  provider?: IPayoffProvider
   decimals: number
 }
 
@@ -112,7 +112,7 @@ export class ChainlinkContext {
 
   private async _payoff(price: BigNumber): Promise<BigNumber> {
     // apply payoff
-    let priceAfterPayoff = this.payoff !== undefined ? await this.payoff.provider.payoff(price) : price
+    let priceAfterPayoff = this.payoff.provider ? await this.payoff.provider.payoff(price) : price
 
     // adjust decimals
     if (this.payoff.decimals > 0) priceAfterPayoff = priceAfterPayoff.mul(BigNumber.from(10).pow(this.payoff.decimals))

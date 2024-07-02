@@ -20,14 +20,13 @@ use(smock.matchers)
 export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
   fundingFee: 1,
   interestFee: 2,
-  positionFee: 3,
+  makerFee: 3,
+  takerFee: 13,
   oracleFee: 4,
   riskFee: 5,
   maxPendingGlobal: 10,
   maxPendingLocal: 11,
   settlementFee: 6,
-  takerCloseAlways: false,
-  makerCloseAlways: false,
   closed: false,
   settle: false,
 }
@@ -68,14 +67,13 @@ describe('MarketParameter', () => {
       const value = await marketParameter.read()
       expect(value.fundingFee).to.equal(1)
       expect(value.interestFee).to.equal(2)
-      expect(value.positionFee).to.equal(3)
+      expect(value.makerFee).to.equal(3)
+      expect(value.takerFee).to.equal(13)
       expect(value.oracleFee).to.equal(4)
       expect(value.riskFee).to.equal(5)
       expect(value.maxPendingGlobal).to.equal(10)
       expect(value.maxPendingLocal).to.equal(11)
       expect(value.settlementFee).to.equal(6)
-      expect(value.takerCloseAlways).to.equal(false)
-      expect(value.makerCloseAlways).to.equal(false)
       expect(value.closed).to.equal(false)
       expect(value.settle).to.equal(false)
     })
@@ -138,17 +136,17 @@ describe('MarketParameter', () => {
       })
     })
 
-    context('.positionFee', async () => {
+    context('.makerFee', async () => {
       it('saves if in range', async () => {
         await marketParameter.validateAndStore(
           {
             ...VALID_MARKET_PARAMETER,
-            positionFee: parse6decimal('1'),
+            makerFee: parse6decimal('1'),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await marketParameter.read()
-        expect(value.positionFee).to.equal(parse6decimal('1'))
+        expect(value.makerFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if invalid', async () => {
@@ -156,7 +154,36 @@ describe('MarketParameter', () => {
           marketParameter.validateAndStore(
             {
               ...VALID_MARKET_PARAMETER,
-              positionFee: parse6decimal('0.1'),
+              makerFee: parse6decimal('0.1'),
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              maxCut: parse6decimal('0.01'),
+            },
+          ),
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
+      })
+    })
+
+    context('.takerFee', async () => {
+      it('saves if in range', async () => {
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            takerFee: parse6decimal('1'),
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await marketParameter.read()
+        expect(value.takerFee).to.equal(parse6decimal('1'))
+      })
+
+      it('reverts if invalid', async () => {
+        await expect(
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              takerFee: parse6decimal('0.1'),
             },
             {
               ...PROTOCOL_PARAMETER,
@@ -330,30 +357,6 @@ describe('MarketParameter', () => {
     })
 
     context('.flags', async () => {
-      it('saves takerCloseAlways', async () => {
-        await marketParameter.validateAndStore(
-          {
-            ...VALID_MARKET_PARAMETER,
-            takerCloseAlways: true,
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await marketParameter.read()
-        expect(value.takerCloseAlways).to.equal(true)
-      })
-
-      it('saves makerCloseAlways', async () => {
-        await marketParameter.validateAndStore(
-          {
-            ...VALID_MARKET_PARAMETER,
-            makerCloseAlways: true,
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await marketParameter.read()
-        expect(value.makerCloseAlways).to.equal(true)
-      })
-
       it('saves closed', async () => {
         await marketParameter.validateAndStore(
           {

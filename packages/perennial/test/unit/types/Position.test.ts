@@ -41,6 +41,8 @@ const VALID_ORDER = {
   protection: 1,
   makerReferral: parse6decimal('4'),
   takerReferral: parse6decimal('5'),
+  overrideMagnitude: parse6decimal('0'),
+  overrideNotional: parse6decimal('0'),
 }
 
 describe('Position', () => {

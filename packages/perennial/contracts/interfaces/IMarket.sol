@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/root/token/types/Token18.sol";
+import "@equilibria/perennial-v2-verifier/contracts/types/Intent.sol";
 import "./IOracleProvider.sol";
 import "../types/OracleVersion.sol";
 import "../types/MarketParameter.sol";
@@ -13,6 +14,7 @@ import "../types/Local.sol";
 import "../types/Global.sol";
 import "../types/Position.sol";
 import "../types/Checkpoint.sol";
+import "../types/Guarantee.sol";
 import "../libs/VersionLib.sol";
 
 interface IMarket is IInstance {
@@ -22,6 +24,7 @@ interface IMarket is IInstance {
     }
 
     struct Context {
+        address account;
         ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         RiskParameter riskParameter;
@@ -29,8 +32,10 @@ interface IMarket is IInstance {
         uint256 currentTimestamp;
         Global global;
         Local local;
-        PositionContext latestPosition;
-        OrderContext pending;
+        Position latestPositionGlobal;
+        Position latestPositionLocal;
+        Order pendingGlobal;
+        Order pendingLocal;
     }
 
     struct SettlementContext {
@@ -41,25 +46,22 @@ interface IMarket is IInstance {
 
     struct UpdateContext {
         bool operator;
+        bool signer;
         address liquidator;
-        address referrer;
-        UFixed6 referralFee;
-        OrderContext order;
-        PositionContext currentPosition;
-    }
-
-    struct PositionContext {
-        Position global;
-        Position local;
-    }
-
-    struct OrderContext {
-        Order global;
-        Order local;
+        address orderReferrer;
+        UFixed6 orderReferralFee;
+        address guaranteeReferrer;
+        UFixed6 guaranteeReferralFee;
+        Order orderGlobal;
+        Order orderLocal;
+        Position currentPositionGlobal;
+        Position currentPositionLocal;
+        Guarantee guaranteeGlobal;
+        Guarantee guaranteeLocal;
     }
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer);
-    event OrderCreated(address indexed account, Order order);
+    event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);
     event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
     event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
     event BeneficiaryUpdated(address newBeneficiary);
@@ -68,7 +70,6 @@ interface IMarket is IInstance {
     event ExposureClaimed(address indexed account, Fixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
     event RiskParameterUpdated(RiskParameter newRiskParameter);
-    event OracleUpdated(IOracleProvider newOracle);
 
     // sig: 0x0fe90964
     error MarketInsufficientLiquidityError();
@@ -110,6 +111,8 @@ interface IMarket is IInstance {
     error MarketInvalidReferrerError();
     // sig: 0x5c5cb438
     error MarketSettleOnlyError();
+    // sig: 0x1e9d2296
+    error MarketInvalidIntentFeeError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();
@@ -127,26 +130,33 @@ interface IMarket is IInstance {
     function initialize(MarketDefinition calldata definition_) external;
     function token() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
+    function beneficiary() external view returns (address);
+    function coordinator() external view returns (address);
     function payoff() external view returns (address);
     function positions(address account) external view returns (Position memory);
     function pendingOrders(address account, uint256 id) external view returns (Order memory);
+    function guarantees(address account, uint256 id) external view returns (Guarantee memory);
     function pendings(address account) external view returns (Order memory);
     function locals(address account) external view returns (Local memory);
     function versions(uint256 timestamp) external view returns (Version memory);
     function position() external view returns (Position memory);
     function pendingOrder(uint256 id) external view returns (Order memory);
+    function guarantee(uint256 id) external view returns (Guarantee memory);
     function pending() external view returns (Order memory);
     function global() external view returns (Global memory);
     function checkpoints(address account, uint256 version) external view returns (Checkpoint memory);
     function liquidators(address account, uint256 id) external view returns (address);
-    function referrers(address account, uint256 id) external view returns (address);
+    function orderReferrers(address account, uint256 id) external view returns (address);
+    function guaranteeReferrers(address account, uint256 id) external view returns (address);
     function settle(address account) external;
+    function update(Intent calldata intent, bytes memory signature) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
-    function updateOracle(IOracleProvider newOracle) external;
-    function updateParameter(address newBeneficiary, address newCoordinator, MarketParameter memory newParameter) external;
-    function updateRiskParameter(RiskParameter memory newRiskParameter, bool isMigration) external;
+    function updateBeneficiary(address newBeneficiary) external;
+    function updateCoordinator(address newCoordinator) external;
+    function updateParameter(MarketParameter memory newParameter) external;
+    function updateRiskParameter(RiskParameter memory newRiskParameter) external;
     function claimFee() external;
 }

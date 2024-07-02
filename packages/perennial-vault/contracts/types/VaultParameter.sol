@@ -16,6 +16,7 @@ struct StoredVaultParameter {
 struct VaultParameterStorage { StoredVaultParameter value; } // SECURITY: must remain at (1) slots
 using VaultParameterStorageLib for VaultParameterStorage global;
 
+/// @dev (external-safe): this library is safe to externalize
 library VaultParameterStorageLib {
     // sig: 0x0f9f8b19
     error VaultParameterStorageInvalidError();

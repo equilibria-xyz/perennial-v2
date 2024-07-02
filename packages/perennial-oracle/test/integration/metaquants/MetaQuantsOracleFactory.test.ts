@@ -270,6 +270,8 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(METAQUANTS_BAYC_ETH_PRICE_FEED, metaquantsOracleFactory.address)
 
+      const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+
       const marketImpl = await new Market__factory(
         {
           '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
@@ -304,8 +306,12 @@ testOracles.forEach(testOracle => {
           ).address,
         },
         owner,
-      ).deploy()
-      marketFactory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+      ).deploy(verifierImpl.address)
+      marketFactory = await new MarketFactory__factory(owner).deploy(
+        oracleFactory.address,
+        verifierImpl.address,
+        marketImpl.address,
+      )
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         protocolFee: parse6decimal('0.50'),
@@ -359,12 +365,11 @@ testOracles.forEach(testOracle => {
         interestFee: parse6decimal('0.1'),
         oracleFee: 0,
         riskFee: 0,
-        positionFee: 0,
+        makerFee: 0,
+        takerFee: 0,
         maxPendingGlobal: 8,
         maxPendingLocal: 8,
         settlementFee: 0,
-        makerCloseAlways: false,
-        takerCloseAlways: false,
         closed: false,
         settle: false,
       }
@@ -379,8 +384,8 @@ testOracles.forEach(testOracle => {
         token: dsu.address,
         oracle: oracle.address,
       })
-      await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
-      await market.updateRiskParameter(riskParameter, false)
+      await market.updateParameter(marketParameter)
+      await market.updateRiskParameter(riskParameter)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(metaquantsOracleFactory.address, utils.parseEther('10'))

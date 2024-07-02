@@ -9,7 +9,7 @@ import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
-import "./lib/StrategyLib.sol";
+import "./libs/StrategyLib.sol";
 
 /// @title Vault
 /// @notice Deploys underlying capital by weight in maker positions across registered markets

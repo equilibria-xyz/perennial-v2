@@ -18,6 +18,7 @@ import {
   DEFAULT_CHECKPOINT,
   DEFAULT_VERSION,
   DEFAULT_POSITION,
+  DEFAULT_GUARANTEE,
   parse6decimal,
 } from '../../../../common/testutil/types'
 
@@ -218,34 +219,30 @@ describe('Checkpoint', () => {
 
     const FROM_VERSION: VersionStruct = {
       valid: true,
+      price: parse6decimal('123'),
       makerValue: { _value: parse6decimal('100') },
       longValue: { _value: parse6decimal('200') },
       shortValue: { _value: parse6decimal('300') },
-      makerLinearFee: { _value: parse6decimal('1400') },
-      makerProportionalFee: { _value: parse6decimal('1500') },
-      takerLinearFee: { _value: parse6decimal('1600') },
-      takerProportionalFee: { _value: parse6decimal('1700') },
-      makerPosFee: { _value: parse6decimal('400') },
-      makerNegFee: { _value: parse6decimal('500') },
-      takerPosFee: { _value: parse6decimal('600') },
-      takerNegFee: { _value: parse6decimal('700') },
+      makerFee: { _value: parse6decimal('1400') },
+      takerFee: { _value: parse6decimal('1600') },
+      makerOffset: { _value: parse6decimal('400') },
+      takerPosOffset: { _value: parse6decimal('600') },
+      takerNegOffset: { _value: parse6decimal('700') },
       settlementFee: { _value: parse6decimal('800') },
       liquidationFee: { _value: parse6decimal('900') },
     }
 
     const TO_VERSION: VersionStruct = {
       valid: true,
+      price: parse6decimal('123'),
       makerValue: { _value: parse6decimal('1000') },
       longValue: { _value: parse6decimal('2000') },
       shortValue: { _value: parse6decimal('3000') },
-      makerLinearFee: { _value: parse6decimal('14000') },
-      makerProportionalFee: { _value: parse6decimal('15000') },
-      takerLinearFee: { _value: parse6decimal('16000') },
-      takerProportionalFee: { _value: parse6decimal('17000') },
-      makerPosFee: { _value: parse6decimal('4000') },
-      makerNegFee: { _value: parse6decimal('5000') },
-      takerPosFee: { _value: parse6decimal('6000') },
-      takerNegFee: { _value: parse6decimal('7000') },
+      makerFee: { _value: parse6decimal('14000') },
+      takerFee: { _value: parse6decimal('16000') },
+      makerOffset: { _value: parse6decimal('4000') },
+      takerPosOffset: { _value: parse6decimal('6000') },
+      takerNegOffset: { _value: parse6decimal('7000') },
       settlementFee: { _value: parse6decimal('8000') },
       liquidationFee: { _value: parse6decimal('9000') },
     }
@@ -260,12 +257,14 @@ describe('Checkpoint', () => {
       it('accumulates transfer', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER, collateral: parse6decimal('123') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER, collateral: parse6decimal('123') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION },
@@ -275,15 +274,79 @@ describe('Checkpoint', () => {
         expect(value.transfer).to.equal(parse6decimal('123'))
       })
 
+      it('accumulates price override pnl (long)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
+          {
+            ...DEFAULT_GUARANTEE,
+            takerPos: parse6decimal('5'),
+            takerNeg: parse6decimal('2'),
+            notional: parse6decimal('300'),
+          },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
+          {
+            ...DEFAULT_GUARANTEE,
+            takerPos: parse6decimal('5'),
+            takerNeg: parse6decimal('2'),
+            notional: parse6decimal('300'),
+          },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        expect(result.priceOverride).to.equal(parse6decimal('69')) // open 3 long @ 100 w/ 123 price
+
+        const value = await checkpoint.read()
+        expect(value.collateral).to.equal(parse6decimal('69'))
+      })
+
+      it('accumulates price override pnl (short)', async () => {
+        const result = await checkpoint.callStatic.accumulate(
+          { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
+          {
+            ...DEFAULT_GUARANTEE,
+            takerNeg: parse6decimal('5'),
+            takerPos: parse6decimal('2'),
+            notional: parse6decimal('-300'),
+          },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        await checkpoint.accumulate(
+          { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
+          {
+            ...DEFAULT_GUARANTEE,
+            takerNeg: parse6decimal('5'),
+            takerPos: parse6decimal('2'),
+            notional: parse6decimal('-300'),
+          },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        expect(result.priceOverride).to.equal(parse6decimal('-69')) // open 3 short @ 100 w/ 123 price
+
+        const value = await checkpoint.read()
+        expect(value.collateral).to.equal(parse6decimal('-69'))
+      })
+
       it('accumulates pnl (maker)', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, maker: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
           { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, maker: parse6decimal('10') },
           { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
           { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
@@ -297,12 +360,14 @@ describe('Checkpoint', () => {
       it('accumulates pnl (long)', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, long: parse6decimal('10') },
           { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
           { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, long: parse6decimal('10') },
           { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
           { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
@@ -316,12 +381,14 @@ describe('Checkpoint', () => {
       it('accumulates pnl (short)', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, short: parse6decimal('10') },
           { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
           { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, short: parse6decimal('10') },
           { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
           { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
@@ -332,191 +399,106 @@ describe('Checkpoint', () => {
         expect(value.collateral).to.equal(parse6decimal('1000'))
       })
 
-      it('accumulates fees (maker linear)', async () => {
+      it('accumulates fees (maker)', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerLinearFee: { _value: parse6decimal('-2') } },
-        )
-        await checkpoint.accumulate(
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
-        )
-        expect(result.linearFee).to.equal(parse6decimal('20'))
-
-        const value = await checkpoint.read()
-        expect(value.tradeFee).to.equal(parse6decimal('20'))
-      })
-
-      it('accumulates fees (maker proportional)', async () => {
-        const result = await checkpoint.callStatic.accumulate(
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerProportionalFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, makerFee: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, makerFee: { _value: parse6decimal('-2') } },
         )
-        expect(result.proportionalFee).to.equal(parse6decimal('20'))
+        expect(result.tradeFee).to.equal(parse6decimal('20'))
 
         const value = await checkpoint.read()
         expect(value.tradeFee).to.equal(parse6decimal('20'))
       })
 
-      it('accumulates fees (taker linear)', async () => {
+      it('accumulates fees (taker)', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerLinearFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, takerFee: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerLinearFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, takerFee: { _value: parse6decimal('-2') } },
         )
-        expect(result.linearFee).to.equal(parse6decimal('20'))
+        expect(result.tradeFee).to.equal(parse6decimal('20'))
 
         const value = await checkpoint.read()
         expect(value.tradeFee).to.equal(parse6decimal('20'))
       })
 
-      it('accumulates fees (taker proportional)', async () => {
-        const result = await checkpoint.callStatic.accumulate(
-          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerProportionalFee: { _value: parse6decimal('-2') } },
-        )
-        await checkpoint.accumulate(
-          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerProportionalFee: { _value: parse6decimal('-2') } },
-        )
-        expect(result.proportionalFee).to.equal(parse6decimal('20'))
-
-        const value = await checkpoint.read()
-        expect(value.tradeFee).to.equal(parse6decimal('20'))
-      })
-
-      it('accumulates fees (maker pos)', async () => {
+      it('accumulates fees (maker offset)', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, makerOffset: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerPosFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, makerOffset: { _value: parse6decimal('-2') } },
         )
-        expect(result.adiabaticFee).to.equal(parse6decimal('20'))
+        expect(result.offset).to.equal(parse6decimal('20'))
 
         const value = await checkpoint.read()
         expect(value.tradeFee).to.equal(parse6decimal('20'))
       })
 
-      it('accumulates fees (maker neg)', async () => {
-        const result = await checkpoint.callStatic.accumulate(
-          { ...DEFAULT_ORDER, makerNeg: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
-        )
-        await checkpoint.accumulate(
-          { ...DEFAULT_ORDER, makerNeg: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerNegFee: { _value: parse6decimal('-2') } },
-        )
-        expect(result.adiabaticFee).to.equal(parse6decimal('20'))
-
-        const value = await checkpoint.read()
-        expect(value.tradeFee).to.equal(parse6decimal('20'))
-      })
-
-      it('accumulates fees (long pos)', async () => {
+      it('accumulates fees (taker pos offset)', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, takerPosOffset: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, takerPosOffset: { _value: parse6decimal('-2') } },
         )
-        expect(result.adiabaticFee).to.equal(parse6decimal('20'))
+        expect(result.offset).to.equal(parse6decimal('20'))
 
         const value = await checkpoint.read()
         expect(value.tradeFee).to.equal(parse6decimal('20'))
       })
 
-      it('accumulates fees (short neg)', async () => {
-        const result = await checkpoint.callStatic.accumulate(
-          { ...DEFAULT_ORDER, shortNeg: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
-        )
-        await checkpoint.accumulate(
-          { ...DEFAULT_ORDER, shortNeg: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerPosFee: { _value: parse6decimal('-2') } },
-        )
-        expect(result.adiabaticFee).to.equal(parse6decimal('20'))
-
-        const value = await checkpoint.read()
-        expect(value.tradeFee).to.equal(parse6decimal('20'))
-      })
-
-      it('accumulates fees (long neg)', async () => {
+      it('accumulates fees (taker neg offset)', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, takerNegOffset: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, takerNegOffset: { _value: parse6decimal('-2') } },
         )
-        expect(result.adiabaticFee).to.equal(parse6decimal('20'))
-
-        const value = await checkpoint.read()
-        expect(value.tradeFee).to.equal(parse6decimal('20'))
-      })
-
-      it('accumulates fees (short pos)', async () => {
-        const result = await checkpoint.callStatic.accumulate(
-          { ...DEFAULT_ORDER, shortPos: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
-        )
-        await checkpoint.accumulate(
-          { ...DEFAULT_ORDER, shortPos: parse6decimal('10') },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerNegFee: { _value: parse6decimal('-2') } },
-        )
-        expect(result.adiabaticFee).to.equal(parse6decimal('20'))
+        expect(result.offset).to.equal(parse6decimal('20'))
 
         const value = await checkpoint.read()
         expect(value.tradeFee).to.equal(parse6decimal('20'))
@@ -525,12 +507,14 @@ describe('Checkpoint', () => {
       it('accumulates settlement fee', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER, orders: 2 },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER, orders: 2 },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
@@ -544,12 +528,14 @@ describe('Checkpoint', () => {
       it('accumulates liquidation fee', async () => {
         const result = await checkpoint.callStatic.accumulate(
           { ...DEFAULT_ORDER, protection: 1 },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, liquidationFee: { _value: parse6decimal('-4') } },
         )
         await checkpoint.accumulate(
           { ...DEFAULT_ORDER, protection: 1 },
+          { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, liquidationFee: { _value: parse6decimal('-4') } },

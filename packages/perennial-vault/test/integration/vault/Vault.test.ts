@@ -239,7 +239,6 @@ describe('Vault', () => {
       makerFee: {
         linearFee: 0,
         proportionalFee: 0,
-        adiabaticFee: 0,
         scale: parse6decimal('100'),
       },
     })
@@ -260,7 +259,6 @@ describe('Vault', () => {
       makerFee: {
         linearFee: 0,
         proportionalFee: 0,
-        adiabaticFee: 0,
         scale: parse6decimal('10'),
       },
     })
@@ -437,8 +435,6 @@ describe('Vault', () => {
         factory: factory,
         token: asset,
         owner: owner,
-        name: 'Chainlink Token',
-        symbol: 'LINK',
         oracle: rootOracle3.address,
         payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
@@ -498,8 +494,6 @@ describe('Vault', () => {
         factory: factory,
         token: IERC20Metadata__factory.connect(constants.AddressZero, owner),
         owner: owner,
-        name: 'Chainlink Token',
-        symbol: 'LINK',
         oracle: rootOracle4.address,
         payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
@@ -1050,11 +1044,11 @@ describe('Vault', () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
-      await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, {
+      await market.updateParameter({
         ...(await market.parameter()),
         settlementFee: parse6decimal('5'),
       })
-      await btcMarket.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, {
+      await btcMarket.updateParameter({
         ...(await btcMarket.parameter()),
         settlementFee: parse6decimal('5'),
       })
@@ -1384,9 +1378,9 @@ describe('Vault', () => {
       const btcMarketParameter = { ...(await btcMarket.parameter()) }
 
       marketParameter.closed = true
-      await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+      await market.connect(owner).updateParameter(marketParameter)
       btcMarketParameter.closed = true
-      await btcMarket.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, btcMarketParameter)
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
 
       await updateOracle()
       await vault.connect(user).update(user.address, 0, 1, 0) // redeem 1 share to trigger rebalance
@@ -1399,9 +1393,9 @@ describe('Vault', () => {
       expect(await btcPosition()).to.equal(0)
 
       marketParameter.closed = false
-      await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+      await market.connect(owner).updateParameter(marketParameter)
       btcMarketParameter.closed = false
-      await btcMarket.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, btcMarketParameter)
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
 
       await updateOracle()
       await vault.connect(user).update(user.address, 0, 1, 0) // redeem 1 share to trigger rebalance
@@ -1416,27 +1410,21 @@ describe('Vault', () => {
 
     it('multiple users w/ makerFee', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter(
-        {
-          ...riskParameters,
-          makerFee: {
-            ...riskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter(
-        {
-          ...btcRiskParameters,
-          makerFee: {
-            ...btcRiskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await btcMarket.updateRiskParameter({
+        ...btcRiskParameters,
+        makerFee: {
+          ...btcRiskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1538,35 +1526,29 @@ describe('Vault', () => {
 
     it('multiple users w/ makerFee + settlement fee', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter(
-        {
-          ...riskParameters,
-          makerFee: {
-            ...riskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter(
-        {
-          ...btcRiskParameters,
-          makerFee: {
-            ...btcRiskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await btcMarket.updateRiskParameter({
+        ...btcRiskParameters,
+        makerFee: {
+          ...btcRiskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
 
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }
       marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+      await market.connect(owner).updateParameter(marketParameter)
       const btcMarketParameter = { ...(await btcMarket.parameter()) }
       btcMarketParameter.settlementFee = settlementFee
-      await btcMarket.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, btcMarketParameter)
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1709,21 +1691,18 @@ describe('Vault', () => {
 
     it('simple deposits and redemptions w/ factory initial amount (with fees)', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter(
-        {
-          ...riskParameters,
-          makerFee: {
-            ...riskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
 
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }
       marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+      await market.connect(owner).updateParameter(marketParameter)
       // re-setup vault w/ initial amount
       const vaultFactoryProxy2 = await new TransparentUpgradeableProxy__factory(owner).deploy(
         marketFactory.address, // dummy contract
@@ -1758,35 +1737,29 @@ describe('Vault', () => {
 
     it('zero address settle w/ settlement fee', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter(
-        {
-          ...riskParameters,
-          makerFee: {
-            ...riskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await market.updateRiskParameter({
+        ...riskParameters,
+        makerFee: {
+          ...riskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter(
-        {
-          ...btcRiskParameters,
-          makerFee: {
-            ...btcRiskParameters.makerFee,
-            linearFee: parse6decimal('0.001'),
-          },
+      await btcMarket.updateRiskParameter({
+        ...btcRiskParameters,
+        makerFee: {
+          ...btcRiskParameters.makerFee,
+          linearFee: parse6decimal('0.001'),
         },
-        false,
-      )
+      })
 
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }
       marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+      await market.connect(owner).updateParameter(marketParameter)
       const btcMarketParameter = { ...(await btcMarket.parameter()) }
       btcMarketParameter.settlementFee = settlementFee
-      await btcMarket.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, btcMarketParameter)
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1815,10 +1788,10 @@ describe('Vault', () => {
       const settlementFee = parse6decimal('1.00')
       const marketParameter = { ...(await market.parameter()) }
       marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+      await market.connect(owner).updateParameter(marketParameter)
       const btcMarketParameter = { ...(await btcMarket.parameter()) }
       btcMarketParameter.settlementFee = settlementFee
-      await btcMarket.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, btcMarketParameter)
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
 
       await expect(vault.connect(user).update(user.address, parse6decimal('0.50'), 0, 0)).to.revertedWithCustomError(
         vault,
@@ -1841,10 +1814,10 @@ describe('Vault', () => {
       const settlementFee = parse6decimal('10.00')
       const marketParameter = { ...(await market.parameter()) }
       marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+      await market.connect(owner).updateParameter(marketParameter)
       const btcMarketParameter = { ...(await btcMarket.parameter()) }
       btcMarketParameter.settlementFee = settlementFee
-      await btcMarket.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, btcMarketParameter)
+      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
 
       const deposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, deposit, 0, 0)

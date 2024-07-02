@@ -15,6 +15,8 @@ import {
   expectPositionEq,
   parse6decimal,
   expectCheckpointEq,
+  DEFAULT_GLOBAL,
+  DEFAULT_GUARANTEE,
 } from '../../../../common/testutil/types'
 import { Market } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
@@ -43,7 +45,6 @@ const RISK_PARAMS = {
   makerFee: {
     linearFee: parse6decimal('0.09'),
     proportionalFee: parse6decimal('0.08'),
-    adiabaticFee: 0,
     scale: parse6decimal('10'),
   },
   utilizationCurve: {
@@ -63,7 +64,8 @@ const MARKET_PARAMS = {
   interestFee: parse6decimal('0.2'),
   oracleFee: parse6decimal('0.3'),
   riskFee: parse6decimal('0.4'),
-  positionFee: parse6decimal('0.5'),
+  makerFee: parse6decimal('0.05'),
+  takerFee: parse6decimal('0.025'),
 }
 
 describe('Fees', () => {
@@ -88,10 +90,10 @@ describe('Fees', () => {
     const txEvents = (await tx.wait()).events!
     const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
       .filter(e => e.event === 'AccountPositionProcessed')
-      .map(e => e.args as AccountPositionProcessedEventObject)
+      .map(e => e.args as unknown as AccountPositionProcessedEventObject)
     const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
       .filter(e => e.event === 'PositionProcessed')
-      .map(e => e.args as PositionProcessedEventObject)
+      .map(e => e.args as unknown as PositionProcessedEventObject)
     return [accountProcessEvents, positionProcessEvents]
   }
 
@@ -114,8 +116,15 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
       )
-        .to.emit(market, 'Updated')
-        .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, constants.AddressZero)
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          user.address,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
@@ -123,20 +132,21 @@ describe('Fees', () => {
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
+      const expectedMakerFee = parse6decimal('56.941490') // = 3374.655169**2 * 0.0001 * (0.05)
       const expectedMakerLinear = parse6decimal('102.494680') // = 3374.655169**2 * 0.0001 * (0.09)
       const expectedMakerProportional = parse6decimal('91.106380') // = 3374.655169**2 * 0.0001 * (0.08)
-      const expectedMakerAdiabatic = parse6decimal('0') // = 3374.655169**2 * 0.0001 * (-(1.0 + 0.0) / 2 * 0.0)
 
-      expect(accountProcessEvent?.accumulationResult.linearFee).to.equal(expectedMakerLinear)
-      expect(accountProcessEvent?.accumulationResult.proportionalFee).to.equal(expectedMakerProportional)
-      expect(accountProcessEvent?.accumulationResult.adiabaticFee).to.equal(expectedMakerAdiabatic)
+      expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
+      expect(accountProcessEvent?.accumulationResult.offset).to.equal(
+        expectedMakerLinear.add(expectedMakerProportional),
+      )
 
       // check user state
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedMakerLinear).sub(expectedMakerProportional).sub(expectedMakerAdiabatic),
+        collateral: COLLATERAL.sub(expectedMakerFee).sub(expectedMakerLinear).sub(expectedMakerProportional),
       })
       expectOrderEq(await market.pendingOrders(user.address, 2), {
         ...DEFAULT_ORDER,
@@ -152,10 +162,10 @@ describe('Fees', () => {
       })
 
       // Check global post-settlement state
-      const expectedProtocolFee = BigNumber.from('96800528') // = 193601057 * 1 * 0.5 (no existing makers so all fees go to protocol/market)
-      const expectedOracleFee = BigNumber.from('29040158') // = (193601057 - 96800528) * 0.3
-      const expectedRiskFee = BigNumber.from('38720211') // = (193601057 - 96800528) * 0.4
-      const expectedDonation = BigNumber.from('29040160') // = 193601057 - 96800528 - 29040158 - 38720211
+      const expectedProtocolFee = BigNumber.from('125271272') // = 250542544 * 1 * 0.5 (no existing makers so all fees go to protocol/market)
+      const expectedOracleFee = BigNumber.from('37581381') // = (250542544 - 125271272) * 0.3
+      const expectedRiskFee = BigNumber.from('50108508') // = (250542544 - 125271272) * 0.4
+      const expectedDonation = BigNumber.from('37581383') // = 250542544 - 125271272 - 37581381 - 50108508
       expectGlobalEq(await market.global(), {
         currentId: 2,
         latestId: 1,
@@ -183,9 +193,13 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams, false)
+      await market.updateRiskParameter(riskParams)
+
+      const marketParams = { ...(await market.parameter()) }
+      const previousMarketParams = { ...marketParams }
+      marketParams.makerFee = BigNumber.from('0')
+      await market.updateParameter(marketParams)
 
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
@@ -198,13 +212,21 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
       )
-        .to.emit(market, 'Updated')
-        .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, constants.AddressZero)
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          user.address,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
 
       await nextWithConstantPrice()
       await settle(market, user)
 
-      await market.updateRiskParameter(previousRiskParams, false)
+      await market.updateRiskParameter(previousRiskParams)
+      await market.updateParameter(previousMarketParams)
       await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
       // Settle the market with a new oracle version
@@ -213,22 +235,21 @@ describe('Fees', () => {
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
+      const expectedMakerFee = parse6decimal('56.941490') // = 3374.655169**2 * 0.0001 * (0.05)
       const expectedMakerLinear = parse6decimal('102.494680') // = 3374.655169**2 * 0.0001 * (0.09)
       const expectedMakerProportional = parse6decimal('91.106380') // = 3374.655169**2 * 0.0001 * (0.08)
-      const expectedMakerAdiabatic = BigNumber.from('0') // = 3374.655169**2 * 0.0001 * ((1.0 + 0.0) / 2 * 0)
 
-      expect(accountProcessEvent?.accumulationResult.linearFee).to.equal(expectedMakerLinear)
-      expect(accountProcessEvent?.accumulationResult.proportionalFee).to.equal(expectedMakerProportional)
-      expect(accountProcessEvent?.accumulationResult.adiabaticFee).to.equal(expectedMakerAdiabatic)
+      expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
+      expect(accountProcessEvent?.accumulationResult.offset).to.equal(
+        expectedMakerLinear.add(expectedMakerProportional),
+      )
 
       // check user state
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
-        collateral: COLLATERAL.sub(
-          expectedMakerLinear.add(expectedMakerProportional).div(2).add(expectedMakerAdiabatic),
-        ).sub(10), // Maker gets part of their fee refunded since they were an exisiting maker
+        collateral: COLLATERAL.sub(expectedMakerFee).sub(10), // Maker gets part of their fee refunded since they were an exisiting maker
       })
       expectOrderEq(await market.pendingOrders(user.address, 3), {
         ...DEFAULT_ORDER,
@@ -243,10 +264,10 @@ describe('Fees', () => {
       })
 
       // Check global post-settlement state. Existing makers so protocol only gets 50% of fees
-      const expectedProtocolFee = BigNumber.from('48400264') // = 193601057/2 * 0.5
-      const expectedOracleFee = BigNumber.from('14520079') // = (193601057/2 - 48400264) * 0.3
-      const expectedRiskFee = BigNumber.from('19360105') // = (193601057/2 - 48400264) * 0.4
-      const expectedDonation = BigNumber.from('14520080') // = 193601057/2 - 48400264 - 14520079 - 19360105
+      const expectedProtocolFee = BigNumber.from('28470743') // = 56941487 * 0.5
+      const expectedOracleFee = BigNumber.from('8541223') // = (56941487 - 28470743) * 0.3
+      const expectedRiskFee = BigNumber.from('11388297') // = (56941487 - 28470743) * 0.4
+      const expectedDonation = BigNumber.from('8541224') // = 56941487 - 28470743 - 8541223 - 11388297
       expectGlobalEq(await market.global(), {
         currentId: 3,
         latestId: 2,
@@ -254,8 +275,8 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        exposure: 0,
         latestPrice: PRICE,
-        exposure: expectedMakerAdiabatic,
       })
       expectOrderEq(await market.pendingOrder(3), {
         ...DEFAULT_ORDER,
@@ -272,9 +293,12 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams, false)
+      await market.updateRiskParameter(riskParams)
+
+      const marketParams = { ...(await market.parameter()) }
+      marketParams.makerFee = BigNumber.from('0')
+      await market.updateParameter(marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
@@ -299,16 +323,13 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_1,
-          0,
-          LONG_POSITION,
-          0,
-          COLLATERAL,
-          false,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
           constants.AddressZero,
         )
 
@@ -317,20 +338,34 @@ describe('Fees', () => {
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
+      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
+        e => e.event === 'PositionProcessed',
+      )?.args as unknown as PositionProcessedEventObject
 
       // 100% long so taker takes full skew and impact
-      const expectedtakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedtakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
+      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
+      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
+      const expectedTakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
       const expectedtakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
 
-      expect(accountProcessEventLong.accumulationResult.linearFee).to.eq(expectedtakerLinear)
-      expect(accountProcessEventLong.accumulationResult.proportionalFee).to.eq(expectedtakerProportional)
-      expect(accountProcessEventLong.accumulationResult.adiabaticFee).to.eq(expectedtakerAdiabatic)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedtakerAdiabatic),
+      )
 
-      const expectedProtocolFee = BigNumber.from('6263563') // = applicable fee / 2
-      const expectedOracleFee = BigNumber.from('1879068') // = (12527126 - 6263563) * 0.3
-      const expectedRiskFee = BigNumber.from('2505425') // = (12527126 - 6263563) * 0.4
-      const expectedDonation = BigNumber.from('1879070') // = 12527126 - 6263563 - 1879068 - 2505425
+      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(processEvent.accumulationResult.tradeOffset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedtakerAdiabatic),
+      )
+      expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(0)
+      expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional),
+      )
+
+      const expectedProtocolFee = BigNumber.from('7687100') // = 15374200 / 2
+      const expectedOracleFee = BigNumber.from('2306130') // = (15374200 - 7687100) * 0.3
+      const expectedRiskFee = BigNumber.from('3074840') // = (15374200 - 7687100) * 0.4
+      const expectedDonation = BigNumber.from('2306130') // = 15374200 - 7687100 - 2306130 - 3074840
 
       // Global State
       expectGlobalEq(await market.global(), {
@@ -359,7 +394,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedtakerLinear).sub(expectedtakerProportional).sub(expectedtakerAdiabatic),
+        collateral: COLLATERAL.sub(expectedTakerFee)
+          .sub(expectedTakerLinear)
+          .sub(expectedTakerProportional)
+          .sub(expectedtakerAdiabatic),
       })
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
@@ -380,9 +418,12 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams, false)
+      await market.updateRiskParameter(riskParams)
+
+      const marketParams = { ...(await market.parameter()) }
+      marketParams.makerFee = BigNumber.from('0')
+      await market.updateParameter(marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
@@ -412,16 +453,13 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_2,
-          0,
-          LONG_POSITION,
-          0,
-          COLLATERAL,
-          false,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
           constants.AddressZero,
         )
 
@@ -430,20 +468,32 @@ describe('Fees', () => {
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
+      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
+        e => e.event === 'PositionProcessed',
+      )?.args as unknown as PositionProcessedEventObject
 
       // 100% long so taker takes full skew and impact
-      const expectedtakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedtakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
-      const expectedtakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
+      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
+      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
+      const expectedTakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
+      const expectedTakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
 
-      expect(accountProcessEventLong.accumulationResult.linearFee).to.eq(expectedtakerLinear)
-      expect(accountProcessEventLong.accumulationResult.proportionalFee).to.eq(expectedtakerProportional)
-      expect(accountProcessEventLong.accumulationResult.adiabaticFee).to.eq(expectedtakerAdiabatic)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
+      )
 
-      const expectedProtocolFee = BigNumber.from('3131781') // = application fee * 0.5 * 0.5
-      const expectedOracleFee = BigNumber.from('939534') // = (6263563 - 3131781) * 0.3
-      const expectedRiskFee = BigNumber.from('1252712') // = (6263563 - 3131781) * 0.4
-      const expectedDonation = BigNumber.from('939536') // = 6263563 - 3131781 - 939534 - 1252712
+      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(processEvent.accumulationResult.tradeOffset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
+      )
+      expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(expectedTakerLinear.add(expectedTakerProportional))
+      expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(0)
+
+      const expectedProtocolFee = BigNumber.from('1423537') // = 2847074 / 2
+      const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
+      const expectedRiskFee = BigNumber.from('569414') // = (2847074 - 1423537) * 0.4
+      const expectedDonation = BigNumber.from('427062') // = 2847074 - 1423537 - 427061 - 569414
 
       // Global State
       expectGlobalEq(await market.global(), {
@@ -472,7 +522,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedtakerLinear).sub(expectedtakerProportional).sub(expectedtakerAdiabatic),
+        collateral: COLLATERAL.sub(expectedTakerFee)
+          .sub(expectedTakerLinear)
+          .sub(expectedTakerProportional)
+          .sub(expectedTakerAdiabatic),
       })
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
@@ -492,7 +545,7 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = BigNumber.from('6263550') // = 12527126 - Floor(12527126/2)
+      const expectedMakerFee = expectedTakerLinear.add(expectedTakerProportional).sub(16)
       expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
@@ -519,27 +572,25 @@ describe('Fees', () => {
     it('charges take fees on long close', async () => {
       const riskParams = await market.riskParameter()
       const marketParams = await market.parameter()
-      await market.updateRiskParameter(
-        {
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
+      await market.updateRiskParameter({
+        ...riskParams,
+        makerFee: {
+          ...riskParams.makerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
         },
-        false,
-      )
-      await market.updateParameter(AddressZero, AddressZero, {
+        takerFee: {
+          ...riskParams.takerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
+      })
+      await market.updateParameter({
         ...marketParams,
         fundingFee: BigNumber.from('0'),
+        makerFee: 0,
+        takerFee: 0,
       })
 
       const MAKER_POSITION = parse6decimal('10')
@@ -565,16 +616,13 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_1,
-          0,
-          LONG_POSITION,
-          0,
-          COLLATERAL,
-          false,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
           constants.AddressZero,
         )
 
@@ -583,23 +631,25 @@ describe('Fees', () => {
       await updateNoOp(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
-      await market.updateRiskParameter(
-        {
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
+      await market.updateRiskParameter({
+        ...riskParams,
+        makerFee: {
+          ...riskParams.makerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
         },
-        false,
-      )
+        takerFee: {
+          ...riskParams.takerFee,
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
+      })
+      await market.updateParameter({
+        ...marketParams,
+        fundingFee: BigNumber.from('0'),
+        makerFee: 0,
+      })
+
       await market
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
@@ -611,15 +661,17 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedtakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedtakerProportional = 0
-      const expectedtakerAdiabatic = 0
+      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
+      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
+      const expectedTakerProportional = 0
+      const expectedTakerAdiabatic = 0
 
-      expect(accountProcessEventLong.accumulationResult.linearFee).to.eq(expectedtakerLinear)
-      expect(accountProcessEventLong.accumulationResult.proportionalFee).to.eq(expectedtakerProportional)
-      expect(accountProcessEventLong.accumulationResult.adiabaticFee).to.eq(expectedtakerAdiabatic)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
+      )
 
-      const expectedProtocolFee = BigNumber.from('1423537') // = 5694148 * 0.5 * 0.5
+      const expectedProtocolFee = BigNumber.from('1423537') // = 2847074 / 2
       const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
       const expectedRiskFee = BigNumber.from('569414') // = (2847074 - 1423537) * 0.4
       const expectedDonation = BigNumber.from('427062') // = 2847074 - 1423537 - 427061 - 569414
@@ -650,7 +702,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedtakerLinear).sub(expectedtakerProportional).sub(expectedtakerAdiabatic),
+        collateral: COLLATERAL.sub(expectedTakerFee)
+          .sub(expectedTakerLinear)
+          .sub(expectedTakerProportional)
+          .sub(expectedTakerAdiabatic),
       })
       expectOrderEq(await market.pendingOrders(userB.address, 3), {
         ...DEFAULT_ORDER,
@@ -669,7 +724,7 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = BigNumber.from('2847070') // = 5694148 - Floor(5694148/2)
+      const expectedMakerFee = expectedTakerLinear.add(expectedTakerProportional).sub(8)
       expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
@@ -698,9 +753,12 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams, false)
+      await market.updateRiskParameter(riskParams)
+
+      const marketParams = { ...(await market.parameter()) }
+      marketParams.makerFee = BigNumber.from('0')
+      await market.updateParameter(marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
@@ -725,16 +783,13 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_1,
-          0,
-          0,
-          SHORT_POSITION,
-          COLLATERAL,
-          false,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
           constants.AddressZero,
         )
 
@@ -743,20 +798,34 @@ describe('Fees', () => {
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
+      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
+        e => e.event === 'PositionProcessed',
+      )?.args as unknown as PositionProcessedEventObject
 
       // 100% long so taker takes full skew and impact
-      const expectedtakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedtakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
+      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
+      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
+      const expectedTakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
       const expectedtakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
 
-      expect(accountProcessEventLong.accumulationResult.linearFee).to.eq(expectedtakerLinear)
-      expect(accountProcessEventLong.accumulationResult.proportionalFee).to.eq(expectedtakerProportional)
-      expect(accountProcessEventLong.accumulationResult.adiabaticFee).to.eq(expectedtakerAdiabatic)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedtakerAdiabatic),
+      )
 
-      const expectedProtocolFee = BigNumber.from('6263563') // = applicable fee / 2
-      const expectedOracleFee = BigNumber.from('1879068') // = (12527126 - 6263563) * 0.3
-      const expectedRiskFee = BigNumber.from('2505425') // = (12527126 - 6263563) * 0.4
-      const expectedDonation = BigNumber.from('1879070') // = 12527126 - 6263563 - 1879068 - 2505425
+      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(processEvent.accumulationResult.tradeOffset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedtakerAdiabatic),
+      )
+      expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(0)
+      expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional),
+      )
+
+      const expectedProtocolFee = BigNumber.from('7687100') // = 15374200 / 2
+      const expectedOracleFee = BigNumber.from('2306130') // = (15374200 - 7687100) * 0.3
+      const expectedRiskFee = BigNumber.from('3074840') // = (15374200 - 7687100) * 0.4
+      const expectedDonation = BigNumber.from('2306130') // = 15374200 - 7687100 - 2306130 - 3074840
 
       // Global State
       expectGlobalEq(await market.global(), {
@@ -785,7 +854,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedtakerLinear).sub(expectedtakerProportional).sub(expectedtakerAdiabatic),
+        collateral: COLLATERAL.sub(expectedTakerFee)
+          .sub(expectedTakerLinear)
+          .sub(expectedTakerProportional)
+          .sub(expectedtakerAdiabatic),
       })
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
@@ -806,9 +878,12 @@ describe('Fees', () => {
       const riskParamsMakerFee = { ...riskParams.makerFee }
       riskParamsMakerFee.linearFee = BigNumber.from('0')
       riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParamsMakerFee.adiabaticFee = BigNumber.from('0')
       riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams, false)
+      await market.updateRiskParameter(riskParams)
+
+      const marketParams = { ...(await market.parameter()) }
+      marketParams.makerFee = BigNumber.from('0')
+      await market.updateParameter(marketParams)
 
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
@@ -838,16 +913,13 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_2,
-          0,
-          0,
-          SHORT_POSITION,
-          COLLATERAL,
-          false,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
           constants.AddressZero,
         )
 
@@ -856,20 +928,32 @@ describe('Fees', () => {
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
+      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
+        e => e.event === 'PositionProcessed',
+      )?.args as unknown as PositionProcessedEventObject
 
       // 100% long so taker takes full skew and impact
-      const expectedtakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedtakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
-      const expectedtakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
+      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
+      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
+      const expectedTakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
+      const expectedTakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
 
-      expect(accountProcessEventLong.accumulationResult.linearFee).to.eq(expectedtakerLinear)
-      expect(accountProcessEventLong.accumulationResult.proportionalFee).to.eq(expectedtakerProportional)
-      expect(accountProcessEventLong.accumulationResult.adiabaticFee).to.eq(expectedtakerAdiabatic)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
+      )
 
-      const expectedProtocolFee = BigNumber.from('3131781') // = application fee * 0.5 * 0.5
-      const expectedOracleFee = BigNumber.from('939534') // = (6263563 - 3131781) * 0.3
-      const expectedRiskFee = BigNumber.from('1252712') // = (6263563 - 3131781) * 0.4
-      const expectedDonation = BigNumber.from('939536') // = 6263563 - 3131781 - 939534 - 1252712
+      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(processEvent.accumulationResult.tradeOffset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
+      )
+      expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(expectedTakerLinear.add(expectedTakerProportional))
+      expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(0)
+
+      const expectedProtocolFee = BigNumber.from('1423537') // = 2847074 / 2
+      const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
+      const expectedRiskFee = BigNumber.from('569414') // = (2847074 - 1423537) * 0.4
+      const expectedDonation = BigNumber.from('427062') // = 2847074 - 1423537 - 427061 - 569414
 
       // Global State
       expectGlobalEq(await market.global(), {
@@ -898,7 +982,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedtakerLinear).sub(expectedtakerProportional).sub(expectedtakerAdiabatic),
+        collateral: COLLATERAL.sub(expectedTakerFee)
+          .sub(expectedTakerLinear)
+          .sub(expectedTakerProportional)
+          .sub(expectedTakerAdiabatic),
       })
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
@@ -918,7 +1005,7 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = BigNumber.from('6263550') // = 12527126 - Floor(12527126/2)
+      const expectedMakerFee = expectedTakerLinear.add(expectedTakerProportional).sub(16)
       expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
@@ -945,27 +1032,25 @@ describe('Fees', () => {
     it('charges take fees on short close', async () => {
       const riskParams = await market.riskParameter()
       const marketParams = await market.parameter()
-      await market.updateRiskParameter(
-        {
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
+      await market.updateRiskParameter({
+        ...riskParams,
+        makerFee: {
+          ...riskParams.makerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
         },
-        false,
-      )
-      await market.updateParameter(AddressZero, AddressZero, {
+        takerFee: {
+          ...riskParams.takerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
+      })
+      await market.updateParameter({
         ...marketParams,
         fundingFee: BigNumber.from('0'),
+        makerFee: 0,
+        takerFee: 0,
       })
 
       const MAKER_POSITION = parse6decimal('10')
@@ -991,16 +1076,13 @@ describe('Fees', () => {
             false,
           ),
       )
-        .to.emit(market, 'Updated')
+        .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          userB.address,
-          TIMESTAMP_1,
-          0,
-          0,
-          SHORT_POSITION,
-          COLLATERAL,
-          false,
+          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
           constants.AddressZero,
         )
 
@@ -1009,23 +1091,24 @@ describe('Fees', () => {
       await updateNoOp(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
-      await market.updateRiskParameter(
-        {
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
+      await market.updateRiskParameter({
+        ...riskParams,
+        makerFee: {
+          ...riskParams.makerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
         },
-        false,
-      )
+        takerFee: {
+          ...riskParams.takerFee,
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
+      })
+      await market.updateParameter({
+        ...marketParams,
+        fundingFee: BigNumber.from('0'),
+        makerFee: 0,
+      })
       await market
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
@@ -1037,15 +1120,17 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedtakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedtakerProportional = 0
-      const expectedtakerAdiabatic = 0
+      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
+      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
+      const expectedTakerProportional = 0
+      const expectedTakerAdiabatic = 0
 
-      expect(accountProcessEventLong.accumulationResult.linearFee).to.eq(expectedtakerLinear)
-      expect(accountProcessEventLong.accumulationResult.proportionalFee).to.eq(expectedtakerProportional)
-      expect(accountProcessEventLong.accumulationResult.adiabaticFee).to.eq(expectedtakerAdiabatic)
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
+        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
+      )
 
-      const expectedProtocolFee = BigNumber.from('1423537') // = 5694148 * 0.5 * 0.5
+      const expectedProtocolFee = BigNumber.from('1423537') // = 2847074 / 2
       const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
       const expectedRiskFee = BigNumber.from('569414') // = (2847074 - 1423537) * 0.4
       const expectedDonation = BigNumber.from('427062') // = 2847074 - 1423537 - 427061 - 569414
@@ -1076,7 +1161,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 3,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedtakerLinear).sub(expectedtakerProportional).sub(expectedtakerAdiabatic),
+        collateral: COLLATERAL.sub(expectedTakerFee)
+          .sub(expectedTakerLinear)
+          .sub(expectedTakerProportional)
+          .sub(expectedTakerAdiabatic),
       })
       expectOrderEq(await market.pendingOrders(userB.address, 3), {
         ...DEFAULT_ORDER,
@@ -1095,7 +1183,7 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = BigNumber.from('2847070') // = 5694148 - Floor(5694148/2)
+      const expectedMakerFee = expectedTakerLinear.add(expectedTakerProportional).sub(8)
       expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
 
       // Maker State
@@ -1127,24 +1215,26 @@ describe('Fees', () => {
 
       beforeEach(async () => {
         const riskParams = { ...(await market.riskParameter()) }
-        await market.updateRiskParameter(
-          {
-            ...riskParams,
-            makerFee: {
-              ...riskParams.makerFee,
-              linearFee: BigNumber.from('0'),
-              proportionalFee: BigNumber.from('0'),
-              adiabaticFee: BigNumber.from('0'),
-            },
-            takerFee: {
-              ...riskParams.takerFee,
-              linearFee: BigNumber.from('0'),
-              proportionalFee: parse6decimal('0.01'),
-              adiabaticFee: BigNumber.from('0'),
-            },
+        const marketParams = { ...(await market.parameter()) }
+        await market.updateRiskParameter({
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
           },
-          false,
-        )
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: parse6decimal('0.01'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+        })
+        await market.updateParameter({
+          ...marketParams,
+          makerFee: 0,
+          takerFee: 0,
+        })
 
         const { user, userB, userC, dsu } = instanceVars
 
@@ -1184,10 +1274,10 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortProportionalFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.proportionalFee).to.equal(expectedShortProportionalFee)
+        expect(accountProcessEventShort.accumulationResult.offset).to.equal(expectedShortProportionalFee)
         expect(
-          positionProcessEventShort.accumulationResult.positionFeeMaker.add(
-            positionProcessEventShort.accumulationResult.positionFeeProtocol,
+          positionProcessEventShort.accumulationResult.tradeOffsetMaker.add(
+            positionProcessEventShort.accumulationResult.tradeOffsetMarket,
           ),
         ).to.equal(expectedShortProportionalFee)
 
@@ -1214,13 +1304,13 @@ describe('Fees', () => {
 
         const expectedLongProportionalFee = BigNumber.from('4555319') // = 3374.655169**2 / 100000 * 2 * 200% * 0.01
 
-        expect(accountProcessEventLong.accumulationResult.proportionalFee).to.within(
+        expect(accountProcessEventLong.accumulationResult.offset).to.within(
           expectedLongProportionalFee,
           expectedLongProportionalFee.add(10),
         )
         expect(
-          positionProcessEventLong.accumulationResult.positionFeeMaker.add(
-            positionProcessEventLong.accumulationResult.positionFeeProtocol,
+          positionProcessEventLong.accumulationResult.tradeOffsetMaker.add(
+            positionProcessEventLong.accumulationResult.tradeOffsetMarket,
           ),
         ).to.equal(expectedLongProportionalFee)
       })
@@ -1234,24 +1324,26 @@ describe('Fees', () => {
 
       beforeEach(async () => {
         const riskParams = { ...(await market.riskParameter()) }
-        await market.updateRiskParameter(
-          {
-            ...riskParams,
-            makerFee: {
-              ...riskParams.makerFee,
-              linearFee: BigNumber.from('0'),
-              proportionalFee: BigNumber.from('0'),
-              adiabaticFee: BigNumber.from('0'),
-            },
-            takerFee: {
-              ...riskParams.takerFee,
-              linearFee: BigNumber.from('0'),
-              proportionalFee: BigNumber.from('0'),
-              adiabaticFee: parse6decimal('0.02'),
-            },
+        const marketParams = { ...(await market.parameter()) }
+        await market.updateRiskParameter({
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
           },
-          false,
-        )
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: parse6decimal('0.02'),
+          },
+        })
+        await market.updateParameter({
+          ...marketParams,
+          makerFee: 0,
+          takerFee: 0,
+        })
 
         const { user, userB, userC, dsu } = instanceVars
 
@@ -1291,7 +1383,7 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortAdiabaticFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEvent.accumulationResult.adiabaticFee).to.equal(expectedShortAdiabaticFee)
+        expect(accountProcessEvent.accumulationResult.offset).to.equal(expectedShortAdiabaticFee)
       })
 
       it('charges taker impact fee for changing skew (long)', async () => {
@@ -1312,7 +1404,7 @@ describe('Fees', () => {
         )?.args as unknown as PositionProcessedEventObject
 
         const expectedShortAdiabaticFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.adiabaticFee).to.equal(expectedShortAdiabaticFee)
+        expect(accountProcessEventShort.accumulationResult.offset).to.equal(expectedShortAdiabaticFee)
       })
 
       it('refunds taker position fee for negative impact', async () => {
@@ -1335,17 +1427,14 @@ describe('Fees', () => {
 
         // Enable position fee to test refund
         const riskParams = await market.riskParameter()
-        await market.updateRiskParameter(
-          {
-            ...riskParams,
-            takerFee: {
-              ...riskParams.takerFee,
-              linearFee: parse6decimal('0.01'),
-              adiabaticFee: parse6decimal('0.02'),
-            },
+        await market.updateRiskParameter({
+          ...riskParams,
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: parse6decimal('0.01'),
+            adiabaticFee: parse6decimal('0.02'),
           },
-          false,
-        )
+        })
         // Bring skew from -100% to 0% -> total impact change of -100%
         await market
           .connect(userC)
@@ -1360,8 +1449,11 @@ describe('Fees', () => {
           e => e.event === 'PositionProcessed',
         )?.args as unknown as PositionProcessedEventObject
 
+        const expectedShortLinearFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
         const expectedShortAdiabaticFee = BigNumber.from('-1138829') // = 3374.655169**2 * -0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.adiabaticFee).to.equal(expectedShortAdiabaticFee)
+        expect(accountProcessEventShort.accumulationResult.offset).to.equal(
+          expectedShortLinearFee.add(expectedShortAdiabaticFee),
+        )
       })
 
       it('refunds taker position fee for negative impact (negative fees)', async () => {
@@ -1384,17 +1476,14 @@ describe('Fees', () => {
 
         // Enable position fee to test refund
         const riskParams = await market.riskParameter()
-        await market.updateRiskParameter(
-          {
-            ...riskParams,
-            takerFee: {
-              ...riskParams.takerFee,
-              linearFee: parse6decimal('0.01'),
-              adiabaticFee: parse6decimal('0.04'),
-            },
+        await market.updateRiskParameter({
+          ...riskParams,
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: parse6decimal('0.01'),
+            adiabaticFee: parse6decimal('0.04'),
           },
-          false,
-        )
+        })
         // Bring skew from -100% to 0% -> total impact change of -100%
         await market
           .connect(userC)
@@ -1409,8 +1498,11 @@ describe('Fees', () => {
           e => e.event === 'PositionProcessed',
         )?.args as unknown as PositionProcessedEventObject
 
+        const expectedShortLinearFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
         const expectedShortAdiabaticFee = BigNumber.from('-2277659') // = 3374.655169**2 *-0.00001 * 100% * 0.02
-        expect(accountProcessEventShort.accumulationResult.adiabaticFee).to.equal(expectedShortAdiabaticFee)
+        expect(accountProcessEventShort.accumulationResult.offset).to.equal(
+          expectedShortLinearFee.add(expectedShortAdiabaticFee),
+        )
       })
     })
 
@@ -1423,24 +1515,25 @@ describe('Fees', () => {
       beforeEach(async () => {
         const riskParams = await market.riskParameter()
         const marketParams = await market.parameter()
-        await market.updateRiskParameter(
-          {
-            ...riskParams,
-            makerFee: {
-              ...riskParams.makerFee,
-              linearFee: BigNumber.from('0'),
-              proportionalFee: BigNumber.from('0'),
-              adiabaticFee: BigNumber.from('0'),
-            },
-            takerFee: {
-              ...riskParams.takerFee,
-              linearFee: BigNumber.from('0'),
-              proportionalFee: BigNumber.from('0'),
-              adiabaticFee: BigNumber.from('0'),
-            },
+        await market.updateRiskParameter({
+          ...riskParams,
+          makerFee: {
+            ...riskParams.makerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
           },
-          false,
-        )
+          takerFee: {
+            ...riskParams.takerFee,
+            linearFee: BigNumber.from('0'),
+            proportionalFee: BigNumber.from('0'),
+            adiabaticFee: BigNumber.from('0'),
+          },
+        })
+        await market.updateParameter({
+          ...marketParams,
+          makerFee: 0,
+          takerFee: 0,
+        })
 
         const { user, userB, userC, dsu } = instanceVars
 
@@ -1454,9 +1547,11 @@ describe('Fees', () => {
         await nextWithConstantPrice()
         await settle(market, user)
 
-        await market.updateParameter(AddressZero, AddressZero, {
+        await market.updateParameter({
           ...marketParams,
           settlementFee: parse6decimal('1.23'),
+          makerFee: 0,
+          takerFee: 0,
         })
       })
 
@@ -1483,14 +1578,11 @@ describe('Fees', () => {
         expect(accountProcessEvent.accumulationResult.settlementFee).to.equal(expectedSettlementFee)
 
         expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
           currentId: 3,
           latestId: 2,
-          protocolFee: 0,
-          riskFee: 0,
           oracleFee: expectedSettlementFee,
-          donation: 0,
           latestPrice: PRICE,
-          exposure: 0,
         })
       })
 
@@ -1526,14 +1618,11 @@ describe('Fees', () => {
         expect(accountProcessEventC.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
 
         expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
           currentId: 2,
           latestId: 2,
-          protocolFee: 0,
-          riskFee: 0,
           oracleFee: expectedSettlementFee,
-          donation: 0,
           latestPrice: PRICE,
-          exposure: 0,
         })
       })
     })
@@ -1547,30 +1636,26 @@ describe('Fees', () => {
 
     beforeEach(async () => {
       const riskParams = await market.riskParameter()
-      await market.updateRiskParameter(
-        {
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-          utilizationCurve: {
-            minRate: parse6decimal('0.01'),
-            maxRate: parse6decimal('0.01'),
-            targetRate: parse6decimal('0.01'),
-            targetUtilization: parse6decimal('1'),
-          },
+      await market.updateRiskParameter({
+        ...riskParams,
+        makerFee: {
+          ...riskParams.makerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
         },
-        false,
-      )
+        takerFee: {
+          ...riskParams.takerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
+        utilizationCurve: {
+          minRate: parse6decimal('0.01'),
+          maxRate: parse6decimal('0.01'),
+          targetRate: parse6decimal('0.01'),
+          targetUtilization: parse6decimal('1'),
+        },
+      })
 
       const { user, userB, userC, dsu } = instanceVars
 
@@ -1670,29 +1755,25 @@ describe('Fees', () => {
 
     beforeEach(async () => {
       const riskParams = await market.riskParameter()
-      await market.updateRiskParameter(
-        {
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-          pController: {
-            k: parse6decimal('10'),
-            min: parse6decimal('-1.20'),
-            max: parse6decimal('1.20'),
-          },
+      await market.updateRiskParameter({
+        ...riskParams,
+        makerFee: {
+          ...riskParams.makerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
         },
-        false,
-      )
+        takerFee: {
+          ...riskParams.takerFee,
+          linearFee: BigNumber.from('0'),
+          proportionalFee: BigNumber.from('0'),
+          adiabaticFee: BigNumber.from('0'),
+        },
+        pController: {
+          k: parse6decimal('10'),
+          min: parse6decimal('-1.20'),
+          max: parse6decimal('1.20'),
+        },
+      })
 
       const { user, userB, userC, dsu } = instanceVars
 
@@ -1840,9 +1921,9 @@ describe('Fees', () => {
       await settle(market, userB)
 
       // ensure the proper amount of the base fee is claimable by the referrer
-      // makerFeeLinear = position * linearFee * price = 3 * 0.09 * 113.882975 = 30.748403
-      // referralFee = makerFeeLinear * referral / makerPos =  30.748403 * 0.45 / 3 = 4.612260
-      const expectedClaimable = parse6decimal('4.612260')
+      // makerFee = position * makerFee * price = 3 * 0.05 * 113.882975 = 17.082446
+      // referralFee = makerFee * referral / makerPos = 17.082446 * 0.45 / 3 = 2.562366
+      const expectedClaimable = parse6decimal('2.562367')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 0,
@@ -1897,9 +1978,9 @@ describe('Fees', () => {
       await settle(market, userC)
 
       // ensure the proper amount of the base fee is claimable by the referrer
-      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
-      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.36 / 3 = 2.049893
-      const expectedClaimable = parse6decimal('2.049893')
+      // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223
+      // referralFee = takerFeeLinear * referral / takerPos =  8.541223 * 0.36 / 3 = 1.024946
+      const expectedClaimable = parse6decimal('1.024947')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 0,
@@ -1945,9 +2026,9 @@ describe('Fees', () => {
       await settle(market, userB)
 
       // ensure the proper amount of the base fee is claimable by the referrer
-      // makerFeeLinear = position * linearFee * price = 3 * 0.09 * 113.882975 = 30.748403
-      // referralFee = makerFeeLinear * referral / makerPos =  30.748403 * 0.51 / 3 = 5.227228
-      const expectedClaimable = parse6decimal('5.227228')
+      // makerFee = position * makerFee * price = 3 * 0.05 * 113.882975 = 17.082446
+      // referralFee = makerFee * referral / makerPos =  17.082446 * 0.51 / 3 = 2.904015
+      const expectedClaimable = parse6decimal('2.904015')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 0,
@@ -2004,9 +2085,9 @@ describe('Fees', () => {
       await settle(market, userC)
 
       // userB claims the maker referral fee at the default rate
-      // makerFeeLinear = position * linearFee * price = 6 * 0.09 * 113.882975 = 61.496806
-      // referralFee = makerFeeLinear * referral / makerPos = 61.496806 * 0.72 / 6 = 7.379616
-      const expectedClaimableMakerReferral = parse6decimal('7.379616')
+      // makerFee = position * makerFee * price = 6 * 0.05 * 113.882975 = 34.164892
+      // referralFee = makerFee * referral / makerPos = 34.164892 * 0.72 / 6 = 4.099787
+      const expectedClaimableMakerReferral = parse6decimal('4.099787')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 0,
@@ -2018,14 +2099,14 @@ describe('Fees', () => {
         .withArgs(userB.address, expectedClaimableMakerReferral)
 
       // user should be able to claim the taker referral fee at the user rate
-      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
-      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.45 / 3 = 2.562367
-      let expectedClaimableTakerReferral = parse6decimal('2.562367')
+      // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223
+      // referralFee = takerFee * referral / takerPos =  8.541223 * 0.45 / 3 = 1.281183
+      let expectedClaimableTakerReferral = parse6decimal('1.281183')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: parse6decimal('1105.704894'),
+        collateral: parse6decimal('1071.540000'),
         claimable: expectedClaimableTakerReferral,
       })
 
@@ -2056,9 +2137,9 @@ describe('Fees', () => {
       await settle(market, userD)
 
       // user claims both taker referral fees
-      // takerFeeLinear = position * linearFee * price = 2 * 0.05 * 113.882975 = 11.388297
-      // referralFee = takerFeeLinear * referral / takerPos =  11.388297 * 0.30 / 2 = 1.70824455
-      expectedClaimableTakerReferral = expectedClaimableTakerReferral.add(parse6decimal('1.70824455'))
+      // takerFee = position * takerFee * price = 2 * 0.025 * 113.882975 = 5.694148
+      // referralFee = takerFee * referral / takerPos =  5.694148 * 0.30 / 2 = 0.854122
+      expectedClaimableTakerReferral = expectedClaimableTakerReferral.add(parse6decimal('0.854122'))
       await expect(market.connect(user).claimFee())
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, expectedClaimableTakerReferral)
@@ -2106,13 +2187,13 @@ describe('Fees', () => {
       await settle(market, user)
       await settle(market, userB)
       await updateNoOp(market, userC) // update userC to clear values
-      expect(await market.referrers(userC.address, currentId)).to.equal(userB.address)
+      expect(await market.orderReferrers(userC.address, currentId)).to.equal(userB.address)
       expect((await market.locals(userC.address)).currentId).to.equal(currentId.add(1))
 
       // ensure the proper amount of the base fee is claimable by the referrer
-      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
-      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.36 / 3 = 2.049893
-      const expectedClaimable = parse6decimal('2.049893')
+      // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223
+      // referralFee = takerFeeLinear * referral / takerPos =  8.541223 * 0.36 / 3 = 1.024946
+      const expectedClaimable = parse6decimal('1.024947')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 0,
@@ -2134,20 +2215,20 @@ describe('Fees', () => {
       await settle(market, userC)
 
       // ensure the proper amount of the base fee is claimable by the referrer
-      // takerFeeLinear = position * linearFee * price = 3 * 0.05 * 113.882975 = 17.082446
-      // referralFee = takerFeeLinear * referral / takerPos =  17.082446 * 0.45 / 3 = 2.562367
-      const expectedCloseClaimable = parse6decimal('2.562367')
+      // takerFee = position * linearFee * price = 3 * 0.025 * 113.882975 = 8.541223
+      // referralFee = takerFee * referral / takerPos =  8.541223 * 0.45 / 3 = 1.281183
+      const expectedCloseClaimable = parse6decimal('1.281183')
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: '1143713328',
+        collateral: '1150119246',
         claimable: expectedCloseClaimable,
       })
       await expect(market.connect(user).claimFee())
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, expectedCloseClaimable)
-      expect(await market.referrers(userC.address, currentId.add(1))).to.equal(user.address)
+      expect(await market.orderReferrers(userC.address, currentId.add(1))).to.equal(user.address)
 
       await nextWithConstantPrice()
       // userC opens a short position referred by no one
@@ -2155,7 +2236,7 @@ describe('Fees', () => {
         .connect(userC)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, 0, false)
       await nextWithConstantPrice()
-      expect(await market.referrers(userC.address, currentId.add(2))).to.equal(constants.AddressZero)
+      expect(await market.orderReferrers(userC.address, currentId.add(2))).to.equal(constants.AddressZero)
     })
   })
 })

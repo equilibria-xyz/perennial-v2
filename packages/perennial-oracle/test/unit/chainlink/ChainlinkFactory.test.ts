@@ -208,4 +208,23 @@ describe('ChainlinkFactory', () => {
         }),
     ).to.be.reverted
   })
+
+  describe('#updateId', async () => {
+    it('updates max claim', async () => {
+      expect(await chainlinkFactory.ids(keeperOracle.address)).to.equal(CHAINLINK_ETH_USD_PRICE_FEED)
+      await chainlinkFactory.updateId(
+        keeperOracle.address,
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(await chainlinkFactory.ids(keeperOracle.address)).to.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(
+        chainlinkFactory.connect(user).updateId(keeperOracle.address, CHAINLINK_ETH_USD_PRICE_FEED),
+      ).to.be.revertedWithCustomError(chainlinkFactory, 'OwnableNotOwnerError')
+    })
+  })
 })

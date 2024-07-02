@@ -199,6 +199,8 @@ testOracles.forEach(testOracle => {
         pythOracleFactory.address,
       )
 
+      const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+
       const marketImpl = await new Market__factory(
         {
           '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
@@ -233,8 +235,12 @@ testOracles.forEach(testOracle => {
           ).address,
         },
         owner,
-      ).deploy()
-      marketFactory = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+      ).deploy(verifierImpl.address)
+      marketFactory = await new MarketFactory__factory(owner).deploy(
+        oracleFactory.address,
+        verifierImpl.address,
+        marketImpl.address,
+      )
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         protocolFee: parse6decimal('0.50'),
@@ -288,12 +294,11 @@ testOracles.forEach(testOracle => {
         interestFee: parse6decimal('0.1'),
         oracleFee: 0,
         riskFee: 0,
-        positionFee: 0,
+        makerFee: 0,
+        takerFee: 0,
         maxPendingGlobal: 8,
         maxPendingLocal: 8,
         settlementFee: 0,
-        makerCloseAlways: false,
-        takerCloseAlways: false,
         closed: false,
         settle: false,
       }
@@ -308,8 +313,8 @@ testOracles.forEach(testOracle => {
         token: dsu.address,
         oracle: oracle.address,
       })
-      await market.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
-      await market.updateRiskParameter(riskParameter, false)
+      await market.updateParameter(marketParameter)
+      await market.updateRiskParameter(riskParameter)
 
       market2 = Market__factory.connect(
         await marketFactory.callStatic.create({
@@ -322,8 +327,8 @@ testOracles.forEach(testOracle => {
         token: dsu.address,
         oracle: oracle2.address,
       })
-      await market2.updateParameter(ethers.constants.AddressZero, ethers.constants.AddressZero, marketParameter)
-      await market2.updateRiskParameter(riskParameter, false)
+      await market2.updateParameter(marketParameter)
+      await market2.updateRiskParameter(riskParameter)
 
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))

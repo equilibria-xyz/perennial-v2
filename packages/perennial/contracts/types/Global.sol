@@ -40,8 +40,25 @@ struct GlobalStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain 
 using GlobalStorageLib for GlobalStorage global;
 
 /// @title Global
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the global market state
 library GlobalLib {
+    /// @notice Updates market exposure based on a change in the risk parameter configuration
+    /// @param self The Global object to update
+    /// @param latestRiskParameter The latest risk parameter configuration
+    /// @param newRiskParameter The new risk parameter configuration
+    /// @param latestPosition The latest position
+    function update(
+        Global memory self,
+        RiskParameter memory latestRiskParameter,
+        RiskParameter memory newRiskParameter,
+        Position memory latestPosition
+    ) internal pure {
+        Fixed6 exposureChange = latestRiskParameter.takerFee
+            .exposure(newRiskParameter.takerFee, latestPosition.skew(), self.latestPrice.abs());
+        self.exposure = self.exposure.sub(exposureChange);
+    }
+
     /// @notice Increments the fees by `amount` using current parameters
     /// @param self The Global object to update
     /// @param newLatestId The new latest position id
@@ -55,7 +72,8 @@ library GlobalLib {
         MarketParameter memory marketParameter,
         ProtocolParameter memory protocolParameter
     ) internal pure {
-        UFixed6 marketFee = accumulation.positionFeeProtocol
+        UFixed6 marketFee = accumulation.tradeFee
+            .add(accumulation.tradeOffsetMarket)
             .add(accumulation.fundingFee)
             .add(accumulation.interestFee);
 
@@ -71,11 +89,12 @@ library GlobalLib {
         self.oracleFee = self.oracleFee.add(accumulation.settlementFee).add(oracleFeeAmount);
         self.riskFee = self.riskFee.add(riskFeeAmount);
         self.donation = self.donation.add(donationAmount);
-        self.exposure = self.exposure.add(accumulation.positionFeeExposureProtocol);
+        self.exposure = self.exposure.add(accumulation.adiabaticExposureMarket);
     }
 }
 
 /// @dev Manually encodes and decodes the Global struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredGlobal {
 ///         /* slot 0 */

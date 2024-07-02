@@ -70,6 +70,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @notice The granularity of the oracle
     Granularity private _granularity;
 
+    /// @notice Mapping of oracle instance to oracle id
+    mapping(IOracleProvider => bytes32) public ids;
+
     /// @notice Initializes the immutable contract state
     /// @param implementation_ IKeeperOracle implementation contract
     /// @param validFrom_ The minimum time after a version that a keeper update can be valid
@@ -113,6 +116,14 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         payoffs[IPayoffProvider(address(0))] = true;
     }
 
+    /// @notice Retroactively sets the mapping of the oracle id to the oracle instance
+    /// @dev Part of the v2.3 migration
+    /// @param oracleProvider The oracle instance
+    /// @param id The id of the oracle
+    function updateId(IOracleProvider oracleProvider, bytes32 id) external onlyOwner {
+        ids[oracleProvider] = id;
+    }
+
     /// @notice Authorizes a factory's instances to request from this factory's instances
     /// @param factory The factory to authorize
     function authorize(IFactory factory) external onlyOwner {
@@ -143,6 +154,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
         newOracle = IKeeperOracle(address(_create(abi.encodeCall(IKeeperOracle.initialize, ()))));
         oracles[id] = newOracle;
+        ids[newOracle] = id;
         toUnderlyingId[id] = underlyingId;
         _toUnderlyingPayoff[id] = payoff;
         fromUnderlying[underlyingId][payoff.provider] = id;

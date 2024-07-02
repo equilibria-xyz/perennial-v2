@@ -54,6 +54,7 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     function settleKeepConfig() external view returns (KeepConfig memory);
 
     function initialize(IOracleFactory oracleFactory, AggregatorV3Interface chainlinkFeed_, Token18 dsu_) external;
+    function updateId(IOracleProvider oracleProvider, bytes32 id) external;
     function authorize(IFactory factory) external;
     function register(IPayoffProvider payoff) external;
     function toUnderlyingId(bytes32 id) external returns (bytes32);
