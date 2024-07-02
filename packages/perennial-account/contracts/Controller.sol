@@ -9,6 +9,7 @@ import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
@@ -19,7 +20,6 @@ import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { RebalanceConfig, RebalanceConfigLib } from "./types/RebalanceConfig.sol";
 import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
-import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Controller
@@ -37,15 +37,14 @@ contract Controller is Instance, IController {
     /// @dev DSU address
     Token18 public DSU; // solhint-disable-line var-name-mixedcase
 
-    /// @dev Contract used to validate messages were signed by the sender
+    /// @dev Contract used to validate delegated signers
+    IMarketFactory public marketFactory;
+
+    /// @dev Contract used to validate message signatures
     IVerifier public verifier;
 
     /// @dev DSU Reserve address
     IEmptySetReserve public reserve;
-
-    /// @dev Mapping of allowed signers for each account owner
-    /// owner => delegate => enabled flag
-    mapping(address => mapping(address => bool)) public signers;
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
@@ -64,12 +63,14 @@ contract Controller is Instance, IController {
 
     /// @inheritdoc IController
     function initialize(
+        IMarketFactory marketFactory_,
         IVerifier verifier_,
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_
     ) external initializer(1) {
         __Instance__initialize();
+        marketFactory = marketFactory_;
         verifier = verifier_;
         USDC = usdc_;
         DSU = dsu_;
@@ -153,20 +154,6 @@ contract Controller is Instance, IController {
         uint256 group
     ) external view returns (IMarket[] memory markets) {
         markets = groupToMarkets[owner][group];
-    }
-
-    /// @inheritdoc IController
-    function updateSigner(address signer, bool newEnabled) public {
-        signers[msg.sender][signer] = newEnabled;
-        emit SignerUpdated(msg.sender, signer, newEnabled);
-    }
-
-    /// @inheritdoc IController
-    function updateSignerWithSignature(
-        SignerUpdate calldata signerUpdate,
-        bytes calldata signature
-    ) virtual external {
-        _updateSignerWithSignature(signerUpdate, signature);
     }
 
     /// @inheritdoc IController
@@ -263,19 +250,9 @@ contract Controller is Instance, IController {
         emit GroupRebalanced(owner, group);
     }
 
-    function _updateSignerWithSignature(SignerUpdate calldata signerUpdate,  bytes calldata signature) internal {
-        // ensure the message was signed only by the owner, not an existing delegate
-        verifier.verifySignerUpdate(signerUpdate, signature);
-        address owner = signerUpdate.action.common.account;
-        if (signerUpdate.action.common.signer != owner) revert ControllerInvalidSignerError();
-
-        signers[owner][signerUpdate.signer] = signerUpdate.approved;
-        emit SignerUpdated(owner, signerUpdate.signer, signerUpdate.approved);
-    }
-
     /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
     function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !signers[owner][signer]) revert ControllerInvalidSignerError();
+        if (signer != owner && !marketFactory.signers(owner, signer)) revert ControllerInvalidSignerError();
     }
 
     /// @dev checks current collateral for each market in a group and aggregates collateral for the group

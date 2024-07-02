@@ -6,7 +6,6 @@ import {
   DeployAccountStruct,
   MarketTransferStruct,
   RebalanceConfigChangeStruct,
-  SignerUpdateStruct,
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
 
@@ -113,24 +112,6 @@ export async function signRebalanceConfigChange(
       { name: 'target', type: 'uint256' },
       { name: 'threshold', type: 'uint256' },
     ],
-  }
-
-  return await signer._signTypedData(erc721Domain(verifier), types, message)
-}
-
-export async function signSignerUpdate(
-  signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
-  message: SignerUpdateStruct,
-): Promise<string> {
-  const types = {
-    SignerUpdate: [
-      { name: 'signer', type: 'address' },
-      { name: 'approved', type: 'bool' },
-      { name: 'action', type: 'Action' },
-    ],
-    ...actionType,
-    ...commonType,
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, message)
