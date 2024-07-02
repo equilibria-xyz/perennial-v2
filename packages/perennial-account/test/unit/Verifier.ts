@@ -151,7 +151,7 @@ describe('Verifier', () => {
         { target: parse6decimal('0.55'), threshold: parse6decimal('0.038') },
         { target: parse6decimal('0.45'), threshold: parse6decimal('0.031') },
       ],
-      maxRebalanceFee: constants.Zero,
+      maxFee: constants.Zero,
       ...createAction(userA.address, userA.address),
     }
     const signature = await signRebalanceConfigChange(userA, verifier, rebalanceConfigChangeMessage)
