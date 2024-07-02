@@ -10,7 +10,6 @@ import { Action, ActionLib } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
-import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Verifier
@@ -63,18 +62,6 @@ contract Verifier is VerifierBase, IVerifier {
         if (!SignatureChecker.isValidSignatureNow(
             change.action.common.signer,
             _hashTypedDataV4(RebalanceConfigChangeLib.hash(change)),
-            signature
-        )) revert VerifierInvalidSignerError();
-    }
-
-    /// @inheritdoc IVerifier
-    function verifySignerUpdate(SignerUpdate calldata signerUpdate, bytes calldata signature)
-        external
-        validateAndCancel(signerUpdate.action.common, signature)
-    {
-        if (!SignatureChecker.isValidSignatureNow(
-            signerUpdate.action.common.signer,
-            _hashTypedDataV4(SignerUpdateLib.hash(signerUpdate)),
             signature
         )) revert VerifierInvalidSignerError();
     }

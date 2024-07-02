@@ -5,6 +5,7 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "../interfaces/IAccount.sol";
 import { IVerifier } from "../interfaces/IVerifier.sol";
@@ -12,7 +13,6 @@ import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { RebalanceConfig } from "../types/RebalanceConfig.sol";
 import { RebalanceConfigChange } from "../types/RebalanceConfigChange.sol";
-import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
@@ -45,12 +45,6 @@ interface IController {
         address indexed market,
         RebalanceConfig newConfig
     );
-
-    /// @notice Emitted when a delegated signer for a collateral account is assigned, enabled, or disabled
-    /// @param owner User who is granting rights to interact with their collateral account
-    /// @param signer Identifies the signer whose status to update
-    /// @param newEnabled True to assign or enable, false to disable
-    event SignerUpdated(address indexed owner, address indexed signer, bool newEnabled);
 
     // sig: 0x599f7892
     /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
@@ -93,11 +87,13 @@ interface IController {
     error ControllerUnsupportedMarketError(IMarket market);
 
     /// @notice Sets contract addresses used for message verification and token management
-    /// @param verifier Contract used to validate messages were signed by the sender
+    /// @param marketFactory Contract used to validate delegated signers
+    /// @param verifier Contract used to validate message signatures
     /// @param usdc USDC token address
     /// @param dsu DSU token address
     /// @param reserve DSU Reserve address, used by Account
     function initialize(
+        IMarketFactory marketFactory,
         IVerifier verifier,
         Token6 usdc,
         Token18 dsu,
@@ -163,16 +159,6 @@ interface IController {
         address owner,
         uint256 group
     ) external view returns (IMarket[] memory markets);
-
-    /// @notice Updates the status of a delegated signer for the caller's collateral account
-    /// @param signer The signer to update
-    /// @param newEnabled The new status of the opersignerator
-    function updateSigner(address signer, bool newEnabled) external;
-
-    /// @notice Updates the status of a delegated signer for the specified collateral account
-    /// @param updateSigner Message requesting a delegation update
-    /// @param signature ERC712 message signature
-    function updateSignerWithSignature(SignerUpdate calldata updateSigner, bytes calldata signature) external;
 
     /// @notice Transfers tokens from the collateral account back to the owner of the account
     /// @param withdrawal Message requesting a withdrawal
