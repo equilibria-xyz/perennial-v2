@@ -7,7 +7,7 @@ import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
-import { IAccount } from "../interfaces/IAccount.sol";
+import { IAccount, IMarket } from "../interfaces/IAccount.sol";
 import { IVerifier } from "../interfaces/IVerifier.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
@@ -75,16 +75,16 @@ interface IController {
     /// @custom:error Signer is not authorized to interact with the specified collateral account
     error ControllerInvalidSignerError();
 
-    // sig: 0xe21464ba
+    // sig: 0xa4a79a03
     /// @custom:error A market in this rebalancing configuration is already a member of a different group
     /// @param market Identifies which market in the message which is causing the problem
     /// @param group Identifies the group in which the aforementioned market is a member
-    error ControllerMarketAlreadyInGroupError(address market, uint256 group);
+    error ControllerMarketAlreadyInGroupError(IMarket market, uint256 group);
 
-    // sig: 0x950cd071
+    // sig: 0xdcca49cd
     /// @custom:error Attempt to interact with a Market which does not use DSU as collateral
     /// @param market Market with non-DSU collateral
-    error ControllerUnsupportedMarketError(address market);
+    error ControllerUnsupportedMarketError(IMarket market);
 
     /// @notice Sets contract addresses used for message verification and token management
     /// @param marketFactory Contract used to validate delegated signers
@@ -129,7 +129,12 @@ interface IController {
     /// @param group Identifies the group within the context of the owner
     /// @return groupCollateral Sum of ower's collateral across each market in the group
     /// @return canRebalance True if one or more markets in the group are eligible for rebalancing
-    function checkGroup(address owner, uint256 group) external view returns (Fixed6 groupCollateral, bool canRebalance);
+    /// @return imbalances The difference between target and actual collateral for each market
+    function checkGroup(address owner, uint256 group) external view returns (
+        Fixed6 groupCollateral,
+        bool canRebalance,
+        Fixed6[] memory imbalances
+    );
 
     /// @notice Called by keepers to rebalance an unbalanced group
     /// @param owner User whose collateral account may be rebalanced using this group
@@ -149,11 +154,11 @@ interface IController {
     /// @notice Retrieves array of markets in an owner's rebalance group
     /// @param owner User for whom the collateral account was created
     /// @param group Identifies which collection of markets is desired for the owner
-    /// @return markets Array containing the of address of each market in the rebalance group
+    /// @return markets Array containing each market in the rebalance group
     function rebalanceGroupMarkets(
         address owner,
         uint256 group
-    ) external view returns (address[] memory markets);
+    ) external view returns (IMarket[] memory markets);
 
     /// @notice Transfers tokens from the collateral account back to the owner of the account
     /// @param withdrawal Message requesting a withdrawal

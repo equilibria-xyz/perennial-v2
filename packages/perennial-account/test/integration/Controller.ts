@@ -193,8 +193,7 @@ describe('ControllerBase', () => {
 
     beforeEach(async () => {
       // create another market
-      let btcOracle
-      ;[btcMarket, btcOracle] = await createMarketBTC(owner, marketFactory, dsu)
+      ;[btcMarket] = await createMarketBTC(owner, marketFactory, dsu)
 
       // configure a group with both markets
       const message = {
@@ -204,7 +203,7 @@ describe('ControllerBase', () => {
           { target: parse6decimal('0.65'), threshold: parse6decimal('0.04') },
           { target: parse6decimal('0.35'), threshold: parse6decimal('0.03') },
         ],
-        maxRebalanceFee: constants.Zero,
+        maxFee: constants.Zero,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, verifier, message)

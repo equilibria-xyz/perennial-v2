@@ -472,7 +472,7 @@ describe('Controller_Arbitrum', () => {
         group: 5,
         markets: [market.address],
         configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.0901') }],
-        maxRebalanceFee: DEFAULT_MAX_FEE,
+        maxFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -501,7 +501,7 @@ describe('Controller_Arbitrum', () => {
           { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
           { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
         ],
-        maxRebalanceFee: DEFAULT_MAX_FEE,
+        maxFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, verifier, message)
@@ -536,7 +536,7 @@ describe('Controller_Arbitrum', () => {
       const ethMarket = market
       const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu, TX_OVERRIDES)
 
-      // create a new group with two markets and a maxRebalanceFee smaller than the actual fee
+      // create a new group with two markets and a maxFee smaller than the actual fee
       const message = {
         group: 4,
         markets: [ethMarket.address, btcMarket.address],
@@ -544,7 +544,7 @@ describe('Controller_Arbitrum', () => {
           { target: parse6decimal('0.75'), threshold: parse6decimal('0.06') },
           { target: parse6decimal('0.25'), threshold: parse6decimal('0.06') },
         ],
-        maxRebalanceFee: parse6decimal('0.00923'),
+        maxFee: parse6decimal('0.00923'),
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, verifier, message)

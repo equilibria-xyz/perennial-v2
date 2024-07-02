@@ -56,7 +56,7 @@ contract Controller is Factory, IController {
 
     /// @dev Allows iteration through markets in a rebalance group
     /// owner => group => markets
-    mapping(address => mapping(uint256 => address[])) public groupToMarkets;
+    mapping(address => mapping(uint256 => IMarket[])) public groupToMarkets;
 
     /// @dev Limits relayer/keeper compensation for rebalancing a group, in DSU
     mapping(address => mapping(uint256 => UFixed6)) public groupToMaxRebalanceFee;
@@ -96,19 +96,23 @@ contract Controller is Factory, IController {
     }
 
     /// @inheritdoc IController
-    function checkGroup(address owner, uint256 group) public view returns (Fixed6 groupCollateral, bool canRebalance) {
+    function checkGroup(address owner, uint256 group) public view returns (
+        Fixed6 groupCollateral,
+        bool canRebalance,
+        Fixed6[] memory imbalances
+    ) {
         // query owner's collateral in each market and calculate sum
         Fixed6[] memory actualCollateral;
         (actualCollateral, groupCollateral) = _queryMarketCollateral(owner, group);
+        imbalances = new Fixed6[](actualCollateral.length);
 
         // determine if anything is outside the rebalance threshold
         for (uint256 i; i < actualCollateral.length; i++) {
-            address marketAddress = groupToMarkets[owner][group][i];
-            RebalanceConfig memory marketConfig = config[owner][group][marketAddress];
-            (bool canMarketRebalance, ) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
-            if (canMarketRebalance) {
-                return (groupCollateral, true);
-            }
+            IMarket market = groupToMarkets[owner][group][i];
+            RebalanceConfig memory marketConfig = config[owner][group][address(market)];
+            (bool canMarketRebalance, Fixed6 imbalance) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
+            imbalances[i] = imbalance;
+            canRebalance = canRebalance || canMarketRebalance;
         }
     }
 
@@ -144,7 +148,7 @@ contract Controller is Factory, IController {
     function rebalanceGroupMarkets(
         address owner,
         uint256 group
-    ) external view returns (address[] memory markets) {
+    ) external view returns (IMarket[] memory markets) {
         markets = groupToMarkets[owner][group];
     }
 
@@ -198,7 +202,7 @@ contract Controller is Factory, IController {
 
         // only Markets with DSU collateral are supported
         IMarket market = IMarket(marketTransfer.market);
-        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarketError(address(market));
+        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarketError(market);
 
         account.marketTransfer(market, marketTransfer.amount);
     }
@@ -217,31 +221,27 @@ contract Controller is Factory, IController {
     }
 
     function _rebalanceGroup(address owner, uint256 group) internal {
-        // query owner's collateral in each market and calculate sum
-        (Fixed6[] memory actualCollateral, Fixed6 groupCollateral) = _queryMarketCollateral(owner, group);
-        IAccount account = IAccount(getAccountAddress(owner));
+        // settles each markets, such that locals are up-to-date
+        _settleMarkets(owner, group);
 
-        // create an array with imbalances, pull collateral from markets with surplus collateral
-        Fixed6[] memory imbalances = new Fixed6[](actualCollateral.length);
-        bool canAnyMarketRebalance;
-        for (uint256 i; i < actualCollateral.length; i++) {
-            address marketAddress = groupToMarkets[owner][group][i];
-            RebalanceConfig memory marketConfig = config[owner][group][marketAddress];
-            (bool canMarketRebalance, Fixed6 imbalance) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
-            imbalances[i] = imbalance;
-            canAnyMarketRebalance = canAnyMarketRebalance || canMarketRebalance;
+        // determine imbalances
+        (, bool canRebalance, Fixed6[] memory imbalances) = checkGroup(owner, group);
+        if (!canRebalance) revert ControllerGroupBalancedError();
+
+        IAccount account = IAccount(getAccountAddress(owner));
+        // pull collateral from markets with surplus collateral
+        for (uint256 i; i < imbalances.length; i++) {
+            IMarket market = groupToMarkets[owner][group][i];
             if (Fixed6.unwrap(imbalances[i]) < 0) {
-                account.marketTransfer(IMarket(marketAddress), imbalances[i]);
+                account.marketTransfer(market, imbalances[i]);
             }
         }
 
-        if (!canAnyMarketRebalance) revert ControllerGroupBalancedError();
-
         // push collateral to markets with insufficient collateral
         for (uint256 i; i < imbalances.length; i++) {
-            address marketAddress = groupToMarkets[owner][group][i];
+            IMarket market = groupToMarkets[owner][group][i];
             if (Fixed6.unwrap(imbalances[i]) > 0) {
-                account.marketTransfer(IMarket(marketAddress), imbalances[i]);
+                account.marketTransfer(market, imbalances[i]);
             }
         }
 
@@ -253,16 +253,23 @@ contract Controller is Factory, IController {
         if (signer != owner && !marketFactory.signers(owner, signer)) revert ControllerInvalidSignerError();
     }
 
+    /// @dev checks current collateral for each market in a group and aggregates collateral for the group
     function _queryMarketCollateral(address owner, uint256 group) private view returns (
         Fixed6[] memory actualCollateral,
         Fixed6 groupCollateral
     ) {
         actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
-        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
-            IMarket market = IMarket(groupToMarkets[owner][group][i]);
-            Fixed6 collateral = market.locals(owner).collateral;
+        for (uint256 i; i < actualCollateral.length; i++) {
+            Fixed6 collateral = groupToMarkets[owner][group][i].locals(owner).collateral;
             actualCollateral[i] = collateral;
             groupCollateral = groupCollateral.add(collateral);
+        }
+    }
+
+    /// @dev settles each market in a rebalancing group
+    function _settleMarkets(address owner, uint256 group) private {
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
+            groupToMarkets[owner][group][i].settle(owner);
         }
     }
 
@@ -282,7 +289,7 @@ contract Controller is Factory, IController {
 
         // delete the existing group
         for (uint256 i; i < groupToMarkets[owner][message.group].length; i++) {
-            address market = groupToMarkets[owner][message.group][i];
+            address market = address(groupToMarkets[owner][message.group][i]);
             delete config[owner][message.group][market];
             delete marketToGroup[owner][market];
         }
@@ -293,13 +300,13 @@ contract Controller is Factory, IController {
             // ensure market is not pointing to a different group
             uint256 currentGroup = marketToGroup[owner][message.markets[i]];
             if (currentGroup != 0)
-                revert ControllerMarketAlreadyInGroupError(message.markets[i], currentGroup);
+                revert ControllerMarketAlreadyInGroupError(IMarket(message.markets[i]), currentGroup);
 
             // rewrite over all the old configuration
             marketToGroup[owner][message.markets[i]] = message.group;
             config[owner][message.group][message.markets[i]] = message.configs[i];
-            groupToMarkets[owner][message.group].push(message.markets[i]);
-            groupToMaxRebalanceFee[owner][message.group] = message.maxRebalanceFee;
+            groupToMarkets[owner][message.group].push(IMarket(message.markets[i]));
+            groupToMaxRebalanceFee[owner][message.group] = message.maxFee;
 
             // ensure target allocation across all markets totals 100%
             // read from storage to trap duplicate markets in the message

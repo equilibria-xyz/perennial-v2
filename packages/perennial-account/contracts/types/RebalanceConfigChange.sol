@@ -16,7 +16,7 @@ struct RebalanceConfigChange {
     /// @dev Target allocation for markets in the aforementioned array
     RebalanceConfig[] configs;
     /// @dev Largest amount to compensate a relayer/keeper for rebalancing the group in DSU
-    UFixed6 maxRebalanceFee;
+    UFixed6 maxFee;
     /// @dev Common information for collateral account actions
     Action action;
 }
@@ -27,7 +27,7 @@ using RebalanceConfigChangeLib for RebalanceConfigChange global;
 library RebalanceConfigChangeLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "RebalanceConfigChange(uint256 group,address[] markets,RebalanceConfig[] configs,uint256 maxRebalanceFee,Action action)"
+        "RebalanceConfigChange(uint256 group,address[] markets,RebalanceConfig[] configs,uint256 maxFee,Action action)"
         "Action(uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
         "RebalanceConfig(uint256 target,uint256 threshold)"
@@ -51,7 +51,7 @@ library RebalanceConfigChangeLib {
             self.group,
             keccak256(abi.encodePacked(self.markets)),
             keccak256(abi.encodePacked(encodedConfigs)),
-            self.maxRebalanceFee,
+            self.maxFee,
             ActionLib.hash(self.action)
         ));
     }
