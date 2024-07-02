@@ -18,14 +18,14 @@ using WithdrawalLib for Withdrawal global;
 /// @title WithdrawalLib
 /// @notice Library used to hash and verify action to withdraw from a collateral account
 library WithdrawalLib {
-    /// @dev used to verify a signed message
+    /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
         "Withdrawal(uint256 amount,bool unwrap,Action action)"
         "Action(uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
-    /// @dev used to create a signed message
+    /// @dev Used to create a signed message
     function hash(Withdrawal memory self) internal pure returns (bytes32) {
         return keccak256(abi.encode(STRUCT_HASH, self.amount, self.unwrap, ActionLib.hash(self.action)));
     }

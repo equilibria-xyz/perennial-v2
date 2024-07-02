@@ -33,11 +33,7 @@ interface IVerifier is IVerifierBase {
     /// @notice Verifies the signature of a request to change rebalancing configuration for multiple markets
     /// @dev Cancels the nonce after verifying the signature
     /// @param change message to verify
-    /// @return Address of the signer
-    function verifyRebalanceConfigChange(
-        RebalanceConfigChange calldata change,
-        bytes calldata signature
-    ) external returns (address);
+    function verifyRebalanceConfigChange(RebalanceConfigChange calldata change, bytes calldata signature) external;
 
     /// @notice Verifies the signature of a request to assign/enable/disable a delegated signer for the sender's collateral account
     /// @dev Cancels the nonce after verifying the signature
