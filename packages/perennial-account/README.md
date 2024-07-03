@@ -22,14 +22,16 @@ Most operations may be performed in a gasless manner using signed messages.
 
 #### Depositing and withdrawing funds
 - DSU or USDC may be deposited into an account using a native ERC20 transfer
-- USDC may also be deposited by executing the `deposit` function
+- USDC may also be deposited by executing the `Account.deposit` function
 
 All USDC in the account is implicitly wrapped to DSU when transferring an amount greater than the account's DSU balance into a market. Funds transferred out of markets are not unwrapped until withdrawal. These behaviors minimize gas cost when rebalancing.
 
 When withdrawing funds from the account, a flag allows the caller to explicitly control unwrapping behavior.
 
 #### Rebalancing
-// TODO: document
+After the account owner has configured a rebalance group, keepers may call `Controller.checkGroup` offchain to determine if the group may be rebalanced. Assuming state does not change beforehand, the keeper may then call `Controller.rebalanceGroup` to perform a rebalance.
+
+To build a list of rebalance groups to check, keepers may watch for `RebalanceGroupConfigured` events emitted by the Controller. An event with an empty _markets_ collection indicates the group was deleted.
 
 ### Keepers
 // TODO: document interactions with relayer and controller

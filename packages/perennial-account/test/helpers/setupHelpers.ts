@@ -1,12 +1,12 @@
 import HRE, { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { BigNumber, ContractTransaction, utils } from 'ethers'
+import { BigNumber, CallOverrides, ContractTransaction, utils } from 'ethers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 
-import { Controller__factory, IERC20Metadata } from '../../types/generated'
+import { Controller__factory, IERC20Metadata, RebalanceLib__factory } from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -40,6 +40,7 @@ export async function advanceToPrice(
   keeperOracle: IKeeperOracle,
   timestamp: BigNumber,
   price: BigNumber,
+  overrides?: CallOverrides,
 ): Promise<number> {
   const keeperFactoryAddress = await keeperOracle.factory()
   const oracleFactory = await impersonateWithBalance(keeperFactoryAddress, utils.parseEther('10'))
@@ -54,9 +55,7 @@ export async function advanceToPrice(
     price: price,
     valid: true,
   }
-  const tx: ContractTransaction = await keeperOracle.connect(oracleFactory).commit(oracleVersion, {
-    maxFeePerGas: 100000000,
-  })
+  const tx: ContractTransaction = await keeperOracle.connect(oracleFactory).commit(oracleVersion, overrides ?? {})
 
   // inform the caller of the current timestamp
   return (await HRE.ethers.provider.getBlock(tx.blockNumber ?? 0)).timestamp
@@ -70,6 +69,7 @@ export async function createMarket(
   oracle: IOracleProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
+  overrides?: CallOverrides,
 ): Promise<IMarket> {
   const definition = {
     token: dsu.address,
@@ -126,16 +126,21 @@ export async function createMarket(
     ...marketParamOverrides,
   }
   const marketAddress = await marketFactory.callStatic.create(definition)
-  await marketFactory.create(definition)
+  await marketFactory.create(definition, overrides ?? {})
 
   const market = Market__factory.connect(marketAddress, owner)
-  await market.updateRiskParameter(riskParameter)
-  await market.updateParameter(marketParameter)
+  await market.updateRiskParameter(riskParameter, overrides ?? {})
+  await market.updateParameter(marketParameter, overrides ?? {})
 
   return market
 }
 export async function deployController(owner: SignerWithAddress): Promise<Controller> {
-  const controller = await new Controller__factory(owner).deploy()
+  const controller = await new Controller__factory(
+    {
+      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy()
   return controller
 }
 
