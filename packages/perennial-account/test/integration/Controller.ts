@@ -10,17 +10,22 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, Controller, IERC20Metadata } from '../../types/generated'
 import { IVerifier } from '../../types/generated/contracts/interfaces'
 import { IVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
-import { IKeeperOracle, IOracleProvider } from '@equilibria/perennial-v2-oracle/types/generated'
+import {
+  IKeeperOracle,
+  IOracleFactory,
+  IOracleProvider,
+  PythFactory,
+} from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
 import {
-  createMarketFactory,
+  createFactories,
+  createMarketBTC,
   createMarketETH,
   deployAndInitializeController,
   fundWalletDSU,
   fundWalletUSDC,
-  createMarketBTC,
 } from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
@@ -33,6 +38,8 @@ describe('ControllerBase', () => {
   let usdc: IERC20Metadata
   let controller: Controller
   let verifier: IVerifier
+  let oracleFactory: IOracleFactory
+  let pythOracleFactory: PythFactory
   let marketFactory: IMarketFactory
   let ethMarket: IMarket
   let keeperOracle: IKeeperOracle
@@ -159,14 +166,21 @@ describe('ControllerBase', () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
 
     // deploy controller
-    marketFactory = await createMarketFactory(owner)
+    ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
     ;[dsu, usdc, controller] = await deployAndInitializeController(owner, marketFactory)
     verifier = IVerifier__factory.connect(await controller.verifier(), owner)
 
-    // create a market
+    // create oracle, market, and set initial price
     let oracle: IOracleProvider
-    ;[ethMarket, oracle, keeperOracle] = await createMarketETH(owner, marketFactory, dsu)
-    lastPrice = (await oracle.status())[0].price // initial price is 3116.734999
+    ;[ethMarket, oracle, keeperOracle] = await createMarketETH(
+      owner,
+      oracleFactory,
+      pythOracleFactory,
+      marketFactory,
+      dsu,
+    )
+    await advanceToPrice(keeperOracle, currentTime, parse6decimal('3116.734999'), TX_OVERRIDES)
+    lastPrice = (await oracle.status())[0].price
 
     // create a collateral account for userA with 15k collateral in it
     await fundWallet(userA)
@@ -192,8 +206,9 @@ describe('ControllerBase', () => {
     let btcMarket: IMarket
 
     beforeEach(async () => {
-      // create another market
-      ;[btcMarket] = await createMarketBTC(owner, marketFactory, dsu)
+      // create another market, including requisite oracles, and set initial price
+      ;[btcMarket, , keeperOracle] = await createMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+      await advanceToPrice(keeperOracle, currentTime, parse6decimal('60606.369'), TX_OVERRIDES)
 
       // configure a group with both markets
       const message = {

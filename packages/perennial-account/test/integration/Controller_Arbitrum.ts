@@ -24,13 +24,14 @@ import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signW
 import {
   createMarketBTC,
   createMarketETH,
-  createMarketFactory,
+  createFactories,
   deployAndInitializeController,
   deployControllerArbitrum,
   fundWalletDSU,
   fundWalletUSDC,
 } from '../helpers/arbitrumHelpers'
 import { getEventArguments } from '../helpers/setupHelpers'
+import { IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -46,6 +47,7 @@ describe('Controller_Arbitrum', () => {
   let usdc: IERC20Metadata
   let controller: Controller_Arbitrum
   let verifier: IVerifier
+  let oracleFactory: IOracleFactory
   let marketFactory: IMarketFactory
   let market: IMarket
   let owner: SignerWithAddress
@@ -132,9 +134,9 @@ describe('Controller_Arbitrum', () => {
   const fixture = async () => {
     // create a market
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    marketFactory = await createMarketFactory(owner)
+    ;[oracleFactory, marketFactory] = await createFactories(owner)
     ;[dsu, usdc] = await deployAndInitializeController(owner, marketFactory)
-    ;[market, ,] = await createMarketETH(owner, marketFactory, dsu)
+    ;[market, ,] = await createMarketETH(owner, oracleFactory, marketFactory, dsu)
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
     // set up users and deploy artifacts
@@ -491,7 +493,7 @@ describe('Controller_Arbitrum', () => {
 
     it('collects fee for rebalancing a group', async () => {
       const ethMarket = market
-      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu, TX_OVERRIDES)
+      const [btcMarket, ,] = await createMarketBTC(owner, oracleFactory, marketFactory, dsu, TX_OVERRIDES)
 
       // create a new group with two markets
       const message = {
