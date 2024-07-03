@@ -5,7 +5,7 @@ import { FakeContract } from '@defi-wonderland/smock'
 import {
   DeployAccountStruct,
   MarketTransferStruct,
-  SignerUpdateStruct,
+  RebalanceConfigChangeStruct,
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
 
@@ -75,24 +75,6 @@ export async function signDeployAccount(
   return await signer._signTypedData(erc721Domain(verifier), types, message)
 }
 
-export async function signSignerUpdate(
-  signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
-  message: SignerUpdateStruct,
-): Promise<string> {
-  const types = {
-    SignerUpdate: [
-      { name: 'signer', type: 'address' },
-      { name: 'approved', type: 'bool' },
-      { name: 'action', type: 'Action' },
-    ],
-    ...actionType,
-    ...commonType,
-  }
-
-  return await signer._signTypedData(erc721Domain(verifier), types, message)
-}
-
 export async function signMarketTransfer(
   signer: SignerWithAddress,
   verifier: IVerifier | FakeContract<IVerifier>,
@@ -106,6 +88,30 @@ export async function signMarketTransfer(
     ],
     ...actionType,
     ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRebalanceConfigChange(
+  signer: SignerWithAddress,
+  verifier: IVerifier | FakeContract<IVerifier>,
+  message: RebalanceConfigChangeStruct,
+): Promise<string> {
+  const types = {
+    RebalanceConfigChange: [
+      { name: 'group', type: 'uint256' },
+      { name: 'markets', type: 'address[]' },
+      { name: 'configs', type: 'RebalanceConfig[]' },
+      { name: 'maxFee', type: 'uint256' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+    RebalanceConfig: [
+      { name: 'target', type: 'uint256' },
+      { name: 'threshold', type: 'uint256' },
+    ],
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, message)

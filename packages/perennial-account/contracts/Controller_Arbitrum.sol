@@ -11,6 +11,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18, UFixed18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
@@ -18,7 +19,7 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Controller } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
-import { SignerUpdate } from "./types/SignerUpdate.sol";
+import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
 /// @title Controller_Arbitrum
@@ -26,19 +27,19 @@ import { Withdrawal } from "./types/Withdrawal.sol";
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     KeepConfig public keepConfig;
 
-    constructor(
-        KeepConfig memory keepConfig_
-    ) {
+    constructor(KeepConfig memory keepConfig_) {
         keepConfig = keepConfig_;
     }
 
     /// @notice Configures message verification and keeper compensation
+    /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate EIP-712 message signatures
     /// @param usdc_ USDC token address
     /// @param dsu_ DSU token address
     /// @param reserve_ DSU Reserve address, used by Account
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
+        IMarketFactory marketFactory_,
         IVerifier verifier_,
         Token6 usdc_,
         Token18 dsu_,
@@ -47,10 +48,23 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     ) external initializer(1) {
         __Instance__initialize();
         __Kept__initialize(chainlinkFeed_, dsu_);
+        marketFactory = marketFactory_;
         verifier = verifier_;
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
+    }
+
+    /// @inheritdoc IController
+    function changeRebalanceConfigWithSignature(
+        RebalanceConfigChange calldata configChange,
+        bytes calldata signature
+    ) override external {
+        _changeRebalanceConfigWithSignature(configChange, signature);
+        // for this message, account address is only needed for keeper compensation
+        IAccount account = IAccount(getAccountAddress(configChange.action.common.account));
+        bytes memory data = abi.encode(address(account), configChange.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @inheritdoc IController
@@ -82,15 +96,11 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         }
     }
 
-    /// @inheritdoc IController
-    function updateSignerWithSignature(
-        SignerUpdate calldata signerUpdate,
-        bytes calldata signature
-    ) override external {
-        _updateSignerWithSignature(signerUpdate, signature);
-        // for this message, account address is only needed for keeper compensation
-        address account = getAccountAddress(signerUpdate.action.common.account);
-        bytes memory data = abi.encode(address(account), signerUpdate.action.maxFee);
+        /// @inheritdoc IController
+    function rebalanceGroup(address owner, uint256 group) override external {
+        _rebalanceGroup(owner, group);
+        address account = getAccountAddress(owner);
+        bytes memory data = abi.encode(account, groupToMaxRebalanceFee[owner][group]);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
@@ -124,7 +134,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
             if (USDC.balanceOf(account).gte(UFixed6Lib.from(raisedKeeperFee)))
                 IAccount(account).wrap(raisedKeeperFee);
             else
-                revert ControllerCannotPayKeeper();
+                revert ControllerCannotPayKeeperError();
         }
 
         // transfer DSU to the Controller, such that Kept can transfer to keeper

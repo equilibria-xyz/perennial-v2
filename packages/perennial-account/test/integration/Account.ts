@@ -5,7 +5,14 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, IController, IERC20Metadata } from '../../types/generated'
-import { deployController, fundWalletDSU, fundWalletUSDC, returnDSU, returnUSDC } from '../helpers/arbitrumHelpers'
+import {
+  createMarketFactory,
+  deployAndInitializeController,
+  fundWalletDSU,
+  fundWalletUSDC,
+  returnDSU,
+  returnUSDC,
+} from '../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
@@ -14,6 +21,7 @@ describe('Account', () => {
   let usdc: IERC20Metadata
   let controller: IController
   let account: Account
+  let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
 
@@ -24,8 +32,9 @@ describe('Account', () => {
   }
 
   const fixture = async () => {
-    ;[, userA, userB] = await ethers.getSigners()
-    ;[dsu, usdc, controller] = await deployController()
+    ;[owner, userA, userB] = await ethers.getSigners()
+    const marketFactory = await createMarketFactory(owner)
+    ;[dsu, usdc, controller] = await deployAndInitializeController(owner, marketFactory)
 
     // fund users with some DSU and USDC
     await fundWallet(userA)
@@ -36,10 +45,6 @@ describe('Account', () => {
     await controller.connect(userA).deployAccount()
     account = Account__factory.connect(accountAddress, userA)
   }
-
-  beforeEach(async () => {
-    await loadFixture(fixture)
-  })
 
   beforeEach(async () => {
     await loadFixture(fixture)

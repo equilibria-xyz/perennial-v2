@@ -7,24 +7,28 @@ import {
   OracleFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { createMarket, deployProtocolForOracle } from './setupHelpers'
+import { createMarket, deployController, deployProtocolForOracle } from './setupHelpers'
 import {
   Controller,
-  Controller__factory,
+  Controller_Arbitrum,
+  Controller_Arbitrum__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
   IOracleProvider,
   IOracleProvider__factory,
+  RebalanceLib__factory,
   Verifier__factory,
 } from '../../types/generated'
+import type { IKept } from '../../contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
-import { ethers } from 'hardhat'
 
 const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
 const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
 const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
 const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
+const BTC_USD_KEEPER_ORACLE = '0xCd98f0FfbE50e334Dd6b84584483617557Ddc012' // KeeperOracle
+const BTC_USD_ORACLE = '0x8D87D552596767D43390464Affc964D9816A30D9' // Oracle with id 0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
@@ -42,31 +46,65 @@ export async function createMarketFactory(owner: SignerWithAddress): Promise<IMa
   return await deployProtocolForOracle(owner, oracleFactory, ORACLE_FACTORY_OWNER)
 }
 
-// creates a market using a locally deployed factory pointing to a forked oracle
-export async function createMarketForOracle(
+// creates an ETH market using a locally deployed factory pointing to a forked oracle
+export async function createMarketETH(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
   dsu: IERC20Metadata,
+  overrides?: CallOverrides,
 ): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
   // oracle used by the market, from which tests may query prices
   const oracle = IOracleProvider__factory.connect(ETH_USD_ORACLE, owner)
   // market in which user or collateral account may interact
-  const market = await createMarket(owner, marketFactory, dsu, oracle)
+  const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
   // tests use this to commit prices and settle the market
   const keeperOracle = await new KeeperOracle__factory(owner).attach(ETH_USD_KEEPER_ORACLE)
   return [market, oracle, keeperOracle]
 }
 
+// creates a BTC market using a locally deployed factory pointing to a forked oracle
+export async function createMarketBTC(
+  owner: SignerWithAddress,
+  marketFactory: IMarketFactory,
+  dsu: IERC20Metadata,
+  overrides?: CallOverrides,
+): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
+  // oracle used by the market, from which tests may query prices
+  const oracle = IOracleProvider__factory.connect(BTC_USD_ORACLE, owner)
+  // market in which user or collateral account may interact
+  const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  // tests use this to commit prices and settle the market
+  const keeperOracle = await new KeeperOracle__factory(owner).attach(BTC_USD_KEEPER_ORACLE)
+  return [market, oracle, keeperOracle]
+}
+
 // connects to Arbitrum stablecoins and deploys a controller configured for them
-export async function deployController(): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
-  const [owner] = await ethers.getSigners()
+export async function deployAndInitializeController(
+  owner: SignerWithAddress,
+  marketFactory: IMarketFactory,
+): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
-  const controller = await new Controller__factory(owner).deploy()
+  const controller = await deployController(owner)
 
   const verifier = await new Verifier__factory(owner).deploy()
-  await controller.initialize(verifier.address, usdc.address, dsu.address, DSU_RESERVE)
+  await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, DSU_RESERVE)
   return [dsu, usdc, controller]
+}
+
+// deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
+export async function deployControllerArbitrum(
+  owner: SignerWithAddress,
+  keepConfig: IKept.KeepConfigStruct,
+  overrides?: CallOverrides,
+): Promise<Controller_Arbitrum> {
+  const controller = await new Controller_Arbitrum__factory(
+    {
+      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy(keepConfig, overrides ?? {})
+  return controller
 }
 
 export async function fundWalletDSU(
