@@ -120,7 +120,7 @@ describe('PythOracleFactory', () => {
   describe('PerennialAction.COMMIT_PRICE', async () => {
     it('commits a requested pyth version', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-      await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+      await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
