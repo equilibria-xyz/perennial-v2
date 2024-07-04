@@ -201,7 +201,7 @@ describe('KeeperOracle', () => {
 
     // request a version
     await increase(10)
-    const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address, {
+    const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address, true, {
       maxFeePerGas: 100000000,
     })
     // TODO: weaponize this transaction-to-blocktime facility into a utility function
