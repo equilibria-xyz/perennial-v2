@@ -49,7 +49,7 @@ export async function createFactories(
   // Deploy the oracle factory, which markets created by the market factory will query
   const oracleFactory = await deployOracleFactory(owner, DSU_ADDRESS)
   // Deploy the market factory and authorize it with the oracle factory
-  const marketFactory = await deployProtocolForOracle(owner, oracleFactory, owner.address)
+  const marketFactory = await deployProtocolForOracle(owner, oracleFactory)
 
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)

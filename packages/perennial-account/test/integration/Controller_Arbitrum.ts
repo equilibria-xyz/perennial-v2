@@ -283,34 +283,6 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
-    async function deposit(amount = parse6decimal('12000')) {
-      // sign a message to deposit everything from the collateral account to the market
-      const marketTransferMessage = {
-        market: market.address,
-        amount: amount,
-        ...createAction(userA.address, userA.address),
-      }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-
-      // perform transfer
-      await expect(
-        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
-      )
-        .to.emit(dsu, 'Transfer')
-        .withArgs(accountA.address, market.address, anyValue) // scale to token precision
-        .to.emit(market, 'OrderCreated')
-        .withArgs(
-          userA.address,
-          anyValue,
-          anyValue,
-          constants.AddressZero,
-          constants.AddressZero,
-          constants.AddressZero,
-        )
-        .to.emit(controller, 'KeeperCall')
-        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-    }
-
     it('collects fee for depositing some funds to market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
       const transferAmount = parse6decimal('6000')

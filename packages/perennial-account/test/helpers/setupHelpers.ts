@@ -33,12 +33,10 @@ import {
 import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 
 import {
-  OracleFactory,
   OracleFactory__factory,
   IKeeperOracle,
   Oracle__factory,
   IOracleFactory,
-  IOracleFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 
@@ -158,7 +156,6 @@ export async function deployController(owner: SignerWithAddress): Promise<Contro
 export async function deployProtocolForOracle(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
-  oracleFactoryOwnerAddress: Address, // TODO: just use owner for this
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
   const verifier = await smock.fake<IVerifier>(
@@ -175,8 +172,7 @@ export async function deployProtocolForOracle(
 
   // Impersonate the owner of the oracle factory to authorize it for the newly-deployed market factory
   const authorizableOracleFactory = new OracleFactory__factory(owner).attach(oracleFactory.address)
-  const oracleFactoryOwner = await impersonateWithBalance(oracleFactoryOwnerAddress, utils.parseEther('10'))
-  await authorizableOracleFactory.connect(oracleFactoryOwner).authorize(marketFactory.address)
+  await authorizableOracleFactory.connect(owner).authorize(marketFactory.address)
   return marketFactory
 }
 
