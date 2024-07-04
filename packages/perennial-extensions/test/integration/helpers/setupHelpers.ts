@@ -290,7 +290,7 @@ export async function createMarket(
       adiabaticFee: 0,
       scale: parse6decimal('10'),
     },
-    makerLimit: parse6decimal('10000'),
+    makerLimit: parse6decimal('2000'),
     efficiencyLimit: parse6decimal('0.2'),
     liquidationFee: parse6decimal('0.50'),
     utilizationCurve: {
@@ -433,12 +433,12 @@ export async function createVault(
       linearFee: 0,
       proportionalFee: 0,
       adiabaticFee: 0,
-      scale: parse6decimal('10'),
+      scale: parse6decimal('100'),
     },
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      scale: parse6decimal('10'),
+      scale: parse6decimal('100'),
     },
   })
   const btcMarket = await deployProductOnMainnetFork({
@@ -447,6 +447,7 @@ export async function createVault(
     owner: owner,
     oracle: btcOracle.address,
     payoff: constants.AddressZero,
+    makerLimit: parse6decimal('100'),
     minMaintenance: parse6decimal('50'),
     takerFee: {
       linearFee: 0,
