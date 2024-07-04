@@ -4,14 +4,10 @@ import {
   IKeeperOracle,
   IMarketFactory,
   IOracleFactory,
-  IOracle__factory,
-  IPayoffProvider__factory,
   KeeperOracle,
   KeeperOracle__factory,
   Oracle,
-  OracleFactory__factory,
   Oracle__factory,
-  PowerTwo__factory,
   PythFactory,
   PythFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
@@ -25,25 +21,12 @@ import {
   IERC20Metadata__factory,
   IMarket,
   IOracleProvider,
-  IOracleProvider__factory,
   RebalanceLib__factory,
   Verifier__factory,
 } from '../../types/generated'
 import type { IKept } from '../../contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
-import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
 
-// const ORACLE_FACTORY = '0x8CDa59615C993f925915D3eb4394BAdB3feEF413' // OracleFactory used by MarketFactory
-// const ORACLE_FACTORY_OWNER = '0xdA381aeD086f544BaC66e73C071E158374cc105B' // TimelockController
-// const ETH_USD_KEEPER_ORACLE = '0xf9249EC6785221226Cb3f66fa049aA1E5B6a4A57' // KeeperOracle
-// const ETH_USD_ORACLE = '0x048BeB57D408b9270847Af13F6827FB5ea4F617A' // Oracle with id 0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace
-// const BTC_USD_KEEPER_ORACLE = '0xCd98f0FfbE50e334Dd6b84584483617557Ddc012' // KeeperOracle
-// const BTC_USD_ORACLE = '0x8D87D552596767D43390464Affc964D9816A30D9' // Oracle with id 0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43
-// export const CHAINLINK_CUSTOM_CURRENCIES = {
-//   ETH: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-//   BTC: '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
-//   USD: '0x0000000000000000000000000000000000000348',
-// }
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
@@ -111,6 +94,7 @@ export async function createMarketETH(
     oracleFactory,
     pythOracleFactory,
     PYTH_ETH_USD_PRICE_FEED,
+    overrides,
   )
   // Create the market in which user or collateral account may interact
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
@@ -132,6 +116,7 @@ export async function createMarketBTC(
     oracleFactory,
     pythOracleFactory,
     PYTH_BTC_USD_PRICE_FEED,
+    overrides,
   )
   // Create the market in which user or collateral account may interact
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
@@ -201,12 +186,12 @@ export async function returnDSU(wallet: SignerWithAddress): Promise<undefined> {
   await dsu.transfer(DSU_HOLDER, await dsu.balanceOf(wallet.address))
 }
 
-// TODO: support overrides to creation calls below
 async function createPythOracle(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
   pythOracleFactory: PythFactory,
   pythFeedId: string,
+  overrides?: CallOverrides,
 ): Promise<[KeeperOracle, Oracle]> {
   // Create the keeper oracle, which tests may use to meddle with prices
   const keeperOracle = KeeperOracle__factory.connect(
@@ -216,15 +201,18 @@ async function createPythOracle(
     }),
     owner,
   )
-  await pythOracleFactory.create(pythFeedId, pythFeedId, {
-    provider: constants.AddressZero,
-    decimals: 0,
-  })
+  await pythOracleFactory.create(
+    pythFeedId,
+    pythFeedId,
+    { provider: constants.AddressZero, decimals: 0 },
+    overrides ?? {},
+  )
+
   // Create the oracle, which markets created by the market factory will query
   const oracle = Oracle__factory.connect(
     await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address),
     owner,
   )
-  await oracleFactory.create(pythFeedId, pythOracleFactory.address)
+  await oracleFactory.create(pythFeedId, pythOracleFactory.address, overrides ?? {})
   return [keeperOracle, oracle]
 }

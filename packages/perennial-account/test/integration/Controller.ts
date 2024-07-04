@@ -42,7 +42,7 @@ describe('ControllerBase', () => {
   let pythOracleFactory: PythFactory
   let marketFactory: IMarketFactory
   let ethMarket: IMarket
-  let keeperOracle: IKeeperOracle
+  let ethKeeperOracle: IKeeperOracle
   let accountA: Account
   let owner: SignerWithAddress
   let userA: SignerWithAddress
@@ -75,7 +75,12 @@ describe('ControllerBase', () => {
   }
 
   // updates the oracle (optionally changing price) and settles the market
-  async function advanceAndSettle(user: SignerWithAddress, timestamp = currentTime, price = lastPrice) {
+  async function advanceAndSettle(
+    user: SignerWithAddress,
+    timestamp = currentTime,
+    price = lastPrice,
+    keeperOracle = ethKeeperOracle,
+  ) {
     await advanceToPrice(keeperOracle, timestamp, price, TX_OVERRIDES)
     await ethMarket.settle(user.address, TX_OVERRIDES)
   }
@@ -172,14 +177,15 @@ describe('ControllerBase', () => {
 
     // create oracle, market, and set initial price
     let oracle: IOracleProvider
-    ;[ethMarket, oracle, keeperOracle] = await createMarketETH(
+    ;[ethMarket, oracle, ethKeeperOracle] = await createMarketETH(
       owner,
       oracleFactory,
       pythOracleFactory,
       marketFactory,
       dsu,
+      TX_OVERRIDES,
     )
-    await advanceToPrice(keeperOracle, currentTime, parse6decimal('3116.734999'), TX_OVERRIDES)
+    await advanceToPrice(ethKeeperOracle, currentTime, parse6decimal('3116.734999'), TX_OVERRIDES)
     lastPrice = (await oracle.status())[0].price
 
     // create a collateral account for userA with 15k collateral in it
@@ -207,8 +213,15 @@ describe('ControllerBase', () => {
 
     beforeEach(async () => {
       // create another market, including requisite oracles, and set initial price
-      ;[btcMarket, , keeperOracle] = await createMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
-      await advanceToPrice(keeperOracle, currentTime, parse6decimal('60606.369'), TX_OVERRIDES)
+      let btcKeeperOracle
+      ;[btcMarket, , btcKeeperOracle] = await createMarketBTC(
+        owner,
+        oracleFactory,
+        pythOracleFactory,
+        marketFactory,
+        dsu,
+      )
+      await advanceToPrice(btcKeeperOracle, currentTime, parse6decimal('60606.369'), TX_OVERRIDES)
 
       // configure a group with both markets
       const message = {

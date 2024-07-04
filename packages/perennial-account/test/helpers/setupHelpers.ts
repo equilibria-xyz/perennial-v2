@@ -55,7 +55,9 @@ export async function advanceToPrice(
 
   // a keeper cannot commit a future price, so advance past the block
   const currentBlockTime = BigNumber.from(await currentBlockTimestamp())
-  if (currentBlockTime < timestamp) await increaseTo(timestamp.toNumber() + 2)
+  if (currentBlockTime < timestamp) {
+    await increaseTo(timestamp.toNumber() + 2)
+  }
 
   // create a version with the desired parameters and commit to the KeeperOracle
   const oracleVersion: OracleVersionStruct = {
