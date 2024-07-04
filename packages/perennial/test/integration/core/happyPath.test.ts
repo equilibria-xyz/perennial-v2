@@ -507,9 +507,11 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
+    console.log(riskParameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -661,6 +663,7 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
@@ -995,6 +998,7 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
@@ -1043,6 +1047,7 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee

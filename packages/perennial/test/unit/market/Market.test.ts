@@ -4364,6 +4364,7 @@ describe('Market', () => {
 
               it('closes a second position and settles (next version)', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.makerLimit = parse6decimal('100')
                 const riskParameterTakerFee = { ...riskParameter.takerFee }
                 riskParameterTakerFee.scale = POSITION.div(4)
                 riskParameter.takerFee = riskParameterTakerFee
@@ -7650,6 +7651,7 @@ describe('Market', () => {
 
               it('closes a second position and settles (next version)', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.makerLimit = parse6decimal('100')
                 const riskParameterTakerFee = { ...riskParameter.takerFee }
                 riskParameterTakerFee.scale = POSITION.div(4)
                 riskParameter.takerFee = riskParameterTakerFee
@@ -18651,6 +18653,7 @@ describe('Market', () => {
 
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.makerLimit = parse6decimal('10')
             const riskParameterTakerFee = { ...riskParameter.takerFee }
             riskParameterTakerFee.scale = parse6decimal('1')
             riskParameter.takerFee = riskParameterTakerFee
@@ -18780,6 +18783,7 @@ describe('Market', () => {
 
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.makerLimit = parse6decimal('10')
             const riskParameterTakerFee = { ...riskParameter.takerFee }
             riskParameterTakerFee.scale = parse6decimal('1')
             riskParameter.takerFee = riskParameterTakerFee

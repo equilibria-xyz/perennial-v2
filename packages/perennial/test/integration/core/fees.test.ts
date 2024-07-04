@@ -47,6 +47,7 @@ const RISK_PARAMS = {
     proportionalFee: parse6decimal('0.08'),
     scale: parse6decimal('10'),
   },
+  makerLimit: parse6decimal('20'),
   utilizationCurve: {
     minRate: 0,
     maxRate: 0,

@@ -438,6 +438,17 @@ describe('Vault', () => {
         oracle: rootOracle3.address,
         payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
+        takerFee: {
+          linearFee: 0,
+          proportionalFee: 0,
+          adiabaticFee: 0,
+          scale: parse6decimal('100000'),
+        },
+        makerFee: {
+          linearFee: 0,
+          proportionalFee: 0,
+          scale: parse6decimal('100000'),
+        },
       })
     })
 
@@ -497,6 +508,17 @@ describe('Vault', () => {
         oracle: rootOracle4.address,
         payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
+        takerFee: {
+          linearFee: 0,
+          proportionalFee: 0,
+          adiabaticFee: 0,
+          scale: parse6decimal('100000'),
+        },
+        makerFee: {
+          linearFee: 0,
+          proportionalFee: 0,
+          scale: parse6decimal('100000'),
+        },
       })
 
       await expect(vault.connect(owner).register(marketBadAsset.address)).to.be.revertedWithCustomError(
