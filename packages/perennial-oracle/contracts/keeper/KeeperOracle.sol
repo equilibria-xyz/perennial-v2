@@ -134,10 +134,10 @@ contract KeeperOracle is IKeeperOracle, Instance {
         requested = (version.timestamp == next()) ? _commitRequested(version) : _commitUnrequested(version);
         _global.latestVersion = uint64(version.timestamp);
 
+        emit OracleProviderVersionFulfilled(version);
+
         for (uint256 i; i < _globalCallbacks[version.timestamp].length(); i++)
             _settle(IMarket(_globalCallbacks[version.timestamp].at(i)), address(0));
-
-        emit OracleProviderVersionFulfilled(version);
     }
 
     /// @notice Performs an asynchronous local settlement callback
