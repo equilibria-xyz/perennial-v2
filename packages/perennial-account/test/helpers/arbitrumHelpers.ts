@@ -1,5 +1,6 @@
 import { expect } from 'chai'
 import { BigNumber, CallOverrides, constants, utils } from 'ethers'
+import { Address } from 'hardhat-deploy/dist/types'
 import {
   IKeeperOracle,
   IMarketFactory,
@@ -131,10 +132,10 @@ export async function deployAndInitializeController(
 ): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
-  const controller = await deployController(owner)
+  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
 
   const verifier = await new Verifier__factory(owner).deploy()
-  await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, DSU_RESERVE)
+  await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address)
   return [dsu, usdc, controller]
 }
 
@@ -144,8 +145,8 @@ export async function deployControllerArbitrum(
   keepConfig: IKept.KeepConfigStruct,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
-  const accountImpl = await new Account__factory(owner).deploy()
-  accountImpl.initialize(constants.AddressZero, constants.AddressZero, constants.AddressZero, constants.AddressZero)
+  const accountImpl = await new Account__factory(owner).deploy(USDCe_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
+  accountImpl.initialize(constants.AddressZero)
   const controller = await new Controller_Arbitrum__factory(
     {
       'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,

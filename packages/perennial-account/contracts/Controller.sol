@@ -3,7 +3,6 @@ pragma solidity 0.8.24;
 
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Factory } from "@equilibria/root/attribute/Factory.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
@@ -43,9 +42,6 @@ contract Controller is Factory, IController {
     /// @dev Contract used to validate message signatures
     IVerifier public verifier;
 
-    /// @dev DSU Reserve address
-    IEmptySetReserve public reserve;
-
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
     mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) public config;
@@ -70,15 +66,13 @@ contract Controller is Factory, IController {
         IMarketFactory marketFactory_,
         IVerifier verifier_,
         Token6 usdc_,
-        Token18 dsu_,
-        IEmptySetReserve reserve_
+        Token18 dsu_
     ) external initializer(1) {
         __Factory__initialize();
         marketFactory = marketFactory_;
         verifier = verifier_;
         USDC = usdc_;
         DSU = dsu_;
-        reserve = reserve_;
     }
 
     /// @inheritdoc IController
@@ -174,8 +168,9 @@ contract Controller is Factory, IController {
 
     function _createAccount(address owner) internal returns (IAccount account) {
         // initialize outside of _create2, such that other init params do not impact deployment address
+        // TODO: can initialize in _create2 now that owner is only argument
         account = Account(address(_create2("", keccak256(abi.encode(SALT, owner)))));
-        account.initialize(owner, USDC, DSU, reserve);
+        account.initialize(owner);
         emit AccountDeployed(owner, account);
     }
 

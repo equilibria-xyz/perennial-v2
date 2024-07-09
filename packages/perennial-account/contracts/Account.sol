@@ -22,35 +22,37 @@ contract Account is IAccount, Instance {
     address public owner;
 
     /// @dev USDC stablecoin address
-    Token6 public USDC; // solhint-disable-line var-name-mixedcase
+    Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
 
     /// @dev DSU address
-    Token18 public DSU; // solhint-disable-line var-name-mixedcase
+    Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @dev DSU Reserve address
-    IEmptySetReserve public reserve;
+    IEmptySetReserve public immutable reserve;
 
-    /// @inheritdoc IAccount
-    function initialize(
-        address owner_,
-        Token6 usdc_,
-        Token18 dsu_,
-        IEmptySetReserve reserve_
-    ) external initializer(1) {
-        __Instance__initialize();
-        owner = owner_;
+    /// @dev Construct collateral account and set approvals for controller and DSU reserve
+    /// @param usdc_ USDC stablecoin
+    /// @param dsu_ Digital Standard Unit stablecoin
+    /// @param reserve_ DSU SimpleReserve contract, used for wrapping/unwrapping USDC to/from DSU
+    constructor(Token6 usdc_, Token18 dsu_, IEmptySetReserve reserve_) {
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
+    }
+
+    /// @inheritdoc IAccount
+    function initialize(address owner_) external initializer(1) {
+        __Instance__initialize();
+        owner = owner_;
 
         // approve the Controller to interact with this account's DSU
         if (address(factory()) != address(0))
-            dsu_.approve(address(factory()));
+            DSU.approve(address(factory()));
 
         // approve DSU facilities to wrap and unwrap USDC for this account
         if (address(reserve) != address(0)) {
-            dsu_.approve(address(reserve));
-            usdc_.approve(address(reserve));
+            DSU.approve(address(reserve));
+            USDC.approve(address(reserve));
         }
     }
 

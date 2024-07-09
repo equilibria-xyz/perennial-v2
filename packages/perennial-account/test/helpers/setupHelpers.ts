@@ -149,9 +149,14 @@ export async function createMarket(
   return market
 }
 
-export async function deployController(owner: SignerWithAddress): Promise<Controller> {
-  const accountImpl = await new Account__factory(owner).deploy()
-  accountImpl.initialize(constants.AddressZero, constants.AddressZero, constants.AddressZero, constants.AddressZero)
+export async function deployController(
+  owner: SignerWithAddress,
+  usdcAddress: Address,
+  dsuAddress: Address,
+  reserveAddress: Address,
+): Promise<Controller> {
+  const accountImpl = await new Account__factory(owner).deploy(usdcAddress, dsuAddress, reserveAddress)
+  accountImpl.initialize(constants.AddressZero)
   const controller = await new Controller__factory(
     {
       'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
