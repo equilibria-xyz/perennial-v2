@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle, updateNoOp } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
   DEFAULT_POSITION,
@@ -188,7 +188,7 @@ describe('Happy Path', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await updateNoOp(market, user)
+    await settle(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
@@ -299,7 +299,7 @@ describe('Happy Path', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await updateNoOp(market, user)
+    await settle(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
@@ -604,7 +604,7 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await updateNoOp(market, userB)
+    await settle(market, userB)
 
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
@@ -733,7 +733,7 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await updateNoOp(market, userB)
+    await settle(market, userB)
 
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,

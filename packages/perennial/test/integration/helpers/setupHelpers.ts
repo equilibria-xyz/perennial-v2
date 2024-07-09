@@ -274,19 +274,6 @@ export async function createMarket(
   return market
 }
 
-export async function updateNoOp(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  return market
-    .connect(account)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
-      account.address,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      0,
-      false,
-    )
-}
-
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
   return market.connect(account).settle(account.address)
 }
