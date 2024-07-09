@@ -134,7 +134,7 @@ export async function deployAndInitializeController(
   const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
 
   const verifier = await new Verifier__factory(owner).deploy()
-  await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address)
+  await controller.initialize(marketFactory.address, verifier.address)
   return [dsu, usdc, controller]
 }
 

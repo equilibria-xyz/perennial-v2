@@ -88,13 +88,9 @@ interface IController {
     /// @notice Sets contract addresses used for message verification and token management
     /// @param marketFactory Contract used to validate delegated signers
     /// @param verifier Contract used to validate message signatures
-    /// @param usdc USDC token address
-    /// @param dsu DSU token address
     function initialize(
         IMarketFactory marketFactory,
-        IVerifier verifier,
-        Token6 usdc,
-        Token18 dsu
+        IVerifier verifier
     ) external;
 
     /// @notice Returns the deterministic address of the collateral account for a user,

@@ -58,21 +58,20 @@ contract Controller is Factory, IController {
     mapping(address => mapping(uint256 => UFixed6)) public groupToMaxRebalanceFee;
 
     /// @dev Creates instance of Controller
-    /// @param implementation_ Pristine 0-initialized collateral account contract
-    constructor(address implementation_) Factory(implementation_) {}
+    /// @param implementation_ Collateral account contract initialized with stablecoin addresses
+    constructor(address implementation_) Factory(implementation_) {
+        USDC = Account(implementation_).USDC();
+        DSU = Account(implementation_).DSU();
+    }
 
     /// @inheritdoc IController
     function initialize(
         IMarketFactory marketFactory_,
-        IVerifier verifier_,
-        Token6 usdc_,
-        Token18 dsu_
+        IVerifier verifier_
     ) external initializer(1) {
         __Factory__initialize();
         marketFactory = marketFactory_;
         verifier = verifier_;
-        USDC = usdc_;
-        DSU = dsu_;
     }
 
     /// @inheritdoc IController

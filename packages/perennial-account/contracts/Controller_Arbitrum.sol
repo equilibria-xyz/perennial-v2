@@ -37,22 +37,16 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     /// @notice Configures message verification and keeper compensation
     /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate EIP-712 message signatures
-    /// @param usdc_ USDC token address
-    /// @param dsu_ DSU token address
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
         IMarketFactory marketFactory_,
         IVerifier verifier_,
-        Token6 usdc_,
-        Token18 dsu_,
         AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
         __Factory__initialize();
-        __Kept__initialize(chainlinkFeed_, dsu_);
+        __Kept__initialize(chainlinkFeed_, DSU);
         marketFactory = marketFactory_;
         verifier = verifier_;
-        USDC = usdc_;
-        DSU = dsu_;
     }
 
     /// @inheritdoc IController

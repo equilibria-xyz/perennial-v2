@@ -149,11 +149,9 @@ describe('Controller_Arbitrum', () => {
     controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
     verifier = await new Verifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
-    await controller['initialize(address,address,address,address,address)'](
+    await controller['initialize(address,address,address)'](
       marketFactory.address,
       verifier.address,
-      usdc.address,
-      dsu.address,
       CHAINLINK_ETH_USD_FEED,
     )
     // fund userA
