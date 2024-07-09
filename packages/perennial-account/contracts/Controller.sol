@@ -78,7 +78,7 @@ contract Controller is Factory, IController {
     /// @inheritdoc IController
     function getAccountAddress(address owner) public view returns (address) {
         // calculate the hash for an uninitialized account for the owner
-        return _computeCreate2Address("", keccak256(abi.encode(SALT, owner)));
+        return _computeCreate2Address(abi.encodeCall(Account.initialize, (owner)), SALT);
     }
 
     /// @inheritdoc IController
@@ -167,10 +167,7 @@ contract Controller is Factory, IController {
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
-        // initialize outside of _create2, such that other init params do not impact deployment address
-        // TODO: can initialize in _create2 now that owner is only argument
-        account = Account(address(_create2("", keccak256(abi.encode(SALT, owner)))));
-        account.initialize(owner);
+        account = Account(address(_create2(abi.encodeCall(Account.initialize, (owner)), SALT)));
         emit AccountDeployed(owner, account);
     }
 
