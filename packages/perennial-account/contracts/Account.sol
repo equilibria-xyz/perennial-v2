@@ -46,14 +46,11 @@ contract Account is IAccount, Instance {
         owner = owner_;
 
         // approve the Controller to interact with this account's DSU
-        if (address(factory()) != address(0))
-            DSU.approve(address(factory()));
+        DSU.approve(address(factory()));
 
         // approve DSU facilities to wrap and unwrap USDC for this account
-        if (address(reserve) != address(0)) {
-            DSU.approve(address(reserve));
-            USDC.approve(address(reserve));
-        }
+        DSU.approve(address(reserve));
+        USDC.approve(address(reserve));
     }
 
     /// @inheritdoc IAccount
