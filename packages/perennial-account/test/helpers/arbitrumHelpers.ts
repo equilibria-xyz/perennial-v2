@@ -1,6 +1,5 @@
 import { expect } from 'chai'
 import { BigNumber, CallOverrides, constants, utils } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
 import {
   IKeeperOracle,
   IMarketFactory,

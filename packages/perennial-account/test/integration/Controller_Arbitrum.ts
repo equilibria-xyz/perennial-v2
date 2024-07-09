@@ -37,7 +37,6 @@ const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 const DEFAULT_MAX_FEE = utils.parseEther('0.5')
-const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
