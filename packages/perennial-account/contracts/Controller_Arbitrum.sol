@@ -27,32 +27,26 @@ import { Withdrawal } from "./types/Withdrawal.sol";
 contract Controller_Arbitrum is Controller, Kept_Arbitrum {
     KeepConfig public keepConfig;
 
-    constructor(KeepConfig memory keepConfig_) {
+    /// @dev Creates instance of Controller which compensates keepers
+    /// @param implementation_ Pristine 0-initialized collateral account contract
+    /// @param keepConfig_ Configuration used to compensate keepers
+    constructor(address implementation_, KeepConfig memory keepConfig_) Controller(implementation_) {
         keepConfig = keepConfig_;
     }
 
     /// @notice Configures message verification and keeper compensation
     /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate EIP-712 message signatures
-    /// @param usdc_ USDC token address
-    /// @param dsu_ DSU token address
-    /// @param reserve_ DSU Reserve address, used by Account
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
         IMarketFactory marketFactory_,
         IVerifier verifier_,
-        Token6 usdc_,
-        Token18 dsu_,
-        IEmptySetReserve reserve_,
         AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
-        __Instance__initialize();
-        __Kept__initialize(chainlinkFeed_, dsu_);
+        __Factory__initialize();
+        __Kept__initialize(chainlinkFeed_, DSU);
         marketFactory = marketFactory_;
         verifier = verifier_;
-        USDC = usdc_;
-        DSU = dsu_;
-        reserve = reserve_;
     }
 
     /// @inheritdoc IController

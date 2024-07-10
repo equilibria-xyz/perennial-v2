@@ -1,13 +1,19 @@
 import HRE, { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { BigNumber, CallOverrides, ContractTransaction, utils } from 'ethers'
+import { BigNumber, CallOverrides, constants, ContractTransaction, utils } from 'ethers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { smock } from '@defi-wonderland/smock'
 import { parse6decimal } from '../../../common/testutil/types'
 import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
 
-import { Controller__factory, IERC20Metadata, RebalanceLib__factory } from '../../types/generated'
+import {
+  Account__factory,
+  Controller,
+  Controller__factory,
+  IERC20Metadata,
+  RebalanceLib__factory,
+} from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -142,13 +148,21 @@ export async function createMarket(
 
   return market
 }
-export async function deployController(owner: SignerWithAddress): Promise<Controller> {
+
+export async function deployController(
+  owner: SignerWithAddress,
+  usdcAddress: Address,
+  dsuAddress: Address,
+  reserveAddress: Address,
+): Promise<Controller> {
+  const accountImpl = await new Account__factory(owner).deploy(usdcAddress, dsuAddress, reserveAddress)
+  accountImpl.initialize(constants.AddressZero)
   const controller = await new Controller__factory(
     {
       'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy()
+  ).deploy(accountImpl.address)
   return controller
 }
 
