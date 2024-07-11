@@ -102,6 +102,8 @@ describe('MarketFactory', () => {
       expect(parameter.maxRate).to.equal(0)
       expect(parameter.minMaintenance).to.equal(0)
       expect(parameter.minEfficiency).to.equal(0)
+      expect(parameter.referralFee).to.equal(0)
+      expect(parameter.minScale).to.equal(0)
     })
 
     it('reverts if already initialized', async () => {
@@ -205,6 +207,7 @@ describe('MarketFactory', () => {
       minMaintenance: parse6decimal('0.01'),
       minEfficiency: parse6decimal('0.1'),
       referralFee: parse6decimal('0.2'),
+      minScale: parse6decimal('0.001'),
     }
 
     it('updates the parameters', async () => {
@@ -219,6 +222,7 @@ describe('MarketFactory', () => {
       expect(parameter.minMaintenance).to.equal(newParameter.minMaintenance)
       expect(parameter.minEfficiency).to.equal(newParameter.minEfficiency)
       expect(parameter.referralFee).to.equal(newParameter.referralFee)
+      expect(parameter.minScale).to.equal(newParameter.minScale)
     })
 
     it('reverts if not owner', async () => {
@@ -239,6 +243,7 @@ describe('MarketFactory', () => {
       minMaintenance: parse6decimal('0.01'),
       minEfficiency: parse6decimal('0.1'),
       referralFee: parse6decimal('0.2'),
+      minScale: parse6decimal('0.001'),
     }
 
     it('updates the parameters', async () => {
