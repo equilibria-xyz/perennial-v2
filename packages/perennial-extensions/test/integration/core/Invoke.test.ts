@@ -455,7 +455,7 @@ describe('Invoke', () => {
           await updateVaultOracle()
           await vault.settle(user.address)
 
-          const funding = BigNumber.from('18411')
+          const funding = BigNumber.from('14352')
           // claim from vault
           await expect(
             invoke(

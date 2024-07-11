@@ -5,6 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
 import {
+  Account__factory,
   Controller,
   IAccount,
   IAccount__factory,
@@ -79,15 +80,14 @@ describe('Controller', () => {
 
   const fixture = async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    controller = await deployController(owner)
-
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    verifier = await new Verifier__factory(owner).deploy()
-
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    await controller.initialize(marketFactory.address, verifier.address, usdc.address, dsu.address, reserve.address)
+    controller = await deployController(owner, usdc.address, dsu.address, reserve.address)
+
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    verifier = await new Verifier__factory(owner).deploy()
+    await controller.initialize(marketFactory.address, verifier.address)
   }
 
   beforeEach(async () => {
@@ -165,6 +165,17 @@ describe('Controller', () => {
       await expect(
         controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
       ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
+    })
+
+    it('account implementation cannot be initialized', async () => {
+      const accountImpl = Account__factory.connect(await controller.implementation(), owner)
+      expect(await accountImpl.owner()).to.equal(constants.AddressZero)
+
+      // another user should not be able to initialize the Account implementation
+      await expect(accountImpl.connect(userB).initialize(userB.address)).to.be.revertedWithCustomError(
+        controller,
+        'InitializableAlreadyInitializedError',
+      )
     })
   })
 

@@ -3,8 +3,7 @@ pragma solidity 0.8.24;
 
 import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { Factory } from "@equilibria/root/attribute/Factory.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
@@ -24,7 +23,7 @@ import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Controller
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
-contract Controller is Instance, IController {
+contract Controller is Factory, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
@@ -43,9 +42,6 @@ contract Controller is Instance, IController {
     /// @dev Contract used to validate message signatures
     IVerifier public verifier;
 
-    /// @dev DSU Reserve address
-    IEmptySetReserve public reserve;
-
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
     mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) public config;
@@ -61,34 +57,27 @@ contract Controller is Instance, IController {
     /// @dev Limits relayer/keeper compensation for rebalancing a group, in DSU
     mapping(address => mapping(uint256 => UFixed6)) public groupToMaxRebalanceFee;
 
+    /// @dev Creates instance of Controller
+    /// @param implementation_ Collateral account contract initialized with stablecoin addresses
+    constructor(address implementation_) Factory(implementation_) {
+        USDC = Account(implementation_).USDC();
+        DSU = Account(implementation_).DSU();
+    }
+
     /// @inheritdoc IController
     function initialize(
         IMarketFactory marketFactory_,
-        IVerifier verifier_,
-        Token6 usdc_,
-        Token18 dsu_,
-        IEmptySetReserve reserve_
+        IVerifier verifier_
     ) external initializer(1) {
-        __Instance__initialize();
+        __Factory__initialize();
         marketFactory = marketFactory_;
         verifier = verifier_;
-        USDC = usdc_;
-        DSU = dsu_;
-        reserve = reserve_;
     }
 
     /// @inheritdoc IController
     function getAccountAddress(address owner) public view returns (address) {
-        // generate bytecode for an account created for the specified owner
-        bytes memory bytecode = abi.encodePacked(
-            type(Account).creationCode,
-            abi.encode(owner),
-            abi.encode(address(this)),
-            abi.encode(USDC),
-            abi.encode(DSU),
-            abi.encode(reserve));
-        // calculate the hash for that bytecode and compute the address
-        return Create2.computeAddress(SALT, keccak256(bytecode));
+        // calculate the hash for an uninitialized account for the owner
+        return _computeCreate2Address(abi.encodeCall(Account.initialize, (owner)), SALT);
     }
 
     /// @inheritdoc IController
@@ -177,7 +166,7 @@ contract Controller is Instance, IController {
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
-        account = new Account{salt: SALT}(owner, address(this), USDC, DSU, reserve);
+        account = Account(address(_create2(abi.encodeCall(Account.initialize, (owner)), SALT)));
         emit AccountDeployed(owner, account);
     }
 

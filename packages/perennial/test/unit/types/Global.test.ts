@@ -96,6 +96,7 @@ function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameter
     minMaintenance: 0,
     minEfficiency: 0,
     referralFee: 0,
+    minScale: 0,
   }
 }
 

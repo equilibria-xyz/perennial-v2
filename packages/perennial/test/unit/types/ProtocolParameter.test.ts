@@ -20,6 +20,7 @@ export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   minMaintenance: 7,
   minEfficiency: 8,
   referralFee: 9,
+  minScale: 10,
 }
 
 describe('ProtocolParameter', () => {
@@ -46,6 +47,7 @@ describe('ProtocolParameter', () => {
       expect(value.minMaintenance).to.equal(7)
       expect(value.minEfficiency).to.equal(8)
       expect(value.referralFee).to.equal(9)
+      expect(value.minScale).to.equal(10)
     })
 
     context('.protocolFee', async () => {
@@ -210,6 +212,26 @@ describe('ProtocolParameter', () => {
           protocolParameter.validateAndStore({
             ...VALID_PROTOCOL_PARAMETER,
             referralFee: parse6decimal('1').add(1),
+          }),
+        ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
+      })
+    })
+
+    context('.minScale', async () => {
+      it('saves if in range', async () => {
+        await protocolParameter.validateAndStore({
+          ...VALID_PROTOCOL_PARAMETER,
+          minScale: parse6decimal('1'),
+        })
+        const value = await protocolParameter.read()
+        expect(value.minScale).to.equal(parse6decimal('1'))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          protocolParameter.validateAndStore({
+            ...VALID_PROTOCOL_PARAMETER,
+            minScale: parse6decimal('1').add(1),
           }),
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })

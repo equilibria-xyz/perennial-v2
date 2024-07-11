@@ -1,12 +1,19 @@
 import HRE, { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { BigNumber, CallOverrides, ContractTransaction, utils } from 'ethers'
+import { BigNumber, CallOverrides, constants, ContractTransaction, utils } from 'ethers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
-import { parse6decimal } from '../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
+import { parse6decimal } from '../../../common/testutil/types'
+import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
 
-import { Controller__factory, IERC20Metadata, RebalanceLib__factory } from '../../types/generated'
+import {
+  Account__factory,
+  Controller,
+  Controller__factory,
+  IERC20Metadata,
+  RebalanceLib__factory,
+} from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -30,8 +37,13 @@ import {
   VersionStorageLib__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
-import { OracleFactory, OracleFactory__factory, IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
-import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
+
+import {
+  OracleFactory__factory,
+  IKeeperOracle,
+  Oracle__factory,
+  IOracleFactory,
+} from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 
 // Simulates an oracle update from KeeperOracle.
@@ -47,7 +59,9 @@ export async function advanceToPrice(
 
   // a keeper cannot commit a future price, so advance past the block
   const currentBlockTime = BigNumber.from(await currentBlockTimestamp())
-  if (currentBlockTime < timestamp) await increaseTo(timestamp.toNumber() + 2)
+  if (currentBlockTime < timestamp) {
+    await increaseTo(timestamp.toNumber() + 2)
+  }
 
   // create a version with the desired parameters and commit to the KeeperOracle
   const oracleVersion: OracleVersionStruct = {
@@ -134,21 +148,28 @@ export async function createMarket(
 
   return market
 }
-export async function deployController(owner: SignerWithAddress): Promise<Controller> {
+
+export async function deployController(
+  owner: SignerWithAddress,
+  usdcAddress: Address,
+  dsuAddress: Address,
+  reserveAddress: Address,
+): Promise<Controller> {
+  const accountImpl = await new Account__factory(owner).deploy(usdcAddress, dsuAddress, reserveAddress)
+  accountImpl.initialize(constants.AddressZero)
   const controller = await new Controller__factory(
     {
       'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy()
+  ).deploy(accountImpl.address)
   return controller
 }
 
 // Deploys the protocol using an existing "real" oracle
 export async function deployProtocolForOracle(
   owner: SignerWithAddress,
-  oracleFactory: OracleFactory,
-  oracleFactoryOwnerAddress: Address,
+  oracleFactory: IOracleFactory,
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
   const verifier = await smock.fake<IVerifier>(
@@ -164,9 +185,8 @@ export async function deployProtocolForOracle(
   )
 
   // Impersonate the owner of the oracle factory to authorize it for the newly-deployed market factory
-  oracleFactory = new OracleFactory__factory(owner).attach(oracleFactory.address)
-  const oracleFactoryOwner = await impersonateWithBalance(oracleFactoryOwnerAddress, utils.parseEther('10'))
-  await oracleFactory.connect(oracleFactoryOwner).authorize(marketFactory.address)
+  const authorizableOracleFactory = new OracleFactory__factory(owner).attach(oracleFactory.address)
+  await authorizableOracleFactory.connect(owner).authorize(marketFactory.address)
   return marketFactory
 }
 
@@ -227,6 +247,14 @@ export async function mockMarket(token: Address): Promise<IMarket> {
   return market
 }
 
+export async function deployOracleFactory(owner: SignerWithAddress, dsuAddress: Address): Promise<IOracleFactory> {
+  // Deploy oracle factory to a proxy
+  const oracleImpl = await new Oracle__factory(owner).deploy()
+  const oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
+  await oracleFactory.connect(owner).initialize(dsuAddress)
+  return oracleFactory
+}
+
 // Deploys the market factory and configures default protocol parameters
 async function deployMarketFactory(
   owner: SignerWithAddress,
@@ -260,6 +288,7 @@ async function deployMarketFactory(
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
+    minScale: parse6decimal('0.001'),
   })
 
   return marketFactory

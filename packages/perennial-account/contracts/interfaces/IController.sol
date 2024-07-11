@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
@@ -89,15 +88,9 @@ interface IController {
     /// @notice Sets contract addresses used for message verification and token management
     /// @param marketFactory Contract used to validate delegated signers
     /// @param verifier Contract used to validate message signatures
-    /// @param usdc USDC token address
-    /// @param dsu DSU token address
-    /// @param reserve DSU Reserve address, used by Account
     function initialize(
         IMarketFactory marketFactory,
-        IVerifier verifier,
-        Token6 usdc,
-        Token18 dsu,
-        IEmptySetReserve reserve
+        IVerifier verifier
     ) external;
 
     /// @notice Returns the deterministic address of the collateral account for a user,

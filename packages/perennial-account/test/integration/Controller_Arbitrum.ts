@@ -24,19 +24,19 @@ import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signW
 import {
   createMarketBTC,
   createMarketETH,
-  createMarketFactory,
+  createFactories,
   deployAndInitializeController,
   deployControllerArbitrum,
   fundWalletDSU,
   fundWalletUSDC,
 } from '../helpers/arbitrumHelpers'
 import { getEventArguments } from '../helpers/setupHelpers'
+import { IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 const DEFAULT_MAX_FEE = utils.parseEther('0.5')
-const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
@@ -46,6 +46,8 @@ describe('Controller_Arbitrum', () => {
   let usdc: IERC20Metadata
   let controller: Controller_Arbitrum
   let verifier: IVerifier
+  let oracleFactory: IOracleFactory
+  let pythOracleFactory: PythFactory
   let marketFactory: IMarketFactory
   let market: IMarket
   let owner: SignerWithAddress
@@ -130,11 +132,11 @@ describe('Controller_Arbitrum', () => {
   }
 
   const fixture = async () => {
-    // create a market
+    // deploy the protocol
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    marketFactory = await createMarketFactory(owner)
+    ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
     ;[dsu, usdc] = await deployAndInitializeController(owner, marketFactory)
-    ;[market, ,] = await createMarketETH(owner, marketFactory, dsu)
+    ;[market, ,] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
     // set up users and deploy artifacts
@@ -147,12 +149,9 @@ describe('Controller_Arbitrum', () => {
     controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
     verifier = await new Verifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
-    await controller['initialize(address,address,address,address,address,address)'](
+    await controller['initialize(address,address,address)'](
       marketFactory.address,
       verifier.address,
-      usdc.address,
-      dsu.address,
-      DSU_RESERVE,
       CHAINLINK_ETH_USD_FEED,
     )
     // fund userA
@@ -279,34 +278,6 @@ describe('Controller_Arbitrum', () => {
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
-
-    async function deposit(amount = parse6decimal('12000')) {
-      // sign a message to deposit everything from the collateral account to the market
-      const marketTransferMessage = {
-        market: market.address,
-        amount: amount,
-        ...createAction(userA.address, userA.address),
-      }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
-
-      // perform transfer
-      await expect(
-        controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
-      )
-        .to.emit(dsu, 'Transfer')
-        .withArgs(accountA.address, market.address, anyValue) // scale to token precision
-        .to.emit(market, 'OrderCreated')
-        .withArgs(
-          userA.address,
-          anyValue,
-          anyValue,
-          constants.AddressZero,
-          constants.AddressZero,
-          constants.AddressZero,
-        )
-        .to.emit(controller, 'KeeperCall')
-        .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-    }
 
     it('collects fee for depositing some funds to market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
@@ -491,7 +462,14 @@ describe('Controller_Arbitrum', () => {
 
     it('collects fee for rebalancing a group', async () => {
       const ethMarket = market
-      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu, TX_OVERRIDES)
+      const [btcMarket, ,] = await createMarketBTC(
+        owner,
+        oracleFactory,
+        pythOracleFactory,
+        marketFactory,
+        dsu,
+        TX_OVERRIDES,
+      )
 
       // create a new group with two markets
       const message = {
@@ -534,7 +512,14 @@ describe('Controller_Arbitrum', () => {
 
     it('honors max rebalance fee when rebalancing a group', async () => {
       const ethMarket = market
-      const [btcMarket, ,] = await createMarketBTC(owner, marketFactory, dsu, TX_OVERRIDES)
+      const [btcMarket, ,] = await createMarketBTC(
+        owner,
+        oracleFactory,
+        pythOracleFactory,
+        marketFactory,
+        dsu,
+        TX_OVERRIDES,
+      )
 
       // create a new group with two markets and a maxFee smaller than the actual fee
       const message = {

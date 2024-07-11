@@ -440,6 +440,7 @@ describe('Market', () => {
       minMaintenance: parse6decimal('0.01'),
       minEfficiency: parse6decimal('0.1'),
       referralFee: 0,
+      minScale: parse6decimal('0.001'),
     })
     factory.oracleFactory.returns(oracleFactorySigner.address)
 
@@ -4314,6 +4315,7 @@ describe('Market', () => {
 
               it('closes a second position and settles (next version)', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.makerLimit = parse6decimal('100')
                 const riskParameterTakerFee = { ...riskParameter.takerFee }
                 riskParameterTakerFee.scale = POSITION.div(4)
                 riskParameter.takerFee = riskParameterTakerFee
@@ -7730,6 +7732,7 @@ describe('Market', () => {
 
               it('closes a second position and settles (next version)', async () => {
                 const riskParameter = { ...(await market.riskParameter()) }
+                riskParameter.makerLimit = parse6decimal('100')
                 const riskParameterTakerFee = { ...riskParameter.takerFee }
                 riskParameterTakerFee.scale = POSITION.div(4)
                 riskParameter.takerFee = riskParameterTakerFee
@@ -15691,6 +15694,7 @@ describe('Market', () => {
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -15744,6 +15748,7 @@ describe('Market', () => {
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
@@ -17334,6 +17339,7 @@ describe('Market', () => {
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -18810,6 +18816,7 @@ describe('Market', () => {
 
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.makerLimit = parse6decimal('10')
             const riskParameterTakerFee = { ...riskParameter.takerFee }
             riskParameterTakerFee.scale = parse6decimal('1')
             riskParameter.takerFee = riskParameterTakerFee
@@ -18948,6 +18955,7 @@ describe('Market', () => {
 
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.makerLimit = parse6decimal('10')
             const riskParameterTakerFee = { ...riskParameter.takerFee }
             riskParameterTakerFee.scale = parse6decimal('1')
             riskParameter.takerFee = riskParameterTakerFee
@@ -19252,6 +19260,7 @@ describe('Market', () => {
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -19367,6 +19376,7 @@ describe('Market', () => {
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -19522,6 +19532,7 @@ describe('Market', () => {
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -19683,6 +19694,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -19919,6 +19931,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -20156,6 +20169,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -20393,6 +20407,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -20631,6 +20646,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -20880,6 +20896,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -21129,6 +21146,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -21380,6 +21398,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -21631,6 +21650,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -21888,6 +21908,7 @@ describe('Market', () => {
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -22146,6 +22167,7 @@ describe('Market', () => {
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -22202,6 +22224,7 @@ describe('Market', () => {
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
           })
 
           const marketParameter = { ...(await market.parameter()) }
