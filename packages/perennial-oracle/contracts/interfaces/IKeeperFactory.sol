@@ -8,14 +8,10 @@ import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol
 import "./IKeeperOracle.sol";
 import "./IOracleFactory.sol";
 import "./IPayoffProvider.sol";
+import { OracleParameter } from "../keeper/types/OracleParameter.sol";
+import { PriceRequest } from "../keeper/types/PriceRequest.sol";
 
 interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
-    struct Granularity {
-        uint64 latestGranularity;
-        uint64 currentGranularity;
-        uint128 effectiveAfter;
-    }
-
     struct PayoffDefinition {
         IPayoffProvider provider;
         int16 decimals;
@@ -27,7 +23,7 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     }
 
     event OracleAssociated(bytes32 indexed id, bytes32 indexed underlyingId);
-    event GranularityUpdated(uint256 newGranularity, uint256 effectiveAfter);
+    event ParameterUpdated(OracleParameter newParameter);
     event CallerAuthorized(IFactory indexed caller);
     event PayoffRegistered(IPayoffProvider indexed payoff);
 
@@ -61,9 +57,9 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     function toUnderlyingPayoff(bytes32 id) external returns (PayoffDefinition memory payoff);
     function fromUnderlying(bytes32 underlyingId, IPayoffProvider payoff) external returns (bytes32);
     function create(bytes32 id, bytes32 underlyingId, PayoffDefinition memory payoff) external returns (IKeeperOracle oracle);
-    function current() external view returns (uint256);
-    function granularity() external view returns (Granularity memory);
-    function updateGranularity(uint256 newGranularity) external;
+    function current() external view returns (PriceRequest memory);
+    function parameter() external view returns (OracleParameter memory);
+    function updateParameter(uint256 newGranularity, UFixed6 newSettlementFee, UFixed6 newOracleFee) external;
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable;
     function settle(bytes32[] memory ids, IMarket[] memory markets, uint256[] memory versions, uint256[] memory maxCounts) external;
 }
