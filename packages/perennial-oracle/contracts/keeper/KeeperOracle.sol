@@ -181,13 +181,14 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param oracleVersion The oracle version to commit
     /// @return Whether the commit was requested
     function _commitRequested(OracleVersion memory oracleVersion) private returns (bool) {
+        PriceRequest memory priceRequest = _requests[_global.latestIndex].read();
+
         if (block.timestamp <= (next() + timeout)) {
             if (!oracleVersion.valid) revert KeeperOracleInvalidPriceError();
-            PriceRequest memory priceRequest = _requests[_global.latestIndex].read();
-            _responses[oracleVersion.timestamp].store(priceRequest.toPriceResponse(oracleVersion.price, true));
+            _responses[oracleVersion.timestamp].store(priceRequest.toPriceResponse(oracleVersion));
         } else {
             PriceResponse memory latestPrice = _responses[_global.latestVersion].read();
-            _responses[oracleVersion.timestamp].store(latestPrice.toInvalid());
+            _responses[oracleVersion.timestamp].store(priceRequest.toPriceResponseInvalid(latestPrice));
         }
 
         _global.latestIndex++;

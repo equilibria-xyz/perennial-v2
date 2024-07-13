@@ -20,7 +20,6 @@ struct OracleParameter {
     /// @dev The relative oracle fee percentage of the request
     UFixed6 oracleFee;
 }
-using OracleParameterLib for OracleParameter global;
 struct StoredOracleParameter {
     uint16 latestGranularity;
     uint16 currentGranularity;
@@ -30,14 +29,6 @@ struct StoredOracleParameter {
 }
 struct OracleParameterStorage { StoredOracleParameter value; }
 using OracleParameterStorageLib for OracleParameterStorage global;
-
-/**
- * @title OracleParameterLib
- * @notice Library for OracleParameter logic and data.
- */
-library OracleParameterLib {
-
-}
 
 library OracleParameterStorageLib {
     // sig: 0xfc481d85

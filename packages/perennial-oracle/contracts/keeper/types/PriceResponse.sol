@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
 import "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { PriceRequest } from "./PriceRequest.sol";
 
 struct PriceResponse {
     /// @dev The oracle price of the corresponding version
@@ -32,13 +33,6 @@ using PriceResponseStorageLib for PriceResponseStorage global;
  * @notice Library for PriceResponse logic and data.
  */
 library PriceResponseLib {
-    /// @notice Constructs a price response from the latest price response when invalid
-    /// @param latestPriceResponse The latest price response
-    /// @return The corresponding price response
-    function toInvalid(PriceResponse memory latestPriceResponse) internal pure returns (PriceResponse memory) {
-        return PriceResponse(latestPriceResponse.price, UFixed6Lib.ZERO, UFixed6Lib.ZERO, false);
-    }
-
     /// @notice Constructs a price response from an unrequested oracle version
     /// @param oracleVersion The oracle version object
     /// @return The corresponding price response

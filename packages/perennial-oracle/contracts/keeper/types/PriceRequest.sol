@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { PriceResponse } from "./PriceResponse.sol";
@@ -29,17 +30,26 @@ using PriceRequestStorageLib for PriceRequestStorage global;
  * @notice Library for PriceRequest logic and data.
  */
 library PriceRequestLib {
-    /// @notice Constructs a PriceResponse from a request and a price data
+    /// @notice Constructs a price response from a request and a resulting oracle version
     /// @param self The price request object
-    /// @param price The price of the request
-    /// @param valid Whether the price is valid
+    /// @param oracleVersion The oracle version object
     /// @return The corresponding price response
     function toPriceResponse(
         PriceRequest memory self,
-        Fixed6 price,
-        bool valid
+        OracleVersion memory oracleVersion
     ) internal pure returns (PriceResponse memory) {
-        return PriceResponse(price, self.settlementFee, self.oracleFee, valid);
+        return PriceResponse(oracleVersion.price, self.settlementFee, self.oracleFee, oracleVersion.valid);
+    }
+
+    /// @notice Constructs a price response from a request and the latest price response for invalid versions
+    /// @param self The price request object
+    /// @param latestPriceResponse The latest price response
+    /// @return The corresponding price response
+    function toPriceResponseInvalid(
+        PriceRequest memory self,
+        PriceResponse memory latestPriceResponse
+    ) internal pure returns (PriceResponse memory) {
+        return PriceResponse(latestPriceResponse.price, self.settlementFee, self.oracleFee, false);
     }
 }
 
