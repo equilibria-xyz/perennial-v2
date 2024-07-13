@@ -682,7 +682,7 @@ describe('Market', () => {
       })
     })
 
-    describe.only('#updateRiskParameter', async () => {
+    describe('#updateRiskParameter', async () => {
       const defaultRiskParameter = {
         margin: parse6decimal('0.5'),
         maintenance: parse6decimal('0.4'),
