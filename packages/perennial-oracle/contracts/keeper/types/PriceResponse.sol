@@ -2,7 +2,8 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { OracleReceipt } from "@equilibria/perennial-v2/contracts/types/OracleReceipt.sol";
 import { PriceRequest } from "./PriceRequest.sol";
 
 struct PriceResponse {
@@ -41,11 +42,18 @@ library PriceResponseLib {
     }
 
     /// @notice Returns an oracle version based on the price snapshot and timestamp
-    /// @param self The price snapshot object
+    /// @param self The price response object
     /// @param timestamp The timestamp of the price snapshot
     /// @return The corresponding oracle version
     function toOracleVersion(PriceResponse memory self, uint256 timestamp) internal pure returns (OracleVersion memory) {
         return OracleVersion(timestamp, self.price, self.valid);
+    }
+
+    /// @notice Returns an oracle receipt based on the price snapshot and timestamp
+    /// @param self The price response object
+    /// @return The corresponding oracle receipt
+    function toOracleReceipt(PriceResponse memory self) internal pure returns (OracleReceipt memory) {
+        return OracleReceipt(self.settlementFee, self.oracleFee);
     }
 }
 

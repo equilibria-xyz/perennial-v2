@@ -117,9 +117,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
     }
 
     /// @notice Returns the latest synced oracle version
-    /// @return Latest oracle version
-    function latest() public view returns (OracleVersion memory) {
-        return at(_global.latestVersion);
+    /// @return latestVersion Latest oracle version
+    function latest() public view returns (OracleVersion memory latestVersion) {
+        (latestVersion, ) = at(_global.latestVersion);
     }
 
     /// @notice Returns the current oracle version accepting new orders
@@ -136,9 +136,12 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Returns the oracle version at version `version`
     /// @param timestamp The timestamp of which to lookup
     /// @return oracleVersion Oracle version at version `version`
-    function at(uint256 timestamp) public view returns (OracleVersion memory) {
+    function at(uint256 timestamp) public view returns (OracleVersion memory, OracleReceipt memory) {
         if (linkbacks[timestamp] != 0) return at(linkbacks[timestamp]);
-        return _responses[timestamp].read().toOracleVersion(timestamp);
+        return (
+            _responses[timestamp].read().toOracleVersion(timestamp),
+            _responses[timestamp].read().toOracleReceipt()
+        );
     }
 
     /// @notice Commits the price to specified version

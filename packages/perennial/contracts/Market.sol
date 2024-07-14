@@ -664,7 +664,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // processing accumulators
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
-        settlementContext.orderOracleVersion = oracle.at(context.latestPositionGlobal.timestamp);
+        (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
         if (settlementContext.orderOracleVersion.price.isZero())
             settlementContext.orderOracleVersion.price = context.global.latestPrice;
     }
@@ -748,7 +748,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         uint256 newOrderTimestamp,
         Order memory newOrder
     ) private {
-        OracleVersion memory oracleVersion = oracle.at(newOrderTimestamp);
+        (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) = oracle.at(newOrderTimestamp);
         if (oracleVersion.price.isZero()) oracleVersion.price = context.global.latestPrice;
         Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
@@ -773,6 +773,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGuarantee,
             settlementContext.orderOracleVersion,
             oracleVersion,
+            oracleReceipt,
             context.marketParameter,
             context.riskParameter
         );
@@ -780,7 +781,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (settlementContext.latestVersion, context.global, accumulationResult) =
             VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
-        context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
+        context.global.update(
+            newOrderId,
+            accumulationResult,
+            context.marketParameter,
+            context.protocolParameter,
+            oracleReceipt
+        );
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;

@@ -65,12 +65,14 @@ library GlobalLib {
     /// @param accumulation The accumulation result
     /// @param marketParameter The current market parameters
     /// @param protocolParameter The current protocol parameters
+    /// @param oracleReceipt The receipt of the corresponding oracle version
     function update(
         Global memory self,
         uint256 newLatestId,
         VersionAccumulationResult memory accumulation,
         MarketParameter memory marketParameter,
-        ProtocolParameter memory protocolParameter
+        ProtocolParameter memory protocolParameter,
+        OracleReceipt memory oracleReceipt
     ) internal pure {
         UFixed6 marketFee = accumulation.tradeFee
             .add(accumulation.tradeOffsetMarket)
@@ -80,7 +82,7 @@ library GlobalLib {
         UFixed6 protocolFeeAmount = marketFee.mul(protocolParameter.protocolFee);
         UFixed6 marketFeeAmount = marketFee.sub(protocolFeeAmount);
 
-        UFixed6 oracleFeeAmount = marketFeeAmount.mul(marketParameter.oracleFee);
+        UFixed6 oracleFeeAmount = marketFeeAmount.mul(oracleReceipt.oracleFee);
         UFixed6 riskFeeAmount = marketFeeAmount.mul(marketParameter.riskFee);
         UFixed6 donationAmount = marketFeeAmount.sub(oracleFeeAmount).sub(riskFeeAmount);
 

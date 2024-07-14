@@ -84,6 +84,7 @@ struct VersionAccumulationContext {
     Guarantee guarantee;
     OracleVersion fromOracleVersion;
     OracleVersion toOracleVersion;
+    OracleReceipt toOracleReceipt;
     MarketParameter marketParameter;
     RiskParameter riskParameter;
 }
@@ -163,7 +164,7 @@ library VersionLib {
         VersionAccumulationContext memory context
     ) private pure returns (UFixed6 settlementFee) {
         uint256 orders = context.order.orders - context.guarantee.orders;
-        settlementFee = orders == 0 ? UFixed6Lib.ZERO : context.marketParameter.settlementFee;
+        settlementFee = orders == 0 ? UFixed6Lib.ZERO : context.toOracleReceipt.settlementFee;
         next.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(orders));
     }
 
