@@ -14,17 +14,20 @@ import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.s
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
-import { IController } from "./interfaces/IController.sol";
 import { IAccountVerifier } from "./interfaces/IAccountVerifier.sol";
+import { IController } from "./interfaces/IController.sol";
+import { IRelayer } from "./interfaces/IRelayer.sol";
 import { Controller } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
+import { RelayedSignerUpdate } from "./types/RelayedSignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
+// TODO: create a new Controller_Incentivized baseclass, derive Controller_Arbitrum and Controller_Optimism from it
 /// @title Controller_Arbitrum
 /// @notice Controller which compensates keepers for processing messages on Arbitrum L2
-contract Controller_Arbitrum is Controller, Kept_Arbitrum {
+contract Controller_Arbitrum is Controller, IRelayer, Kept_Arbitrum {
     KeepConfig public keepConfig;
 
     /// @dev Creates instance of Controller which compensates keepers
@@ -90,7 +93,7 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         }
     }
 
-        /// @inheritdoc IController
+    /// @inheritdoc IController
     function rebalanceGroup(address owner, uint256 group) override external {
         _rebalanceGroup(owner, group);
         address account = getAccountAddress(owner);
@@ -108,6 +111,18 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
         bytes memory data = abi.encode(account, withdrawal.action.maxFee);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
         _withdrawWithSignature(IAccount(account), withdrawal, signature);
+    }
+
+    /// @inheritdoc IRelayer
+    function relaySignerUpdate(
+        RelayedSignerUpdate calldata message,
+        bytes calldata outerSignature,
+        bytes calldata innerSignature
+    ) override external {
+        IAccount account = IAccount(getAccountAddress(message.action.common.account));
+        bytes memory data = abi.encode(address(account), message.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        marketFactory.updateSignerWithSignature(message.signerUpdate, innerSignature);
     }
 
     /// @dev Transfers funds from collateral account to controller, and limits compensation

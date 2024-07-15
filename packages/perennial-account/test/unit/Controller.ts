@@ -13,9 +13,9 @@ import {
   IERC20Metadata,
   IEmptySetReserve,
   IAccountVerifier,
-  Verifier__factory,
+  AccountVerifier__factory,
 } from '../../types/generated'
-// import { RebalanceConfigChangeStruct, RebalanceConfigStruct } from '../../types/generated/contracts/Controller'
+
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange } from '../helpers/erc712'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { FakeContract, smock } from '@defi-wonderland/smock'
@@ -86,7 +86,7 @@ describe('Controller', () => {
     controller = await deployController(owner, usdc.address, dsu.address, reserve.address)
 
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    verifier = await new Verifier__factory(owner).deploy()
+    verifier = await new AccountVerifier__factory(owner).deploy()
     await controller.initialize(marketFactory.address, verifier.address)
   }
 

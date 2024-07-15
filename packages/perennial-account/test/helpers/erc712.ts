@@ -8,6 +8,8 @@ import {
   RebalanceConfigChangeStruct,
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
+// TODO: move to types/generated/contracts/Controller_Incentivized once it exists
+import { RelayedSignerUpdateStruct } from '../../types/generated/contracts/AccountVerifier'
 
 function erc721Domain(verifier: IAccountVerifier | FakeContract<IAccountVerifier>): {
   name: string
@@ -130,6 +132,31 @@ export async function signWithdrawal(
     ],
     ...actionType,
     ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedSignerUpdate(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedSignerUpdateStruct,
+): Promise<string> {
+  const types = {
+    RelayedSignerUpdate: [
+      { name: 'signerUpdate', type: 'SignerUpdate' },
+      { name: 'action', type: 'Action' },
+    ],
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
+      { name: 'approved', type: 'bool' },
+    ],
+    ...actionType,
+    ...commonType,
+    SignerUpdate: [
+      { name: 'access', type: 'AccessUpdate' },
+      { name: 'common', type: 'Common' },
+    ],
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, message)

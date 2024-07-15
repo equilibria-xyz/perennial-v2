@@ -15,6 +15,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { createMarket, deployController, deployOracleFactory, deployProtocolForOracle } from './setupHelpers'
 import {
   Account__factory,
+  AccountVerifier__factory,
   Controller,
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
@@ -23,7 +24,6 @@ import {
   IMarket,
   IOracleProvider,
   RebalanceLib__factory,
-  Verifier__factory,
 } from '../../types/generated'
 import type { IKept } from '../../contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
@@ -133,7 +133,7 @@ export async function deployAndInitializeController(
   const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
   const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
 
-  const verifier = await new Verifier__factory(owner).deploy()
+  const verifier = await new AccountVerifier__factory(owner).deploy()
   await controller.initialize(marketFactory.address, verifier.address)
   return [dsu, usdc, controller]
 }
