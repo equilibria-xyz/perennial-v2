@@ -40,6 +40,7 @@ import {
   expectCheckpointEq,
   DEFAULT_GLOBAL,
   DEFAULT_GUARANTEE,
+  DEFAULT_ORACLE_RECEIPT,
 } from '../../../../common/testutil/types'
 import {
   IMarket,
@@ -55,6 +56,11 @@ const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
 const TIMESTAMP = 1636401093
 const PRICE = parse6decimal('123')
+
+const INITIALIZED_ORACLE_RECEIPT = {
+  ...DEFAULT_ORACLE_RECEIPT,
+  oracleFee: parse6decimal('0.1'), // initialize all tests to 10% oracle fee
+}
 
 const DEFAULT_VERSION_ACCUMULATION_RESULT = {
   tradeFee: 0,
@@ -797,8 +803,8 @@ describe('Market', () => {
         // setup market with POSITION skew
         await market.connect(owner).updateParameter(marketParameter)
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
 
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
@@ -812,7 +818,7 @@ describe('Market', () => {
           .connect(userB)
           ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
@@ -867,8 +873,8 @@ describe('Market', () => {
       it('incurs exposure adding adiabatic fee with no maker position', async () => {
         // setup from #update
         await market.connect(owner).updateParameter(marketParameter)
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
@@ -910,7 +916,7 @@ describe('Market', () => {
           )
 
         // update oracle and settle positions
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
         oracle.request.returns()
         await settle(market, user)
@@ -930,7 +936,7 @@ describe('Market', () => {
           timestamp: TIMESTAMP + 3600 * 2,
           valid: true,
         }
-        oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
+        oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
         oracle.request.returns()
         await settle(market, user)
@@ -957,7 +963,7 @@ describe('Market', () => {
           ...oracleVersion,
           timestamp: TIMESTAMP + 3600 * 3,
         }
-        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(oracleVersion)
+        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
         oracle.request.returns()
         await settle(market, userB)
@@ -1036,7 +1042,7 @@ describe('Market', () => {
           price: parse6decimal('62'),
           timestamp: TIMESTAMP + 3600 * 4,
         }
-        oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(oracleVersion)
+        oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
         oracle.request.returns()
         await settle(market, user)
@@ -1066,8 +1072,8 @@ describe('Market', () => {
       it('incurs exposure adding adiabatic fee with no maker position (w/ rounding)', async () => {
         // setup from #update
         await market.connect(owner).updateParameter(marketParameter)
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
@@ -1109,7 +1115,7 @@ describe('Market', () => {
           )
 
         // update oracle and settle positions
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
         oracle.request.returns()
         await settle(market, user)
@@ -1129,7 +1135,7 @@ describe('Market', () => {
           timestamp: TIMESTAMP + 3600 * 2,
           valid: true,
         }
-        oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
+        oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
         oracle.request.returns()
         await settle(market, user)
@@ -1156,7 +1162,7 @@ describe('Market', () => {
           ...oracleVersion,
           timestamp: TIMESTAMP + 3600 * 3,
         }
-        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(oracleVersion)
+        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
         oracle.request.returns()
         await settle(market, userB)
@@ -1237,7 +1243,7 @@ describe('Market', () => {
           price: parse6decimal('62'),
           timestamp: TIMESTAMP + 3600 * 4,
         }
-        oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(oracleVersion)
+        oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
         oracle.request.returns()
         await settle(market, user)
@@ -1278,8 +1284,8 @@ describe('Market', () => {
         await market.connect(owner).updateBeneficiary(beneficiary.address)
         await market.connect(owner).updateParameter(marketParameter)
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
 
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
@@ -1318,7 +1324,7 @@ describe('Market', () => {
             constants.AddressZero,
           )
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
@@ -1432,7 +1438,7 @@ describe('Market', () => {
             constants.AddressZero,
           )
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
@@ -1526,8 +1532,8 @@ describe('Market', () => {
         await market.connect(owner).updateBeneficiary(beneficiary.address)
         await market.connect(owner).updateParameter(marketParameter)
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
 
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
@@ -1694,7 +1700,7 @@ describe('Market', () => {
             liquidationFee: { _value: -riskParameter.liquidationFee },
           })
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -1806,7 +1812,7 @@ describe('Market', () => {
             liquidationFee: { _value: -riskParameter.liquidationFee },
           })
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -1984,7 +1990,7 @@ describe('Market', () => {
                 constants.AddressZero,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -2132,7 +2138,7 @@ describe('Market', () => {
                 constants.AddressZero,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -2183,7 +2189,7 @@ describe('Market', () => {
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -2251,7 +2257,7 @@ describe('Market', () => {
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -2270,7 +2276,7 @@ describe('Market', () => {
                 constants.AddressZero,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -2347,8 +2353,8 @@ describe('Market', () => {
                 constants.AddressZero,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -2437,8 +2443,12 @@ describe('Market', () => {
                 constants.AddressZero,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -2499,7 +2509,9 @@ describe('Market', () => {
 
           context('settles first', async () => {
             beforeEach(async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -2582,7 +2594,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -2710,7 +2724,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -2759,7 +2775,9 @@ describe('Market', () => {
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -2827,7 +2845,9 @@ describe('Market', () => {
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -2846,7 +2866,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -2906,9 +2928,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -2984,9 +3010,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3161,7 +3191,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3300,7 +3332,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3359,7 +3393,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3435,7 +3471,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3454,7 +3492,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3560,9 +3600,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3684,9 +3728,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3769,7 +3817,9 @@ describe('Market', () => {
             })
 
             it('settles opens the position and settles later with fee', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3821,9 +3871,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -3936,7 +3990,9 @@ describe('Market', () => {
 
             context('settles first', async () => {
               beforeEach(async () => {
-                oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                  .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -4020,7 +4076,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -4182,7 +4240,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -4264,7 +4324,9 @@ describe('Market', () => {
                   .connect(user)
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -4374,7 +4436,9 @@ describe('Market', () => {
                   .connect(user)
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -4393,7 +4457,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -4511,9 +4577,13 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -4624,9 +4694,13 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -4735,7 +4809,7 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -4750,7 +4824,9 @@ describe('Market', () => {
               valid: true,
             }
 
-            oracle.at.whenCalledWith(oracleVersionSameTimestamp.timestamp).returns(oracleVersionSameTimestamp)
+            oracle.at
+              .whenCalledWith(oracleVersionSameTimestamp.timestamp)
+              .returns([oracleVersionSameTimestamp, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -4822,7 +4898,9 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7200,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+            oracle.at
+              .whenCalledWith(oracleVersionLowerPrice.timestamp)
+              .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -4956,7 +5034,9 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7200,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice.timestamp)
+              .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -5111,7 +5191,9 @@ describe('Market', () => {
             })
 
             it('with socialization to zero', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5126,7 +5208,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5155,7 +5239,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5167,7 +5253,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5320,7 +5408,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5336,7 +5426,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5365,7 +5457,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5378,7 +5472,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5564,7 +5660,9 @@ describe('Market', () => {
             })
 
             it('with shortfall', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5587,7 +5685,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5709,7 +5809,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 10800,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5802,7 +5904,9 @@ describe('Market', () => {
             })
 
             it('default', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5817,7 +5921,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice.timestamp)
+                .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5846,7 +5952,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5858,7 +5966,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+                .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -5996,7 +6106,9 @@ describe('Market', () => {
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6011,7 +6123,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice.timestamp)
+                .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6132,7 +6246,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 10800,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+                .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6213,7 +6329,7 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -6236,9 +6352,13 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 10800,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice_0.timestamp).returns(oracleVersionHigherPrice_0)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice_0.timestamp)
+              .returns([oracleVersionHigherPrice_0, INITIALIZED_ORACLE_RECEIPT])
 
-            oracle.at.whenCalledWith(oracleVersionHigherPrice_1.timestamp).returns(oracleVersionHigherPrice_1)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice_1.timestamp)
+              .returns([oracleVersionHigherPrice_1, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -6434,7 +6554,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6574,7 +6696,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6633,7 +6757,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6709,7 +6835,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6728,7 +6856,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6839,9 +6969,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -6967,9 +7101,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -7052,7 +7190,9 @@ describe('Market', () => {
             })
 
             it('settles opens the position and settles later with fee', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -7107,9 +7247,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -7221,7 +7365,9 @@ describe('Market', () => {
 
             context('settles first', async () => {
               beforeEach(async () => {
-                oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                  .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -7305,7 +7451,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -7468,7 +7616,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -7551,7 +7701,9 @@ describe('Market', () => {
                   .connect(user)
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -7661,7 +7813,9 @@ describe('Market', () => {
                   .connect(user)
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -7680,7 +7834,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -7800,9 +7956,13 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -7915,9 +8075,13 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
@@ -8027,7 +8191,7 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -8042,7 +8206,9 @@ describe('Market', () => {
               valid: true,
             }
 
-            oracle.at.whenCalledWith(oracleVersionSameTimestamp.timestamp).returns(oracleVersionSameTimestamp)
+            oracle.at
+              .whenCalledWith(oracleVersionSameTimestamp.timestamp)
+              .returns([oracleVersionSameTimestamp, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -8114,7 +8280,9 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7200,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+            oracle.at
+              .whenCalledWith(oracleVersionLowerPrice.timestamp)
+              .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -8250,7 +8418,9 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7200,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice.timestamp)
+              .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -8409,7 +8579,9 @@ describe('Market', () => {
             })
 
             it('with socialization to zero', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8424,7 +8596,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice.timestamp)
+                .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8453,7 +8627,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8465,7 +8641,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+                .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8611,7 +8789,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8642,7 +8822,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8671,7 +8853,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8684,7 +8868,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8855,7 +9041,9 @@ describe('Market', () => {
             })
 
             it('with shortfall', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8870,7 +9058,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -8986,7 +9176,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 10800,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -9077,7 +9269,9 @@ describe('Market', () => {
             })
 
             it('default', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -9092,7 +9286,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice.timestamp)
+                .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -9121,7 +9317,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -9133,7 +9331,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+                .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -9277,7 +9477,9 @@ describe('Market', () => {
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -9292,7 +9494,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -9413,7 +9617,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 10800,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
@@ -9496,7 +9702,7 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -9519,9 +9725,13 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 10800,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice_0.timestamp).returns(oracleVersionHigherPrice_0)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice_0.timestamp)
+              .returns([oracleVersionHigherPrice_0, INITIALIZED_ORACLE_RECEIPT])
 
-            oracle.at.whenCalledWith(oracleVersionHigherPrice_1.timestamp).returns(oracleVersionHigherPrice_1)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice_1.timestamp)
+              .returns([oracleVersionHigherPrice_1, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -9634,7 +9844,9 @@ describe('Market', () => {
             marketParameter2.closed = true
             await market.updateParameter(marketParameter2)
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: EXPECTED_SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
@@ -9862,7 +10074,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -10004,7 +10218,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -10064,7 +10280,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -10141,7 +10359,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -10160,7 +10380,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -10283,9 +10505,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -10435,9 +10661,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -10568,9 +10798,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -10693,9 +10927,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -10823,9 +11061,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_6.timestamp])
               oracle.request.returns()
 
@@ -10948,9 +11190,13 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_6.timestamp])
               oracle.request.returns()
 
@@ -11090,7 +11336,9 @@ describe('Market', () => {
 
             context('settles first', async () => {
               beforeEach(async () => {
-                oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                  .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
@@ -11175,7 +11423,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
@@ -11353,7 +11603,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
@@ -11450,7 +11702,9 @@ describe('Market', () => {
                   .connect(user)
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
@@ -11568,7 +11822,9 @@ describe('Market', () => {
                   .connect(user)
                   ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
@@ -11587,7 +11843,9 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
@@ -11737,9 +11995,13 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
@@ -11839,9 +12101,13 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_3.timestamp)
+                  .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-                oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+                oracle.at
+                  .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                  .returns([ORACLE_VERSION_4, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
@@ -11933,7 +12199,7 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
@@ -11948,7 +12214,9 @@ describe('Market', () => {
               valid: true,
             }
 
-            oracle.at.whenCalledWith(oracleVersionSameTimestamp.timestamp).returns(oracleVersionSameTimestamp)
+            oracle.at
+              .whenCalledWith(oracleVersionSameTimestamp.timestamp)
+              .returns([oracleVersionSameTimestamp, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
@@ -12020,7 +12288,9 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7200,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+            oracle.at
+              .whenCalledWith(oracleVersionLowerPrice.timestamp)
+              .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
@@ -12175,7 +12445,9 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7200,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice.timestamp)
+              .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
@@ -12363,7 +12635,9 @@ describe('Market', () => {
             })
 
             it('with socialization to zero', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -12378,7 +12652,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -12407,7 +12683,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
@@ -12419,7 +12697,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.returns()
 
@@ -12606,7 +12886,9 @@ describe('Market', () => {
               const EXPECTED_FUNDING_FEE_2 = BigNumber.from(462) // |funding| * fundingFee
               const EXPECTED_FUNDING_WITH_FEE_2 = EXPECTED_FUNDING_2.add(EXPECTED_FUNDING_FEE_2.div(2))
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
               oracle.request.returns()
 
@@ -12634,7 +12916,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice.timestamp)
+                .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
               oracle.request.returns()
 
@@ -12664,7 +12948,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
@@ -12754,7 +13040,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -12770,7 +13058,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -12800,7 +13090,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
@@ -12813,7 +13105,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.returns()
 
@@ -13000,7 +13294,9 @@ describe('Market', () => {
             })
 
             it('with shortfall', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -13015,7 +13311,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice.timestamp)
+                .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -13146,7 +13444,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 10800,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionHigherPrice2.timestamp).returns(oracleVersionHigherPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionHigherPrice2.timestamp)
+                .returns([oracleVersionHigherPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionHigherPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
@@ -13250,7 +13550,9 @@ describe('Market', () => {
             })
 
             it('default', async () => {
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -13265,7 +13567,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice.timestamp)
+                .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -13294,7 +13598,9 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_4.timestamp)
+                .returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
@@ -13306,7 +13612,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 14400,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+                .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
               oracle.request.returns()
 
@@ -13504,7 +13812,9 @@ describe('Market', () => {
               riskParameter.minMaintenance = parse6decimal('50')
               await market.connect(owner).updateRiskParameter(riskParameter)
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
@@ -13519,7 +13829,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 7200,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice.timestamp)
+                .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
@@ -13664,7 +13976,9 @@ describe('Market', () => {
                 timestamp: TIMESTAMP + 10800,
                 valid: true,
               }
-              oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+              oracle.at
+                .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+                .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([oracleVersionLowerPrice2, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
@@ -13752,7 +14066,7 @@ describe('Market', () => {
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, COLLATERAL, false)
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
@@ -13775,9 +14089,13 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 10800,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice_0.timestamp).returns(oracleVersionHigherPrice_0)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice_0.timestamp)
+              .returns([oracleVersionHigherPrice_0, INITIALIZED_ORACLE_RECEIPT])
 
-            oracle.at.whenCalledWith(oracleVersionHigherPrice_1.timestamp).returns(oracleVersionHigherPrice_1)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice_1.timestamp)
+              .returns([oracleVersionHigherPrice_1, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
             oracle.request.returns()
 
@@ -13943,7 +14261,7 @@ describe('Market', () => {
           marketParameter.maxPendingGlobal = BigNumber.from(3)
           await market.updateParameter(marketParameter)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14004,7 +14322,7 @@ describe('Market', () => {
           marketParameter.maxPendingLocal = BigNumber.from(3)
           await market.updateParameter(marketParameter)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14111,7 +14429,7 @@ describe('Market', () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
           await market.connect(owner).updateRiskParameter(riskParameter)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14120,7 +14438,7 @@ describe('Market', () => {
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14143,7 +14461,7 @@ describe('Market', () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
           await market.connect(owner).updateRiskParameter(riskParameter)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14152,7 +14470,7 @@ describe('Market', () => {
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14239,7 +14557,7 @@ describe('Market', () => {
               false,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14250,7 +14568,7 @@ describe('Market', () => {
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14284,7 +14602,7 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14302,7 +14620,7 @@ describe('Market', () => {
               ),
           ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14322,8 +14640,8 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
+          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([ORACLE_VERSION_5, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14363,14 +14681,16 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
             const oracleVersionHigherPrice = {
               price: parse6decimal('150'),
               timestamp: TIMESTAMP + 7200,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersionHigherPrice.timestamp).returns(oracleVersionHigherPrice)
+            oracle.at
+              .whenCalledWith(oracleVersionHigherPrice.timestamp)
+              .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice, oracleVersionHigherPrice.timestamp + 3600])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -14434,7 +14754,7 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7200,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
+            oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersion, TIMESTAMP + 7300])
             oracle.request.returns()
 
@@ -14466,7 +14786,7 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7300,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersion2.timestamp).returns(oracleVersion2)
+            oracle.at.whenCalledWith(oracleVersion2.timestamp).returns([oracleVersion2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersion2, TIMESTAMP + 7400])
             oracle.request.returns()
 
@@ -14494,7 +14814,7 @@ describe('Market', () => {
               timestamp: TIMESTAMP + 7380,
               valid: true,
             }
-            oracle.at.whenCalledWith(oracleVersion3.timestamp).returns(oracleVersion3)
+            oracle.at.whenCalledWith(oracleVersion3.timestamp).returns([oracleVersion3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersion3, TIMESTAMP + 7500])
             oracle.request.returns()
 
@@ -14546,7 +14866,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
               await settle(market, user)
@@ -14625,7 +14947,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
               await settle(market, user)
@@ -14704,7 +15028,9 @@ describe('Market', () => {
                   false,
                 )
 
-              oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+              oracle.at
+                .whenCalledWith(ORACLE_VERSION_2.timestamp)
+                .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
               await settle(market, user)
@@ -14763,7 +15089,7 @@ describe('Market', () => {
         })
 
         it('properly charges liquidation fee', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14778,7 +15104,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 7200,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice.timestamp)
+            .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14913,7 +15241,7 @@ describe('Market', () => {
               false,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14938,7 +15266,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 7200,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice.timestamp)
+            .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -14987,8 +15317,8 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
-          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
+          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([ORACLE_VERSION_5, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15000,7 +15330,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 14400,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+            .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15048,7 +15380,7 @@ describe('Market', () => {
         })
 
         it('default', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15063,7 +15395,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 7200,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice.timestamp)
+            .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15093,7 +15427,10 @@ describe('Market', () => {
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_4.timestamp)
-            .returns({ ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false })
+            .returns([
+              { ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false },
+              INITIALIZED_ORACLE_RECEIPT,
+            ])
           oracle.status.returns([
             { ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false },
             ORACLE_VERSION_5.timestamp,
@@ -15122,7 +15459,7 @@ describe('Market', () => {
             )
           await settle(market, userB)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns(ORACLE_VERSION_5)
+          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([ORACLE_VERSION_5, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15134,7 +15471,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 18000,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+            .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15309,7 +15648,7 @@ describe('Market', () => {
         })
 
         it('still credits the liquidation fee to claimable', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15324,7 +15663,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 7200,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice.timestamp)
+            .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15336,7 +15677,7 @@ describe('Market', () => {
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15348,7 +15689,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 14400,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice2.timestamp).returns(oracleVersionLowerPrice2)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+            .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15505,7 +15848,7 @@ describe('Market', () => {
             minScale: parse6decimal('0.001'),
           })
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15520,7 +15863,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 7200,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice.timestamp)
+            .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15559,7 +15904,7 @@ describe('Market', () => {
             minScale: parse6decimal('0.001'),
           })
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15573,7 +15918,9 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 7200,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersionLowerPrice.timestamp).returns(oracleVersionLowerPrice)
+          oracle.at
+            .whenCalledWith(oracleVersionLowerPrice.timestamp)
+            .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15593,7 +15940,7 @@ describe('Market', () => {
               userB.address,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15629,7 +15976,7 @@ describe('Market', () => {
         })
 
         it('settles the position w/o change', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15678,7 +16025,10 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([
+            { ...ORACLE_VERSION_3, valid: false },
+            { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE },
+          ])
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15780,7 +16130,7 @@ describe('Market', () => {
         })
 
         it('settles valid version after', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15837,7 +16187,10 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([
+            { ...ORACLE_VERSION_3, valid: false },
+            { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE },
+          ])
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15856,7 +16209,9 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_4.timestamp)
+            .returns([{ ...ORACLE_VERSION_4 }, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -15992,7 +16347,7 @@ describe('Market', () => {
         })
 
         it('settles invalid version after', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16043,7 +16398,10 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([
+            { ...ORACLE_VERSION_3, valid: false },
+            { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE },
+          ])
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16062,7 +16420,10 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([
+            { ...ORACLE_VERSION_4, valid: false },
+            { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE },
+          ])
           oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16187,7 +16548,7 @@ describe('Market', () => {
         })
 
         it('settles invalid then valid version at once', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16257,8 +16618,13 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([
+            { ...ORACLE_VERSION_3, valid: false },
+            { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE },
+          ])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_4.timestamp)
+            .returns([{ ...ORACLE_VERSION_4 }, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16377,7 +16743,7 @@ describe('Market', () => {
         })
 
         it('settles invalid then valid version at once then valid', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16453,8 +16819,13 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4 })
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([
+            { ...ORACLE_VERSION_3, valid: false },
+            { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE },
+          ])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_4.timestamp)
+            .returns([{ ...ORACLE_VERSION_4 }, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16473,7 +16844,9 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns({ ...ORACLE_VERSION_5 })
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_5.timestamp)
+            .returns([{ ...ORACLE_VERSION_5 }, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
           oracle.status.returns([{ ...ORACLE_VERSION_5 }, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16654,9 +17027,11 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([{ ...ORACLE_VERSION_3, valid: false }, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16755,7 +17130,7 @@ describe('Market', () => {
         })
 
         it('doesnt flip funding default', async () => {
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16774,9 +17149,9 @@ describe('Market', () => {
               false,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16889,7 +17264,7 @@ describe('Market', () => {
           riskParameter.makerReceiveOnly = true
           await market.updateRiskParameter(riskParameter)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16908,9 +17283,9 @@ describe('Market', () => {
               false,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -17304,9 +17679,13 @@ describe('Market', () => {
               owner.address, // solver
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -17476,7 +17855,7 @@ describe('Market', () => {
               false,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -17487,7 +17866,7 @@ describe('Market', () => {
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -18018,7 +18397,7 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -18081,7 +18460,7 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -18123,7 +18502,7 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4)
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -18247,7 +18626,7 @@ describe('Market', () => {
             ...DEFAULT_CHECKPOINT,
           })
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -18387,7 +18766,7 @@ describe('Market', () => {
               false,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -18401,7 +18780,7 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, 0, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -18562,7 +18941,7 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -18571,7 +18950,7 @@ describe('Market', () => {
           })
 
           it('correctly dampens the funding rate increase', async () => {
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -18663,7 +19042,7 @@ describe('Market', () => {
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false)
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -18692,7 +19071,7 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -18701,7 +19080,7 @@ describe('Market', () => {
           })
 
           it('correctly dampens the funding rate decrease', async () => {
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -18793,7 +19172,7 @@ describe('Market', () => {
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false)
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -18816,7 +19195,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
+          oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersion, oracleVersion.timestamp + 100])
           oracle.request.returns()
 
@@ -18852,7 +19231,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 100,
             valid: false,
           }
-          oracle.at.whenCalledWith(oracleVersion2.timestamp).returns(oracleVersion2)
+          oracle.at.whenCalledWith(oracleVersion2.timestamp).returns([oracleVersion2, INITIALIZED_ORACLE_RECEIPT])
 
           // Fulfill oracle version 3 (invalid)
           const oracleVersion3 = {
@@ -18860,7 +19239,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 200,
             valid: false,
           }
-          oracle.at.whenCalledWith(oracleVersion3.timestamp).returns(oracleVersion3)
+          oracle.at.whenCalledWith(oracleVersion3.timestamp).returns([oracleVersion3, INITIALIZED_ORACLE_RECEIPT])
 
           // next oracle version is valid
           const oracleVersion4 = {
@@ -18868,7 +19247,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 300,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersion4.timestamp).returns(oracleVersion4)
+          oracle.at.whenCalledWith(oracleVersion4.timestamp).returns([oracleVersion4, INITIALIZED_ORACLE_RECEIPT])
 
           // oracleVersion4 commited
           oracle.status.returns([oracleVersion4, oracleVersion4.timestamp + 100])
@@ -18892,7 +19271,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersion.timestamp).returns(oracleVersion)
+          oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersion, oracleVersion.timestamp + 100])
           oracle.request.returns()
 
@@ -18913,7 +19292,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 100,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersion2.timestamp).returns(oracleVersion2)
+          oracle.at.whenCalledWith(oracleVersion2.timestamp).returns([oracleVersion2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersion2, oracleVersion2.timestamp + 100])
           oracle.request.returns()
 
@@ -18931,7 +19310,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 200,
             valid: false,
           }
-          oracle.at.whenCalledWith(oracleVersion3.timestamp).returns(oracleVersion3)
+          oracle.at.whenCalledWith(oracleVersion3.timestamp).returns([oracleVersion3, INITIALIZED_ORACLE_RECEIPT])
 
           // next oracle version is valid
           const oracleVersion4 = {
@@ -18939,7 +19318,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 300,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersion4.timestamp).returns(oracleVersion4)
+          oracle.at.whenCalledWith(oracleVersion4.timestamp).returns([oracleVersion4, INITIALIZED_ORACLE_RECEIPT])
 
           // still returns oracleVersion2, because nothing commited for version 3, and version 4 time has passed but not yet commited
           oracle.status.returns([oracleVersion2, oracleVersion4.timestamp + 100])
@@ -18964,7 +19343,7 @@ describe('Market', () => {
             timestamp: TIMESTAMP + 400,
             valid: true,
           }
-          oracle.at.whenCalledWith(oracleVersion5.timestamp).returns(oracleVersion5)
+          oracle.at.whenCalledWith(oracleVersion5.timestamp).returns([oracleVersion5, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersion5, oracleVersion5.timestamp + 100])
           oracle.request.returns()
 
@@ -19011,7 +19390,7 @@ describe('Market', () => {
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19039,7 +19418,7 @@ describe('Market', () => {
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19058,7 +19437,7 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19130,8 +19509,12 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19242,9 +19625,13 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19387,9 +19774,13 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19513,7 +19904,7 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19533,9 +19924,9 @@ describe('Market', () => {
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_3.timestamp)
-            .returns({ ...ORACLE_VERSION_0, timestamp: ORACLE_VERSION_3.timestamp }) // id 3, empty version
+            .returns([{ ...ORACLE_VERSION_0, timestamp: ORACLE_VERSION_3.timestamp }, INITIALIZED_ORACLE_RECEIPT]) // id 3, empty version
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4) // latest
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT]) // latest
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19688,7 +20079,7 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           // Sync
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
 
@@ -19710,7 +20101,7 @@ describe('Market', () => {
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_3.timestamp)
-            .returns({ ...ORACLE_VERSION_0, timestamp: ORACLE_VERSION_3.timestamp }) // id 3, empty version
+            .returns([{ ...ORACLE_VERSION_0, timestamp: ORACLE_VERSION_3.timestamp }, INITIALIZED_ORACLE_RECEIPT]) // id 3, empty version
 
           await expect(
             market
@@ -19730,7 +20121,7 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns(ORACLE_VERSION_4) // latest
+          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT]) // latest
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -19976,9 +20367,13 @@ describe('Market', () => {
                 liquidator.address, // originator
                 owner.address, // solver
               )
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -20199,9 +20594,13 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -20422,9 +20821,13 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -20645,9 +21048,13 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -20812,7 +21219,9 @@ describe('Market', () => {
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -20883,7 +21292,9 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -21051,7 +21462,9 @@ describe('Market', () => {
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -21122,7 +21535,9 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -21290,7 +21705,9 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -21361,7 +21778,9 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -21531,7 +21950,9 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -21602,7 +22023,9 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -21779,7 +22202,9 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -21849,7 +22274,9 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -22026,7 +22453,9 @@ describe('Market', () => {
                 false,
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -22096,7 +22525,9 @@ describe('Market', () => {
                 owner.address, // solver
               )
 
-            oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -22342,9 +22773,9 @@ describe('Market', () => {
           oracleFee: parse6decimal('0.1'),
         })
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns(ORACLE_VERSION_0)
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns(ORACLE_VERSION_1)
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
@@ -22364,9 +22795,9 @@ describe('Market', () => {
             false,
           )
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns(ORACLE_VERSION_2)
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
-        oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns(ORACLE_VERSION_3)
+        oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 

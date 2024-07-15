@@ -9,6 +9,8 @@ import "../types/RiskParameter.sol";
 import "../types/Global.sol";
 import "../types/Position.sol";
 import "../types/Version.sol";
+import "../types/OracleVersion.sol";
+import "../types/OracleReceipt.sol";
 
 /// @dev The result of the version accumulation
 struct VersionAccumulationResult {

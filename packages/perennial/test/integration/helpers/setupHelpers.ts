@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { utils, ContractTransaction, constants } from 'ethers'
+import { utils, BigNumber, ContractTransaction, constants } from 'ethers'
 
 import { impersonate } from '../../../../common/testutil'
 import {
@@ -78,7 +78,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       CHAINLINK_CUSTOM_CURRENCIES.USD,
       { provider: payoff, decimals: -5 },
       1,
-    ).init())
+    ).init(BigNumber.from(0), BigNumber.from(0)))
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()

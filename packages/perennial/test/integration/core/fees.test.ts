@@ -100,6 +100,7 @@ describe('Fees', () => {
 
   beforeEach(async () => {
     instanceVars = await loadFixture(fixture)
+    instanceVars.chainlink.updateParams(BigNumber.from(0), parse6decimal('0.3'))
     await instanceVars.chainlink.reset()
     market = await createMarket(instanceVars, undefined, RISK_PARAMS, MARKET_PARAMS)
   })
@@ -1550,10 +1551,10 @@ describe('Fees', () => {
 
         await market.updateParameter({
           ...marketParams,
-          settlementFee: parse6decimal('1.23'),
           makerFee: 0,
           takerFee: 0,
         })
+        instanceVars.chainlink.updateParams(parse6decimal('1.23'), instanceVars.chainlink.oracleFee)
       })
 
       it('charges settlement fee for maker', async () => {
