@@ -5,7 +5,7 @@ import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 
-import { IVerifier } from "./interfaces/IVerifier.sol";
+import { IAccountVerifier } from "./interfaces/IAccountVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
@@ -14,11 +14,11 @@ import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Verifier
 /// @notice ERC712 signed message verifier for the Perennial V2 Collateral Accounts package.
-contract Verifier is VerifierBase, IVerifier {
+contract AccountVerifier is VerifierBase, IAccountVerifier {
     /// @dev Initializes the domain separator and parameter caches
     constructor() EIP712("Perennial V2 Collateral Accounts", "1.0.0") { }
 
-    /// @inheritdoc IVerifier
+    /// @inheritdoc IAccountVerifier
     function verifyAction(Action calldata action, bytes calldata signature)
         external
         validateAndCancel(action.common, signature)
@@ -30,7 +30,7 @@ contract Verifier is VerifierBase, IVerifier {
         )) revert VerifierInvalidSignerError();
     }
 
-    /// @inheritdoc IVerifier
+    /// @inheritdoc IAccountVerifier
     function verifyDeployAccount(DeployAccount calldata deployAccount, bytes calldata signature)
         external
         validateAndCancel(deployAccount.action.common, signature)
@@ -42,7 +42,7 @@ contract Verifier is VerifierBase, IVerifier {
         )) revert VerifierInvalidSignerError();
     }
 
-    /// @inheritdoc IVerifier
+    /// @inheritdoc IAccountVerifier
     function verifyMarketTransfer(MarketTransfer calldata marketTransfer, bytes calldata signature)
         external
         validateAndCancel(marketTransfer.action.common, signature)
@@ -54,7 +54,7 @@ contract Verifier is VerifierBase, IVerifier {
         )) revert VerifierInvalidSignerError();
     }
 
-    /// @inheritdoc IVerifier
+    /// @inheritdoc IAccountVerifier
     function verifyRebalanceConfigChange(RebalanceConfigChange calldata change, bytes calldata signature)
         external
         validateAndCancel(change.action.common, signature)
@@ -66,7 +66,7 @@ contract Verifier is VerifierBase, IVerifier {
         )) revert VerifierInvalidSignerError();
     }
 
-    /// @inheritdoc IVerifier
+    /// @inheritdoc IAccountVerifier
     function verifyWithdrawal(Withdrawal calldata withdrawal, bytes calldata signature)
         external
         validateAndCancel(withdrawal.action.common, signature)

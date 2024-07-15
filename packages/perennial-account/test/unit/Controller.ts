@@ -12,7 +12,7 @@ import {
   IERC20,
   IERC20Metadata,
   IEmptySetReserve,
-  IVerifier,
+  IAccountVerifier,
   Verifier__factory,
 } from '../../types/generated'
 // import { RebalanceConfigChangeStruct, RebalanceConfigStruct } from '../../types/generated/contracts/Controller'
@@ -29,7 +29,7 @@ const { ethers } = HRE
 describe('Controller', () => {
   let controller: Controller
   let marketFactory: FakeContract<IMarketFactory>
-  let verifier: IVerifier
+  let verifier: IAccountVerifier
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress

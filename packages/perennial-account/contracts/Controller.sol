@@ -12,7 +12,7 @@ import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IM
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
-import { IVerifier } from "./interfaces/IVerifier.sol";
+import { IAccountVerifier } from "./interfaces/IAccountVerifier.sol";
 import { RebalanceLib } from "./libs/RebalanceLib.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
@@ -40,7 +40,7 @@ contract Controller is Factory, IController {
     IMarketFactory public marketFactory;
 
     /// @dev Contract used to validate message signatures
-    IVerifier public verifier;
+    IAccountVerifier public verifier;
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
@@ -67,7 +67,7 @@ contract Controller is Factory, IController {
     /// @inheritdoc IController
     function initialize(
         IMarketFactory marketFactory_,
-        IVerifier verifier_
+        IAccountVerifier verifier_
     ) external initializer(1) {
         __Factory__initialize();
         marketFactory = marketFactory_;

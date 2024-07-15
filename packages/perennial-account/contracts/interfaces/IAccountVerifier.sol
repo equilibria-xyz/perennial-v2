@@ -9,7 +9,7 @@ import { RebalanceConfigChange } from "../types/RebalanceConfigChange.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
 /// @notice ERC712 signed message verifier for the Perennial V2 Collateral Accounts package.
-interface IVerifier is IVerifierBase {
+interface IAccountVerifier is IVerifierBase {
     /// @notice Verifies the signature of no-op action message
     /// @dev Cancels the nonce after verifying the signature
     ///      Reverts if the signature does not match the signer

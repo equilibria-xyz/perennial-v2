@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ActionStruct, CommonStruct } from '../../types/generated/contracts/Verifier'
-import { IVerifier } from '../../types/generated'
+import { IAccountVerifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
 import {
   DeployAccountStruct,
@@ -9,7 +9,7 @@ import {
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
 
-function erc721Domain(verifier: IVerifier | FakeContract<IVerifier>): {
+function erc721Domain(verifier: IAccountVerifier | FakeContract<IAccountVerifier>): {
   name: string
   version: string
   chainId: number
@@ -43,7 +43,7 @@ const actionType = {
 
 export async function signCommon(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   common: CommonStruct,
 ): Promise<string> {
   return await signer._signTypedData(erc721Domain(verifier), commonType, common)
@@ -51,7 +51,7 @@ export async function signCommon(
 
 export async function signAction(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   action: ActionStruct,
 ): Promise<string> {
   const types = {
@@ -63,7 +63,7 @@ export async function signAction(
 
 export async function signDeployAccount(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   message: DeployAccountStruct,
 ): Promise<string> {
   const types = {
@@ -77,7 +77,7 @@ export async function signDeployAccount(
 
 export async function signMarketTransfer(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   message: MarketTransferStruct,
 ): Promise<string> {
   const types = {
@@ -95,7 +95,7 @@ export async function signMarketTransfer(
 
 export async function signRebalanceConfigChange(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   message: RebalanceConfigChangeStruct,
 ): Promise<string> {
   const types = {
@@ -119,7 +119,7 @@ export async function signRebalanceConfigChange(
 
 export async function signWithdrawal(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   message: WithdrawalStruct,
 ): Promise<string> {
   const types = {

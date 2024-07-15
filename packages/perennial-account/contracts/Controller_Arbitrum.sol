@@ -15,7 +15,7 @@ import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IM
 
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
-import { IVerifier } from "./interfaces/IVerifier.sol";
+import { IAccountVerifier } from "./interfaces/IAccountVerifier.sol";
 import { Controller } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
@@ -36,11 +36,11 @@ contract Controller_Arbitrum is Controller, Kept_Arbitrum {
 
     /// @notice Configures message verification and keeper compensation
     /// @param marketFactory_ Contract used to validate delegated signers
-    /// @param verifier_ Contract used to validate EIP-712 message signatures
+    /// @param verifier_ Contract used to validate collateral account message signatures
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
         IMarketFactory marketFactory_,
-        IVerifier verifier_,
+        IAccountVerifier verifier_,
         AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
         __Factory__initialize();

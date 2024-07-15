@@ -14,10 +14,10 @@ import {
   ArbGasInfo,
   Controller_Arbitrum,
   IAccount,
+  IAccountVerifier,
   IERC20Metadata,
   IMarket,
   IMarketFactory,
-  IVerifier,
   Verifier__factory,
 } from '../../types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
