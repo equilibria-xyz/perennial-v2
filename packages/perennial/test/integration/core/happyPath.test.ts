@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle, updateNoOp } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
   DEFAULT_POSITION,
@@ -168,7 +168,6 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
-      latestPrice: PRICE_0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -189,21 +188,25 @@ describe('Happy Path', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await updateNoOp(market, user)
+    await settle(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
       ...DEFAULT_LOCAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       collateral: COLLATERAL,
     })
-    expectOrderEq(await market.pendingOrders(user.address, 2), {
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      makerPos: POSITION,
+      collateral: COLLATERAL,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -214,13 +217,15 @@ describe('Happy Path', () => {
     // Check global post-settlement state
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
-      latestPrice: PRICE_2,
     })
-    expectOrderEq(await market.pendingOrder(2), {
+    expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      makerPos: POSITION,
+      collateral: COLLATERAL,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -281,7 +286,6 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
-      latestPrice: PRICE_0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -302,21 +306,25 @@ describe('Happy Path', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await updateNoOp(market, user)
+    await settle(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
       ...DEFAULT_LOCAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       collateral: COLLATERAL,
     })
-    expectOrderEq(await market.pendingOrders(user.address, 2), {
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL,
+      makerPos: POSITION,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -327,13 +335,15 @@ describe('Happy Path', () => {
     // Check global post-settlement state
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
-      latestPrice: PRICE_1,
     })
-    expectOrderEq(await market.pendingOrder(2), {
+    expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL,
+      makerPos: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -401,7 +411,6 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
-      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -478,7 +487,6 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
-      latestPrice: PRICE_1,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -588,7 +596,6 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
-      latestPrice: PRICE_0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -613,19 +620,22 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await updateNoOp(market, userB)
+    await settle(market, userB)
 
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       protocolFee: '18',
       donation: '18',
-      latestPrice: PRICE_3,
     })
-    expectOrderEq(await market.pendingOrder(2), {
+    expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_3,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL.mul(2),
+      makerPos: POSITION,
+      longPos: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -636,16 +646,20 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       ...DEFAULT_LOCAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
     })
-    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_3,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      collateral: COLLATERAL,
+      longPos: POSITION_B,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -720,7 +734,6 @@ describe('Happy Path', () => {
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
       currentId: 1,
-      latestPrice: PRICE_0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -745,19 +758,22 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await updateNoOp(market, userB)
+    await settle(market, userB)
 
     expectGlobalEq(await market.global(), {
       ...DEFAULT_GLOBAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       protocolFee: '18',
       donation: '18',
-      latestPrice: PRICE_3,
     })
-    expectOrderEq(await market.pendingOrder(2), {
+    expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_3,
+      timestamp: TIMESTAMP_1,
+      orders: 3,
+      collateral: COLLATERAL.mul(2),
+      makerPos: POSITION,
+      longPos: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -767,16 +783,20 @@ describe('Happy Path', () => {
     })
     expectLocalEq(await market.locals(userB.address), {
       ...DEFAULT_LOCAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
     })
-    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_3,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL,
+      longPos: POSITION_B,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -854,7 +874,6 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
-      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -946,7 +965,6 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
-      latestPrice: PRICE_2,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -1217,7 +1235,6 @@ describe('Happy Path', () => {
       latestId: 2,
       protocolFee: '86263589',
       donation: '86263590',
-      latestPrice: '117462552',
     })
     expectOrderEq(await market.pendingOrder(3), {
       ...DEFAULT_ORDER,
@@ -1396,7 +1413,6 @@ describe('Happy Path', () => {
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
       donation: (await market.global()).donation,
-      latestPrice: PRICE,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(delay + 1), {
