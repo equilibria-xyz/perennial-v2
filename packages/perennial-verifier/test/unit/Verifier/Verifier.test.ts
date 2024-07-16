@@ -8,7 +8,14 @@ import HRE from 'hardhat'
 
 import { Verifier, Verifier__factory, IERC1271 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { signIntent, signFill, signOperatorUpdate, signSignerUpdate, signAccessUpdateBatch } from '../../helpers/erc712'
+import {
+  signIntent,
+  signFill,
+  signOperatorUpdate,
+  signSignerUpdate,
+  signAccessUpdateBatch,
+  signCommon,
+} from '../../helpers/erc712'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -28,6 +35,27 @@ describe('Verifier', () => {
 
     verifier = await new Verifier__factory(owner).deploy()
     scSigner = await smock.fake<IERC1271>('IERC1271')
+  })
+
+  describe('#verifyCommon', () => {
+    it('verifies common messages', async () => {
+      // ensures base-layer verification is configured properly
+      const commonMessage = {
+        account: caller.address,
+        signer: caller.address,
+        domain: caller.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      }
+      const signature = await signCommon(caller, verifier, commonMessage)
+
+      await expect(verifier.connect(caller).verifyCommon(commonMessage, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
   })
 
   describe('#verifyIntent', () => {
