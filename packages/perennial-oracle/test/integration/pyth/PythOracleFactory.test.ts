@@ -114,6 +114,11 @@ testOracles.forEach(testOracle => {
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
       await oracleFactory.initialize(dsu.address)
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
+      await oracleFactory.connect(owner).updateParameter({
+        maxGranularity: 10000,
+        maxSettlementFee: parse6decimal('1000'),
+        maxOracleFee: parse6decimal('0.5'),
+      })
 
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
       pythOracleFactory = await new PythFactory__factory(owner).deploy(
@@ -136,7 +141,6 @@ testOracles.forEach(testOracle => {
         5_000,
       )
       await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
-      await pythOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
       await oracleFactory.register(pythOracleFactory.address)
       await pythOracleFactory.authorize(oracleFactory.address)
       await pythOracleFactory.register(powerTwoPayoff.address)
@@ -345,8 +349,13 @@ testOracles.forEach(testOracle => {
       await time.reset()
       await setup()
 
-      await time.increaseTo(STARTING_TIME - 1)
+      await time.increaseTo(STARTING_TIME - 2)
       // block.timestamp of the next call will be STARTING_TIME
+
+      // set the oracle parameters at STARTING_TIME - 1
+      await pythOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+
+      // run tests at STARTING_TIME
     })
 
     describe('Factory', async () => {
@@ -701,14 +710,14 @@ testOracles.forEach(testOracle => {
           value: 1,
         })
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.true
-        expect(version.price).to.equal('1838167031')
+        expect(version[0].valid).to.be.true
+        expect(version[0].price).to.equal('1838167031')
 
         // Didn't incentivize keeper
         const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
         expect(newDSUBalance.sub(originalDSUBalance)).to.equal(0)
 
-        expect(await keeperOracle.connect(user).latest()).to.deep.equal(version)
+        expect(await keeperOracle.connect(user).latest()).to.deep.equal(version[0])
       })
 
       it('reverts if not called from factory', async () => {
@@ -1252,16 +1261,16 @@ testOracles.forEach(testOracle => {
         const parameter = await pythOracleFactory.parameter()
         await expect(
           pythOracleFactory.connect(owner).updateParameter(0, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidGranularityError')
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'ProviderParameterStorageInvalidError')
       })
 
       it('returns the current timestamp w/ granularity > MAX', async () => {
         const parameter = await pythOracleFactory.parameter()
         await expect(
-          pythOracleFactory.connect(owner).updateParameter(3601, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidGranularityError')
+          pythOracleFactory.connect(owner).updateParameter(10001, parameter.settlementFee, parameter.oracleFee),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidParameterError')
         await expect(
-          pythOracleFactory.connect(owner).updateParameter(3600, parameter.settlementFee, parameter.oracleFee),
+          pythOracleFactory.connect(owner).updateParameter(10000, parameter.settlementFee, parameter.oracleFee),
         ).to.be.not.reverted
       })
 
@@ -1304,7 +1313,7 @@ testOracles.forEach(testOracle => {
         await pythOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
         await expect(
           pythOracleFactory.connect(owner).updateParameter(1000, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidGranularityError')
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidParameterError')
       })
 
       it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
@@ -1345,24 +1354,29 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
+        await pythOracleFactory.connect(owner).updateParameter(10, parse6decimal('1.5'), parse6decimal('0.1'))
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        await pythOracleFactory.connect(owner).updateParameter(10, 0, 0)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
         })
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.true
-        expect(version.price).to.equal('1838167031')
+        expect(version[0].price).to.equal('1838167031')
+        expect(version[0].valid).to.equal(true)
+        expect(version[1].settlementFee).to.equal(parse6decimal('1.5'))
+        expect(version[1].oracleFee).to.equal(parse6decimal('0.1'))
       })
 
       it('returns invalid version if that version was not requested', async () => {
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.false
+        expect(version[0].valid).to.be.false
       })
 
       it('returns invalid version if that version was requested but not committed', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.false
+        expect(version[0].valid).to.be.false
       })
     })
   })

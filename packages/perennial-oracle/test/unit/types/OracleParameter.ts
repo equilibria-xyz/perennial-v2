@@ -9,12 +9,10 @@ import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 
-const DEFAULT_PRICE_RESPONSE: OracleParameterStruct = {
-  latestGranularity: 0,
-  currentGranularity: 0,
-  effectiveAfter: 0,
-  settlementFee: 0,
-  oracleFee: 0,
+const DEFAULT_ORACLE_PARAMETER: OracleParameterStruct = {
+  maxGranularity: 1,
+  maxSettlementFee: 0,
+  maxOracleFee: 0,
 }
 
 describe('OracleParameter', () => {
@@ -28,106 +26,82 @@ describe('OracleParameter', () => {
   })
 
   describe('storage', () => {
-    describe('.latestGranularity', async () => {
+    describe('.maxGranularity', async () => {
       const STORAGE_SIZE = 16
-      it('saves if in range', async () => {
+      it('saves if in range (above)', async () => {
         await oracleParameter.store({
-          ...DEFAULT_PRICE_RESPONSE,
-          latestGranularity: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          ...DEFAULT_ORACLE_PARAMETER,
+          maxGranularity: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await oracleParameter.read()
-        expect(value.latestGranularity).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxGranularity).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if latestGranularity out of range', async () => {
+      it('saves if in range (below)', async () => {
+        await oracleParameter.store({
+          ...DEFAULT_ORACLE_PARAMETER,
+          maxGranularity: 1,
+        })
+        const value = await oracleParameter.read()
+        expect(value.maxGranularity).to.equal(1)
+      })
+
+      it('reverts if maxGranularity out of range (above)', async () => {
         await expect(
           oracleParameter.store({
-            ...DEFAULT_PRICE_RESPONSE,
-            latestGranularity: BigNumber.from(2).pow(STORAGE_SIZE),
+            ...DEFAULT_ORACLE_PARAMETER,
+            maxGranularity: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
+      })
+
+      it('reverts if maxGranularity out of range (below)', async () => {
+        await expect(
+          oracleParameter.store({
+            ...DEFAULT_ORACLE_PARAMETER,
+            maxGranularity: 0,
           }),
         ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
       })
     })
 
-    describe('.currentGranularity', async () => {
-      const STORAGE_SIZE = 16
-      it('saves if in range', async () => {
-        await oracleParameter.store({
-          ...DEFAULT_PRICE_RESPONSE,
-          currentGranularity: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await oracleParameter.read()
-        expect(value.currentGranularity).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if currentGranularity out of range', async () => {
-        await expect(
-          oracleParameter.store({
-            ...DEFAULT_PRICE_RESPONSE,
-            currentGranularity: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
-      })
-    })
-
-    describe('.effectiveAfter', async () => {
-      const STORAGE_SIZE = 32
-      it('saves if in range', async () => {
-        await oracleParameter.store({
-          ...DEFAULT_PRICE_RESPONSE,
-          effectiveAfter: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await oracleParameter.read()
-        expect(value.effectiveAfter).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if effectiveAfter out of range', async () => {
-        await expect(
-          oracleParameter.store({
-            ...DEFAULT_PRICE_RESPONSE,
-            effectiveAfter: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
-      })
-    })
-
-    context('.settlementFee', async () => {
+    context('.maxSettlementFee', async () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await oracleParameter.store({
-          ...DEFAULT_PRICE_RESPONSE,
-          settlementFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          ...DEFAULT_ORACLE_PARAMETER,
+          maxSettlementFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await oracleParameter.read()
-        expect(value.settlementFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxSettlementFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if settlementFee out of range', async () => {
+      it('reverts if maxSettlementFee out of range', async () => {
         await expect(
           oracleParameter.store({
-            ...DEFAULT_PRICE_RESPONSE,
-            settlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
+            ...DEFAULT_ORACLE_PARAMETER,
+            maxSettlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
       })
     })
 
-    context('.oracleFee', async () => {
+    context('.maxOracleFee', async () => {
       const STORAGE_SIZE = 24
       it('saves if in range', async () => {
         await oracleParameter.store({
-          ...DEFAULT_PRICE_RESPONSE,
-          oracleFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          ...DEFAULT_ORACLE_PARAMETER,
+          maxOracleFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await oracleParameter.read()
-        expect(value.oracleFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxOracleFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if oracleFee out of range', async () => {
+      it('reverts if maxOracleFee out of range', async () => {
         await expect(
           oracleParameter.store({
-            ...DEFAULT_PRICE_RESPONSE,
-            oracleFee: BigNumber.from(2).pow(STORAGE_SIZE),
+            ...DEFAULT_ORACLE_PARAMETER,
+            maxOracleFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
       })

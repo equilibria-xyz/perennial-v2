@@ -6,6 +6,7 @@ import "@equilibria/root/attribute/interfaces/IFactory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "./IOracle.sol";
+import { OracleParameter } from "../types/OracleParameter.sol";
 
 interface IOracleFactory is IOracleProviderFactory, IFactory {
     event MaxClaimUpdated(UFixed6 newMaxClaim);
@@ -25,6 +26,8 @@ interface IOracleFactory is IOracleProviderFactory, IFactory {
 
     function factories(IOracleProviderFactory factory) external view returns (bool);
     function initialize(Token18 incentive) external;
+    function parameter() external returns (OracleParameter memory);
+    function updateParameter(OracleParameter memory newParameter) external;
     function updateId(IOracleProvider oracleProvider, bytes32 id) external;
     function register(IOracleProviderFactory factory) external;
     function create(bytes32 id, IOracleProviderFactory factory) external returns (IOracle newOracle);

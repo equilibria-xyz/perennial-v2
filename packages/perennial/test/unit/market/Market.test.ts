@@ -499,13 +499,11 @@ describe('Market', () => {
     marketParameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
-      oracleFee: parse6decimal('0.1'),
       riskFee: parse6decimal('0.1'),
       makerFee: 0,
       takerFee: 0,
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
-      settlementFee: 0,
       closed: false,
       settle: false,
     }
@@ -573,11 +571,8 @@ describe('Market', () => {
       expect(marketParameterResult.interestFee).to.equal(0)
       expect(marketParameterResult.makerFee).to.equal(0)
       expect(marketParameterResult.takerFee).to.equal(0)
-      expect(marketParameterResult.oracleFee).to.equal(0)
-      expect(marketParameterResult.riskFee).to.equal(0)
       expect(marketParameterResult.maxPendingGlobal).to.equal(0)
       expect(marketParameterResult.maxPendingLocal).to.equal(0)
-      expect(marketParameterResult.settlementFee).to.equal(0)
       expect(marketParameterResult.closed).to.equal(false)
     })
 
@@ -653,11 +648,9 @@ describe('Market', () => {
         interestFee: parse6decimal('0.02'),
         makerFee: parse6decimal('0.01'),
         takerFee: parse6decimal('0.01'),
-        oracleFee: parse6decimal('0.04'),
         riskFee: parse6decimal('0.05'),
         maxPendingGlobal: 5,
         maxPendingLocal: 3,
-        settlementFee: parse6decimal('0.09'),
         closed: true,
         settle: true,
       }
@@ -672,11 +665,8 @@ describe('Market', () => {
         expect(marketParameter.interestFee).to.equal(defaultMarketParameter.interestFee)
         expect(marketParameter.makerFee).to.equal(defaultMarketParameter.makerFee)
         expect(marketParameter.takerFee).to.equal(defaultMarketParameter.takerFee)
-        expect(marketParameter.oracleFee).to.equal(defaultMarketParameter.oracleFee)
-        expect(marketParameter.riskFee).to.equal(defaultMarketParameter.riskFee)
         expect(marketParameter.maxPendingGlobal).to.equal(defaultMarketParameter.maxPendingGlobal)
         expect(marketParameter.maxPendingLocal).to.equal(defaultMarketParameter.maxPendingLocal)
-        expect(marketParameter.settlementFee).to.equal(defaultMarketParameter.settlementFee)
         expect(marketParameter.closed).to.equal(defaultMarketParameter.closed)
         expect(marketParameter.settle).to.equal(defaultMarketParameter.settle)
       })
@@ -2408,10 +2398,6 @@ describe('Market', () => {
             riskParameter.makerFee = riskParameterMakerFee
             await market.updateRiskParameter(riskParameter)
 
-            const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
-            await market.updateParameter(marketParameter)
-
             const MAKER_FEE = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
             const SETTLEMENT_FEE = parse6decimal('0.50')
 
@@ -2987,7 +2973,6 @@ describe('Market', () => {
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
-              marketParameter.settlementFee = parse6decimal('0.50')
               marketParameter.makerFee = parse6decimal('0.01')
               await market.updateParameter(marketParameter)
 
@@ -3692,10 +3677,6 @@ describe('Market', () => {
               riskParameter.takerFee = riskParameterTakerFee
               await market.updateRiskParameter(riskParameter)
 
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.settlementFee = parse6decimal('0.50')
-              await market.updateParameter(marketParameter)
-
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
               const TAKER_FEE_WITHOUT_IMPACT = parse6decimal('7.38') // position * (0.01 + 0.002) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -3834,7 +3815,6 @@ describe('Market', () => {
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
-              marketParameter.settlementFee = parse6decimal('0.50')
               marketParameter.takerFee = parse6decimal('0.01')
               await market.updateParameter(marketParameter)
 
@@ -4670,7 +4650,6 @@ describe('Market', () => {
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
-                marketParameter.settlementFee = parse6decimal('0.50')
                 marketParameter.takerFee = parse6decimal('0.01')
                 await market.updateParameter(marketParameter)
 
@@ -7062,10 +7041,6 @@ describe('Market', () => {
               riskParameter.takerFee = riskParameterTakerFee
               await market.updateRiskParameter(riskParameter)
 
-              const marketParameter = { ...(await market.parameter()) }
-              marketParameter.settlementFee = parse6decimal('0.50')
-              await market.updateParameter(marketParameter)
-
               const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
               const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -7207,7 +7182,6 @@ describe('Market', () => {
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
-              marketParameter.settlementFee = parse6decimal('0.50')
               marketParameter.takerFee = parse6decimal('0.01')
               await market.updateParameter(marketParameter)
 
@@ -8050,7 +8024,6 @@ describe('Market', () => {
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
-                marketParameter.settlementFee = parse6decimal('0.50')
                 marketParameter.takerFee = parse6decimal('0.01')
                 await market.updateParameter(marketParameter)
 
@@ -9816,7 +9789,6 @@ describe('Market', () => {
             await market.updateRiskParameter(riskParameter)
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.makerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -10615,7 +10587,6 @@ describe('Market', () => {
               await market.updateRiskParameter(riskParameter)
 
               const marketParameter = { ...(await market.parameter()) }
-              marketParameter.settlementFee = parse6decimal('0.50')
               marketParameter.takerFee = parse6decimal('0.01')
               await market.updateParameter(marketParameter)
 
@@ -12072,7 +12043,6 @@ describe('Market', () => {
                 await market.updateRiskParameter(riskParameter)
 
                 const marketParameter = { ...(await market.parameter()) }
-                marketParameter.settlementFee = parse6decimal('0.50')
                 marketParameter.takerFee = parse6decimal('0.01')
                 await market.updateParameter(marketParameter)
 
@@ -15990,10 +15960,6 @@ describe('Market', () => {
           riskParameter.takerFee = riskParameterTakerFee
           await market.updateRiskParameter(riskParameter)
 
-          const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
-
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
@@ -16145,7 +16111,6 @@ describe('Market', () => {
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
@@ -16361,10 +16326,6 @@ describe('Market', () => {
           riskParameter.takerFee = riskParameterTakerFee
           await market.updateRiskParameter(riskParameter)
 
-          const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
-
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
           const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
@@ -16563,10 +16524,6 @@ describe('Market', () => {
           riskParameter.staleAfter = BigNumber.from(9600)
           await market.updateRiskParameter(riskParameter)
 
-          const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
-          await market.updateParameter(marketParameter)
-
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const TAKER_FEE_FEE = TAKER_FEE.div(10)
           const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
@@ -16759,7 +16716,6 @@ describe('Market', () => {
           await market.updateRiskParameter(riskParameter)
 
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
@@ -17579,7 +17535,6 @@ describe('Market', () => {
           })
 
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
@@ -19471,7 +19426,6 @@ describe('Market', () => {
           })
 
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
           marketParameter.fundingFee = BigNumber.from(0)
           marketParameter.makerFee = parse6decimal('0.005')
           await market.updateParameter(marketParameter)
@@ -19584,7 +19538,6 @@ describe('Market', () => {
           })
 
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
@@ -19733,7 +19686,6 @@ describe('Market', () => {
           })
 
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
@@ -20269,7 +20221,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -20495,7 +20446,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -20722,7 +20672,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -20949,7 +20898,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -21178,7 +21126,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -21421,7 +21368,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -21664,7 +21610,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -21909,7 +21854,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -22154,7 +22098,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -22405,7 +22348,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            marketParameter.settlementFee = parse6decimal('0.50')
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -22657,7 +22599,6 @@ describe('Market', () => {
           })
 
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
@@ -22714,7 +22655,6 @@ describe('Market', () => {
           })
 
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settlementFee = parse6decimal('0.50')
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
@@ -22770,7 +22710,6 @@ describe('Market', () => {
         await market.updateParameter({
           ...marketParameter,
           riskFee: parse6decimal('0.2'),
-          oracleFee: parse6decimal('0.1'),
         })
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])

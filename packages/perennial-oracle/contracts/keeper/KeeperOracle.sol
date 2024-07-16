@@ -97,6 +97,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         PriceRequest memory currentVersion = _requests[_global.currentIndex].read();
 
+        // TODO: test that no-new-price requests do not trigger priced requests
         if (currentVersion.timestamp == priceRequest.timestamp) return; // already requested new price
         if (newPrice) {
             _requests[++_global.currentIndex].store(priceRequest);

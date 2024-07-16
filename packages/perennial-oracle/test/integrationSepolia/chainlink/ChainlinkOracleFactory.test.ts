@@ -179,6 +179,11 @@ testOracles.forEach(testOracle => {
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
       await oracleFactory.initialize(DSU_ADDRESS)
       await oracleFactory.updateMaxClaim(parse6decimal('100'))
+      await oracleFactory.connect(owner).updateParameter({
+        maxGranularity: 10000,
+        maxSettlementFee: parse6decimal('1000'),
+        maxOracleFee: parse6decimal('0.5'),
+      })
 
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
       chainlinkOracleFactory = await new ChainlinkFactory__factory(owner).deploy(
@@ -203,7 +208,6 @@ testOracles.forEach(testOracle => {
         5_000,
       )
       await chainlinkOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
-      await chainlinkOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
       await oracleFactory.register(chainlinkOracleFactory.address)
       await chainlinkOracleFactory.authorize(oracleFactory.address)
       await chainlinkOracleFactory.register(powerTwoPayoff.address)
@@ -384,8 +388,13 @@ testOracles.forEach(testOracle => {
       await time.reset()
       await setup()
 
-      await time.increaseTo(STARTING_TIME - 1)
+      await time.increaseTo(STARTING_TIME - 2)
       // block.timestamp of the next call will be STARTING_TIME
+
+      // set the oracle parameters at STARTING_TIME - 1
+      await chainlinkOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+
+      // run tests at STARTING_TIME
     })
 
     describe('Factory', async () => {
@@ -736,14 +745,14 @@ testOracles.forEach(testOracle => {
           value: getFee(REPORT),
         })
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.true
-        expect(version.price).to.equal(getPrices(REPORT)[0])
+        expect(version[0].valid).to.be.true
+        expect(version[0].price).to.equal(getPrices(REPORT)[0])
 
         // Didn't incentivize keeper
         const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
         expect(newDSUBalance.sub(originalDSUBalance)).to.equal(0)
 
-        expect(await keeperOracle.connect(user).latest()).to.deep.equal(version)
+        expect(await keeperOracle.connect(user).latest()).to.deep.equal(version[0])
       })
 
       it('reverts if not called from factory', async () => {
@@ -1181,16 +1190,16 @@ testOracles.forEach(testOracle => {
         const parameter = await chainlinkOracleFactory.parameter()
         await expect(
           chainlinkOracleFactory.connect(owner).updateParameter(0, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidGranularityError')
+        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'ProviderParameterStorageInvalidError')
       })
 
       it('returns the current timestamp w/ granularity > MAX', async () => {
         const parameter = await chainlinkOracleFactory.parameter()
         await expect(
-          chainlinkOracleFactory.connect(owner).updateParameter(3601, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidGranularityError')
+          chainlinkOracleFactory.connect(owner).updateParameter(10001, parameter.settlementFee, parameter.oracleFee),
+        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidParameterError')
         await expect(
-          chainlinkOracleFactory.connect(owner).updateParameter(3600, parameter.settlementFee, parameter.oracleFee),
+          chainlinkOracleFactory.connect(owner).updateParameter(10000, parameter.settlementFee, parameter.oracleFee),
         ).to.be.not.reverted
       })
 
@@ -1232,7 +1241,7 @@ testOracles.forEach(testOracle => {
         await chainlinkOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
         await expect(
           chainlinkOracleFactory.connect(owner).updateParameter(1000, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidGranularityError')
+        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidParameterError')
       })
 
       it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
@@ -1273,24 +1282,29 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
+        await chainlinkOracleFactory.connect(owner).updateParameter(10, parse6decimal('1.5'), parse6decimal('0.1'))
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        await chainlinkOracleFactory.connect(owner).updateParameter(10, 0, 0)
         await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
           value: getFee(REPORT),
         })
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.true
-        expect(version.price).to.equal(getPrices(REPORT)[0])
+        expect(version[0].price).to.equal(getPrices(REPORT)[0])
+        expect(version[0].valid).to.equal(true)
+        expect(version[1].settlementFee).to.equal(parse6decimal('1.5'))
+        expect(version[1].oracleFee).to.equal(parse6decimal('0.1'))
       })
 
       it('returns invalid version if that version was not requested', async () => {
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.false
+        expect(version[0].valid).to.be.false
       })
 
       it('returns invalid version if that version was requested but not committed', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.false
+        expect(version[0].valid).to.be.false
       })
     })
   })

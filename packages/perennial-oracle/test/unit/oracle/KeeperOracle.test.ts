@@ -217,8 +217,8 @@ describe('KeeperOracle', () => {
 
     // ensure carryover price is received instead of invalid price
     const invalidPrice = await keeperOracle.at(requestedTime)
-    expect(invalidPrice.timestamp).to.equal(requestedTime)
-    expect(invalidPrice.price).to.equal(parse6decimal('3333.777'))
-    expect(invalidPrice.valid).to.be.false
+    expect(invalidPrice[0].timestamp).to.equal(requestedTime)
+    expect(invalidPrice[0].price).to.equal(parse6decimal('3333.777'))
+    expect(invalidPrice[0].valid).to.be.false
   })
 })
