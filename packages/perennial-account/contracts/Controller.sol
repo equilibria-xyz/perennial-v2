@@ -170,6 +170,11 @@ contract Controller is Factory, IController {
         emit AccountDeployed(owner, account);
     }
 
+    /// @dev reverts if user is not authorized to sign transactions for the owner
+    function _ensureValidSigner(address owner, address signer) internal view {
+        if (signer != owner && !marketFactory.signers(owner, signer)) revert ControllerInvalidSignerError();
+    }
+
     function _deployAccountWithSignature(
         DeployAccount calldata deployAccount_,
         bytes calldata signature
@@ -237,11 +242,6 @@ contract Controller is Factory, IController {
         }
 
         emit GroupRebalanced(owner, group);
-    }
-
-    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
-    function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !marketFactory.signers(owner, signer)) revert ControllerInvalidSignerError();
     }
 
     /// @dev checks current collateral for each market in a group and aggregates collateral for the group
