@@ -8,8 +8,7 @@ import {
   RebalanceConfigChangeStruct,
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
-// TODO: move to types/generated/contracts/Controller_Incentivized once it exists
-import { RelayedSignerUpdateStruct } from '../../types/generated/contracts/AccountVerifier'
+import { RelayedSignerUpdateStruct } from '../../types/generated/contracts/Controller_Incentivized'
 
 function erc721Domain(verifier: IAccountVerifier | FakeContract<IAccountVerifier>): {
   name: string

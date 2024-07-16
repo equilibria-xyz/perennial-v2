@@ -2,6 +2,8 @@
 
 Collateral accounts help users manage collateral across Perennial markets on a single chain. A user's EOA may deploy only one collateral account, whose address is deterministic. Actions are performed using [EIP-712](https://eips.ethereum.org/EIPS/eip-712) message payloads submitted to keepers through a relayer. Users may self-sign their messages or delegate one or more signers.
 
+Users may also relay requests through this extention to compensate keepers from their collateral account.
+
 ## Design
 
 A single _Controller_ is deployed to a chain.  The controller serves as a factory to deploy _Account_ contracts, and manages interactions between accounts and multiple _Market_ contracts.  Collateral accounts are only compatible with markets which use [DSU](https://www.dsu.money/) as collateral.

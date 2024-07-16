@@ -5,8 +5,7 @@ import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 
-import { IAccountVerifier } from "./interfaces/IAccountVerifier.sol";
-import { IRelayVerifier } from "./interfaces/IRelayVerifier.sol";
+import { IAccountVerifier, IRelayVerifier, ILocalVerifier } from "./interfaces/ILocalVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
@@ -16,7 +15,7 @@ import { RelayedSignerUpdate, RelayedSignerUpdateLib } from "./types/RelayedSign
 
 /// @title Verifier
 /// @notice ERC712 signed message verifier for the Perennial V2 Collateral Accounts package.
-contract AccountVerifier is VerifierBase, IAccountVerifier, IRelayVerifier {
+contract AccountVerifier is VerifierBase, ILocalVerifier {
     /// @dev Initializes the domain separator and parameter caches
     constructor() EIP712("Perennial V2 Collateral Accounts", "1.0.0") { }
 

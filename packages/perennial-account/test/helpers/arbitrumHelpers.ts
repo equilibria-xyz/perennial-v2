@@ -2,7 +2,6 @@ import { expect } from 'chai'
 import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import {
   IKeeperOracle,
-  IMarketFactory,
   IOracleFactory,
   KeeperOracle,
   KeeperOracle__factory,
@@ -22,11 +21,13 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
+  IMarketFactory,
   IOracleProvider,
   RebalanceLib__factory,
 } from '../../types/generated'
-import type { IKept } from '../../contracts/Controller_Arbitrum'
+import type { IKept } from '../../contracts/Controller_Incentivized'
 import { impersonate } from '../../../common/testutil'
+import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
@@ -129,8 +130,7 @@ export async function deployAndInitializeController(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
 ): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
+  const [dsu, usdc] = await getStablecoins(owner)
   const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
 
   const verifier = await new AccountVerifier__factory(owner).deploy()
@@ -142,6 +142,7 @@ export async function deployAndInitializeController(
 export async function deployControllerArbitrum(
   owner: SignerWithAddress,
   keepConfig: IKept.KeepConfigStruct,
+  nonceManager: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
   const accountImpl = await new Account__factory(owner).deploy(USDCe_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
@@ -151,7 +152,7 @@ export async function deployControllerArbitrum(
       'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy(accountImpl.address, keepConfig, overrides ?? {})
+  ).deploy(accountImpl.address, keepConfig, nonceManager.address, overrides ?? {})
   return controller
 }
 
@@ -177,6 +178,12 @@ export async function fundWalletUSDC(
 
   expect(await usdc.balanceOf(USDCe_HOLDER)).to.be.greaterThan(amount)
   await usdc.transfer(wallet.address, amount, overrides ?? {})
+}
+
+export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20Metadata, IERC20Metadata]> {
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
+  return [dsu, usdc]
 }
 
 export async function returnUSDC(wallet: SignerWithAddress): Promise<undefined> {

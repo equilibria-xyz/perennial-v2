@@ -11,8 +11,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
-import { IController } from "./interfaces/IController.sol";
-import { IAccountVerifier } from "./interfaces/IAccountVerifier.sol";
+import { IController, ILocalVerifier } from "./interfaces/IController.sol";
 import { RebalanceLib } from "./libs/RebalanceLib.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
@@ -22,7 +21,8 @@ import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/Rebalan
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Controller
-/// @notice Facilitates unpermissioned actions between collateral accounts and markets
+/// @notice Facilitates unpermissioned actions between collateral accounts and markets,
+/// without keeper compensation.  No message relaying facilities are provided.
 contract Controller is Factory, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
@@ -40,7 +40,7 @@ contract Controller is Factory, IController {
     IMarketFactory public marketFactory;
 
     /// @dev Contract used to validate message signatures
-    IAccountVerifier public verifier;
+    ILocalVerifier public verifier;
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
@@ -67,7 +67,7 @@ contract Controller is Factory, IController {
     /// @inheritdoc IController
     function initialize(
         IMarketFactory marketFactory_,
-        IAccountVerifier verifier_
+        ILocalVerifier verifier_
     ) external initializer(1) {
         __Factory__initialize();
         marketFactory = marketFactory_;

@@ -7,7 +7,7 @@ import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "../interfaces/IAccount.sol";
-import { IAccountVerifier } from "../interfaces/IAccountVerifier.sol";
+import { ILocalVerifier } from "../interfaces/ILocalVerifier.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { RebalanceConfig } from "../types/RebalanceConfig.sol";
@@ -90,7 +90,7 @@ interface IController {
     /// @param verifier Contract used to validate collateral account message signatures
     function initialize(
         IMarketFactory marketFactory,
-        IAccountVerifier verifier
+        ILocalVerifier verifier
     ) external;
 
     /// @notice Returns the deterministic address of the collateral account for a user,

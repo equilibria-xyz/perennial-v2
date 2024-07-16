@@ -31,16 +31,17 @@ import {
   createMarketBTC,
   createMarketETH,
   createFactories,
-  deployAndInitializeController,
   deployControllerArbitrum,
   fundWalletDSU,
   fundWalletUSDC,
+  getStablecoins,
 } from '../helpers/arbitrumHelpers'
 import { getEventArguments } from '../helpers/setupHelpers'
 import { IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 import { signSignerUpdate } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { Verifier } from '../../types/generated/contracts/Verifier'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
+import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
 
 const { ethers } = HRE
 
@@ -143,9 +144,8 @@ describe('Controller_Arbitrum', () => {
   const fixture = async () => {
     // deploy the protocol
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    // TODO: get permission to add verifier accessor to IMarketFactory interface
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
-    ;[dsu, usdc] = await deployAndInitializeController(owner, marketFactory)
+    ;[dsu, usdc] = await getStablecoins(owner)
     ;[market, ,] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
@@ -156,7 +156,8 @@ describe('Controller_Arbitrum', () => {
       multiplierCalldata: 0,
       bufferCalldata: 500_000,
     }
-    controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
+    const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
+    controller = await deployControllerArbitrum(owner, keepConfig, marketVerifier, { maxFeePerGas: 100000000 })
     accountVerifier = await new AccountVerifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
     await controller['initialize(address,address,address)'](

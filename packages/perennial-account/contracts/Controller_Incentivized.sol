@@ -1,23 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.24;
+pragma solidity ^0.8.13;
 
 import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-// import { IKept } from "@equilibria/root/attribute/interfaces/IKept.sol";
 import { Kept } from "@equilibria/root/attribute/Kept/Kept.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18, UFixed18 } from "@equilibria/root/token/types/Token18.sol";
+import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
-import { IAccountVerifier } from "./interfaces/IAccountVerifier.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IRelayer } from "./interfaces/IRelayer.sol";
-import { IRelayVerifier } from "./interfaces/IRelayVerifier.sol";
-import { Controller } from "./Controller.sol";
+import { Controller, ILocalVerifier } from "./Controller.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
@@ -25,15 +23,22 @@ import { RelayedSignerUpdate } from "./types/RelayedSignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
 /// @title Controller_Incentivized
-/// @notice Controller which compensates keepers for processing messages
+/// @notice Controller which compensates keepers for handling or relaying messages. Subclass to handle differences in
+/// gas calculations on different chains.
 abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
+    /// @dev Configuration used to calculate keeper compensation
     KeepConfig public keepConfig;
+
+    /// @dev Handles relayed messages for nonce cancellation
+    IVerifierBase public nonceManager;
 
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation_ Pristine collateral account contract
     /// @param keepConfig_ Configuration used to compensate keepers
-    constructor(address implementation_, KeepConfig memory keepConfig_) Controller(implementation_) {
+    constructor(address implementation_, KeepConfig memory keepConfig_, IVerifierBase nonceManager_)
+    Controller(implementation_) {
         keepConfig = keepConfig_;
+        nonceManager = nonceManager_;
     }
 
     /// @notice Configures message verification and keeper compensation
@@ -42,7 +47,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
         IMarketFactory marketFactory_,
-        IAccountVerifier verifier_,
+        ILocalVerifier verifier_,
         AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
         __Factory__initialize();
@@ -119,8 +124,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         bytes calldata innerSignature
     ) override external {
         // ensure the message was signed by the owner or a delegated signer
-        // TODO: this cast is awkward; find a better solution
-        IRelayVerifier(address(verifier)).verifyRelayedSignerUpdate(message, outerSignature);
+        verifier.verifyRelayedSignerUpdate(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         IAccount account = IAccount(getAccountAddress(message.action.common.account));
