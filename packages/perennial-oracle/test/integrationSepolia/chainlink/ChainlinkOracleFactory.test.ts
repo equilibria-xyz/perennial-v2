@@ -1282,15 +1282,58 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
-        await chainlinkOracleFactory.connect(owner).updateParameter(10, parse6decimal('1.5'), parse6decimal('0.1'))
+        await chainlinkOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
-        await chainlinkOracleFactory.connect(owner).updateParameter(10, 0, 0)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
+        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 1, REPORT, {
           value: getFee(REPORT),
         })
-        const version = await keeperOracle.connect(user).at(STARTING_TIME)
+        const version = await keeperOracle.connect(user).at(STARTING_TIME + 1)
         expect(version[0].price).to.equal(getPrices(REPORT)[0])
+        expect(version[0].valid).to.equal(true)
+        expect(version[1].settlementFee).to.equal(parse6decimal('1.5'))
+        expect(version[1].oracleFee).to.equal(parse6decimal('0.1'))
+      })
+
+      it('returns the receipt w/ no new price', async () => {
+        await chainlinkOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        await increase(1)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
+
+        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 1, REPORT, {
+          value: getFee(REPORT),
+        })
+        const version = await keeperOracle.connect(user).at(STARTING_TIME + 3)
+        expect(version[0].price).to.equal(getPrices(REPORT)[0])
+        expect(version[0].valid).to.equal(true)
+        expect(version[1].settlementFee).to.equal(0)
+        expect(version[1].oracleFee).to.equal(0)
+      })
+
+      it('returns the receipt w/ new price after no new price', async () => {
+        await chainlinkOracleFactory.connect(owner).updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'))
+        increase(1)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        // get both requests in the same version
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 2, REPORT, {
+          value: getFee(REPORT),
+        })
+        await chainlinkOracleFactory
+          .connect(user)
+          .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 5, REPORT_BARELY_NOT_TOO_LATE, {
+            value: getFee(REPORT_BARELY_NOT_TOO_LATE),
+          })
+        const version = await keeperOracle.connect(user).at(STARTING_TIME + 5)
+        expect(version[0].price).to.equal(getPrices(REPORT_BARELY_NOT_TOO_LATE)[0])
         expect(version[0].valid).to.equal(true)
         expect(version[1].settlementFee).to.equal(parse6decimal('1.5'))
         expect(version[1].oracleFee).to.equal(parse6decimal('0.1'))

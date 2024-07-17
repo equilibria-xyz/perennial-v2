@@ -193,6 +193,12 @@ describe('KeeperOracle', () => {
     ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
   })
 
+  it('reverts requesting no new price before a new price', async () => {
+    await expect(
+      keeperOracle.connect(oracleSigner).request(market.address, user.address, false),
+    ).to.revertedWithCustomError(keeperOracle, 'KeeperOracleNoPriorRequestsError')
+  })
+
   it('discards expired prices', async () => {
     // establish an initial valid version
     const startTime = await currentBlockTimestamp()

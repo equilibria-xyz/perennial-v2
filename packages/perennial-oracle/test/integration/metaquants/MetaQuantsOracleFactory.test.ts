@@ -1375,15 +1375,61 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
-        await metaquantsOracleFactory.connect(owner).updateParameter(10, parse6decimal('1.5'), parse6decimal('0.1'))
+        await metaquantsOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
-        await metaquantsOracleFactory.connect(owner).updateParameter(10, 0, 0)
+        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0)
         await metaquantsOracleFactory
           .connect(user)
-          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD))
-        const version = await keeperOracle.connect(user).at(STARTING_TIME)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 1, listify(PAYLOAD))
+        const version = await keeperOracle.connect(user).at(STARTING_TIME + 1)
         expect(version[0].price).to.equal(getPrices(listify(PAYLOAD))[0])
+        expect(version[0].valid).to.equal(true)
+        expect(version[1].settlementFee).to.equal(parse6decimal('1.5'))
+        expect(version[1].oracleFee).to.equal(parse6decimal('0.1'))
+      })
+
+      it('returns the receipt w/ no new price', async () => {
+        await metaquantsOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        await increase(1)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
+
+        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 1, listify(PAYLOAD), {
+            value: 1,
+          })
+        const version = await keeperOracle.connect(user).at(STARTING_TIME + 3)
+        expect(version[0].price).to.equal(getPrices(listify(PAYLOAD))[0])
+        expect(version[0].valid).to.equal(true)
+        expect(version[1].settlementFee).to.equal(0)
+        expect(version[1].oracleFee).to.equal(0)
+      })
+
+      it('returns the receipt w/ new price after no new price', async () => {
+        await metaquantsOracleFactory.connect(owner).updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'))
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        // get both requests in the same version
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 1, listify(PAYLOAD), {
+            value: 1,
+          })
+        await metaquantsOracleFactory
+          .connect(user)
+          .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 3, listify(OTHER_PAYLOAD), {
+            value: 1,
+          })
+        const version = await keeperOracle.connect(user).at(STARTING_TIME + 3)
+        expect(version[0].price).to.equal(getPrices(listify(OTHER_PAYLOAD))[0])
         expect(version[0].valid).to.equal(true)
         expect(version[1].settlementFee).to.equal(parse6decimal('1.5'))
         expect(version[1].oracleFee).to.equal(parse6decimal('0.1'))

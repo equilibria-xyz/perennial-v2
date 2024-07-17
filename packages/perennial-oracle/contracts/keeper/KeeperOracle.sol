@@ -87,7 +87,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param account The account to callback to
     /// @param newPrice Whether a new price should be requested
     function request(IMarket market, address account, bool newPrice) external onlyAuthorized {
-        PriceRequest memory priceRequest = _current();
+        PriceRequest memory priceRequest = IKeeperFactory(address(factory())).current(); // TODO: make this only timestamp
 
         if (newPrice) {
             _globalCallbacks[priceRequest.timestamp].add(address(market));
@@ -97,7 +97,6 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         PriceRequest memory currentVersion = _requests[_global.currentIndex].read();
 
-        // TODO: test that no-new-price requests do not trigger priced requests
         if (currentVersion.timestamp == priceRequest.timestamp) return; // already requested new price
         if (newPrice) {
             _requests[++_global.currentIndex].store(priceRequest);
@@ -105,6 +104,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
             emit OracleProviderVersionRequested(priceRequest.timestamp, true);
         } else {
             if (linkbacks[priceRequest.timestamp] != 0) return; // already requested without new price
+            if (currentVersion.timestamp == 0) revert KeeperOracleNoPriorRequestsError();
             linkbacks[priceRequest.timestamp] = currentVersion.timestamp;
             emit OracleProviderVersionRequested(priceRequest.timestamp, false);
         }
@@ -126,23 +126,23 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Returns the current oracle version accepting new orders
     /// @return Current oracle version
     function current() public view returns (uint256) {
-        return _current().timestamp;
-    }
-
-    // @dev TODO remove with Market interface integration
-    function _current() private view returns (PriceRequest memory) {
-        return IKeeperFactory(address(factory())).current();
+        return IKeeperFactory(address(factory())).current().timestamp;
     }
 
     /// @notice Returns the oracle version at version `version`
     /// @param timestamp The timestamp of which to lookup
     /// @return oracleVersion Oracle version at version `version`
-    function at(uint256 timestamp) public view returns (OracleVersion memory, OracleReceipt memory) {
-        if (linkbacks[timestamp] != 0) return at(linkbacks[timestamp]);
-        return (
-            _responses[timestamp].read().toOracleVersion(timestamp),
-            _responses[timestamp].read().toOracleReceipt()
-        );
+    /// @return oracleReceipt Oracle version at version `version`
+    function at(
+        uint256 timestamp
+    ) public view returns (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) {
+        if (linkbacks[timestamp] != 0)
+            (oracleVersion, ) = at(linkbacks[timestamp]);
+        else
+            (oracleVersion, oracleReceipt) = (
+                _responses[timestamp].read().toOracleVersion(timestamp),
+                _responses[timestamp].read().toOracleReceipt()
+            );
     }
 
     /// @notice Commits the price to specified version
@@ -185,7 +185,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param oracleVersion The oracle version to commit
     /// @return Whether the commit was requested
     function _commitRequested(OracleVersion memory oracleVersion) private returns (bool) {
-        PriceRequest memory priceRequest = _requests[_global.latestIndex].read();
+        PriceRequest memory priceRequest = _requests[_global.latestIndex + 1].read();
 
         if (block.timestamp <= (next() + timeout)) {
             if (!oracleVersion.valid) revert KeeperOracleInvalidPriceError();
