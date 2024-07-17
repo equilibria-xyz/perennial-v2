@@ -296,13 +296,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Global memory newGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
+        Fixed6 latestPrice = oracle.at(latestPosition.timestamp).price;
 
         // update risk parameter (first to capture truncation)
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         newRiskParameter = _riskParameter.read();
 
         // update global exposure
-        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition);
+        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestPrice);
         _global.store(newGlobal);
 
         emit RiskParameterUpdated(newRiskParameter);
@@ -665,8 +666,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
         (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
-        if (settlementContext.orderOracleVersion.price.isZero())
-            settlementContext.orderOracleVersion.price = context.global.latestPrice;
     }
 
     /// @notice Settles the account position up to the latest version
@@ -677,6 +676,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory nextOrder;
 
         // settle - process orders whose requested prices are now available from oracle
+        //        - all requested prices are guaranteed to be present in the oracle, but could be stale
         while (
             context.global.currentId != context.global.latestId &&
             (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
@@ -687,7 +687,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             (nextOrder = _pendingOrders[context.account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
 
-        // sync  - advance position timestamps with the latest oracle version
+        // sync - advance position timestamps to the latest oracle version
+        //      - latest versions are guaranteed to have present prices in the oracle, but could be stale
         if (context.latestOracleVersion.timestamp > context.latestPositionGlobal.timestamp)
             _processOrderGlobal(
                 context,
@@ -749,7 +750,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder
     ) private {
         (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) = oracle.at(newOrderTimestamp);
-        if (oracleVersion.price.isZero()) oracleVersion.price = context.global.latestPrice;
         Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
         // if latest timestamp is more recent than order timestamp, sync the order data

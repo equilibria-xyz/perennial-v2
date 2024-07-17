@@ -110,7 +110,6 @@ library VersionLib {
 
         // record oracle version
         (next.valid, next.price) = (context.toOracleVersion.valid, context.toOracleVersion.price);
-        context.global.latestPrice = context.toOracleVersion.price;
 
         // accumulate settlement fee
         result.settlementFee = _accumulateSettlementFee(next, context);
