@@ -16,6 +16,7 @@ import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IRelayer } from "./interfaces/IRelayer.sol";
 import { Controller, ILocalVerifier } from "./Controller.sol";
+import { Action } from "./types/Action.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
@@ -64,10 +65,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         bytes calldata signature
     ) override external {
         _changeRebalanceConfigWithSignature(configChange, signature);
-        // for this message, account address is only needed for keeper compensation
-        IAccount account = IAccount(getAccountAddress(configChange.action.common.account));
-        bytes memory data = abi.encode(address(account), configChange.action.maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        _compensateKeeper(configChange.action);
     }
 
     /// @inheritdoc IController
@@ -129,10 +127,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         verifier.verifyRelayedNonceCancellation(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
-        // compensate the keeper
-        IAccount account = IAccount(getAccountAddress(message.action.common.account));
-        bytes memory data = abi.encode(address(account), message.action.maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        _compensateKeeper(message.action);
 
         // relay the message to Verifier
         nonceManager.cancelNonceWithSignature(message.nonceCancellation, innerSignature);
@@ -148,10 +143,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         verifier.verifyRelayedGroupCancellation(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
-        // compensate the keeper
-        IAccount account = IAccount(getAccountAddress(message.action.common.account));
-        bytes memory data = abi.encode(address(account), message.action.maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        _compensateKeeper(message.action);
 
         // relay the message to Verifier
         nonceManager.cancelGroupWithSignature(message.groupCancellation, innerSignature);
@@ -167,13 +159,15 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         verifier.verifyRelayedSignerUpdate(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
-        // compensate the keeper
-        IAccount account = IAccount(getAccountAddress(message.action.common.account));
-        bytes memory data = abi.encode(address(account), message.action.maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        _compensateKeeper(message.action);
 
         // relay the message to MarketFactory
         marketFactory.updateSignerWithSignature(message.signerUpdate, innerSignature);
+    }
+
+    function _compensateKeeper(Action calldata action) internal virtual {
+        bytes memory data = abi.encode(getAccountAddress(action.common.account), action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @dev Transfers funds from collateral account to controller, and limits compensation
