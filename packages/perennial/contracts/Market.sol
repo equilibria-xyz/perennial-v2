@@ -296,14 +296,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Global memory newGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
-        Fixed6 latestPrice = oracle.at(latestPosition.timestamp).price;
+        (OracleVersion memory latestOracleVersion, ) = oracle.at(latestPosition.timestamp);
 
         // update risk parameter (first to capture truncation)
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         newRiskParameter = _riskParameter.read();
 
         // update global exposure
-        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestPrice);
+        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestOracleVersion.price);
         _global.store(newGlobal);
 
         emit RiskParameterUpdated(newRiskParameter);
