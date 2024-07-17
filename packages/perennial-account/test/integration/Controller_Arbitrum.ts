@@ -37,11 +37,13 @@ import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
+  signRelayedGroupCancellation,
   signRelayedNonceCancellation,
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
 import {
+  signGroupCancellation,
   signCommon as signNonceCancellation,
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
@@ -695,6 +697,47 @@ describe('Controller_Arbitrum', () => {
       expect(await downstreamVerifier.nonces(userA.address, nonce)).to.eq(true)
     })
 
+    it('relays group cancellation messages', async () => {
+      // confirm group was not already cancelled
+      const group = 7
+      expect(await downstreamVerifier.groups(userA.address, group)).to.eq(false)
+
+      // create and sign the inner message
+      const groupCancellation = {
+        group: group,
+        common: {
+          account: userA.address,
+          signer: userA.address,
+          domain: downstreamVerifier.address,
+          nonce: 0,
+          group: 0,
+          expiry: currentTime.add(60),
+        },
+      }
+      const innerSignature = await signGroupCancellation(userA, downstreamVerifier, groupCancellation)
+
+      // create and sign the outer message
+      const relayedGroupCancellation = {
+        groupCancellation: groupCancellation,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedGroupCancellation(userA, accountVerifier, relayedGroupCancellation)
+
+      // perform the action
+      await expect(
+        controller.connect(keeper).relayGroupCancellation(relayedGroupCancellation, outerSignature, innerSignature),
+      )
+        .to.emit(downstreamVerifier, 'GroupCancelled')
+        .withArgs(userA.address, group)
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, groupCancellation.common.nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedGroupCancellation.action.common.nonce)
+
+      // confirm group is now cancelled
+      expect(await downstreamVerifier.groups(userA.address, group)).to.eq(true)
+    })
+
     it('relays signer update messages', async () => {
       // confirm userB is not already a delegated signer
       expect(await marketFactory.signers(userA.address, userB.address)).to.be.false
@@ -709,7 +752,7 @@ describe('Controller_Arbitrum', () => {
           account: userA.address,
           signer: userA.address,
           domain: marketFactory.address,
-          nonce: nextNonce(), // TODO: inner nonce is unrelated to AccountVerifier and should be chosen separately
+          nonce: nextNonce(),
           group: 0,
           expiry: currentTime.add(60),
         },

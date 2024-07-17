@@ -20,6 +20,7 @@ import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
 import { RelayedNonceCancellation } from "./types/RelayedNonceCancellation.sol";
+import { RelayedGroupCancellation } from "./types/RelayedGroupCancellation.sol";
 import { RelayedSignerUpdate } from "./types/RelayedSignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
@@ -133,8 +134,27 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         bytes memory data = abi.encode(address(account), message.action.maxFee);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
 
-        // relay the message to MarketFactory
+        // relay the message to Verifier
         nonceManager.cancelNonceWithSignature(message.nonceCancellation, innerSignature);
+    }
+
+    /// @inheritdoc IRelayer
+    function relayGroupCancellation(
+        RelayedGroupCancellation calldata message,
+        bytes calldata outerSignature,
+        bytes calldata innerSignature
+    ) external {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyRelayedGroupCancellation(message, outerSignature);
+        _ensureValidSigner(message.action.common.account, message.action.common.signer);
+
+        // compensate the keeper
+        IAccount account = IAccount(getAccountAddress(message.action.common.account));
+        bytes memory data = abi.encode(address(account), message.action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+
+        // relay the message to Verifier
+        nonceManager.cancelGroupWithSignature(message.groupCancellation, innerSignature);
     }
 
     /// @inheritdoc IRelayer

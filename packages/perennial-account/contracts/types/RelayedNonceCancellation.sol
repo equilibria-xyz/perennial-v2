@@ -5,7 +5,7 @@ import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { Action, ActionLib } from "./Action.sol";
 
 struct RelayedNonceCancellation {
-    /// @dev Message identifying the nonce to cancel
+    /// @dev Message to relay to verifier, identifying the nonce to cancel
     Common nonceCancellation;
     /// @dev Common information for relayed actions
     Action action;

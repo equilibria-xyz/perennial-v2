@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { RelayedNonceCancellation } from "../types/RelayedNonceCancellation.sol";
+import { RelayedGroupCancellation } from "../types/RelayedGroupCancellation.sol";
 import { RelayedSignerUpdate } from "../types/RelayedSignerUpdate.sol";
 
 // @notice Relays messages to downstream handlers, compensating keepers for the transaction
@@ -12,6 +13,16 @@ interface IRelayer {
     /// @param innerSignature Signature of the embedded Common message
     function relayNonceCancellation(
         RelayedNonceCancellation calldata message,
+        bytes calldata outerSignature,
+        bytes calldata innerSignature
+    ) external;
+
+    /// @notice Relays a message to Verifier extension to invalidate a group nonce
+    /// @param message Request with details needed for keeper compensation
+    /// @param outerSignature Signature of the RelayedGroupCancellation message
+    /// @param innerSignature Signature of the embedded GroupCancellation message
+    function relayGroupCancellation(
+        RelayedGroupCancellation calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
     ) external;

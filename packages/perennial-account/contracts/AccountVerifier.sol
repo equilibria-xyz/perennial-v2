@@ -12,6 +12,7 @@ import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 import { RelayedNonceCancellation, RelayedNonceCancellationLib } from "./types/RelayedNonceCancellation.sol";
+import { RelayedGroupCancellation, RelayedGroupCancellationLib } from "./types/RelayedGroupCancellation.sol";
 import { RelayedSignerUpdate, RelayedSignerUpdateLib } from "./types/RelayedSignerUpdate.sol";
 
 /// @title Verifier
@@ -82,26 +83,39 @@ contract AccountVerifier is VerifierBase, ILocalVerifier {
 
     /// @inheritdoc IRelayVerifier
     function verifyRelayedNonceCancellation(
-        RelayedNonceCancellation calldata relayedMessage,
+        RelayedNonceCancellation calldata message,
         bytes calldata outerSignature
-    ) external validateAndCancel(relayedMessage.action.common, outerSignature)
+    ) external validateAndCancel(message.action.common, outerSignature)
     {
         if (!SignatureChecker.isValidSignatureNow(
-            relayedMessage.action.common.signer,
-            _hashTypedDataV4(RelayedNonceCancellationLib.hash(relayedMessage)),
+            message.action.common.signer,
+            _hashTypedDataV4(RelayedNonceCancellationLib.hash(message)),
+            outerSignature
+        )) revert VerifierInvalidSignerError();
+    }
+
+    /// @inheritdoc IRelayVerifier
+    function verifyRelayedGroupCancellation(
+        RelayedGroupCancellation calldata message,
+        bytes calldata outerSignature
+    ) external validateAndCancel(message.action.common, outerSignature)
+    {
+        if (!SignatureChecker.isValidSignatureNow(
+            message.action.common.signer,
+            _hashTypedDataV4(RelayedGroupCancellationLib.hash(message)),
             outerSignature
         )) revert VerifierInvalidSignerError();
     }
 
     /// @inheritdoc IRelayVerifier
     function verifyRelayedSignerUpdate(
-        RelayedSignerUpdate calldata relayedMessage,
+        RelayedSignerUpdate calldata message,
         bytes calldata outerSignature
-    ) external validateAndCancel(relayedMessage.action.common, outerSignature)
+    ) external validateAndCancel(message.action.common, outerSignature)
     {
         if (!SignatureChecker.isValidSignatureNow(
-            relayedMessage.action.common.signer,
-            _hashTypedDataV4(RelayedSignerUpdateLib.hash(relayedMessage)),
+            message.action.common.signer,
+            _hashTypedDataV4(RelayedSignerUpdateLib.hash(message)),
             outerSignature
         )) revert VerifierInvalidSignerError();
     }

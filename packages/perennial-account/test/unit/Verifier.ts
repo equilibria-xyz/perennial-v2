@@ -12,11 +12,13 @@ import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
+  signRelayedGroupCancellation,
   signRelayedNonceCancellation,
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
 import {
+  signGroupCancellation,
   signCommon as signNonceCancellation,
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
@@ -189,7 +191,7 @@ describe('Verifier', () => {
       downstreamVerifier = await new Verifier__factory(owner).deploy()
     })
 
-    it('verifies relayedRelayedNonceCancellation messages', async () => {
+    it('verifies relayedNonceCancellation messages', async () => {
       const nonceCancellation = {
         account: userA.address,
         signer: userA.address,
@@ -218,6 +220,39 @@ describe('Verifier', () => {
       )
         .to.emit(accountVerifier, 'NonceCancelled')
         .withArgs(userA.address, relayedNonceCancellation.action.common.nonce)
+    })
+
+    it('verifies relayedGroupCancellation messages', async () => {
+      const groupCancellation = {
+        group: 6,
+        common: {
+          account: userA.address,
+          signer: userA.address,
+          domain: userA.address,
+          nonce: 0,
+          group: 0,
+          expiry: currentTime.add(60),
+        },
+      }
+      const innerSignature = await signGroupCancellation(userA, downstreamVerifier, groupCancellation)
+      // ensure downstream verification will succeed
+      await expect(downstreamVerifier.connect(userA).verifyGroupCancellation(groupCancellation, innerSignature))
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, 0)
+
+      const relayedGroupCancellation = {
+        groupCancellation: groupCancellation,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedGroupCancellation(userA, accountVerifier, relayedGroupCancellation)
+      // ensure outer message verification succeeds
+      await expect(
+        accountVerifier
+          .connect(controllerSigner)
+          .verifyRelayedGroupCancellation(relayedGroupCancellation, outerSignature),
+      )
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedGroupCancellation.action.common.nonce)
     })
 
     it('verifies relayedSignerUpdate messages', async () => {

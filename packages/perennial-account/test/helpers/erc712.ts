@@ -10,6 +10,7 @@ import {
 } from '../../types/generated/contracts/Controller'
 import {
   RelayedNonceCancellationStruct,
+  RelayedGroupCancellationStruct,
   RelayedSignerUpdateStruct,
 } from '../../types/generated/contracts/Controller_Incentivized'
 
@@ -151,6 +152,27 @@ export async function signRelayedNonceCancellation(
     ],
     ...actionType,
     ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedGroupCancellation(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedGroupCancellationStruct,
+): Promise<string> {
+  const types = {
+    RelayedGroupCancellation: [
+      { name: 'groupCancellation', type: 'GroupCancellation' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+    GroupCancellation: [
+      { name: 'group', type: 'uint256' },
+      { name: 'common', type: 'Common' },
+    ],
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, message)
