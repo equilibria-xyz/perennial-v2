@@ -7,6 +7,8 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { smock } from '@defi-wonderland/smock'
 import { advanceBlock, currentBlockTimestamp } from '../../../common/testutil/time'
+import { getEventArguments } from '../helpers/setupHelpers'
+
 import { parse6decimal } from '../../../common/testutil/types'
 import {
   Account,
@@ -20,13 +22,8 @@ import {
   IMarket,
   IMarketFactory,
 } from '../../types/generated'
-import {
-  signDeployAccount,
-  signMarketTransfer,
-  signRebalanceConfigChange,
-  signRelayedSignerUpdate,
-  signWithdrawal,
-} from '../helpers/erc712'
+import { IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+
 import {
   createMarketBTC,
   createMarketETH,
@@ -36,9 +33,18 @@ import {
   fundWalletUSDC,
   getStablecoins,
 } from '../helpers/arbitrumHelpers'
-import { getEventArguments } from '../helpers/setupHelpers'
-import { IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
-import { signSignerUpdate } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
+import {
+  signDeployAccount,
+  signMarketTransfer,
+  signRebalanceConfigChange,
+  signRelayedNonceCancellation,
+  signRelayedSignerUpdate,
+  signWithdrawal,
+} from '../helpers/erc712'
+import {
+  signCommon as signNonceCancellation,
+  signSignerUpdate,
+} from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { Verifier } from '../../types/generated/contracts/Verifier'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
 import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
@@ -653,6 +659,42 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
+    it('relays nonce cancellation messages', async () => {
+      // confirm nonce was not already cancelled
+      const nonce = 7
+      expect(await downstreamVerifier.nonces(userA.address, nonce)).to.eq(false)
+
+      // create and sign the inner message
+      const nonceCancellation = {
+        account: userA.address,
+        signer: userA.address,
+        domain: downstreamVerifier.address,
+        nonce: nonce,
+        group: 0,
+        expiry: currentTime.add(60),
+      }
+      const innerSignature = await signNonceCancellation(userA, downstreamVerifier, nonceCancellation)
+
+      // create and sign the outer message
+      const relayedNonceCancellation = {
+        nonceCancellation: nonceCancellation,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedNonceCancellation(userA, accountVerifier, relayedNonceCancellation)
+
+      // perform the action
+      await expect(
+        controller.connect(keeper).relayNonceCancellation(relayedNonceCancellation, outerSignature, innerSignature),
+      )
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedNonceCancellation.action.common.nonce)
+
+      // confirm nonce is now cancelled
+      expect(await downstreamVerifier.nonces(userA.address, nonce)).to.eq(true)
+    })
+
     it('relays signer update messages', async () => {
       // confirm userB is not already a delegated signer
       expect(await marketFactory.signers(userA.address, userB.address)).to.be.false
@@ -666,7 +708,7 @@ describe('Controller_Arbitrum', () => {
         common: {
           account: userA.address,
           signer: userA.address,
-          domain: userA.address,
+          domain: marketFactory.address,
           nonce: nextNonce(), // TODO: inner nonce is unrelated to AccountVerifier and should be chosen separately
           group: 0,
           expiry: currentTime.add(60),
@@ -687,6 +729,10 @@ describe('Controller_Arbitrum', () => {
       )
         .to.emit(marketFactory, 'SignerUpdated')
         .withArgs(userA.address, userB.address, true)
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedSignerUpdateMessage.signerUpdate.common.nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedSignerUpdateMessage.action.common.nonce)
 
       // confirm userB is now a delegated signer
       expect(await marketFactory.signers(userA.address, userB.address)).to.be.true

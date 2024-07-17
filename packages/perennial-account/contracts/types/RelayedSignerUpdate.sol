@@ -13,7 +13,7 @@ struct RelayedSignerUpdate {
 using RelayedSignerUpdateLib for RelayedSignerUpdate global;
 
 /// @title RelayedSignerUpdateLib
-/// @notice Library used to hash and verify action to deploy a collateral account
+/// @notice Library used to hash and verify action to relay a message to update a signer
 library RelayedSignerUpdateLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(

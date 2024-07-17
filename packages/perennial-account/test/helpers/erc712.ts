@@ -8,7 +8,10 @@ import {
   RebalanceConfigChangeStruct,
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
-import { RelayedSignerUpdateStruct } from '../../types/generated/contracts/Controller_Incentivized'
+import {
+  RelayedNonceCancellationStruct,
+  RelayedSignerUpdateStruct,
+} from '../../types/generated/contracts/Controller_Incentivized'
 
 function erc721Domain(verifier: IAccountVerifier | FakeContract<IAccountVerifier>): {
   name: string
@@ -127,6 +130,23 @@ export async function signWithdrawal(
     Withdrawal: [
       { name: 'amount', type: 'uint256' },
       { name: 'unwrap', type: 'bool' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedNonceCancellation(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedNonceCancellationStruct,
+): Promise<string> {
+  const types = {
+    RelayedNonceCancellation: [
+      { name: 'nonceCancellation', type: 'Common' },
       { name: 'action', type: 'Action' },
     ],
     ...actionType,

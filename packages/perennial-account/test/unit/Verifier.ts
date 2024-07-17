@@ -12,10 +12,14 @@ import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
+  signRelayedNonceCancellation,
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
-import { signSignerUpdate } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
+import {
+  signCommon as signNonceCancellation,
+  signSignerUpdate,
+} from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
@@ -185,6 +189,37 @@ describe('Verifier', () => {
       downstreamVerifier = await new Verifier__factory(owner).deploy()
     })
 
+    it('verifies relayedRelayedNonceCancellation messages', async () => {
+      const nonceCancellation = {
+        account: userA.address,
+        signer: userA.address,
+        domain: userA.address,
+        nonce: 4,
+        group: 0,
+        expiry: currentTime.add(60),
+      }
+      const innerSignature = await signNonceCancellation(userA, downstreamVerifier, nonceCancellation)
+      // ensure downstream verification will succeed
+      await expect(downstreamVerifier.connect(userA).verifyCommon(nonceCancellation, innerSignature))
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, nonceCancellation.nonce)
+
+      // create and sign the outer message
+      const relayedNonceCancellation = {
+        nonceCancellation: nonceCancellation,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedNonceCancellation(userA, accountVerifier, relayedNonceCancellation)
+      // ensure outer message verification succeeds
+      await expect(
+        accountVerifier
+          .connect(controllerSigner)
+          .verifyRelayedNonceCancellation(relayedNonceCancellation, outerSignature),
+      )
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedNonceCancellation.action.common.nonce)
+    })
+
     it('verifies relayedSignerUpdate messages', async () => {
       // create and sign the inner message
       const signerUpdate = {
@@ -214,9 +249,11 @@ describe('Verifier', () => {
       }
       const outerSignature = await signRelayedSignerUpdate(userA, accountVerifier, relayedSignerUpdateMessage)
       // ensure outer message verification succeeds
-      await accountVerifier
-        .connect(controllerSigner)
-        .verifyRelayedSignerUpdate(relayedSignerUpdateMessage, outerSignature)
+      await expect(
+        accountVerifier.connect(controllerSigner).verifyRelayedSignerUpdate(relayedSignerUpdateMessage, outerSignature),
+      )
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedSignerUpdateMessage.action.common.nonce)
     })
   })
 })

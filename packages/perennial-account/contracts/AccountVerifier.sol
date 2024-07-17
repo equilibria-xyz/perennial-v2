@@ -11,6 +11,7 @@ import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
+import { RelayedNonceCancellation, RelayedNonceCancellationLib } from "./types/RelayedNonceCancellation.sol";
 import { RelayedSignerUpdate, RelayedSignerUpdateLib } from "./types/RelayedSignerUpdate.sol";
 
 /// @title Verifier
@@ -76,6 +77,19 @@ contract AccountVerifier is VerifierBase, ILocalVerifier {
             withdrawal.action.common.signer,
             _hashTypedDataV4(WithdrawalLib.hash(withdrawal)),
             signature
+        )) revert VerifierInvalidSignerError();
+    }
+
+    /// @inheritdoc IRelayVerifier
+    function verifyRelayedNonceCancellation(
+        RelayedNonceCancellation calldata relayedMessage,
+        bytes calldata outerSignature
+    ) external validateAndCancel(relayedMessage.action.common, outerSignature)
+    {
+        if (!SignatureChecker.isValidSignatureNow(
+            relayedMessage.action.common.signer,
+            _hashTypedDataV4(RelayedNonceCancellationLib.hash(relayedMessage)),
+            outerSignature
         )) revert VerifierInvalidSignerError();
     }
 

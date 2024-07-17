@@ -7,6 +7,7 @@ import {
   KeeperOracle__factory,
   Oracle,
   Oracle__factory,
+  OracleFactory,
   PythFactory,
   PythFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
@@ -25,7 +26,7 @@ import {
   IOracleProvider,
   RebalanceLib__factory,
 } from '../../types/generated'
-import type { IKept } from '../../contracts/Controller_Incentivized'
+import { IKept } from '../../types/generated/contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
 import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 
