@@ -39,12 +39,14 @@ import {
   signRebalanceConfigChange,
   signRelayedGroupCancellation,
   signRelayedNonceCancellation,
+  signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
 import {
   signGroupCancellation,
   signCommon as signNonceCancellation,
+  signOperatorUpdate,
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { Verifier } from '../../types/generated/contracts/Verifier'
@@ -736,6 +738,49 @@ describe('Controller_Arbitrum', () => {
 
       // confirm group is now cancelled
       expect(await downstreamVerifier.groups(userA.address, group)).to.eq(true)
+    })
+
+    it('relays operator update messages', async () => {
+      // confirm userB is not already an operator
+      expect(await marketFactory.operators(userA.address, userB.address)).to.be.false
+
+      // create and sign the inner message
+      const operatorUpdate = {
+        access: {
+          accessor: userB.address,
+          approved: true,
+        },
+        common: {
+          account: userA.address,
+          signer: userA.address,
+          domain: marketFactory.address,
+          nonce: nextNonce(),
+          group: 0,
+          expiry: currentTime.add(60),
+        },
+      }
+      const innerSignature = await signOperatorUpdate(userA, downstreamVerifier, operatorUpdate)
+
+      // create and sign the outer message
+      const relayedOperatorUpdateMessage = {
+        operatorUpdate: operatorUpdate,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedOperatorUpdate(userA, accountVerifier, relayedOperatorUpdateMessage)
+
+      // perform the action
+      await expect(
+        controller.connect(keeper).relayOperatorUpdate(relayedOperatorUpdateMessage, outerSignature, innerSignature),
+      )
+        .to.emit(marketFactory, 'OperatorUpdated')
+        .withArgs(userA.address, userB.address, true)
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedOperatorUpdateMessage.operatorUpdate.common.nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedOperatorUpdateMessage.action.common.nonce)
+
+      // confirm userB is now an operator
+      expect(await marketFactory.operators(userA.address, userB.address)).to.be.true
     })
 
     it('relays signer update messages', async () => {

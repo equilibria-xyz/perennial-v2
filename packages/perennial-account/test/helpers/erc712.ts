@@ -11,6 +11,7 @@ import {
 import {
   RelayedNonceCancellationStruct,
   RelayedGroupCancellationStruct,
+  RelayedOperatorUpdateStruct,
   RelayedSignerUpdateStruct,
 } from '../../types/generated/contracts/Controller_Incentivized'
 
@@ -171,6 +172,31 @@ export async function signRelayedGroupCancellation(
     ...commonType,
     GroupCancellation: [
       { name: 'group', type: 'uint256' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedOperatorUpdate(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedOperatorUpdateStruct,
+): Promise<string> {
+  const types = {
+    RelayedOperatorUpdate: [
+      { name: 'operatorUpdate', type: 'OperatorUpdate' },
+      { name: 'action', type: 'Action' },
+    ],
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
+      { name: 'approved', type: 'bool' },
+    ],
+    ...actionType,
+    ...commonType,
+    OperatorUpdate: [
+      { name: 'access', type: 'AccessUpdate' },
       { name: 'common', type: 'Common' },
     ],
   }

@@ -22,6 +22,7 @@ import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
 import { RelayedNonceCancellation } from "./types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation } from "./types/RelayedGroupCancellation.sol";
+import { RelayedOperatorUpdate } from "./types/RelayedOperatorUpdate.sol";
 import { RelayedSignerUpdate } from "./types/RelayedSignerUpdate.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
@@ -147,6 +148,22 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
 
         // relay the message to Verifier
         nonceManager.cancelGroupWithSignature(message.groupCancellation, innerSignature);
+    }
+
+    /// @inheritdoc IRelayer
+    function relayOperatorUpdate(
+        RelayedOperatorUpdate calldata message,
+        bytes calldata outerSignature,
+        bytes calldata innerSignature
+    ) external {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyRelayedOperatorUpdate(message, outerSignature);
+        _ensureValidSigner(message.action.common.account, message.action.common.signer);
+
+        _compensateKeeper(message.action);
+
+        // relay the message to MarketFactory
+        marketFactory.updateOperatorWithSignature(message.operatorUpdate, innerSignature);
     }
 
     /// @inheritdoc IRelayer

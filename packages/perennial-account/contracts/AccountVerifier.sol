@@ -13,6 +13,7 @@ import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/Rebalan
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 import { RelayedNonceCancellation, RelayedNonceCancellationLib } from "./types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation, RelayedGroupCancellationLib } from "./types/RelayedGroupCancellation.sol";
+import { RelayedOperatorUpdate, RelayedOperatorUpdateLib } from "./types/RelayedOperatorUpdate.sol";
 import { RelayedSignerUpdate, RelayedSignerUpdateLib } from "./types/RelayedSignerUpdate.sol";
 
 /// @title Verifier
@@ -103,6 +104,19 @@ contract AccountVerifier is VerifierBase, ILocalVerifier {
         if (!SignatureChecker.isValidSignatureNow(
             message.action.common.signer,
             _hashTypedDataV4(RelayedGroupCancellationLib.hash(message)),
+            outerSignature
+        )) revert VerifierInvalidSignerError();
+    }
+
+    /// @inheritdoc IRelayVerifier
+    function verifyRelayedOperatorUpdate(
+        RelayedOperatorUpdate calldata message,
+        bytes calldata outerSignature
+    ) external validateAndCancel(message.action.common, outerSignature)
+    {
+        if (!SignatureChecker.isValidSignatureNow(
+            message.action.common.signer,
+            _hashTypedDataV4(RelayedOperatorUpdateLib.hash(message)),
             outerSignature
         )) revert VerifierInvalidSignerError();
     }

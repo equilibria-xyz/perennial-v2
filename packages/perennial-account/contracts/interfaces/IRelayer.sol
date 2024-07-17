@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import { RelayedNonceCancellation } from "../types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation } from "../types/RelayedGroupCancellation.sol";
+import { RelayedOperatorUpdate } from "../types/RelayedOperatorUpdate.sol";
 import { RelayedSignerUpdate } from "../types/RelayedSignerUpdate.sol";
 
 // @notice Relays messages to downstream handlers, compensating keepers for the transaction
@@ -23,6 +24,16 @@ interface IRelayer {
     /// @param innerSignature Signature of the embedded GroupCancellation message
     function relayGroupCancellation(
         RelayedGroupCancellation calldata message,
+        bytes calldata outerSignature,
+        bytes calldata innerSignature
+    ) external;
+
+    /// @notice Relays a message to MarketFactory to update status of an operator
+    /// @param message Request with details needed for keeper compensation
+    /// @param outerSignature Signature of the RelayedOperatorUpdate message
+    /// @param innerSignature Signature of the embedded OperatorUpdate message
+    function relayOperatorUpdate(
+        RelayedOperatorUpdate calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
     ) external;

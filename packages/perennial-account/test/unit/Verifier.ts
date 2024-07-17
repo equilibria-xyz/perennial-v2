@@ -14,12 +14,14 @@ import {
   signRebalanceConfigChange,
   signRelayedGroupCancellation,
   signRelayedNonceCancellation,
+  signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
 import {
   signGroupCancellation,
   signCommon as signNonceCancellation,
+  signOperatorUpdate,
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { impersonate } from '../../../common/testutil'
@@ -255,6 +257,44 @@ describe('Verifier', () => {
         .withArgs(userA.address, relayedGroupCancellation.action.common.nonce)
     })
 
+    it('verifies relayedOperatorUpdate messages', async () => {
+      // create and sign the inner message
+      const operatorUpdate = {
+        access: {
+          accessor: userB.address,
+          approved: false,
+        },
+        common: {
+          account: userA.address,
+          signer: userA.address,
+          domain: userA.address,
+          nonce: nextNonce(),
+          group: 0,
+          expiry: currentTime.add(60),
+        },
+      }
+      const innerSignature = await signOperatorUpdate(userA, downstreamVerifier, operatorUpdate)
+      // ensure downstream verification will succeed
+      await expect(downstreamVerifier.connect(userA).verifyOperatorUpdate(operatorUpdate, innerSignature))
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, operatorUpdate.common.nonce)
+
+      // create and sign the outer message
+      const relayedOperatorUpdateMessage = {
+        operatorUpdate: operatorUpdate,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedOperatorUpdate(userA, accountVerifier, relayedOperatorUpdateMessage)
+      // ensure outer message verification succeeds
+      await expect(
+        accountVerifier
+          .connect(controllerSigner)
+          .verifyRelayedOperatorUpdate(relayedOperatorUpdateMessage, outerSignature),
+      )
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedOperatorUpdateMessage.action.common.nonce)
+    })
+
     it('verifies relayedSignerUpdate messages', async () => {
       // create and sign the inner message
       const signerUpdate = {
@@ -266,7 +306,7 @@ describe('Verifier', () => {
           account: userA.address,
           signer: userA.address,
           domain: userA.address,
-          nonce: nextNonce(), // TODO: inner nonce is unrelated to AccountVerifier and should be chosen separately
+          nonce: nextNonce(),
           group: 0,
           expiry: currentTime.add(60),
         },
