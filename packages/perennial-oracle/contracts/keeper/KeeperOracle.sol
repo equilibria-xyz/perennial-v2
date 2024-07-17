@@ -87,7 +87,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param account The account to callback to
     /// @param newPrice Whether a new price should be requested
     function request(IMarket market, address account, bool newPrice) external onlyAuthorized {
-        PriceRequest memory priceRequest = IKeeperFactory(address(factory())).current(); // TODO: make this only timestamp
+        PriceRequest memory priceRequest = IKeeperFactory(address(factory())).current();
 
         if (newPrice) {
             _globalCallbacks[priceRequest.timestamp].add(address(market));
