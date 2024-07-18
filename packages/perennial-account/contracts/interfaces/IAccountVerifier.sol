@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
+import { IRelayVerifier } from "./IRelayVerifier.sol";
 import { Action } from "../types/Action.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
@@ -9,7 +10,7 @@ import { RebalanceConfigChange } from "../types/RebalanceConfigChange.sol";
 import { Withdrawal } from "../types/Withdrawal.sol";
 
 /// @notice EIP712 signed message verifier for Perennial V2 Collateral Accounts.
-interface IAccountVerifier is IVerifierBase {
+interface IAccountVerifier is IVerifierBase, IRelayVerifier {
     /// @notice Verifies the signature of no-op action message
     /// @dev Cancels the nonce after verifying the signature
     ///      Reverts if the signature does not match the signer

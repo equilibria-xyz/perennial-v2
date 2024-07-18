@@ -40,7 +40,13 @@ To build a list of rebalance groups to check, keepers may watch for `RebalanceGr
 #### Messages
 
 ##### Domains
-// TODO: explain how user is supposed to set them
+With respect to domains, messages fall into three categories. Here's how to set your domain for each:
+| Message type | Message domain |
+| ------------ | -------------- |
+| __Messages involving Collateral Account actions__ | Collateral Accounts Controller |
+| __Nonce cancellation requests__                   | Validator used for intents     |
+| __Market access requests__                        | Market Factory                 |
+
 
 ##### Nonces
 Nonces are hashed into each request to ensure the same signed action cannot be replayed. Two types of nonces are specified in every message:

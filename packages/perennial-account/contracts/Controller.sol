@@ -11,7 +11,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
-import { IController, ILocalVerifier } from "./interfaces/IController.sol";
+import { IAccountVerifier, IController } from "./interfaces/IController.sol";
 import { RebalanceLib } from "./libs/RebalanceLib.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
@@ -36,11 +36,11 @@ contract Controller is Factory, IController {
     /// @dev DSU address
     Token18 public DSU; // solhint-disable-line var-name-mixedcase
 
-    /// @dev Contract used to validate delegated signers
+    /// @inheritdoc IController
     IMarketFactory public marketFactory;
 
-    /// @dev Contract used to validate message signatures
-    ILocalVerifier public verifier;
+    /// @inheritdoc IController
+    IAccountVerifier public verifier;
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
@@ -67,7 +67,7 @@ contract Controller is Factory, IController {
     /// @inheritdoc IController
     function initialize(
         IMarketFactory marketFactory_,
-        ILocalVerifier verifier_
+        IAccountVerifier verifier_
     ) external initializer(1) {
         __Factory__initialize();
         marketFactory = marketFactory_;

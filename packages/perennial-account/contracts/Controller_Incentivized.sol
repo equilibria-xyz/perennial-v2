@@ -15,7 +15,7 @@ import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IM
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";
 import { IRelayer } from "./interfaces/IRelayer.sol";
-import { Controller, ILocalVerifier } from "./Controller.sol";
+import { Controller, IAccountVerifier } from "./Controller.sol";
 import { Action } from "./types/Action.sol";
 import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
@@ -52,7 +52,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
         IMarketFactory marketFactory_,
-        ILocalVerifier verifier_,
+        IAccountVerifier verifier_,
         AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
         __Factory__initialize();

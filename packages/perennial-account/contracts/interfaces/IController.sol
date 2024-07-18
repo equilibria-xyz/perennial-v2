@@ -7,7 +7,7 @@ import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "../interfaces/IAccount.sol";
-import { ILocalVerifier } from "../interfaces/ILocalVerifier.sol";
+import { IAccountVerifier } from "../interfaces/IAccountVerifier.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { RebalanceConfig } from "../types/RebalanceConfig.sol";
@@ -85,14 +85,18 @@ interface IController {
     /// @param market Market with non-DSU collateral
     error ControllerUnsupportedMarketError(IMarket market);
 
-    // TODO: add accessors for public members
+    /// @dev Contract used to validate delegated signers and relay certain messages
+    function marketFactory() external view returns (IMarketFactory);
+
+    /// @dev Contract used to validate message signatures
+    function verifier() external view returns (IAccountVerifier);
 
     /// @notice Sets contract addresses used for message verification and token management
     /// @param marketFactory Contract used to validate delegated signers
     /// @param verifier Contract used to validate collateral account message signatures
     function initialize(
         IMarketFactory marketFactory,
-        ILocalVerifier verifier
+        IAccountVerifier verifier
     ) external;
 
     /// @notice Returns the deterministic address of the collateral account for a user,

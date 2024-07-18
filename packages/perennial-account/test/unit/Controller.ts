@@ -95,6 +95,11 @@ describe('Controller', () => {
   })
 
   describe('#creation', () => {
+    it('constructs and initializes as expected', async () => {
+      expect(await controller.marketFactory()).to.equal(marketFactory.address)
+      expect(await controller.verifier()).to.equal(verifier.address)
+    })
+
     it('calculates unique addresses', async () => {
       const accountAddressA = await controller.getAccountAddress(userA.address)
       expect(accountAddressA).to.not.equal(userA.address)
