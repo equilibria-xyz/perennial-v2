@@ -9,6 +9,7 @@ import {
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
 import {
+  RelayedAccessUpdateBatch,
   RelayedNonceCancellationStruct,
   RelayedGroupCancellationStruct,
   RelayedOperatorUpdateStruct,
@@ -224,6 +225,32 @@ export async function signRelayedSignerUpdate(
       { name: 'access', type: 'AccessUpdate' },
       { name: 'common', type: 'Common' },
     ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedAccessUpdateBatch(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedAccessUpdateBatch,
+): Promise<string> {
+  const types = {
+    RelayedAccessUpdateBatch: [
+      { name: 'accessUpdateBatch', type: 'AccessUpdateBatch' },
+      { name: 'action', type: 'Action' },
+    ],
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
+      { name: 'approved', type: 'bool' },
+    ],
+    AccessUpdateBatch: [
+      { name: 'operators', type: 'AccessUpdate[]' },
+      { name: 'signers', type: 'AccessUpdate[]' },
+      { name: 'common', type: 'Common' },
+    ],
+    ...actionType,
+    ...commonType,
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, message)

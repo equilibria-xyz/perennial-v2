@@ -15,6 +15,7 @@ import { RelayedNonceCancellation, RelayedNonceCancellationLib } from "./types/R
 import { RelayedGroupCancellation, RelayedGroupCancellationLib } from "./types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate, RelayedOperatorUpdateLib } from "./types/RelayedOperatorUpdate.sol";
 import { RelayedSignerUpdate, RelayedSignerUpdateLib } from "./types/RelayedSignerUpdate.sol";
+import { RelayedAccessUpdateBatch, RelayedAccessUpdateBatchLib } from "./types/RelayedAccessUpdateBatch.sol";
 
 /// @title Verifier
 /// @notice ERC712 signed message verifier for the Perennial V2 Collateral Accounts package.
@@ -130,6 +131,19 @@ contract AccountVerifier is VerifierBase, ILocalVerifier {
         if (!SignatureChecker.isValidSignatureNow(
             message.action.common.signer,
             _hashTypedDataV4(RelayedSignerUpdateLib.hash(message)),
+            outerSignature
+        )) revert VerifierInvalidSignerError();
+    }
+
+    /// @inheritdoc IRelayVerifier
+    function verifyRelayedAccessUpdateBatch(
+        RelayedAccessUpdateBatch calldata message,
+        bytes calldata outerSignature
+    ) external validateAndCancel(message.action.common, outerSignature)
+    {
+        if (!SignatureChecker.isValidSignatureNow(
+            message.action.common.signer,
+            _hashTypedDataV4(RelayedAccessUpdateBatchLib.hash(message)),
             outerSignature
         )) revert VerifierInvalidSignerError();
     }

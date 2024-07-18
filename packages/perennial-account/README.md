@@ -56,7 +56,7 @@ The _group_ nonce may be used to atomically cancel multiple actions. Let's explo
 // TODO: document interactions with relayer and controller
 
 ## Deployment
-`Controller` has no facilities for keeper compensation but is not abstract. It may be deployed for testing purposes or to self-process signed messages. Generally a subclass such as `Controller_Arbitrum` will be deployed to the target chain.
+Generally a subclass such as `Controller_Arbitrum` will be deployed to the target chain. The base `Controller` has no facilities for keeper compensation or message relaying but is not abstract. It may be deployed for testing purposes or to self-process signed messages.
 
 ## Development
 

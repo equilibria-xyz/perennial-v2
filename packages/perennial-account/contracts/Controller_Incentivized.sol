@@ -24,6 +24,7 @@ import { RelayedNonceCancellation } from "./types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation } from "./types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate } from "./types/RelayedOperatorUpdate.sol";
 import { RelayedSignerUpdate } from "./types/RelayedSignerUpdate.sol";
+import { RelayedAccessUpdateBatch } from "./types/RelayedAccessUpdateBatch.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
 /// @title Controller_Incentivized
@@ -123,7 +124,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         RelayedNonceCancellation calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
-    ) external {
+    ) override external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedNonceCancellation(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
@@ -139,7 +140,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         RelayedGroupCancellation calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
-    ) external {
+    ) override external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedGroupCancellation(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
@@ -155,7 +156,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         RelayedOperatorUpdate calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
-    ) external {
+    ) override external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedOperatorUpdate(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
@@ -180,6 +181,22 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
 
         // relay the message to MarketFactory
         marketFactory.updateSignerWithSignature(message.signerUpdate, innerSignature);
+    }
+
+    /// @inheritdoc IRelayer
+    function relayAccessUpdateBatch(
+        RelayedAccessUpdateBatch calldata message,
+        bytes calldata outerSignature,
+        bytes calldata innerSignature
+    ) override external {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyRelayedAccessUpdateBatch(message, outerSignature);
+        _ensureValidSigner(message.action.common.account, message.action.common.signer);
+
+        _compensateKeeper(message.action);
+
+        // relay the message to MarketFactory
+        marketFactory.updateAccessBatchWithSignature(message.accessUpdateBatch, innerSignature);
     }
 
     function _compensateKeeper(Action calldata action) internal virtual {

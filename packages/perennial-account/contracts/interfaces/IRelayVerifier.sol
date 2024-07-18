@@ -6,6 +6,7 @@ import { RelayedNonceCancellation } from "../types/RelayedNonceCancellation.sol"
 import { RelayedGroupCancellation } from "../types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate } from "../types/RelayedOperatorUpdate.sol";
 import { RelayedSignerUpdate } from "../types/RelayedSignerUpdate.sol";
+import { RelayedAccessUpdateBatch } from "../types/RelayedAccessUpdateBatch.sol";
 
 /// @notice EIP712 signed message verifier for relaying messages through Collateral Accounts Controller.
 interface IRelayVerifier is IVerifierBase {
@@ -38,6 +39,14 @@ interface IRelayVerifier is IVerifierBase {
     /// @param outerSignature EIP712 signature for the preceeding message
     function verifyRelayedSignerUpdate(
         RelayedSignerUpdate calldata message,
+        bytes calldata outerSignature
+    ) external;
+
+    /// @dev Verifies a request to relay a message updating multiple operators and signers
+    /// @param message Wrapped message adding details needed for keeper compensation
+    /// @param outerSignature EIP712 signature for the preceeding message
+    function verifyRelayedAccessUpdateBatch(
+        RelayedAccessUpdateBatch calldata message,
         bytes calldata outerSignature
     ) external;
 }

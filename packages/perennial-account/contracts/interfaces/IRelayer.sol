@@ -5,6 +5,7 @@ import { RelayedNonceCancellation } from "../types/RelayedNonceCancellation.sol"
 import { RelayedGroupCancellation } from "../types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate } from "../types/RelayedOperatorUpdate.sol";
 import { RelayedSignerUpdate } from "../types/RelayedSignerUpdate.sol";
+import { RelayedAccessUpdateBatch } from "../types/RelayedAccessUpdateBatch.sol";
 
 // @notice Relays messages to downstream handlers, compensating keepers for the transaction
 interface IRelayer {
@@ -44,6 +45,16 @@ interface IRelayer {
     /// @param innerSignature Signature of the embedded SignerUpdate message
     function relaySignerUpdate(
         RelayedSignerUpdate calldata message,
+        bytes calldata outerSignature,
+        bytes calldata innerSignature
+    ) external;
+
+    /// @notice Relays a message to MarketFactory to update multiple operators and signers
+    /// @param message Request with details needed for keeper compensation
+    /// @param outerSignature Signature of the RelayedAccessUpdateBatch message
+    /// @param innerSignature Signature of the embedded AccessUpdateBatch message
+    function relayAccessUpdateBatch(
+        RelayedAccessUpdateBatch calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
     ) external;

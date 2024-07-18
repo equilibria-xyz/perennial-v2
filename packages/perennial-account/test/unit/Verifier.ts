@@ -12,6 +12,7 @@ import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
+  signRelayedAccessUpdateBatch,
   signRelayedGroupCancellation,
   signRelayedNonceCancellation,
   signRelayedOperatorUpdate,
@@ -19,6 +20,7 @@ import {
   signWithdrawal,
 } from '../helpers/erc712'
 import {
+  signAccessUpdateBatch,
   signGroupCancellation,
   signCommon as signNonceCancellation,
   signOperatorUpdate,
@@ -39,13 +41,14 @@ describe('Verifier', () => {
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
+  let userC: SignerWithAddress
   let lastNonce = 0
   let currentTime: BigNumber
 
   // create a default action for the specified user
   function createAction(
     userAddress: Address,
-    signerAddress: Address,
+    signerAddress = userAddress,
     maxFee = utils.parseEther('12'),
     expiresInSeconds = 6,
   ) {
@@ -71,7 +74,7 @@ describe('Verifier', () => {
   }
 
   const fixture = async () => {
-    ;[owner, userA, userB] = await ethers.getSigners()
+    ;[owner, userA, userB, userC] = await ethers.getSigners()
     controller = await smock.fake<IController>('IController')
     accountVerifier = await new AccountVerifier__factory(owner).deploy()
     accountVerifierSigner = await impersonate.impersonateWithBalance(accountVerifier.address, utils.parseEther('10'))
@@ -189,6 +192,19 @@ describe('Verifier', () => {
   describe('#relayed', () => {
     let downstreamVerifier: Verifier
 
+    function createCommon() {
+      return {
+        common: {
+          account: userA.address,
+          signer: userA.address,
+          domain: userA.address,
+          nonce: nextNonce(),
+          group: 0,
+          expiry: currentTime.add(60),
+        },
+      }
+    }
+
     beforeEach(async () => {
       downstreamVerifier = await new Verifier__factory(owner).deploy()
     })
@@ -211,7 +227,7 @@ describe('Verifier', () => {
       // create and sign the outer message
       const relayedNonceCancellation = {
         nonceCancellation: nonceCancellation,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const outerSignature = await signRelayedNonceCancellation(userA, accountVerifier, relayedNonceCancellation)
       // ensure outer message verification succeeds
@@ -227,24 +243,17 @@ describe('Verifier', () => {
     it('verifies relayedGroupCancellation messages', async () => {
       const groupCancellation = {
         group: 6,
-        common: {
-          account: userA.address,
-          signer: userA.address,
-          domain: userA.address,
-          nonce: 0,
-          group: 0,
-          expiry: currentTime.add(60),
-        },
+        ...createCommon(),
       }
       const innerSignature = await signGroupCancellation(userA, downstreamVerifier, groupCancellation)
       // ensure downstream verification will succeed
       await expect(downstreamVerifier.connect(userA).verifyGroupCancellation(groupCancellation, innerSignature))
         .to.emit(downstreamVerifier, 'NonceCancelled')
-        .withArgs(userA.address, 0)
+        .withArgs(userA.address, groupCancellation.common.nonce)
 
       const relayedGroupCancellation = {
         groupCancellation: groupCancellation,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const outerSignature = await signRelayedGroupCancellation(userA, accountVerifier, relayedGroupCancellation)
       // ensure outer message verification succeeds
@@ -264,14 +273,7 @@ describe('Verifier', () => {
           accessor: userB.address,
           approved: false,
         },
-        common: {
-          account: userA.address,
-          signer: userA.address,
-          domain: userA.address,
-          nonce: nextNonce(),
-          group: 0,
-          expiry: currentTime.add(60),
-        },
+        ...createCommon(),
       }
       const innerSignature = await signOperatorUpdate(userA, downstreamVerifier, operatorUpdate)
       // ensure downstream verification will succeed
@@ -282,7 +284,7 @@ describe('Verifier', () => {
       // create and sign the outer message
       const relayedOperatorUpdateMessage = {
         operatorUpdate: operatorUpdate,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const outerSignature = await signRelayedOperatorUpdate(userA, accountVerifier, relayedOperatorUpdateMessage)
       // ensure outer message verification succeeds
@@ -302,14 +304,7 @@ describe('Verifier', () => {
           accessor: userB.address,
           approved: true,
         },
-        common: {
-          account: userA.address,
-          signer: userA.address,
-          domain: userA.address,
-          nonce: nextNonce(),
-          group: 0,
-          expiry: currentTime.add(60),
-        },
+        ...createCommon(),
       }
       const innerSignature = await signSignerUpdate(userA, downstreamVerifier, signerUpdate)
       // ensure downstream verification will succeed
@@ -320,7 +315,7 @@ describe('Verifier', () => {
       // create and sign the outer message
       const relayedSignerUpdateMessage = {
         signerUpdate: signerUpdate,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const outerSignature = await signRelayedSignerUpdate(userA, accountVerifier, relayedSignerUpdateMessage)
       // ensure outer message verification succeeds
@@ -329,6 +324,35 @@ describe('Verifier', () => {
       )
         .to.emit(accountVerifier, 'NonceCancelled')
         .withArgs(userA.address, relayedSignerUpdateMessage.action.common.nonce)
+    })
+
+    it('verifies relayedAccessUpdateBatch messages', async () => {
+      // create and sign the inner message
+      const accessUpdateBatch = {
+        operators: [{ accessor: userB.address, approved: true }],
+        signers: [{ accessor: userC.address, approved: true }],
+        ...createCommon(),
+      }
+      const innerSignature = await signAccessUpdateBatch(userA, downstreamVerifier, accessUpdateBatch)
+      // ensure downstream verification will succeed
+      await expect(downstreamVerifier.connect(userA).verifyAccessUpdateBatch(accessUpdateBatch, innerSignature))
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, accessUpdateBatch.common.nonce)
+
+      // create and sign the outer message
+      const relayedAccessUpdateBatchMessage = {
+        accessUpdateBatch: accessUpdateBatch,
+        ...createAction(userA.address),
+      }
+      const outerSignature = await signRelayedAccessUpdateBatch(userA, accountVerifier, relayedAccessUpdateBatchMessage)
+      // ensure outer message verification succeeds
+      await expect(
+        accountVerifier
+          .connect(controllerSigner)
+          .verifyRelayedAccessUpdateBatch(relayedAccessUpdateBatchMessage, outerSignature),
+      )
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedAccessUpdateBatchMessage.action.common.nonce)
     })
   })
 })

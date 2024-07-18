@@ -85,6 +85,8 @@ interface IController {
     /// @param market Market with non-DSU collateral
     error ControllerUnsupportedMarketError(IMarket market);
 
+    // TODO: add accessors for public members
+
     /// @notice Sets contract addresses used for message verification and token management
     /// @param marketFactory Contract used to validate delegated signers
     /// @param verifier Contract used to validate collateral account message signatures

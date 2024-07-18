@@ -37,6 +37,7 @@ import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
+  signRelayedAccessUpdateBatch,
   signRelayedGroupCancellation,
   signRelayedNonceCancellation,
   signRelayedOperatorUpdate,
@@ -44,6 +45,7 @@ import {
   signWithdrawal,
 } from '../helpers/erc712'
 import {
+  signAccessUpdateBatch,
   signGroupCancellation,
   signCommon as signNonceCancellation,
   signOperatorUpdate,
@@ -73,6 +75,7 @@ describe('Controller_Arbitrum', () => {
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
+  let userC: SignerWithAddress
   let keeper: SignerWithAddress
   let lastNonce = 0
   let currentTime: BigNumber
@@ -153,7 +156,7 @@ describe('Controller_Arbitrum', () => {
 
   const fixture = async () => {
     // deploy the protocol
-    ;[owner, userA, userB, keeper] = await ethers.getSigners()
+    ;[owner, userA, userB, userC, keeper] = await ethers.getSigners()
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
     ;[dsu, usdc] = await getStablecoins(owner)
     ;[market, ,] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
@@ -651,6 +654,19 @@ describe('Controller_Arbitrum', () => {
     let downstreamVerifier: Verifier
     let keeperBalanceBefore: BigNumber
 
+    function createCommon(domain: Address) {
+      return {
+        common: {
+          account: userA.address,
+          signer: userA.address,
+          domain: domain,
+          nonce: nextNonce(),
+          group: 0,
+          expiry: currentTime.add(60),
+        },
+      }
+    }
+
     beforeEach(async () => {
       accountA = await createCollateralAccount(userA, parse6decimal('6'))
       downstreamVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
@@ -707,14 +723,7 @@ describe('Controller_Arbitrum', () => {
       // create and sign the inner message
       const groupCancellation = {
         group: group,
-        common: {
-          account: userA.address,
-          signer: userA.address,
-          domain: downstreamVerifier.address,
-          nonce: 0,
-          group: 0,
-          expiry: currentTime.add(60),
-        },
+        ...createCommon(downstreamVerifier.address),
       }
       const innerSignature = await signGroupCancellation(userA, downstreamVerifier, groupCancellation)
 
@@ -750,14 +759,7 @@ describe('Controller_Arbitrum', () => {
           accessor: userB.address,
           approved: true,
         },
-        common: {
-          account: userA.address,
-          signer: userA.address,
-          domain: marketFactory.address,
-          nonce: nextNonce(),
-          group: 0,
-          expiry: currentTime.add(60),
-        },
+        ...createCommon(marketFactory.address),
       }
       const innerSignature = await signOperatorUpdate(userA, downstreamVerifier, operatorUpdate)
 
@@ -793,14 +795,7 @@ describe('Controller_Arbitrum', () => {
           accessor: userB.address,
           approved: true,
         },
-        common: {
-          account: userA.address,
-          signer: userA.address,
-          domain: marketFactory.address,
-          nonce: nextNonce(),
-          group: 0,
-          expiry: currentTime.add(60),
-        },
+        ...createCommon(marketFactory.address),
       }
       const innerSignature = await signSignerUpdate(userA, downstreamVerifier, signerUpdate)
 
@@ -824,6 +819,46 @@ describe('Controller_Arbitrum', () => {
 
       // confirm userB is now a delegated signer
       expect(await marketFactory.signers(userA.address, userB.address)).to.be.true
+    })
+
+    it('relays batch access update messages', async () => {
+      // confirm userB is not already an operator, and userC is not already a delegated signer
+      expect(await marketFactory.operators(userA.address, userB.address)).to.be.false
+      expect(await marketFactory.signers(userA.address, userC.address)).to.be.false
+
+      // create and sign the inner message
+      const accessUpdateBatch = {
+        operators: [{ accessor: userB.address, approved: true }],
+        signers: [{ accessor: userC.address, approved: true }],
+        ...createCommon(marketFactory.address),
+      }
+      const innerSignature = await signAccessUpdateBatch(userA, downstreamVerifier, accessUpdateBatch)
+
+      // create and sign the outer message
+      const relayedAccessUpdateBatchMesage = {
+        accessUpdateBatch: accessUpdateBatch,
+        ...createAction(userA.address),
+      }
+      const outerSignature = await signRelayedAccessUpdateBatch(userA, accountVerifier, relayedAccessUpdateBatchMesage)
+
+      // perform the action
+      await expect(
+        controller
+          .connect(keeper)
+          .relayAccessUpdateBatch(relayedAccessUpdateBatchMesage, outerSignature, innerSignature),
+      )
+        .to.emit(marketFactory, 'OperatorUpdated')
+        .withArgs(userA.address, userB.address, true)
+        .to.emit(marketFactory, 'SignerUpdated')
+        .withArgs(userA.address, userC.address, true)
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, accessUpdateBatch.common.nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedAccessUpdateBatchMesage.action.common.nonce)
+
+      // confirm userB is now an operator, and userC a delegated signer
+      expect(await marketFactory.operators(userA.address, userB.address)).to.be.true
+      expect(await marketFactory.signers(userA.address, userC.address)).to.be.true
     })
   })
 })
