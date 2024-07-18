@@ -39,11 +39,8 @@ const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Stan
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
 const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
-// TODO: using these temporarily until DSU migrates to native USDC
-const USDCe_ADDRESS = '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8' // Arbitrum bridged USDC
-const USDCe_HOLDER = '0xb38e8c17e38363af6ebdcb3dae12e0243582891d' // Binance hot wallet has 55mm USDC.e at height 208460709
-// const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC (not USDC.e), a 6-decimal token
-// const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid deposit bridge has 340mm USDC at height 208460709
+const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC (not USDC.e), a 6-decimal token
+const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid deposit bridge has 414mm USDC at height 233560862
 
 // deploys protocol
 export async function createFactories(
@@ -146,7 +143,7 @@ export async function deployControllerArbitrum(
   nonceManager: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
-  const accountImpl = await new Account__factory(owner).deploy(USDCe_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
+  const accountImpl = await new Account__factory(owner).deploy(USDC_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
   accountImpl.initialize(constants.AddressZero)
   const controller = await new Controller_Arbitrum__factory(
     {
@@ -174,22 +171,22 @@ export async function fundWalletUSDC(
   amount: BigNumber,
   overrides?: CallOverrides,
 ): Promise<undefined> {
-  const usdcOwner = await impersonate.impersonateWithBalance(USDCe_HOLDER, utils.parseEther('10'))
-  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, usdcOwner)
+  const usdcOwner = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
+  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, usdcOwner)
 
-  expect(await usdc.balanceOf(USDCe_HOLDER)).to.be.greaterThan(amount)
+  expect(await usdc.balanceOf(USDC_HOLDER)).to.be.greaterThan(amount)
   await usdc.transfer(wallet.address, amount, overrides ?? {})
 }
 
 export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20Metadata, IERC20Metadata]> {
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, owner)
+  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
   return [dsu, usdc]
 }
 
 export async function returnUSDC(wallet: SignerWithAddress): Promise<undefined> {
-  const usdc = IERC20Metadata__factory.connect(USDCe_ADDRESS, wallet)
-  await usdc.transfer(USDCe_HOLDER, await usdc.balanceOf(wallet.address))
+  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, wallet)
+  await usdc.transfer(USDC_HOLDER, await usdc.balanceOf(wallet.address))
 }
 
 export async function returnDSU(wallet: SignerWithAddress): Promise<undefined> {
