@@ -7,7 +7,6 @@ import {
   KeeperOracle__factory,
   Oracle,
   Oracle__factory,
-  OracleFactory,
   PythFactory,
   PythFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'

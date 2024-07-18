@@ -16,7 +16,7 @@ import {
   AccountVerifier__factory,
 } from '../../types/generated'
 
-import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange } from '../helpers/erc712'
+import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { deployController, getEventArguments, mockMarket } from '../helpers/setupHelpers'
@@ -696,6 +696,22 @@ describe('Controller', () => {
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
       ).to.be.revertedWithCustomError(controller, 'ControllerUnsupportedMarketError')
+    })
+  })
+
+  describe('#messaging', () => {
+    it('rejects verification of message signed by unauthorized signer', async () => {
+      // specify an unauthorized signer in the message
+      const withdrawalMessage = {
+        amount: parse6decimal('54.6'),
+        unwrap: false,
+        ...(await createAction(userA.address, userB.address)),
+      }
+      const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
+      // controller should revert
+      await expect(
+        controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
   })
 })

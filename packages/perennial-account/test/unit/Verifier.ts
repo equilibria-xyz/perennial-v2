@@ -134,7 +134,7 @@ describe('Verifier', () => {
 
     it('verifies deployAccount messages', async () => {
       const deployAccountMessage = {
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
 
@@ -147,7 +147,7 @@ describe('Verifier', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: constants.MaxInt256,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
 
@@ -167,7 +167,7 @@ describe('Verifier', () => {
           { target: parse6decimal('0.45'), threshold: parse6decimal('0.031') },
         ],
         maxFee: constants.Zero,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signRebalanceConfigChange(userA, accountVerifier, rebalanceConfigChangeMessage)
 
@@ -180,12 +180,79 @@ describe('Verifier', () => {
       const withdrawalMessage = {
         amount: parse6decimal('55.5'),
         unwrap: false,
-        ...createAction(userA.address, userA.address),
+        ...createAction(userA.address),
       }
       const signature = await signWithdrawal(userA, accountVerifier, withdrawalMessage)
 
       await expect(accountVerifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature)).to.not.be
         .reverted
+    })
+
+    it('rejects verification of message signed by unauthorized signer', async () => {
+      // specify the correct signer in the message, but sign as someone else
+      const withdrawalMessage = {
+        amount: parse6decimal('55.6'),
+        unwrap: false,
+        ...createAction(userA.address),
+      }
+      const signature = await signWithdrawal(userB, accountVerifier, withdrawalMessage)
+      // verifier should revert
+      await expect(
+        accountVerifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature),
+      ).to.be.revertedWithCustomError(accountVerifier, 'VerifierInvalidSignerError')
+    })
+
+    it('rejects verification of message with wrong domain', async () => {
+      const withdrawalMessage = {
+        amount: parse6decimal('55.6'),
+        unwrap: false,
+        ...createAction(userA.address),
+      }
+      withdrawalMessage.action.common.domain = accountVerifier.address
+      const signature = await signWithdrawal(userA, accountVerifier, withdrawalMessage)
+      await expect(
+        accountVerifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature),
+      ).to.be.revertedWithCustomError(accountVerifier, 'VerifierInvalidDomainError')
+    })
+
+    it('prevents replay attack using invalidated nonce', async () => {
+      const withdrawalMessage = {
+        amount: parse6decimal('27.75'),
+        unwrap: false,
+        ...createAction(userA.address),
+      }
+      const signature = await signWithdrawal(userA, accountVerifier, withdrawalMessage)
+
+      // first verification should succeed
+      await expect(accountVerifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature)).to.not.be
+        .reverted
+      // second verification should revert
+      await expect(
+        accountVerifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature),
+      ).to.be.revertedWithCustomError(accountVerifier, 'VerifierInvalidNonceError')
+    })
+
+    it('prevents verification of cancelled group nonce', async () => {
+      const withdrawalMessage = {
+        amount: parse6decimal('27.75'),
+        unwrap: false,
+        ...createAction(userA.address),
+      }
+      withdrawalMessage.action.common.group = 4
+      const signature = await signWithdrawal(userA, accountVerifier, withdrawalMessage)
+
+      // first verification should succeed
+      await expect(accountVerifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature)).to.not.be
+        .reverted
+
+      // invalidate the group nonce
+      await accountVerifier.connect(userA).cancelGroup(4)
+
+      // second verification using fresh nonce but cancelled group should fail
+      withdrawalMessage.action.common.nonce = nextNonce()
+      await expect(
+        accountVerifier.connect(controllerSigner).verifyWithdrawal(withdrawalMessage, signature),
+      ).to.be.revertedWithCustomError(accountVerifier, 'VerifierInvalidGroupError')
     })
   })
 
@@ -353,6 +420,25 @@ describe('Verifier', () => {
       )
         .to.emit(accountVerifier, 'NonceCancelled')
         .withArgs(userA.address, relayedAccessUpdateBatchMessage.action.common.nonce)
+    })
+
+    it('prevents verification of expired messages', async () => {
+      // create and sign the outer message
+      const relayedSignerUpdateMessage = {
+        signerUpdate: {
+          access: {
+            accessor: userB.address,
+            approved: true,
+          },
+          ...createCommon(),
+        },
+        ...createAction(userA.address),
+      }
+      relayedSignerUpdateMessage.action.common.expiry = currentTime.sub(BigNumber.from(1))
+      const outerSignature = await signRelayedSignerUpdate(userA, accountVerifier, relayedSignerUpdateMessage)
+      await expect(
+        accountVerifier.connect(controllerSigner).verifyRelayedSignerUpdate(relayedSignerUpdateMessage, outerSignature),
+      ).to.be.revertedWithCustomError(accountVerifier, 'VerifierInvalidExpiryError')
     })
   })
 })
