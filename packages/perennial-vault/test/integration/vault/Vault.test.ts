@@ -22,7 +22,7 @@ import {
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import {
   MarketFactory,
   ProxyAdmin,
@@ -65,9 +65,14 @@ describe('Vault', () => {
   let marketFactory: MarketFactory
   let proxyAdmin: ProxyAdmin
 
-  async function updateOracle(newPrice?: BigNumber, newPriceBtc?: BigNumber) {
-    await _updateOracleEth(newPrice)
-    await _updateOracleBtc(newPriceBtc)
+  async function updateOracle(
+    newPrice?: BigNumber,
+    newPriceBtc?: BigNumber,
+    newReceipt?: OracleReceipt,
+    newReceiptBtc?: OracleReceipt,
+  ) {
+    await _updateOracleEth(newPrice, newReceipt)
+    await _updateOracleBtc(newPriceBtc, newReceiptBtc)
   }
 
   async function settleUnderlying(account: SignerWithAddress) {
@@ -75,8 +80,9 @@ describe('Vault', () => {
     await settle(btcMarket, account)
   }
 
-  async function _updateOracleEth(newPrice?: BigNumber) {
+  async function _updateOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
     const [currentTimestamp, currentPrice] = await oracle.latest()
+    const [, currentReceipt] = await btcOracle.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
@@ -86,11 +92,12 @@ describe('Vault', () => {
     oracle.request.whenCalledWith(user.address).returns()
     oracle.latest.returns(newVersion)
     oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    oracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+    oracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
-  async function _updateOracleBtc(newPrice?: BigNumber) {
+  async function _updateOracleBtc(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
     const [currentTimestamp, currentPrice] = await btcOracle.latest()
+    const [, currentReceipt] = await btcOracle.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
@@ -100,7 +107,7 @@ describe('Vault', () => {
     btcOracle.request.whenCalledWith(user.address).returns()
     btcOracle.latest.returns(newVersion)
     btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+    btcOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
   async function position() {
@@ -174,7 +181,7 @@ describe('Vault', () => {
     oracle.request.whenCalledWith(user.address).returns()
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
+    oracle.at.whenCalledWith(realVersion.timestamp).returns([realVersion, DEFAULT_ORACLE_RECEIPT])
 
     btcOracle = await smock.fake<IOracleProvider>('IOracleProvider')
     const btcRealVersion = {
@@ -188,7 +195,7 @@ describe('Vault', () => {
     btcOracle.request.whenCalledWith(user.address).returns()
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
+    btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns([btcRealVersion, DEFAULT_ORACLE_RECEIPT])
 
     vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
     vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
@@ -273,21 +280,24 @@ describe('Vault', () => {
     vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
     await vaultFactory.initialize()
 
+    asset = IERC20Metadata__factory.connect(instanceVars.dsu.address, owner)
+
+    await fundWallet(asset, owner)
+    await asset.approve(vaultFactory.address, ethers.constants.MaxUint256)
     vault = IVault__factory.connect(
       await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
       owner,
     )
     await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
-
     await vault.register(btcMarket.address)
     await vault.updateLeverage(0, leverage)
     await vault.updateLeverage(1, leverage)
     await vault.updateWeights([0.8e6, 0.2e6])
     await vault.updateParameter({
-      cap: maxCollateral,
+      maxDeposit: maxCollateral,
+      minDeposit: 0,
     })
 
-    asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
     await Promise.all([
       asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256),
       asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256),
@@ -370,7 +380,7 @@ describe('Vault', () => {
     oracle.request.whenCalledWith(user.address).returns()
     oracle.latest.returns(realVersion)
     oracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    oracle.at.whenCalledWith(realVersion.timestamp).returns(realVersion)
+    oracle.at.whenCalledWith(realVersion.timestamp).returns([realVersion, DEFAULT_ORACLE_RECEIPT])
 
     const btcRealVersion = {
       timestamp: STARTING_TIMESTAMP,
@@ -383,7 +393,7 @@ describe('Vault', () => {
     btcOracle.request.whenCalledWith(user.address).returns()
     btcOracle.latest.returns(btcRealVersion)
     btcOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
+    btcOracle.at.whenCalledWith(btcRealVersion.timestamp).returns([btcRealVersion, DEFAULT_ORACLE_RECEIPT])
 
     vaultOracleFactory.instances.whenCalledWith(oracle.address).returns(true)
     vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
@@ -393,7 +403,7 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address, 0, 'Blue Chip'))
+      await expect(vault.initialize(asset.address, market.address, parse6decimal('5'), 'Blue Chip'))
         .to.revertedWithCustomError(vault, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -489,7 +499,7 @@ describe('Vault', () => {
       const oracle4 = await smock.fake<IOracleProvider>('IOracleProvider')
       oracle4.request.returns([realVersion4, realVersion4.timestamp.add(LEGACY_ORACLE_DELAY)])
       oracle4.latest.returns(realVersion4)
-      oracle4.at.whenCalledWith(realVersion4.timestamp).returns(realVersion4)
+      oracle4.at.whenCalledWith(realVersion4.timestamp).returns([realVersion4, DEFAULT_ORACLE_RECEIPT])
 
       const LINK0_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000004'
       vaultOracleFactory.instances.whenCalledWith(oracle4.address).returns(true)
@@ -531,19 +541,22 @@ describe('Vault', () => {
   describe('#updateParameter', () => {
     it('updates correctly', async () => {
       const newParameter = {
-        cap: parse6decimal('1000000'),
+        maxDeposit: parse6decimal('1000000'),
+        minDeposit: parse6decimal('10'),
       }
       await expect(vault.connect(owner).updateParameter(newParameter))
         .to.emit(vault, 'ParameterUpdated')
         .withArgs(newParameter)
 
       const parameter = await vault.parameter()
-      expect(parameter.cap).to.deep.contain(newParameter.cap)
+      expect(parameter.maxDeposit).to.deep.contain(newParameter.maxDeposit)
+      expect(parameter.minDeposit).to.deep.contain(newParameter.minDeposit)
     })
 
     it('reverts when not owner', async () => {
       const newParameter = {
-        cap: parse6decimal('1000000'),
+        maxDeposit: parse6decimal('1000000'),
+        minDeposit: parse6decimal('10'),
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
@@ -1066,13 +1079,9 @@ describe('Vault', () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
-      await market.updateParameter({
-        ...(await market.parameter()),
-        settlementFee: parse6decimal('5'),
-      })
-      await btcMarket.updateParameter({
-        ...(await btcMarket.parameter()),
-        settlementFee: parse6decimal('5'),
+      await vault.updateParameter({
+        ...(await vault.parameter()),
+        minDeposit: parse6decimal('10'),
       })
 
       const smallDeposit = parse6decimal('11000')
@@ -1564,13 +1573,8 @@ describe('Vault', () => {
         },
       })
 
-      const settlementFee = parse6decimal('1.00')
-      const marketParameter = { ...(await market.parameter()) }
-      marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(marketParameter)
-      const btcMarketParameter = { ...(await btcMarket.parameter()) }
-      btcMarketParameter.settlementFee = settlementFee
-      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
+      const oracleRecteipt = { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('1.00') }
+      await updateOracle(undefined, undefined, oracleRecteipt, oracleRecteipt)
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1583,17 +1587,22 @@ describe('Vault', () => {
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
       await updateOracle()
-      await vault.rebalance(user2.address)
+      const tx = await vault.rebalance(user2.address)
 
       // Now we should have opened positions.
       // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
-      const settlementFeeCharged = parse6decimal('0.333334').mul(2)
-      const collateralForRebalance = parse6decimal('996').add(largeDeposit).sub(settlementFeeCharged).add(10)
+      const settlementFeeCharged = parse6decimal('1').mul(2)
+      const linearFeeCharged = parse6decimal('2').mul(2)
+      const collateralForRebalance = smallDeposit
+        .add(largeDeposit)
+        .sub(linearFeeCharged)
+        .sub(settlementFeeCharged)
+        .add(10)
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('10002440235')
-      const totalAssets = BigNumber.from('10995558929')
+      const balanceOf2 = BigNumber.from('10015653937')
+      const totalAssets = BigNumber.from('10994246014')
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
@@ -1633,9 +1642,9 @@ describe('Vault', () => {
       const btcCurrentSettlementFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp))
         .settlementFee
 
-      const unclaimed1 = BigNumber.from('989470744')
-      const unclaimed2 = BigNumber.from('9919311952')
-      const finalTotalAssets = BigNumber.from('41832109') // last trade fee + settlement fee
+      const unclaimed1 = BigNumber.from('988182487')
+      const unclaimed2 = BigNumber.from('9919706416')
+      const finalTotalAssets = BigNumber.from('41832125') // last trade fee + settlement fee
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
@@ -1721,10 +1730,9 @@ describe('Vault', () => {
         },
       })
 
-      const settlementFee = parse6decimal('1.00')
-      const marketParameter = { ...(await market.parameter()) }
-      marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(marketParameter)
+      const oracleRecteipt = { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('1.00') }
+      await updateOracle(undefined, undefined, oracleRecteipt, oracleRecteipt)
+
       // re-setup vault w/ initial amount
       const vaultFactoryProxy2 = await new TransparentUpgradeableProxy__factory(owner).deploy(
         marketFactory.address, // dummy contract
@@ -1742,7 +1750,7 @@ describe('Vault', () => {
       await vaultFactory2.initialize()
 
       await fundWallet(asset, owner)
-      await asset.approve(vaultFactory2.address, ethers.utils.parseEther('2'))
+      await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
       const vault2 = IVault__factory.connect(
         await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
         owner,
@@ -1754,7 +1762,7 @@ describe('Vault', () => {
       await vault2.rebalance(vaultFactory2.address)
 
       expect((await vault2.accounts(vaultFactory2.address)).assets).to.equal(0)
-      expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('2'))
+      expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('1'))
     })
 
     it('zero address settle w/ settlement fee', async () => {
@@ -1775,13 +1783,8 @@ describe('Vault', () => {
         },
       })
 
-      const settlementFee = parse6decimal('1.00')
-      const marketParameter = { ...(await market.parameter()) }
-      marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(marketParameter)
-      const btcMarketParameter = { ...(await btcMarket.parameter()) }
-      btcMarketParameter.settlementFee = settlementFee
-      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
+      const oracleRecteipt = { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('1.00') }
+      await updateOracle(undefined, undefined, oracleRecteipt, oracleRecteipt)
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1802,19 +1805,12 @@ describe('Vault', () => {
       await vault.rebalance(user.address)
       await vault.rebalance(user2.address)
 
-      const totalAssets = BigNumber.from('10911553329')
+      const totalAssets = BigNumber.from('10910767469')
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
-    it('reverts when below settlement fee', async () => {
-      const settlementFee = parse6decimal('1.00')
-      const marketParameter = { ...(await market.parameter()) }
-      marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(marketParameter)
-      const btcMarketParameter = { ...(await btcMarket.parameter()) }
-      btcMarketParameter.settlementFee = settlementFee
-      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
-
+    it('reverts when below minDeposit', async () => {
+      await vault.updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10') })
       await expect(vault.connect(user).update(user.address, parse6decimal('0.50'), 0, 0)).to.revertedWithCustomError(
         vault,
         'VaultInsufficientMinimumError',
@@ -1833,13 +1829,8 @@ describe('Vault', () => {
     })
 
     it('does not inflate checkpoint count', async () => {
-      const settlementFee = parse6decimal('10.00')
-      const marketParameter = { ...(await market.parameter()) }
-      marketParameter.settlementFee = settlementFee
-      await market.connect(owner).updateParameter(marketParameter)
-      const btcMarketParameter = { ...(await btcMarket.parameter()) }
-      btcMarketParameter.settlementFee = settlementFee
-      await btcMarket.connect(owner).updateParameter(btcMarketParameter)
+      const oracleRecteipt = { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('1.00') }
+      await updateOracle(undefined, undefined, oracleRecteipt, oracleRecteipt)
 
       const deposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, deposit, 0, 0)
@@ -1855,9 +1846,10 @@ describe('Vault', () => {
       expect((await vault.checkpoints(currentId)).deposits).to.equal(1)
     })
 
-    it('doesnt bypass vault deposit cap', async () => {
+    it('doesnt bypass vault maxDeposit', async () => {
       await vault.connect(owner).updateParameter({
-        cap: parse6decimal('100'),
+        maxDeposit: parse6decimal('100'),
+        minDeposit: 0,
       })
 
       await updateOracle()

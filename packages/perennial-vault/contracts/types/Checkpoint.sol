@@ -138,13 +138,12 @@ library CheckpointLib {
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the global context
-    /// @dev Dev used in limit calculations when a non-historical settlement fee must be used
+    /// @dev Dev used in limit calculations when no settlement fee is available
     /// @param shares Number of shares to convert to shares
-    /// @param settlementFee Custom settlement fee
     /// @return Amount of assets for the given shares at checkpoint
-    function toAssets(Checkpoint memory self, UFixed6 shares, UFixed6 settlementFee) internal pure returns (UFixed6) {
+    function toAssets(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return (self.shares.isZero() ? shares : _toAssets(self, shares)).unsafeSub(settlementFee);
+        return (self.shares.isZero() ? shares : _toAssets(self, shares));
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint
