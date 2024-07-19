@@ -40,7 +40,7 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     error KeeperOracleInvalidPriceError();
     //sig: 0x4889ef6f
     error KeeperOracleInvalidCallbackError();
-    //sig: TODO
+    //sig: 0x7321f78c
     error KeeperOracleNoPriorRequestsError();
 
     function initialize() external;

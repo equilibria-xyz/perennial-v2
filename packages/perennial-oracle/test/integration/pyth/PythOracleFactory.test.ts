@@ -4,7 +4,7 @@ import { utils } from 'ethers'
 import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { currentBlockTimestamp, increase } from '../../../../common/testutil/time'
+import { currentBlockTimestamp, increase, increaseTo } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,
@@ -37,6 +37,7 @@ import {
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
+import { pyth } from '../../../types/generated/contracts'
 
 const { ethers } = HRE
 
@@ -1390,19 +1391,24 @@ testOracles.forEach(testOracle => {
         await pythOracleFactory.connect(owner).updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'))
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, OTHER_VAA, {
+          value: 1,
+        })
+
+        await increaseTo(STARTING_TIME + 53) // make VAA_AFTER_EXPIRATION valid
+
         // get both requests in the same version
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
         await pythOracleFactory.connect(owner).updateParameter(1, 0, 0)
-        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, VAA, {
-          value: 1,
-        })
-        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 4, OTHER_VAA, {
-          value: 1,
-        })
-        const version = await keeperOracle.connect(user).at(STARTING_TIME + 4)
-        expect(version[0].price).to.equal('1838207180')
+        await pythOracleFactory
+          .connect(user)
+          .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 57, VAA_AFTER_EXPIRATION, {
+            value: 1,
+          })
+        const version = await keeperOracle.connect(user).at(STARTING_TIME + 57)
+        expect(version[0].price).to.equal('1837350000')
         expect(version[0].valid).to.equal(true)
         expect(version[1].settlementFee).to.equal(parse6decimal('1.5'))
         expect(version[1].oracleFee).to.equal(parse6decimal('0.1'))

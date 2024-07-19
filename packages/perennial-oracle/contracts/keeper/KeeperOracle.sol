@@ -103,9 +103,13 @@ contract KeeperOracle is IKeeperOracle, Instance {
             delete linkbacks[priceRequest.timestamp];
             emit OracleProviderVersionRequested(priceRequest.timestamp, true);
         } else {
+            // take the more recent of the latest requested version and the latest committed version
+            uint256 linkbackTimestamp = Math.max(currentVersion.timestamp, _global.latestVersion);
+
             if (linkbacks[priceRequest.timestamp] != 0) return; // already requested without new price
-            if (currentVersion.timestamp == 0) revert KeeperOracleNoPriorRequestsError();
-            linkbacks[priceRequest.timestamp] = currentVersion.timestamp;
+            if (linkbackTimestamp == 0) revert KeeperOracleNoPriorRequestsError(); // no prior requests or commits
+
+            linkbacks[priceRequest.timestamp] = linkbackTimestamp;
             emit OracleProviderVersionRequested(priceRequest.timestamp, false);
         }
     }
