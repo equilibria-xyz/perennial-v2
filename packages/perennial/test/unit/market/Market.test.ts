@@ -14159,6 +14159,29 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
         })
 
+        it('reverts if price is stale (invalid)', async () => {
+          const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(10800) }
+          await market.connect(owner).updateRiskParameter(riskParameter, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns({ ...ORACLE_VERSION_1, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_1, valid: false }, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          // revert if withdrawing
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
+          ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
+
+          // revert if changing position
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, -1, false),
+          ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
+        })
+
         it('reverts if sender is not account', async () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
           await market.connect(owner).updateRiskParameter(riskParameter, false)
