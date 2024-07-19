@@ -21,15 +21,17 @@ struct OracleParameter {
     UFixed6 oracleFee;
 }
 struct StoredOracleParameter {
-    uint16 latestGranularity;
-    uint16 currentGranularity;
-    uint32 effectiveAfter;
-    uint48 settlementFee;
-    uint24 oracleFee;
+    /* slot 0 */
+    uint16 latestGranularity;   // <= 65k
+    uint16 currentGranularity;  // <= 65k
+    uint32 effectiveAfter;      // <= 2038
+    uint48 settlementFee;       // <= 281m
+    uint24 oracleFee;           // <= 100%
 }
 struct OracleParameterStorage { StoredOracleParameter value; }
 using OracleParameterStorageLib for OracleParameterStorage global;
 
+/// @dev (external-safe): this library is safe to externalize
 library OracleParameterStorageLib {
     // sig: 0xfc481d85
     error OracleParameterStorageInvalidError();
