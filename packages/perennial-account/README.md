@@ -58,6 +58,9 @@ The _group_ nonce may be used to atomically cancel multiple actions. Let's explo
 1. User submits several related actions under the same _group_, enabling them to cancel any unfulfilled actions with a single message.
 1. User formats the current UTC date as an integer and uses this for their _group_ nonce. This allows the user to send a single message to cancel all pending actions submitted on the specified date. Granularity could be reduced by formatting year and week number, or increased by including hour with the date.
 
+##### Relaying
+Messages may be relayed to `MarketFactory` and other extensions for purposes of compensating keepers using funds in your collateral account.  "Inner" relayed messages are wrapped with an "Outer" message which identifies your collateral account and a maximum fee to compensate the keeper.  Both inner and outer message require separate signatures against different domains (discussed above).
+
 ### Keepers
 // TODO: document interactions with relayer and controller
 
