@@ -6,8 +6,9 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { Kept } from "@equilibria/root/attribute/Kept/Kept.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Token18, UFixed18 } from "@equilibria/root/token/types/Token18.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
@@ -213,9 +214,8 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         UFixed18 amount,
         bytes memory data
     ) internal virtual override returns (UFixed18 raisedKeeperFee) {
-        (address account, uint256 maxFee) = abi.decode(data, (address, uint256));
-        // maxFee is a UFixed6; convert to 18-decimal precision
-        raisedKeeperFee = amount.min(UFixed18.wrap(maxFee * 1e12));
+        (address account, UFixed6 maxFee) = abi.decode(data, (address, UFixed6));
+        raisedKeeperFee = amount.min(UFixed18Lib.from(maxFee));
 
         // if the account has insufficient DSU to pay the fee, wrap
         if (DSU.balanceOf(account).lt(raisedKeeperFee)) {
