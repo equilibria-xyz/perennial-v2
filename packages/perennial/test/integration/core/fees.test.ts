@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants, ContractTransaction, utils } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle, updateNoOp } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_CHECKPOINT,
   DEFAULT_POSITION,
@@ -129,7 +129,7 @@ describe('Fees', () => {
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
-      const tx = await updateNoOp(market, user)
+      const tx = await settle(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -145,16 +145,21 @@ describe('Fees', () => {
       // check user state
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedMakerFee).sub(expectedMakerLinear).sub(expectedMakerProportional),
       })
-      expectOrderEq(await market.pendingOrders(user.address, 2), {
+      expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(user.address, 2), {
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedMakerFee.add(expectedMakerLinear).add(expectedMakerProportional),
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -168,18 +173,20 @@ describe('Fees', () => {
       const expectedRiskFee = BigNumber.from('50108508') // = (250542544 - 125271272) * 0.4
       const expectedDonation = BigNumber.from('37581383') // = 250542544 - 125271272 - 37581381 - 50108508
       expectGlobalEq(await market.global(), {
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
-        latestPrice: PRICE,
         exposure: 0,
       })
-      expectOrderEq(await market.pendingOrder(2), {
+      expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -232,7 +239,7 @@ describe('Fees', () => {
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
-      const tx = await updateNoOp(market, user)
+      const tx = await settle(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -248,16 +255,20 @@ describe('Fees', () => {
       // check user state
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 3,
+        currentId: 2,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedMakerFee).sub(10), // Maker gets part of their fee refunded since they were an exisiting maker
       })
-      expectOrderEq(await market.pendingOrders(user.address, 3), {
+      expectOrderEq(await market.pendingOrders(user.address, 2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        makerNeg: POSITION,
       })
-      expectCheckpointEq(await market.checkpoints(user.address, 3), {
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedMakerFee.add(expectedMakerLinear).add(expectedMakerProportional),
+        collateral: COLLATERAL.add(expectedMakerLinear).add(expectedMakerProportional).sub(10),
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -270,18 +281,19 @@ describe('Fees', () => {
       const expectedRiskFee = BigNumber.from('11388297') // = (56941487 - 28470743) * 0.4
       const expectedDonation = BigNumber.from('8541224') // = 56941487 - 28470743 - 8541223 - 11388297
       expectGlobalEq(await market.global(), {
-        currentId: 3,
+        currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
         exposure: 0,
-        latestPrice: PRICE,
       })
-      expectOrderEq(await market.pendingOrder(3), {
+      expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        makerNeg: POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -335,7 +347,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await updateNoOp(market, userB)
+      const txLong = await settle(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -370,18 +382,21 @@ describe('Fees', () => {
 
       // Global State
       expectGlobalEq(await market.global(), {
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
-        latestPrice: PRICE,
         exposure: 0,
       })
-      expectOrderEq(await market.pendingOrder(2), {
+      expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
+        timestamp: TIMESTAMP_1,
+        orders: 2,
+        longPos: LONG_POSITION,
+        makerPos: MAKER_POSITION,
+        collateral: COLLATERAL.mul(2),
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -393,19 +408,24 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedtakerAdiabatic),
       })
-      expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        longPos: LONG_POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedtakerAdiabatic),
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -440,7 +460,7 @@ describe('Fees', () => {
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
-      await updateNoOp(market, user)
+      await settle(market, user)
 
       await expect(
         market
@@ -465,7 +485,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await updateNoOp(market, userB)
+      const txLong = await settle(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -498,18 +518,20 @@ describe('Fees', () => {
 
       // Global State
       expectGlobalEq(await market.global(), {
-        currentId: 3,
+        currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
-        latestPrice: PRICE,
         exposure: 0,
       })
-      expectOrderEq(await market.pendingOrder(3), {
+      expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        longPos: LONG_POSITION,
+        collateral: COLLATERAL,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -521,19 +543,24 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
       })
-      expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        longPos: LONG_POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedTakerAdiabatic),
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -541,7 +568,7 @@ describe('Fees', () => {
         long: LONG_POSITION,
       })
 
-      const txMaker = await updateNoOp(market, user)
+      const txMaker = await settle(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -552,16 +579,20 @@ describe('Fees', () => {
       // Maker State
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 3,
-        latestId: 2,
+        currentId: 1,
+        latestId: 1,
         collateral: COLLATERAL.add(expectedMakerFee),
       })
-      expectOrderEq(await market.pendingOrders(user.address, 3), {
+      expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: MAKER_POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(user.address, 3), {
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -628,8 +659,8 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await updateNoOp(market, userB)
-      await updateNoOp(market, user)
+      await settle(market, userB)
+      await settle(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
       await market.updateRiskParameter({
@@ -656,7 +687,7 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
-      const txLong = await updateNoOp(market, userB)
+      const txLong = await settle(market, userB)
 
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
@@ -679,18 +710,19 @@ describe('Fees', () => {
 
       // Global State
       expectGlobalEq(await market.global(), {
-        currentId: 3,
+        currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
-        latestPrice: PRICE,
         exposure: 0,
       })
-      expectOrderEq(await market.pendingOrder(3), {
+      expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        longNeg: LONG_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -701,26 +733,30 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 3,
+        currentId: 2,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
       })
-      expectOrderEq(await market.pendingOrders(userB.address, 3), {
+      expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        longNeg: LONG_POSITION,
       })
-      expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedTakerAdiabatic),
+        collateral: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_2,
       })
 
-      const txMaker = await updateNoOp(market, user)
+      const txMaker = await settle(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -731,16 +767,20 @@ describe('Fees', () => {
       // Maker State
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 3,
-        latestId: 2,
+        currentId: 1,
+        latestId: 1,
         collateral: COLLATERAL.add(expectedMakerFee),
       })
-      expectOrderEq(await market.pendingOrders(user.address, 3), {
+      expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: MAKER_POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(user.address, 3), {
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -795,7 +835,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await updateNoOp(market, userB)
+      const txLong = await settle(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -830,18 +870,21 @@ describe('Fees', () => {
 
       // Global State
       expectGlobalEq(await market.global(), {
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
-        latestPrice: PRICE,
         exposure: 0,
       })
-      expectOrderEq(await market.pendingOrder(2), {
+      expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
+        timestamp: TIMESTAMP_1,
+        orders: 2,
+        makerPos: MAKER_POSITION,
+        shortPos: SHORT_POSITION,
+        collateral: COLLATERAL.mul(2),
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -853,19 +896,24 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedtakerAdiabatic),
       })
-      expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        shortPos: SHORT_POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedtakerAdiabatic),
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -900,7 +948,7 @@ describe('Fees', () => {
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
-      await updateNoOp(market, user)
+      await settle(market, user)
 
       await expect(
         market
@@ -925,7 +973,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await updateNoOp(market, userB)
+      const txLong = await settle(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -958,18 +1006,20 @@ describe('Fees', () => {
 
       // Global State
       expectGlobalEq(await market.global(), {
-        currentId: 3,
+        currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
-        latestPrice: PRICE,
         exposure: 0,
       })
-      expectOrderEq(await market.pendingOrder(3), {
+      expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        shortPos: SHORT_POSITION,
+        collateral: COLLATERAL,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -981,18 +1031,21 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 2,
+        currentId: 1,
         latestId: 1,
         collateral: COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
       })
-      expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        shortPos: SHORT_POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(userB.address, 2), {
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
       })
       expectPositionEq(await market.positions(userB.address), {
@@ -1001,7 +1054,7 @@ describe('Fees', () => {
         short: SHORT_POSITION,
       })
 
-      const txMaker = await updateNoOp(market, user)
+      const txMaker = await settle(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1012,16 +1065,20 @@ describe('Fees', () => {
       // Maker State
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 3,
-        latestId: 2,
+        currentId: 1,
+        latestId: 1,
         collateral: COLLATERAL.add(expectedMakerFee),
       })
-      expectOrderEq(await market.pendingOrders(user.address, 3), {
+      expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: MAKER_POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(user.address, 3), {
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -1088,8 +1145,8 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await updateNoOp(market, userB)
-      await updateNoOp(market, user)
+      await settle(market, userB)
+      await settle(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
       await market.updateRiskParameter({
@@ -1115,7 +1172,7 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
-      const txLong = await updateNoOp(market, userB)
+      const txLong = await settle(market, userB)
 
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
@@ -1138,18 +1195,19 @@ describe('Fees', () => {
 
       // Global State
       expectGlobalEq(await market.global(), {
-        currentId: 3,
+        currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
-        latestPrice: PRICE,
         exposure: 0,
       })
-      expectOrderEq(await market.pendingOrder(3), {
+      expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        shortNeg: SHORT_POSITION,
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
@@ -1160,26 +1218,30 @@ describe('Fees', () => {
       // Long State
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
-        currentId: 3,
+        currentId: 2,
         latestId: 2,
         collateral: COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
       })
-      expectOrderEq(await market.pendingOrders(userB.address, 3), {
+      expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        shortNeg: SHORT_POSITION,
       })
-      expectCheckpointEq(await market.checkpoints(userB.address, 3), {
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedTakerAdiabatic),
+        collateral: COLLATERAL,
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_2,
       })
 
-      const txMaker = await updateNoOp(market, user)
+      const txMaker = await settle(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1190,16 +1252,20 @@ describe('Fees', () => {
       // Maker State
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 3,
-        latestId: 2,
+        currentId: 1,
+        latestId: 1,
         collateral: COLLATERAL.add(expectedMakerFee),
       })
-      expectOrderEq(await market.pendingOrders(user.address, 3), {
+      expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_3,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: MAKER_POSITION,
+        collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(user.address, 3), {
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -1569,7 +1635,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        const tx = await updateNoOp(market, instanceVars.user)
+        const tx = await settle(market, instanceVars.user)
 
         const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
@@ -1580,10 +1646,9 @@ describe('Fees', () => {
 
         expectGlobalEq(await market.global(), {
           ...DEFAULT_GLOBAL,
-          currentId: 3,
+          currentId: 2,
           latestId: 2,
           oracleFee: expectedSettlementFee,
-          latestPrice: PRICE,
         })
       })
 
@@ -1623,7 +1688,6 @@ describe('Fees', () => {
           currentId: 2,
           latestId: 2,
           oracleFee: expectedSettlementFee,
-          latestPrice: PRICE,
         })
       })
     })
@@ -2187,9 +2251,9 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await settle(market, user)
       await settle(market, userB)
-      await updateNoOp(market, userC) // update userC to clear values
+      await settle(market, userC) // update userC to clear values
       expect(await market.orderReferrers(userC.address, currentId)).to.equal(userB.address)
-      expect((await market.locals(userC.address)).currentId).to.equal(currentId.add(1))
+      expect((await market.locals(userC.address)).currentId).to.equal(currentId)
 
       // ensure the proper amount of the base fee is claimable by the referrer
       // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223

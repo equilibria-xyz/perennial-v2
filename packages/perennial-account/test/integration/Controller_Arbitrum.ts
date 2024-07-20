@@ -7,7 +7,6 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { smock } from '@defi-wonderland/smock'
 import { advanceBlock, currentBlockTimestamp } from '../../../common/testutil/time'
-import { getEventArguments } from '../helpers/setupHelpers'
 
 import { parse6decimal } from '../../../common/testutil/types'
 import {
@@ -22,7 +21,7 @@ import {
   IMarket,
   IMarketFactory,
 } from '../../types/generated'
-import { IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+// import { Verifier } from '../../types/generated/contracts/Verifier'
 
 import {
   createMarketBTC,
@@ -44,6 +43,7 @@ import {
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
+import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,
@@ -51,9 +51,14 @@ import {
   signOperatorUpdate,
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
-import { Verifier } from '../../types/generated/contracts/Verifier'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
 import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
+import {
+  IKeeperOracle,
+  IOracleFactory,
+  IOracleProvider,
+  PythFactory,
+} from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -72,12 +77,14 @@ describe('Controller_Arbitrum', () => {
   let pythOracleFactory: PythFactory
   let marketFactory: IMarketFactory
   let market: IMarket
+  let ethKeeperOracle: IKeeperOracle
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
   let userC: SignerWithAddress
   let keeper: SignerWithAddress
   let lastNonce = 0
+  let lastEthPrice: BigNumber
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
@@ -123,6 +130,17 @@ describe('Controller_Arbitrum', () => {
     return Account__factory.connect(accountAddress, user)
   }
 
+  // updates the oracle (optionally changing price) and settles the market
+  async function advanceAndSettle(
+    user: SignerWithAddress,
+    timestamp = currentTime,
+    price = lastEthPrice,
+    keeperOracle = ethKeeperOracle,
+  ) {
+    await advanceToPrice(keeperOracle, timestamp, price, TX_OVERRIDES)
+    await market.settle(user.address, TX_OVERRIDES)
+  }
+
   // funds specified wallet with 50k USDC
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
     await fundWalletUSDC(wallet, parse6decimal('50000'), { maxFeePerGas: 100000000 })
@@ -159,7 +177,17 @@ describe('Controller_Arbitrum', () => {
     ;[owner, userA, userB, userC, keeper] = await ethers.getSigners()
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
     ;[dsu, usdc] = await getStablecoins(owner)
-    ;[market, ,] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+    let oracle: IOracleProvider
+    ;[market, oracle, ethKeeperOracle] = await createMarketETH(
+      owner,
+      oracleFactory,
+      pythOracleFactory,
+      marketFactory,
+      dsu,
+    )
+    await advanceToPrice(ethKeeperOracle, currentTime, parse6decimal('3113.7128'), TX_OVERRIDES)
+    lastEthPrice = (await oracle.status())[0].price
+
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
     // set up users and deploy artifacts
@@ -192,13 +220,15 @@ describe('Controller_Arbitrum', () => {
   })
 
   beforeEach(async () => {
-    await loadFixture(fixture)
-
-    // update the timestamp used for calculating expiry
+    // update the timestamp used for calculating expiry and adjusting oracle price
     currentTime = BigNumber.from(await currentBlockTimestamp())
+
+    await loadFixture(fixture)
 
     // set a realistic base gas fee
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
+
+    currentTime = BigNumber.from(await currentBlockTimestamp())
   })
 
   afterEach(async () => {
@@ -486,7 +516,7 @@ describe('Controller_Arbitrum', () => {
 
     it('collects fee for rebalancing a group', async () => {
       const ethMarket = market
-      const [btcMarket, ,] = await createMarketBTC(
+      const [btcMarket, , btcKeeperOracle] = await createMarketBTC(
         owner,
         oracleFactory,
         pythOracleFactory,
@@ -494,6 +524,7 @@ describe('Controller_Arbitrum', () => {
         dsu,
         TX_OVERRIDES,
       )
+      await advanceToPrice(btcKeeperOracle, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
 
       // create a new group with two markets
       const message = {
@@ -536,7 +567,7 @@ describe('Controller_Arbitrum', () => {
 
     it('honors max rebalance fee when rebalancing a group', async () => {
       const ethMarket = market
-      const [btcMarket, ,] = await createMarketBTC(
+      const [btcMarket, , btcKeeperOracle] = await createMarketBTC(
         owner,
         oracleFactory,
         pythOracleFactory,
@@ -544,6 +575,7 @@ describe('Controller_Arbitrum', () => {
         dsu,
         TX_OVERRIDES,
       )
+      await advanceToPrice(btcKeeperOracle, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
 
       // create a new group with two markets and a maxFee smaller than the actual fee
       const message = {
