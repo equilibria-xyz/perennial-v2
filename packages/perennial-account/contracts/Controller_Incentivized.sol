@@ -218,10 +218,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         raisedKeeperFee = amount.min(UFixed18Lib.from(maxFee));
 
         // if the account has insufficient DSU to pay the fee, wrap
-        if (DSU.balanceOf(account).lt(raisedKeeperFee)) {
-            if (USDC.balanceOf(account).gte(UFixed6Lib.from(raisedKeeperFee)))
-                IAccount(account).wrap(raisedKeeperFee);
-        }
+        IAccount(account).wrapIfNecessary(raisedKeeperFee, false);
 
         // transfer DSU to the Controller, such that Kept can transfer to keeper
         DSU.pull(account, raisedKeeperFee);
