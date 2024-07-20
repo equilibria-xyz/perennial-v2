@@ -221,8 +221,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         if (DSU.balanceOf(account).lt(raisedKeeperFee)) {
             if (USDC.balanceOf(account).gte(UFixed6Lib.from(raisedKeeperFee)))
                 IAccount(account).wrap(raisedKeeperFee);
-            else
-                revert ControllerCannotPayKeeperError();
         }
 
         // transfer DSU to the Controller, such that Kept can transfer to keeper

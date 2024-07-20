@@ -296,7 +296,7 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.equal(maxFee.mul(1e12)) // convert from 6- to 18- decimal
     })
 
-    it('reverts with custom error if keeper cannot be compensated', async () => {
+    it('reverts if keeper cannot be compensated', async () => {
       // ensure the account is empty
       expect(await dsu.balanceOf(keeper.address)).to.equal(0)
       expect(await usdc.balanceOf(keeper.address)).to.equal(0)
@@ -306,13 +306,13 @@ describe('Controller_Arbitrum', () => {
         ...createAction(userA.address, userA.address),
       }
 
-      // ensure the request fails with a meaningful revert reason
+      // ensure the request fails
       const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
       await expect(
         controller
           .connect(keeper)
           .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
-      ).to.be.revertedWithCustomError(controller, 'ControllerCannotPayKeeperError')
+      ).to.be.reverted
     })
   })
 
