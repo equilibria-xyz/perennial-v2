@@ -84,8 +84,7 @@ contract Account is IAccount, Instance {
         USDC.push(owner, pushAmount);
     }
 
-    /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the reserve
-    /// @param amount Amount of USDC to wrap
+    /// @inheritdoc IAccount
     function wrap(UFixed18 amount) public ownerOrController {
         reserve.mint(amount);
     }
@@ -99,8 +98,7 @@ contract Account is IAccount, Instance {
         }
     }
 
-    /// @notice Helper function to unwrap `amount` DSU into USDC and send to `receiver`
-    /// @param amount Amount of DSU to unwrap
+    /// @inheritdoc IAccount
     function unwrap(UFixed18 amount) public ownerOrController {
         reserve.redeem(amount);
     }
