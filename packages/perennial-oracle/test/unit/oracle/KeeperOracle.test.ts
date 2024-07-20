@@ -55,8 +55,6 @@ describe('KeeperOracle', () => {
     keeperOracleFactory = await new PythFactory__factory(owner).deploy(
       pyth.address,
       keeperOracleImpl.address,
-      4,
-      10,
       {
         multiplierBase: 0,
         bufferBase: 1_000_000,
@@ -72,6 +70,7 @@ describe('KeeperOracle', () => {
       5_000,
     )
     await keeperOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
+    await keeperOracleFactory.updateParameter(1, 0, 0, 4, 10)
     await oracleFactory.register(keeperOracleFactory.address)
     await keeperOracleFactory.authorize(oracleFactory.address)
 

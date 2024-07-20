@@ -125,8 +125,6 @@ testOracles.forEach(testOracle => {
       pythOracleFactory = await new PythFactory__factory(owner).deploy(
         PYTH_ADDRESS,
         keeperOracleImpl.address,
-        4,
-        10,
         {
           multiplierBase: 0,
           bufferBase: 1_000_000,
@@ -354,7 +352,7 @@ testOracles.forEach(testOracle => {
       // block.timestamp of the next call will be STARTING_TIME
 
       // set the oracle parameters at STARTING_TIME - 1
-      await pythOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+      await pythOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), 4, 10)
 
       // run tests at STARTING_TIME
     })
@@ -365,8 +363,6 @@ testOracles.forEach(testOracle => {
           const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
             PYTH_ADDRESS,
             await pythOracleFactory.implementation(),
-            4,
-            10,
             {
               multiplierBase: 0,
               bufferBase: 1_000_000,
@@ -420,10 +416,9 @@ testOracles.forEach(testOracle => {
 
       context('#updateParameter', async () => {
         it('reverts when not owner', async () => {
-          await expect(pythOracleFactory.connect(user).updateParameter(10, 11, 12)).to.be.revertedWithCustomError(
-            pythOracleFactory,
-            'OwnableNotOwnerError',
-          )
+          await expect(
+            pythOracleFactory.connect(user).updateParameter(10, 11, 12, 13, 14),
+          ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
         })
       })
 
@@ -462,11 +457,11 @@ testOracles.forEach(testOracle => {
 
     describe('constants', async () => {
       it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await pythOracleFactory.validFrom()).to.equal(4)
+        expect((await pythOracleFactory.parameter()).validFrom).to.equal(4)
       })
 
       it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await pythOracleFactory.validTo()).to.equal(10)
+        expect((await pythOracleFactory.parameter()).validTo).to.equal(10)
       })
 
       it('#GRACE_PERIOD', async () => {
@@ -567,7 +562,13 @@ testOracles.forEach(testOracle => {
 
       it('commits successfully and incentivizes the keeper w/ multiple markets', async () => {
         const parameter = await pythOracleFactory.parameter()
-        await pythOracleFactory.updateParameter(3, parameter.settlementFee, parameter.oracleFee) // get both requests in the same version
+        await pythOracleFactory.updateParameter(
+          3,
+          parameter.settlementFee,
+          parameter.oracleFee,
+          parameter.validFrom,
+          parameter.validTo,
+        ) // get both requests in the same version
         const GRANULARITY_STARTING_TIME = Math.ceil(STARTING_TIME / 3 + 1) * 3
 
         const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
@@ -873,6 +874,7 @@ testOracles.forEach(testOracle => {
       it('can update single from batched update', async () => {
         await time.reset(18028156)
         await setup()
+        await pythOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), 4, 10)
 
         const MIN_DELAY = 4
         const BATCHED_TIMESTAMP = 1697317340
@@ -890,6 +892,7 @@ testOracles.forEach(testOracle => {
       it('can update multiple from batched update', async () => {
         await time.reset(18028156)
         await setup()
+        await pythOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), 4, 10)
 
         const MIN_DELAY = 4
         const BATCHED_TIMESTAMP = 1697317340
@@ -1122,7 +1125,13 @@ testOracles.forEach(testOracle => {
 
       it('can request a version w/ granularity', async () => {
         const parameter = await pythOracleFactory.parameter()
-        await pythOracleFactory.updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory.updateParameter(
+          10,
+          parameter.settlementFee,
+          parameter.oracleFee,
+          parameter.validFrom,
+          parameter.validTo,
+        )
 
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
@@ -1261,23 +1270,43 @@ testOracles.forEach(testOracle => {
       it('returns the current timestamp w/ granularity == 0', async () => {
         const parameter = await pythOracleFactory.parameter()
         await expect(
-          pythOracleFactory.connect(owner).updateParameter(0, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(pythOracleFactory, 'ProviderParameterStorageInvalidError')
+          pythOracleFactory
+            .connect(owner)
+            .updateParameter(0, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo),
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperOracleParameterStorageInvalidError')
       })
 
       it('returns the current timestamp w/ granularity > MAX', async () => {
         const parameter = await pythOracleFactory.parameter()
         await expect(
-          pythOracleFactory.connect(owner).updateParameter(10001, parameter.settlementFee, parameter.oracleFee),
+          pythOracleFactory
+            .connect(owner)
+            .updateParameter(
+              10001,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidParameterError')
         await expect(
-          pythOracleFactory.connect(owner).updateParameter(10000, parameter.settlementFee, parameter.oracleFee),
+          pythOracleFactory
+            .connect(owner)
+            .updateParameter(
+              10000,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.not.reverted
       })
 
       it('returns the current timestamp w/ fresh granularity > 1', async () => {
         const parameter = await pythOracleFactory.parameter()
-        await pythOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
 
         const parameter2 = await pythOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(1)
@@ -1293,7 +1322,9 @@ testOracles.forEach(testOracle => {
         expect(parameter.currentGranularity).to.equal(1)
         expect(parameter.effectiveAfter).to.equal(STARTING_TIME - 1)
 
-        await pythOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
 
         const parameter2 = await pythOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(1)
@@ -1309,20 +1340,36 @@ testOracles.forEach(testOracle => {
 
       it('returns the current timestamp w/ fresh + fresh granularity > 1', async () => {
         const parameter = await pythOracleFactory.parameter()
-        await pythOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         // hardhat automatically moves 1 second ahead so we have to do this twice
-        await pythOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await expect(
-          pythOracleFactory.connect(owner).updateParameter(1000, parameter.settlementFee, parameter.oracleFee),
+          pythOracleFactory
+            .connect(owner)
+            .updateParameter(
+              1000,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidParameterError')
       })
 
       it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
         const parameter = await pythOracleFactory.parameter()
-        await pythOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await time.increase(1)
 
-        await pythOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await pythOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(10)
         expect(parameter2.currentGranularity).to.equal(100)
@@ -1335,10 +1382,14 @@ testOracles.forEach(testOracle => {
 
       it('returns the current timestamp w/ settled + settled granularity > 1', async () => {
         const parameter = await pythOracleFactory.parameter()
-        await pythOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await time.increase(1)
 
-        await pythOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await pythOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(10)
         expect(parameter2.currentGranularity).to.equal(100)
@@ -1355,10 +1406,13 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
-        await pythOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await pythOracleFactory.parameter()
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
-        await pythOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await pythOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, VAA, {
           value: 1,
         })
@@ -1370,13 +1424,16 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the receipt w/ no new price', async () => {
-        await pythOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await pythOracleFactory.parameter()
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
         await increase(1)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
 
-        await pythOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await pythOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, VAA, {
           value: 1,
         })
@@ -1388,7 +1445,10 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the receipt w/ new price after no new price', async () => {
-        await pythOracleFactory.connect(owner).updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await pythOracleFactory.parameter()
+        await pythOracleFactory
+          .connect(owner)
+          .updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, OTHER_VAA, {
@@ -1401,7 +1461,7 @@ testOracles.forEach(testOracle => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
-        await pythOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await pythOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await pythOracleFactory
           .connect(user)
           .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 57, VAA_AFTER_EXPIRATION, {

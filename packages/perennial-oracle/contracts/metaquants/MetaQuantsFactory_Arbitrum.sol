@@ -12,12 +12,10 @@ contract MetaQuantsFactory_Arbitrum is MetaQuantsFactory, Kept_Arbitrum {
     constructor(
         address signer_,
         address implementation_,
-        uint256 validFrom_,
-        uint256 validTo_,
         KeepConfig memory commitKeepConfig_,
         KeepConfig memory settleKeepConfig_,
         uint256 keepCommitIncrementalBufferData_
-    ) MetaQuantsFactory(signer_, implementation_, validFrom_, validTo_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) { }
+    ) MetaQuantsFactory(signer_, implementation_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) { }
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(
