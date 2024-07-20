@@ -21,7 +21,6 @@ import {
   IMarket,
   IMarketFactory,
 } from '../../types/generated'
-// import { Verifier } from '../../types/generated/contracts/Verifier'
 
 import {
   createMarketBTC,
@@ -736,7 +735,9 @@ describe('Controller_Arbitrum', () => {
 
       // perform the action
       await expect(
-        controller.connect(keeper).relayNonceCancellation(relayedNonceCancellation, outerSignature, innerSignature),
+        controller
+          .connect(keeper)
+          .relayNonceCancellation(relayedNonceCancellation, outerSignature, innerSignature, TX_OVERRIDES),
       )
         .to.emit(downstreamVerifier, 'NonceCancelled')
         .withArgs(userA.address, nonce)
@@ -768,7 +769,9 @@ describe('Controller_Arbitrum', () => {
 
       // perform the action
       await expect(
-        controller.connect(keeper).relayGroupCancellation(relayedGroupCancellation, outerSignature, innerSignature),
+        controller
+          .connect(keeper)
+          .relayGroupCancellation(relayedGroupCancellation, outerSignature, innerSignature, TX_OVERRIDES),
       )
         .to.emit(downstreamVerifier, 'GroupCancelled')
         .withArgs(userA.address, group)
@@ -804,7 +807,9 @@ describe('Controller_Arbitrum', () => {
 
       // perform the action
       await expect(
-        controller.connect(keeper).relayOperatorUpdate(relayedOperatorUpdateMessage, outerSignature, innerSignature),
+        controller
+          .connect(keeper)
+          .relayOperatorUpdate(relayedOperatorUpdateMessage, outerSignature, innerSignature, TX_OVERRIDES),
       )
         .to.emit(marketFactory, 'OperatorUpdated')
         .withArgs(userA.address, userB.address, true)
@@ -840,7 +845,9 @@ describe('Controller_Arbitrum', () => {
 
       // perform the action
       await expect(
-        controller.connect(keeper).relaySignerUpdate(relayedSignerUpdateMessage, outerSignature, innerSignature),
+        controller
+          .connect(keeper)
+          .relaySignerUpdate(relayedSignerUpdateMessage, outerSignature, innerSignature, TX_OVERRIDES),
       )
         .to.emit(marketFactory, 'SignerUpdated')
         .withArgs(userA.address, userB.address, true)
@@ -877,7 +884,7 @@ describe('Controller_Arbitrum', () => {
       await expect(
         controller
           .connect(keeper)
-          .relayAccessUpdateBatch(relayedAccessUpdateBatchMesage, outerSignature, innerSignature),
+          .relayAccessUpdateBatch(relayedAccessUpdateBatchMesage, outerSignature, innerSignature, TX_OVERRIDES),
       )
         .to.emit(marketFactory, 'OperatorUpdated')
         .withArgs(userA.address, userB.address, true)
