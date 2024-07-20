@@ -129,17 +129,6 @@ describe('Controller_Arbitrum', () => {
     return Account__factory.connect(accountAddress, user)
   }
 
-  // updates the oracle (optionally changing price) and settles the market
-  async function advanceAndSettle(
-    user: SignerWithAddress,
-    timestamp = currentTime,
-    price = lastEthPrice,
-    keeperOracle = ethKeeperOracle,
-  ) {
-    await advanceToPrice(keeperOracle, timestamp, price, TX_OVERRIDES)
-    await market.settle(user.address, TX_OVERRIDES)
-  }
-
   // funds specified wallet with 50k USDC
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
     await fundWalletUSDC(wallet, parse6decimal('50000'), { maxFeePerGas: 100000000 })
@@ -681,7 +670,6 @@ describe('Controller_Arbitrum', () => {
   })
 
   describe('#relay', async () => {
-    let accountA: Account
     let downstreamVerifier: Verifier
     let keeperBalanceBefore: BigNumber
 
@@ -699,7 +687,7 @@ describe('Controller_Arbitrum', () => {
     }
 
     beforeEach(async () => {
-      accountA = await createCollateralAccount(userA, parse6decimal('6'))
+      await createCollateralAccount(userA, parse6decimal('6'))
       downstreamVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
       keeperBalanceBefore = await dsu.balanceOf(keeper.address)
     })
