@@ -36,6 +36,11 @@ interface IAccount {
     /// @param amount Quantity of DSU to mint, in 18-decimal precision
     function wrap(UFixed18 amount) external;
 
+    /// @notice Wraps if DSU balance is under a specified amount
+    /// @param amount Desired quantity of DSU
+    /// @param wrapAll True to wrap full USDC balance, false to wrap specified amount
+    function wrapIfNecessary(UFixed18 amount, bool wrapAll) external; 
+
     /// @notice Converts a specified amount of DSU to USDC
     /// @param amount Quantity of DSU to burn, in 18-decimal precision
     function unwrap(UFixed18 amount) external;

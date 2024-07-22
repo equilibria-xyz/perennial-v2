@@ -12,11 +12,11 @@ import {
   IERC20,
   IERC20Metadata,
   IEmptySetReserve,
-  IVerifier,
-  Verifier__factory,
+  IAccountVerifier,
+  AccountVerifier__factory,
 } from '../../types/generated'
-// import { RebalanceConfigChangeStruct, RebalanceConfigStruct } from '../../types/generated/contracts/Controller'
-import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange } from '../helpers/erc712'
+
+import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { deployController, getEventArguments, mockMarket } from '../helpers/setupHelpers'
@@ -29,7 +29,7 @@ const { ethers } = HRE
 describe('Controller', () => {
   let controller: Controller
   let marketFactory: FakeContract<IMarketFactory>
-  let verifier: IVerifier
+  let verifier: IAccountVerifier
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
@@ -86,7 +86,7 @@ describe('Controller', () => {
     controller = await deployController(owner, usdc.address, dsu.address, reserve.address)
 
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    verifier = await new Verifier__factory(owner).deploy()
+    verifier = await new AccountVerifier__factory(owner).deploy()
     await controller.initialize(marketFactory.address, verifier.address)
   }
 
@@ -95,6 +95,11 @@ describe('Controller', () => {
   })
 
   describe('#creation', () => {
+    it('constructs and initializes as expected', async () => {
+      expect(await controller.marketFactory()).to.equal(marketFactory.address)
+      expect(await controller.verifier()).to.equal(verifier.address)
+    })
+
     it('calculates unique addresses', async () => {
       const accountAddressA = await controller.getAccountAddress(userA.address)
       expect(accountAddressA).to.not.equal(userA.address)
@@ -691,6 +696,22 @@ describe('Controller', () => {
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
       ).to.be.revertedWithCustomError(controller, 'ControllerUnsupportedMarketError')
+    })
+  })
+
+  describe('#messaging', () => {
+    it('rejects verification of message signed by unauthorized signer', async () => {
+      // specify an unauthorized signer in the message
+      const withdrawalMessage = {
+        amount: parse6decimal('54.6'),
+        unwrap: false,
+        ...(await createAction(userA.address, userB.address)),
+      }
+      const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
+      // controller should revert
+      await expect(
+        controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
+      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
     })
   })
 })
