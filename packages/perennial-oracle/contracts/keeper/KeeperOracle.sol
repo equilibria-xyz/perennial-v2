@@ -87,30 +87,32 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param account The account to callback to
     /// @param newPrice Whether a new price should be requested
     function request(IMarket market, address account, bool newPrice) external onlyAuthorized {
-        PriceRequest memory priceRequest = IKeeperFactory(address(factory())).current();
+        ProviderParameter memory providerParameter = IKeeperFactory(address(factory())).parameter();
+        uint256 currentTimestamp = current();
 
         if (newPrice) {
-            _globalCallbacks[priceRequest.timestamp].add(address(market));
-            _localCallbacks[priceRequest.timestamp][market].add(account);
-            emit CallbackRequested(SettlementCallback(market, account, priceRequest.timestamp));
+            _globalCallbacks[currentTimestamp].add(address(market));
+            _localCallbacks[currentTimestamp][market].add(account);
+            emit CallbackRequested(SettlementCallback(market, account, currentTimestamp));
         }
 
-        PriceRequest memory currentVersion = _requests[_global.currentIndex].read();
+        PriceRequest memory currentRequest = _requests[_global.currentIndex].read();
 
-        if (currentVersion.timestamp == priceRequest.timestamp) return; // already requested new price
+        if (currentRequest.timestamp == currentTimestamp) return; // already requested new price
         if (newPrice) {
-            _requests[++_global.currentIndex].store(priceRequest);
-            delete linkbacks[priceRequest.timestamp];
-            emit OracleProviderVersionRequested(priceRequest.timestamp, true);
+            _requests[++_global.currentIndex]
+                .store(PriceRequest(currentTimestamp, providerParameter.settlementFee, providerParameter.oracleFee));
+            delete linkbacks[currentTimestamp];
+            emit OracleProviderVersionRequested(currentTimestamp, true);
         } else {
             // take the more recent of the latest requested version and the latest committed version
-            uint256 linkbackTimestamp = Math.max(currentVersion.timestamp, _global.latestVersion);
+            uint256 linkbackTimestamp = Math.max(currentRequest.timestamp, _global.latestVersion);
 
-            if (linkbacks[priceRequest.timestamp] != 0) return; // already requested without new price
+            if (linkbacks[currentTimestamp] != 0) return; // already requested without new price
             if (linkbackTimestamp == 0) revert KeeperOracleNoPriorRequestsError(); // no prior requests or commits
 
-            linkbacks[priceRequest.timestamp] = linkbackTimestamp;
-            emit OracleProviderVersionRequested(priceRequest.timestamp, false);
+            linkbacks[currentTimestamp] = linkbackTimestamp;
+            emit OracleProviderVersionRequested(currentTimestamp, false);
         }
     }
 
@@ -130,7 +132,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Returns the current oracle version accepting new orders
     /// @return Current oracle version
     function current() public view returns (uint256) {
-        return IKeeperFactory(address(factory())).current().timestamp;
+        return IKeeperFactory(address(factory())).current();
     }
 
     /// @notice Returns the oracle version at version `version`

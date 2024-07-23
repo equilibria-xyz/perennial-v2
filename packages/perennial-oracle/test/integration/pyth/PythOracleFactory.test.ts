@@ -1127,7 +1127,7 @@ testOracles.forEach(testOracle => {
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        const currentTimestamp = (await pythOracleFactory.current()).timestamp
+        const currentTimestamp = await pythOracleFactory.current()
 
         // Now there is exactly one requested version
         expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp)
@@ -1157,7 +1157,7 @@ testOracles.forEach(testOracle => {
 
         await ethers.provider.send('evm_mine', [])
 
-        const currentTimestamp = (await pythOracleFactory.current()).timestamp
+        const currentTimestamp = await pythOracleFactory.current()
         expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp)
         expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
         expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
@@ -1178,7 +1178,7 @@ testOracles.forEach(testOracle => {
 
         await ethers.provider.send('evm_mine', [])
 
-        const currentTimestamp = (await pythOracleFactory.current()).timestamp
+        const currentTimestamp = await pythOracleFactory.current()
         expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
         expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
         expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
@@ -1198,7 +1198,7 @@ testOracles.forEach(testOracle => {
 
         await ethers.provider.send('evm_mine', [])
 
-        const currentTimestamp = (await pythOracleFactory.current()).timestamp
+        const currentTimestamp = await pythOracleFactory.current()
         expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp)
         expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
         expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
@@ -1222,7 +1222,7 @@ testOracles.forEach(testOracle => {
 
         await ethers.provider.send('evm_mine', [])
 
-        const currentTimestamp = (await pythOracleFactory.current()).timestamp
+        const currentTimestamp = await pythOracleFactory.current()
         expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp.sub(11))
         expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
         expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))

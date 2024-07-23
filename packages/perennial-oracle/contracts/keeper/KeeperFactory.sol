@@ -170,18 +170,14 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @notice Returns the current timestamp
     /// @dev Rounded up to the nearest granularity
     /// @return The current timestamp
-    function current() public view returns (PriceRequest memory) {
+    function current() public view returns (uint256) {
         ProviderParameter memory providerParameter = _parameter.read();
 
         uint256 effectiveGranularity = block.timestamp <= providerParameter.effectiveAfter ?
             providerParameter.latestGranularity :
             providerParameter.currentGranularity;
 
-        return PriceRequest(
-            Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity,
-            providerParameter.settlementFee,
-            providerParameter.oracleFee
-        );
+        return Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity;
     }
 
     /// @notice Commits the price to specified version
@@ -276,7 +272,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param newSettlementFee The new fixed settlement fee percentage
     /// @param newOraclefee The new relative oracle fee percentage
     function updateParameter(uint256 newGranularity, UFixed6 newSettlementFee, UFixed6 newOraclefee) external onlyOwner {
-        uint256 currentTimestamp = current().timestamp;
+        uint256 currentTimestamp = current();
         OracleParameter memory oracleParameter = oracleFactory.parameter();
         ProviderParameter memory providerParameter = _parameter.read();
 
