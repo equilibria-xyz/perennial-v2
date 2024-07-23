@@ -72,9 +72,6 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @notice Mapping of oracle instance to oracle id
     mapping(IOracleProvider => bytes32) public ids;
 
-    /// @notice The beneficiary of the oracle fee
-    address public beneficiary;
-
     /// @notice Initializes the immutable contract state
     /// @param implementation_ IKeeperOracle implementation contract
     /// @param validFrom_ The minimum time after a version that a keeper update can be valid

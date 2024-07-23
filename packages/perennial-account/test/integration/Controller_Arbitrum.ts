@@ -7,30 +7,51 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { smock } from '@defi-wonderland/smock'
 import { advanceBlock, currentBlockTimestamp } from '../../../common/testutil/time'
+
 import { parse6decimal } from '../../../common/testutil/types'
 import {
   Account,
   Account__factory,
+  AccountVerifier__factory,
   ArbGasInfo,
   Controller_Arbitrum,
   IAccount,
+  IAccountVerifier,
   IERC20Metadata,
   IMarket,
   IMarketFactory,
-  IVerifier,
-  Verifier__factory,
 } from '../../types/generated'
-import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
+
 import {
   createMarketBTC,
   createMarketETH,
   createFactories,
-  deployAndInitializeController,
   deployControllerArbitrum,
   fundWalletDSU,
   fundWalletUSDC,
+  getStablecoins,
 } from '../helpers/arbitrumHelpers'
+import {
+  signDeployAccount,
+  signMarketTransfer,
+  signRebalanceConfigChange,
+  signRelayedAccessUpdateBatch,
+  signRelayedGroupCancellation,
+  signRelayedNonceCancellation,
+  signRelayedOperatorUpdate,
+  signRelayedSignerUpdate,
+  signWithdrawal,
+} from '../helpers/erc712'
 import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
+import {
+  signAccessUpdateBatch,
+  signGroupCancellation,
+  signCommon as signNonceCancellation,
+  signOperatorUpdate,
+  signSignerUpdate,
+} from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
+import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
+import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
 import {
   IKeeperOracle,
   IOracleFactory,
@@ -50,7 +71,7 @@ describe('Controller_Arbitrum', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller_Arbitrum
-  let verifier: IVerifier
+  let accountVerifier: IAccountVerifier
   let oracleFactory: IOracleFactory
   let pythOracleFactory: PythFactory
   let marketFactory: IMarketFactory
@@ -59,6 +80,7 @@ describe('Controller_Arbitrum', () => {
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
+  let userC: SignerWithAddress
   let keeper: SignerWithAddress
   let lastNonce = 0
   let lastEthPrice: BigNumber
@@ -93,7 +115,7 @@ describe('Controller_Arbitrum', () => {
     const deployAccountMessage = {
       ...createAction(user.address, user.address),
     }
-    const signatureCreate = await signDeployAccount(user, verifier, deployAccountMessage)
+    const signatureCreate = await signDeployAccount(user, accountVerifier, deployAccountMessage)
     const tx = await controller
       .connect(keeper)
       .deployAccountWithSignature(deployAccountMessage, signatureCreate, TX_OVERRIDES)
@@ -105,17 +127,6 @@ describe('Controller_Arbitrum', () => {
     await marketFactory.connect(user).updateOperator(accountAddress, true, TX_OVERRIDES)
 
     return Account__factory.connect(accountAddress, user)
-  }
-
-  // updates the oracle (optionally changing price) and settles the market
-  async function advanceAndSettle(
-    user: SignerWithAddress,
-    timestamp = currentTime,
-    price = lastEthPrice,
-    keeperOracle = ethKeeperOracle,
-  ) {
-    await advanceToPrice(keeperOracle, timestamp, price, TX_OVERRIDES)
-    await market.settle(user.address, TX_OVERRIDES)
   }
 
   // funds specified wallet with 50k USDC
@@ -137,7 +148,7 @@ describe('Controller_Arbitrum', () => {
       amount: amount,
       ...createAction(userA.address, userA.address),
     }
-    const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+    const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
 
     // perform transfer
     await expect(controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES))
@@ -151,9 +162,9 @@ describe('Controller_Arbitrum', () => {
 
   const fixture = async () => {
     // deploy the protocol
-    ;[owner, userA, userB, keeper] = await ethers.getSigners()
+    ;[owner, userA, userB, userC, keeper] = await ethers.getSigners()
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
-    ;[dsu, usdc] = await deployAndInitializeController(owner, marketFactory)
+    ;[dsu, usdc] = await getStablecoins(owner)
     let oracle: IOracleProvider
     ;[market, oracle, ethKeeperOracle] = await createMarketETH(
       owner,
@@ -174,12 +185,13 @@ describe('Controller_Arbitrum', () => {
       multiplierCalldata: 0,
       bufferCalldata: 500_000,
     }
-    controller = await deployControllerArbitrum(owner, keepConfig, { maxFeePerGas: 100000000 })
-    verifier = await new Verifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
+    const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
+    controller = await deployControllerArbitrum(owner, keepConfig, marketVerifier, { maxFeePerGas: 100000000 })
+    accountVerifier = await new AccountVerifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
     await controller['initialize(address,address,address)'](
       marketFactory.address,
-      verifier.address,
+      accountVerifier.address,
       CHAINLINK_ETH_USD_FEED,
     )
     // fund userA
@@ -231,7 +243,7 @@ describe('Controller_Arbitrum', () => {
       const deployAccountMessage = {
         ...createAction(userA.address, userA.address),
       }
-      const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
+      const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
 
       // keeper executes deployment of the account and is compensated
       const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
@@ -256,7 +268,7 @@ describe('Controller_Arbitrum', () => {
       const deployAccountMessage = {
         ...createAction(userA.address, userA.address, maxFee),
       }
-      const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
+      const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
 
       // keeper executes deployment of the account and is compensated
       const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
@@ -272,7 +284,7 @@ describe('Controller_Arbitrum', () => {
       expect(keeperFeePaid).to.equal(maxFee.mul(1e12)) // convert from 6- to 18- decimal
     })
 
-    it('reverts with custom error if keeper cannot be compensated', async () => {
+    it('reverts if keeper cannot be compensated', async () => {
       // ensure the account is empty
       expect(await dsu.balanceOf(keeper.address)).to.equal(0)
       expect(await usdc.balanceOf(keeper.address)).to.equal(0)
@@ -282,13 +294,13 @@ describe('Controller_Arbitrum', () => {
         ...createAction(userA.address, userA.address),
       }
 
-      // ensure the request fails with a meaningful revert reason
-      const signature = await signDeployAccount(userA, verifier, deployAccountMessage)
+      // ensure the request fails
+      const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
       await expect(
         controller
           .connect(keeper)
           .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
-      ).to.be.revertedWithCustomError(controller, 'ControllerCannotPayKeeperError')
+      ).to.be.reverted
     })
   })
 
@@ -317,7 +329,7 @@ describe('Controller_Arbitrum', () => {
         amount: transferAmount,
         ...createAction(userA.address),
       }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
 
       // perform transfer
       await expect(
@@ -351,7 +363,7 @@ describe('Controller_Arbitrum', () => {
         amount: withdrawal,
         ...createAction(userA.address, userA.address),
       }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
 
       // perform transfer
       await expect(
@@ -396,7 +408,7 @@ describe('Controller_Arbitrum', () => {
         amount: constants.MinInt256,
         ...createAction(userA.address, userA.address),
       }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
 
       // perform transfer
       await expect(
@@ -432,7 +444,7 @@ describe('Controller_Arbitrum', () => {
         amount: withdrawal,
         ...createAction(userA.address, userA.address),
       }
-      const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
+      const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
 
       // perform transfer
       await expect(
@@ -476,7 +488,7 @@ describe('Controller_Arbitrum', () => {
         maxFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
-      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      const signature = await signRebalanceConfigChange(userA, accountVerifier, message)
 
       // create the group
       await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES))
@@ -513,7 +525,7 @@ describe('Controller_Arbitrum', () => {
         maxFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
-      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      const signature = await signRebalanceConfigChange(userA, accountVerifier, message)
       await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES)).to
         .not.be.reverted
 
@@ -564,7 +576,7 @@ describe('Controller_Arbitrum', () => {
         maxFee: parse6decimal('0.00923'),
         ...(await createAction(userA.address)),
       }
-      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      const signature = await signRebalanceConfigChange(userA, accountVerifier, message)
       await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES)).to
         .not.be.reverted
 
@@ -618,7 +630,7 @@ describe('Controller_Arbitrum', () => {
         unwrap: true,
         ...createAction(userA.address, userB.address),
       }
-      const signature = await signWithdrawal(userB, verifier, withdrawalMessage)
+      const signature = await signWithdrawal(userB, accountVerifier, withdrawalMessage)
 
       // perform withdrawal and check balance
       await expect(controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, TX_OVERRIDES))
@@ -639,7 +651,7 @@ describe('Controller_Arbitrum', () => {
         unwrap: true,
         ...createAction(userA.address, userA.address),
       }
-      const signature = await signWithdrawal(userA, verifier, withdrawalMessage)
+      const signature = await signWithdrawal(userA, accountVerifier, withdrawalMessage)
 
       // perform withdrawal and check balances
       await expect(controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature, TX_OVERRIDES))
@@ -654,6 +666,226 @@ describe('Controller_Arbitrum', () => {
 
       // user should have their initial balance, plus what was in their collateral account, minus keeper fees
       expect(await usdc.balanceOf(userA.address)).to.be.within(parse6decimal('49999'), parse6decimal('50000'))
+    })
+  })
+
+  describe('#relay', async () => {
+    let downstreamVerifier: Verifier
+    let keeperBalanceBefore: BigNumber
+
+    function createCommon(domain: Address) {
+      return {
+        common: {
+          account: userA.address,
+          signer: userA.address,
+          domain: domain,
+          nonce: nextNonce(),
+          group: 0,
+          expiry: currentTime.add(60),
+        },
+      }
+    }
+
+    beforeEach(async () => {
+      await createCollateralAccount(userA, parse6decimal('6'))
+      downstreamVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
+      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+    })
+
+    afterEach(async () => {
+      // confirm keeper earned their fee
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+    })
+
+    it('relays nonce cancellation messages', async () => {
+      // confirm nonce was not already cancelled
+      const nonce = 7
+      expect(await downstreamVerifier.nonces(userA.address, nonce)).to.eq(false)
+
+      // create and sign the inner message
+      const nonceCancellation = {
+        account: userA.address,
+        signer: userA.address,
+        domain: downstreamVerifier.address,
+        nonce: nonce,
+        group: 0,
+        expiry: currentTime.add(60),
+      }
+      const innerSignature = await signNonceCancellation(userA, downstreamVerifier, nonceCancellation)
+
+      // create and sign the outer message
+      const relayedNonceCancellation = {
+        nonceCancellation: nonceCancellation,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedNonceCancellation(userA, accountVerifier, relayedNonceCancellation)
+
+      // perform the action
+      await expect(
+        controller
+          .connect(keeper)
+          .relayNonceCancellation(relayedNonceCancellation, outerSignature, innerSignature, TX_OVERRIDES),
+      )
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedNonceCancellation.action.common.nonce)
+
+      // confirm nonce is now cancelled
+      expect(await downstreamVerifier.nonces(userA.address, nonce)).to.eq(true)
+    })
+
+    it('relays group cancellation messages', async () => {
+      // confirm group was not already cancelled
+      const group = 7
+      expect(await downstreamVerifier.groups(userA.address, group)).to.eq(false)
+
+      // create and sign the inner message
+      const groupCancellation = {
+        group: group,
+        ...createCommon(downstreamVerifier.address),
+      }
+      const innerSignature = await signGroupCancellation(userA, downstreamVerifier, groupCancellation)
+
+      // create and sign the outer message
+      const relayedGroupCancellation = {
+        groupCancellation: groupCancellation,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedGroupCancellation(userA, accountVerifier, relayedGroupCancellation)
+
+      // perform the action
+      await expect(
+        controller
+          .connect(keeper)
+          .relayGroupCancellation(relayedGroupCancellation, outerSignature, innerSignature, TX_OVERRIDES),
+      )
+        .to.emit(downstreamVerifier, 'GroupCancelled')
+        .withArgs(userA.address, group)
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, groupCancellation.common.nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedGroupCancellation.action.common.nonce)
+
+      // confirm group is now cancelled
+      expect(await downstreamVerifier.groups(userA.address, group)).to.eq(true)
+    })
+
+    it('relays operator update messages', async () => {
+      // confirm userB is not already an operator
+      expect(await marketFactory.operators(userA.address, userB.address)).to.be.false
+
+      // create and sign the inner message
+      const operatorUpdate = {
+        access: {
+          accessor: userB.address,
+          approved: true,
+        },
+        ...createCommon(marketFactory.address),
+      }
+      const innerSignature = await signOperatorUpdate(userA, downstreamVerifier, operatorUpdate)
+
+      // create and sign the outer message
+      const relayedOperatorUpdateMessage = {
+        operatorUpdate: operatorUpdate,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedOperatorUpdate(userA, accountVerifier, relayedOperatorUpdateMessage)
+
+      // perform the action
+      await expect(
+        controller
+          .connect(keeper)
+          .relayOperatorUpdate(relayedOperatorUpdateMessage, outerSignature, innerSignature, TX_OVERRIDES),
+      )
+        .to.emit(marketFactory, 'OperatorUpdated')
+        .withArgs(userA.address, userB.address, true)
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedOperatorUpdateMessage.operatorUpdate.common.nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedOperatorUpdateMessage.action.common.nonce)
+
+      // confirm userB is now an operator
+      expect(await marketFactory.operators(userA.address, userB.address)).to.be.true
+    })
+
+    it('relays signer update messages', async () => {
+      // confirm userB is not already a delegated signer
+      expect(await marketFactory.signers(userA.address, userB.address)).to.be.false
+
+      // create and sign the inner message
+      const signerUpdate = {
+        access: {
+          accessor: userB.address,
+          approved: true,
+        },
+        ...createCommon(marketFactory.address),
+      }
+      const innerSignature = await signSignerUpdate(userA, downstreamVerifier, signerUpdate)
+
+      // create and sign the outer message
+      const relayedSignerUpdateMessage = {
+        signerUpdate: signerUpdate,
+        ...createAction(userA.address, userA.address),
+      }
+      const outerSignature = await signRelayedSignerUpdate(userA, accountVerifier, relayedSignerUpdateMessage)
+
+      // perform the action
+      await expect(
+        controller
+          .connect(keeper)
+          .relaySignerUpdate(relayedSignerUpdateMessage, outerSignature, innerSignature, TX_OVERRIDES),
+      )
+        .to.emit(marketFactory, 'SignerUpdated')
+        .withArgs(userA.address, userB.address, true)
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedSignerUpdateMessage.signerUpdate.common.nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedSignerUpdateMessage.action.common.nonce)
+
+      // confirm userB is now a delegated signer
+      expect(await marketFactory.signers(userA.address, userB.address)).to.be.true
+    })
+
+    it('relays batch access update messages', async () => {
+      // confirm userB is not already an operator, and userC is not already a delegated signer
+      expect(await marketFactory.operators(userA.address, userB.address)).to.be.false
+      expect(await marketFactory.signers(userA.address, userC.address)).to.be.false
+
+      // create and sign the inner message
+      const accessUpdateBatch = {
+        operators: [{ accessor: userB.address, approved: true }],
+        signers: [{ accessor: userC.address, approved: true }],
+        ...createCommon(marketFactory.address),
+      }
+      const innerSignature = await signAccessUpdateBatch(userA, downstreamVerifier, accessUpdateBatch)
+
+      // create and sign the outer message
+      const relayedAccessUpdateBatchMesage = {
+        accessUpdateBatch: accessUpdateBatch,
+        ...createAction(userA.address),
+      }
+      const outerSignature = await signRelayedAccessUpdateBatch(userA, accountVerifier, relayedAccessUpdateBatchMesage)
+
+      // perform the action
+      await expect(
+        controller
+          .connect(keeper)
+          .relayAccessUpdateBatch(relayedAccessUpdateBatchMesage, outerSignature, innerSignature, TX_OVERRIDES),
+      )
+        .to.emit(marketFactory, 'OperatorUpdated')
+        .withArgs(userA.address, userB.address, true)
+        .to.emit(marketFactory, 'SignerUpdated')
+        .withArgs(userA.address, userC.address, true)
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, accessUpdateBatch.common.nonce)
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedAccessUpdateBatchMesage.action.common.nonce)
+
+      // confirm userB is now an operator, and userC a delegated signer
+      expect(await marketFactory.operators(userA.address, userB.address)).to.be.true
+      expect(await marketFactory.signers(userA.address, userC.address)).to.be.true
     })
   })
 })

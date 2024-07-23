@@ -94,6 +94,9 @@ describe('MarketFactory', () => {
       expect(await factory.owner()).to.equal(owner.address)
       expect(await factory.pauser()).to.equal(constants.AddressZero)
 
+      expect(await factory.oracleFactory()).to.equal(oracleFactory.address)
+      expect(await factory.verifier()).to.equal(verifier.address)
+
       const parameter = await factory.parameter()
       expect(parameter.protocolFee).to.equal(0)
       expect(parameter.maxFee).to.equal(0)

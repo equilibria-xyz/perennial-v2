@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/attribute/interfaces/IFactory.sol";
+import "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdate.sol";
@@ -32,6 +33,7 @@ interface IMarketFactory is IFactory {
     error ProtocolParameterStorageInvalidError();
 
     function oracleFactory() external view returns (IFactory);
+    function verifier() external view returns (IVerifier);
     function parameter() external view returns (ProtocolParameter memory);
     function extensions(address extension) external view returns (bool);
     function operators(address account, address operator) external view returns (bool);

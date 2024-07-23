@@ -83,6 +83,13 @@ contract KeeperOracle is IKeeperOracle, Instance {
     }
 
     /// @notice Records a request for a new oracle version
+    /// @dev If no new price is requested:
+    ///       - If no request has been made this version, a linkback will be created to the most recently requested new price
+    ///       - If a request has been made with or without a new price this version, no action will be taken
+    ///      If a new price is requested:
+    ///       - If no request has been made this version, a new price request will be created
+    ///       - If a request has been made without a new price this version, its linkback will be removed, and a new price request will be created
+    ///       - If a request has been made with a new price this version, no action will be taken
     /// @param market The market to callback to
     /// @param account The account to callback to
     /// @param newPrice Whether a new price should be requested
