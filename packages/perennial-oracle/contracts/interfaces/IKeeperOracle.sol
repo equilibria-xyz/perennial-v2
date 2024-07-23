@@ -5,6 +5,8 @@ import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "../Oracle.sol";
+import { PriceResponse } from "../keeper/types/PriceResponse.sol";
+import { PriceRequest } from "../keeper/types/PriceRequest.sol";
 
 interface IKeeperOracle is IOracleProvider, IInstance {
     event CallbackRequested(SettlementCallback indexed callback);
@@ -47,6 +49,8 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     function localCallbacks(uint256 version, IMarket market) external view returns (address[] memory);
 
     function timeout() external view returns (uint256);
-    function versions(uint256 index) external view returns (uint256);
+    function requests(uint256 index) external view returns (PriceRequest memory);
+    function responses(uint256 timestamp) external view returns (PriceResponse memory);
+    function linkbacks(uint256 timestamp) external view returns (uint256);
     function global() external view returns (Global memory);
 }

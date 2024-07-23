@@ -203,6 +203,7 @@ testOracles.forEach(testOracle => {
         5_000,
       )
       await chainlinkOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
+      await chainlinkOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
       await oracleFactory.register(chainlinkOracleFactory.address)
       await chainlinkOracleFactory.authorize(oracleFactory.address)
       await chainlinkOracleFactory.register(powerTwoPayoff.address)
@@ -440,10 +441,10 @@ testOracles.forEach(testOracle => {
 
       context('#updateGranularity', async () => {
         it('reverts when not owner', async () => {
-          await expect(chainlinkOracleFactory.connect(user).updateGranularity(10)).to.be.revertedWithCustomError(
-            chainlinkOracleFactory,
-            'OwnableNotOwnerError',
-          )
+          const parameter = await chainlinkOracleFactory.parameter()
+          await expect(
+            chainlinkOracleFactory.connect(user).updateParameter(10, parameter.settlementFee, parameter.oracleFee),
+          ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
         })
       })
 
@@ -527,7 +528,9 @@ testOracles.forEach(testOracle => {
 
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
         await expect(
@@ -560,7 +563,9 @@ testOracles.forEach(testOracle => {
 
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect(await keeperOraclePayoff.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOraclePayoff.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOraclePayoff.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOraclePayoff.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOraclePayoff.next()).to.be.equal(STARTING_TIME)
 
         await expect(
@@ -586,7 +591,9 @@ testOracles.forEach(testOracle => {
 
       it('commits successfully if report is barely not too early', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
         await expect(
@@ -603,7 +610,9 @@ testOracles.forEach(testOracle => {
 
       it('commits successfully if report is barely not too late', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
         await expect(
@@ -620,7 +629,9 @@ testOracles.forEach(testOracle => {
 
       it('fails to commit if report is outside of time range', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
         await expect(
@@ -642,7 +653,9 @@ testOracles.forEach(testOracle => {
 
       it('fails to commit if update fee is not provided', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT),
@@ -651,7 +664,9 @@ testOracles.forEach(testOracle => {
 
       it('does not commit a version that has already been committed', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
           value: getFee(REPORT),
@@ -666,7 +681,9 @@ testOracles.forEach(testOracle => {
 
       it('rejects invalid update data', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, '0x', {
@@ -678,8 +695,12 @@ testOracles.forEach(testOracle => {
       it('cannot skip a version', async () => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.versions(2)).to.be.equal(STARTING_TIME + 1)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(STARTING_TIME + 1)
+        expect((await keeperOracle.requests(2)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 1, REPORT, {
@@ -692,8 +713,12 @@ testOracles.forEach(testOracle => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         await time.increase(59)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.versions(2)).to.be.equal(STARTING_TIME + 60)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(STARTING_TIME + 60)
+        expect((await keeperOracle.requests(2)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           chainlinkOracleFactory
@@ -893,7 +918,9 @@ testOracles.forEach(testOracle => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
           value: getFee(REPORT),
@@ -988,7 +1015,9 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle, 'OracleProviderVersionRequested')
           .withArgs(STARTING_TIME, true)
         // Now there is exactly one requested version
-        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
       })
 
@@ -1003,21 +1032,26 @@ testOracles.forEach(testOracle => {
           .withArgs(STARTING_TIME + 11, false)
 
         // Should link back to requested version
-        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
-        expect(await keeperOracle.links(STARTING_TIME + 11)).to.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.linkbacks(STARTING_TIME + 11)).to.equal(STARTING_TIME)
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
       })
 
       it('can request a version w/ granularity', async () => {
-        await chainlinkOracleFactory.updateGranularity(10)
+        const parameter = await chainlinkOracleFactory.parameter()
+        await chainlinkOracleFactory.updateParameter(10, parameter.settlementFee, parameter.oracleFee)
 
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        const currentTimestamp = await chainlinkOracleFactory.current()
+        const currentTimestamp = (await chainlinkOracleFactory.current()).timestamp
 
         // Now there is exactly one requested version
-        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
       })
 
@@ -1042,9 +1076,13 @@ testOracles.forEach(testOracle => {
 
         await ethers.provider.send('evm_mine', [])
 
-        const currentTimestamp = await chainlinkOracleFactory.current()
-        expect(await keeperOracle.callStatic.versions(1)).to.equal(currentTimestamp)
-        expect(await keeperOracle.callStatic.versions(2)).to.equal(0)
+        const currentTimestamp = (await chainlinkOracleFactory.current()).timestamp
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(0)
+        expect((await keeperOracle.requests(2)).settlementFee).to.be.equal(0)
+        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(0)
       })
 
       it('a version can only be requested once (no new, no new)', async () => {
@@ -1059,10 +1097,14 @@ testOracles.forEach(testOracle => {
 
         await ethers.provider.send('evm_mine', [])
 
-        const currentTimestamp = await chainlinkOracleFactory.current()
-        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
-        expect(await keeperOracle.links(currentTimestamp)).to.equal(STARTING_TIME)
-        expect(await keeperOracle.versions(2)).to.equal(0)
+        const currentTimestamp = (await chainlinkOracleFactory.current()).timestamp
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.linkbacks(currentTimestamp)).to.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(0)
+        expect((await keeperOracle.requests(2)).settlementFee).to.be.equal(0)
+        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(0)
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
       })
 
@@ -1075,10 +1117,14 @@ testOracles.forEach(testOracle => {
 
         await ethers.provider.send('evm_mine', [])
 
-        const currentTimestamp = await chainlinkOracleFactory.current()
-        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp)
-        expect(await keeperOracle.versions(2)).to.equal(0)
-        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
+        const currentTimestamp = (await chainlinkOracleFactory.current()).timestamp
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp)
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(0)
+        expect((await keeperOracle.requests(2)).settlementFee).to.be.equal(0)
+        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(0)
+        expect(await keeperOracle.linkbacks(currentTimestamp)).to.equal(0)
       })
 
       it('a new price request will overtake a previous no new price request', async () => {
@@ -1095,11 +1141,15 @@ testOracles.forEach(testOracle => {
 
         await ethers.provider.send('evm_mine', [])
 
-        const currentTimestamp = await chainlinkOracleFactory.current()
-        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp.sub(11))
-        expect(await keeperOracle.versions(2)).to.equal(currentTimestamp)
-        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
-        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
+        const currentTimestamp = (await chainlinkOracleFactory.current()).timestamp
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp.sub(11))
+        expect((await keeperOracle.requests(1)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(currentTimestamp)
+        expect((await keeperOracle.requests(2)).settlementFee).to.be.equal(parse6decimal('1.5'))
+        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.linkbacks(currentTimestamp)).to.equal(0)
+        expect(await keeperOracle.linkbacks(currentTimestamp)).to.equal(0)
       })
     })
 
@@ -1128,43 +1178,45 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the current timestamp w/ granularity == 0', async () => {
-        await expect(chainlinkOracleFactory.connect(owner).updateGranularity(0)).to.be.revertedWithCustomError(
-          chainlinkOracleFactory,
-          'KeeperFactoryInvalidGranularityError',
-        )
+        const parameter = await chainlinkOracleFactory.parameter()
+        await expect(
+          chainlinkOracleFactory.connect(owner).updateParameter(0, parameter.settlementFee, parameter.oracleFee),
+        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidGranularityError')
       })
 
       it('returns the current timestamp w/ granularity > MAX', async () => {
-        await expect(chainlinkOracleFactory.connect(owner).updateGranularity(3601)).to.be.revertedWithCustomError(
-          chainlinkOracleFactory,
-          'KeeperFactoryInvalidGranularityError',
-        )
-        await expect(chainlinkOracleFactory.connect(owner).updateGranularity(3600)).to.be.not.reverted
+        const parameter = await chainlinkOracleFactory.parameter()
+        await expect(
+          chainlinkOracleFactory.connect(owner).updateParameter(3601, parameter.settlementFee, parameter.oracleFee),
+        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidGranularityError')
+        await expect(
+          chainlinkOracleFactory.connect(owner).updateParameter(3600, parameter.settlementFee, parameter.oracleFee),
+        ).to.be.not.reverted
       })
 
       it('returns the current timestamp w/ fresh granularity > 1', async () => {
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
-
-        const granularity = await chainlinkOracleFactory.granularity()
-        expect(granularity.latestGranularity).to.equal(1)
-        expect(granularity.currentGranularity).to.equal(10)
-        expect(granularity.effectiveAfter).to.equal(await currentBlockTimestamp())
+        const parameter = await chainlinkOracleFactory.parameter()
+        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        const parameter2 = await chainlinkOracleFactory.parameter()
+        expect(parameter2.latestGranularity).to.equal(1)
+        expect(parameter2.currentGranularity).to.equal(10)
+        expect(parameter2.effectiveAfter).to.equal(await currentBlockTimestamp())
 
         expect(await keeperOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
       })
 
       it('returns the current timestamp w/ settled granularity > 1', async () => {
-        const granularity = await chainlinkOracleFactory.granularity()
-        expect(granularity.latestGranularity).to.equal(0)
-        expect(granularity.currentGranularity).to.equal(1)
-        expect(granularity.effectiveAfter).to.equal(0)
+        const parameter = await chainlinkOracleFactory.parameter()
+        expect(parameter.latestGranularity).to.equal(1)
+        expect(parameter.currentGranularity).to.equal(1)
+        expect(parameter.effectiveAfter).to.equal(STARTING_TIME - 1)
 
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
+        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
 
-        const granularity2 = await chainlinkOracleFactory.granularity()
-        expect(granularity2.latestGranularity).to.equal(1)
-        expect(granularity2.currentGranularity).to.equal(10)
-        expect(granularity2.effectiveAfter).to.equal(await currentBlockTimestamp())
+        const parameter2 = await chainlinkOracleFactory.parameter()
+        expect(parameter2.latestGranularity).to.equal(1)
+        expect(parameter2.currentGranularity).to.equal(10)
+        expect(parameter2.effectiveAfter).to.equal(await currentBlockTimestamp())
 
         await time.increase(1)
 
@@ -1174,24 +1226,25 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the current timestamp w/ fresh + fresh granularity > 1', async () => {
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
+        const parameter = await chainlinkOracleFactory.parameter()
+        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
         // hardhat automatically moves 1 second ahead so we have to do this twice
-        await chainlinkOracleFactory.connect(owner).updateGranularity(100)
-        await expect(chainlinkOracleFactory.connect(owner).updateGranularity(1000)).to.be.revertedWithCustomError(
-          chainlinkOracleFactory,
-          'KeeperFactoryInvalidGranularityError',
-        )
+        await chainlinkOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await expect(
+          chainlinkOracleFactory.connect(owner).updateParameter(1000, parameter.settlementFee, parameter.oracleFee),
+        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidGranularityError')
       })
 
       it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
+        const parameter = await chainlinkOracleFactory.parameter()
+        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
         await time.increase(1)
 
-        await chainlinkOracleFactory.connect(owner).updateGranularity(100)
-        const granularity = await chainlinkOracleFactory.granularity()
-        expect(granularity.latestGranularity).to.equal(10)
-        expect(granularity.currentGranularity).to.equal(100)
-        expect(granularity.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+        await chainlinkOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        const parameter2 = await chainlinkOracleFactory.parameter()
+        expect(parameter2.latestGranularity).to.equal(10)
+        expect(parameter2.currentGranularity).to.equal(100)
+        expect(parameter2.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
 
         expect(await keeperOracle.connect(user).current()).to.equal(
           Math.ceil((await currentBlockTimestamp()) / 10) * 10,
@@ -1199,14 +1252,15 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the current timestamp w/ settled + settled granularity > 1', async () => {
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
+        const parameter = await chainlinkOracleFactory.parameter()
+        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
         await time.increase(1)
 
-        await chainlinkOracleFactory.connect(owner).updateGranularity(100)
-        const granularity = await chainlinkOracleFactory.granularity()
-        expect(granularity.latestGranularity).to.equal(10)
-        expect(granularity.currentGranularity).to.equal(100)
-        expect(granularity.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+        await chainlinkOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        const parameter2 = await chainlinkOracleFactory.parameter()
+        expect(parameter2.latestGranularity).to.equal(10)
+        expect(parameter2.currentGranularity).to.equal(100)
+        expect(parameter2.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
 
         const previousCurrent = Math.ceil((await currentBlockTimestamp()) / 10) * 10
         await time.increase(previousCurrent - (await currentBlockTimestamp()) + 1)
