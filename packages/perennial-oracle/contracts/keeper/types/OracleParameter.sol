@@ -33,7 +33,7 @@ using OracleParameterStorageLib for OracleParameterStorage global;
 
 /// @dev (external-safe): this library is safe to externalize
 library OracleParameterStorageLib {
-    // sig: 0xfc481d85
+    // sig: 0xcf1b0852
     error OracleParameterStorageInvalidError();
 
     function read(OracleParameterStorage storage self) internal view returns (OracleParameter memory) {
