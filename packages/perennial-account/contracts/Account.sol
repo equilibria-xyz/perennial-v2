@@ -64,14 +64,8 @@ contract Account is IAccount, Instance {
         DSU.approve(address(market));
 
         // if account does not have enough DSU for the deposit, wrap everything
-         if (amount.gt(Fixed6Lib.ZERO)) {
-            UFixed6 dsuBalance6 = UFixed6Lib.from(DSU.balanceOf());
-            if (UFixed6Lib.from(amount).gt(dsuBalance6)) {
-                UFixed6 usdcBalance = USDC.balanceOf();
-                if (!usdcBalance.eq(UFixed6Lib.ZERO))
-                    wrap(UFixed18Lib.from(usdcBalance));
-            }
-        }
+         if (amount.gt(Fixed6Lib.ZERO))
+            wrapIfNecessary(UFixed18Lib.from(amount.abs()), true);
 
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
         market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
@@ -90,14 +84,21 @@ contract Account is IAccount, Instance {
         USDC.push(owner, pushAmount);
     }
 
-    /// @notice Helper function to wrap `amount` USDC from `address(this)` into DSU using the reserve
-    /// @param amount Amount of USDC to wrap
+    /// @inheritdoc IAccount
     function wrap(UFixed18 amount) public ownerOrController {
         reserve.mint(amount);
     }
 
-    /// @notice Helper function to unwrap `amount` DSU into USDC and send to `receiver`
-    /// @param amount Amount of DSU to unwrap
+    /// @inheritdoc IAccount
+    function wrapIfNecessary(UFixed18 amount, bool wrapAll) public ownerOrController {
+        if (DSU.balanceOf().lt(amount)) {
+            UFixed6 usdcBalance = USDC.balanceOf();
+            if (!usdcBalance.eq(UFixed6Lib.ZERO))
+                wrap(wrapAll ? UFixed18Lib.from(usdcBalance) : amount);
+        }
+    }
+
+    /// @inheritdoc IAccount
     function unwrap(UFixed18 amount) public ownerOrController {
         reserve.redeem(amount);
     }

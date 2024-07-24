@@ -21,18 +21,18 @@ struct PriceResponse {
 }
 using PriceResponseLib for PriceResponse global;
 struct StoredPriceResponse {
-    int64 price;
-    uint48 settlementFee;
-    uint24 oracleFee;
+    /* slot 0 */
+    int64 price;            // <= 18t
+    uint48 settlementFee;   // <= 281m
+    uint24 oracleFee;       // <= 100%
     bool valid;
 }
 struct PriceResponseStorage { StoredPriceResponse value; }
 using PriceResponseStorageLib for PriceResponseStorage global;
 
-/**
- * @title PriceResponseLib
- * @notice Library for PriceResponse logic and data.
- */
+/// @title PriceResponseLib
+/// @dev (external-unsafe): this library must be used internally only
+/// @notice Library for PriceResponse logic and data.
 library PriceResponseLib {
     /// @notice Constructs a price response from an unrequested oracle version
     /// @param oracleVersion The oracle version object
@@ -57,6 +57,7 @@ library PriceResponseLib {
     }
 }
 
+/// @dev (external-safe): this library is safe to externalize
 library PriceResponseStorageLib {
     // sig: 0xea04171b
     error PriceResponseStorageInvalidError();

@@ -21,15 +21,17 @@ struct ProviderParameter {
     UFixed6 oracleFee;
 }
 struct StoredProviderParameter {
-    uint16 latestGranularity;
-    uint16 currentGranularity;
-    uint32 effectiveAfter;
-    uint48 settlementFee;
-    uint24 oracleFee;
+    /* slot 0 */
+    uint16 latestGranularity;   // <= 65k
+    uint16 currentGranularity;  // <= 65k
+    uint32 effectiveAfter;      // <= 2038
+    uint48 settlementFee;       // <= 281m
+    uint24 oracleFee;           // <= 100%
 }
 struct ProviderParameterStorage { StoredProviderParameter value; }
 using ProviderParameterStorageLib for ProviderParameterStorage global;
 
+/// @dev (external-safe): this library is safe to externalize
 library ProviderParameterStorageLib {
     // sig: 0x05c750c6
     error ProviderParameterStorageInvalidError();

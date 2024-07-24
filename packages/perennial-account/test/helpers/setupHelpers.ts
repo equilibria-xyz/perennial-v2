@@ -45,6 +45,7 @@ import {
   IOracleFactory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
+import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
 
 // Simulates an oracle update from KeeperOracle.
 // If timestamp matches a requested version, callbacks implicitly settle the market.
@@ -164,15 +165,13 @@ export async function deployController(
   return controller
 }
 
-// Deploys the protocol using an existing "real" oracle
+// Deploys the protocol using a provided oracle
 export async function deployProtocolForOracle(
   owner: SignerWithAddress,
-  oracleFactory: IOracleFactory,
+  oracleFactory: OracleFactory,
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
-  const verifier = await smock.fake<IVerifier>(
-    '@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol:IVerifier',
-  )
+  const verifier = await new Verifier__factory(owner).deploy()
   const marketImpl = await deployMarketImplementation(owner, verifier.address)
   const marketFactory = await deployMarketFactory(
     owner,

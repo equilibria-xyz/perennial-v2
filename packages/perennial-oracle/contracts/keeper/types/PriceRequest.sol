@@ -18,17 +18,17 @@ struct PriceRequest {
 }
 using PriceRequestLib for PriceRequest global;
 struct StoredPriceRequest {
-    uint32 timestamp;
-    uint48 settlementFee;
-    uint24 oracleFee;
+    /* slot 0 */
+    uint32 timestamp;       // <= 2038
+    uint48 settlementFee;   // <= 281m
+    uint24 oracleFee;       // <= 100%
 }
 struct PriceRequestStorage { StoredPriceRequest value; }
 using PriceRequestStorageLib for PriceRequestStorage global;
 
-/**
- * @title PriceRequestLib
- * @notice Library for PriceRequest logic and data.
- */
+/// @title PriceRequestLib
+/// @dev (external-unsafe): this library must be used internally only
+/// @notice Library for PriceRequest logic and data.
 library PriceRequestLib {
     /// @notice Constructs a price response from a request and a resulting oracle version
     /// @param self The price request object
@@ -53,6 +53,7 @@ library PriceRequestLib {
     }
 }
 
+/// @dev (external-safe): this library is safe to externalize
 library PriceRequestStorageLib {
     // sig: 0xfc481d85
     error PriceRequestStorageInvalidError();

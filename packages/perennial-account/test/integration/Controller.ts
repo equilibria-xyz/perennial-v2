@@ -8,8 +8,8 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, Controller, IERC20Metadata } from '../../types/generated'
-import { IVerifier } from '../../types/generated/contracts/interfaces'
-import { IVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
+import { IAccountVerifier } from '../../types/generated/contracts/interfaces'
+import { IAccountVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
 import {
   IKeeperOracle,
   IOracleFactory,
@@ -37,7 +37,7 @@ describe('ControllerBase', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller
-  let verifier: IVerifier
+  let verifier: IAccountVerifier
   let oracleFactory: IOracleFactory
   let pythOracleFactory: PythFactory
   let marketFactory: IMarketFactory
@@ -173,7 +173,7 @@ describe('ControllerBase', () => {
     // deploy controller
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
     ;[dsu, usdc, controller] = await deployAndInitializeController(owner, marketFactory)
-    verifier = IVerifier__factory.connect(await controller.verifier(), owner)
+    verifier = IAccountVerifier__factory.connect(await controller.verifier(), owner)
 
     // create oracle, market, and set initial price
     let oracle: IOracleProvider
