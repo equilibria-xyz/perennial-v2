@@ -32,9 +32,9 @@ struct ProviderParameterStorage { StoredProviderParameter value; }
 using ProviderParameterStorageLib for ProviderParameterStorage global;
 
 /// @dev (external-safe): this library is safe to externalize
-library OracleParameterStorageLib {
-    // sig: 0xcf1b0852
-    error OracleParameterStorageInvalidError();
+library ProviderParameterStorageLib {
+    // sig: 0x05c750c6
+    error ProviderParameterStorageInvalidError();
 
     function read(ProviderParameterStorage storage self) internal view returns (ProviderParameter memory) {
         StoredProviderParameter memory storedValue = self.value;
