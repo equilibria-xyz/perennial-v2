@@ -7,7 +7,7 @@ import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "../interfaces/IAccount.sol";
-import { IVerifier } from "../interfaces/IVerifier.sol";
+import { IAccountVerifier } from "../interfaces/IAccountVerifier.sol";
 import { DeployAccount } from "../types/DeployAccount.sol";
 import { MarketTransfer } from "../types/MarketTransfer.sol";
 import { RebalanceConfig } from "../types/RebalanceConfig.sol";
@@ -45,10 +45,6 @@ interface IController {
         RebalanceConfig newConfig
     );
 
-    // sig: 0x599f7892
-    /// @custom:error Insufficient funds in the collateral account to compensate relayer/keeper
-    error ControllerCannotPayKeeperError();
-
     // sig: 0xdc72f280
     /// @custom:error Group is balanced and ineligible for rebalance
     error ControllerGroupBalancedError();
@@ -85,12 +81,18 @@ interface IController {
     /// @param market Market with non-DSU collateral
     error ControllerUnsupportedMarketError(IMarket market);
 
+    /// @dev Contract used to validate delegated signers and relay certain messages
+    function marketFactory() external view returns (IMarketFactory);
+
+    /// @dev Contract used to validate message signatures
+    function verifier() external view returns (IAccountVerifier);
+
     /// @notice Sets contract addresses used for message verification and token management
     /// @param marketFactory Contract used to validate delegated signers
-    /// @param verifier Contract used to validate message signatures
+    /// @param verifier Contract used to validate collateral account message signatures
     function initialize(
         IMarketFactory marketFactory,
-        IVerifier verifier
+        IAccountVerifier verifier
     ) external;
 
     /// @notice Returns the deterministic address of the collateral account for a user,

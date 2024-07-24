@@ -27,17 +27,19 @@ struct KeeperOracleParameter {
     uint256 validTo;
 }
 struct StoredKeeperOracleParameter {
-    uint16 latestGranularity;
-    uint16 currentGranularity;
-    uint32 effectiveAfter;
-    uint48 settlementFee;
-    uint24 oracleFee;
-    uint16 validFrom;
-    uint16 validTo;
+    /* slot 0 */
+    uint16 latestGranularity;   // <= 65k
+    uint16 currentGranularity;  // <= 65k
+    uint32 effectiveAfter;      // <= 2038
+    uint48 settlementFee;       // <= 281m
+    uint24 oracleFee;           // <= 100%
+    uint16 validFrom;           // <= 65k
+    uint16 validTo;             // <= 65k
 }
 struct KeeperOracleParameterStorage { StoredKeeperOracleParameter value; }
 using KeeperOracleParameterStorageLib for KeeperOracleParameterStorage global;
 
+/// @dev (external-safe): this library is safe to externalize
 library KeeperOracleParameterStorageLib {
     // sig: 0xff590172
     error KeeperOracleParameterStorageInvalidError();

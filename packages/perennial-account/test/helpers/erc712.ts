@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { ActionStruct, CommonStruct } from '../../types/generated/contracts/Verifier'
-import { IVerifier } from '../../types/generated'
+import { IAccountVerifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
 import {
   DeployAccountStruct,
@@ -8,8 +8,15 @@ import {
   RebalanceConfigChangeStruct,
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
+import {
+  RelayedAccessUpdateBatch,
+  RelayedNonceCancellationStruct,
+  RelayedGroupCancellationStruct,
+  RelayedOperatorUpdateStruct,
+  RelayedSignerUpdateStruct,
+} from '../../types/generated/contracts/Controller_Incentivized'
 
-function erc721Domain(verifier: IVerifier | FakeContract<IVerifier>): {
+function erc721Domain(verifier: IAccountVerifier | FakeContract<IAccountVerifier>): {
   name: string
   version: string
   chainId: number
@@ -43,7 +50,7 @@ const actionType = {
 
 export async function signCommon(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   common: CommonStruct,
 ): Promise<string> {
   return await signer._signTypedData(erc721Domain(verifier), commonType, common)
@@ -51,7 +58,7 @@ export async function signCommon(
 
 export async function signAction(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   action: ActionStruct,
 ): Promise<string> {
   const types = {
@@ -63,7 +70,7 @@ export async function signAction(
 
 export async function signDeployAccount(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   message: DeployAccountStruct,
 ): Promise<string> {
   const types = {
@@ -77,7 +84,7 @@ export async function signDeployAccount(
 
 export async function signMarketTransfer(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   message: MarketTransferStruct,
 ): Promise<string> {
   const types = {
@@ -95,7 +102,7 @@ export async function signMarketTransfer(
 
 export async function signRebalanceConfigChange(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   message: RebalanceConfigChangeStruct,
 ): Promise<string> {
   const types = {
@@ -119,7 +126,7 @@ export async function signRebalanceConfigChange(
 
 export async function signWithdrawal(
   signer: SignerWithAddress,
-  verifier: IVerifier | FakeContract<IVerifier>,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
   message: WithdrawalStruct,
 ): Promise<string> {
   const types = {
@@ -127,6 +134,120 @@ export async function signWithdrawal(
       { name: 'amount', type: 'uint256' },
       { name: 'unwrap', type: 'bool' },
       { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedNonceCancellation(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedNonceCancellationStruct,
+): Promise<string> {
+  const types = {
+    RelayedNonceCancellation: [
+      { name: 'nonceCancellation', type: 'Common' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedGroupCancellation(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedGroupCancellationStruct,
+): Promise<string> {
+  const types = {
+    RelayedGroupCancellation: [
+      { name: 'groupCancellation', type: 'GroupCancellation' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+    GroupCancellation: [
+      { name: 'group', type: 'uint256' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedOperatorUpdate(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedOperatorUpdateStruct,
+): Promise<string> {
+  const types = {
+    RelayedOperatorUpdate: [
+      { name: 'operatorUpdate', type: 'OperatorUpdate' },
+      { name: 'action', type: 'Action' },
+    ],
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
+      { name: 'approved', type: 'bool' },
+    ],
+    ...actionType,
+    ...commonType,
+    OperatorUpdate: [
+      { name: 'access', type: 'AccessUpdate' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedSignerUpdate(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedSignerUpdateStruct,
+): Promise<string> {
+  const types = {
+    RelayedSignerUpdate: [
+      { name: 'signerUpdate', type: 'SignerUpdate' },
+      { name: 'action', type: 'Action' },
+    ],
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
+      { name: 'approved', type: 'bool' },
+    ],
+    ...actionType,
+    ...commonType,
+    SignerUpdate: [
+      { name: 'access', type: 'AccessUpdate' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedAccessUpdateBatch(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedAccessUpdateBatch,
+): Promise<string> {
+  const types = {
+    RelayedAccessUpdateBatch: [
+      { name: 'accessUpdateBatch', type: 'AccessUpdateBatch' },
+      { name: 'action', type: 'Action' },
+    ],
+    AccessUpdate: [
+      { name: 'accessor', type: 'address' },
+      { name: 'approved', type: 'bool' },
+    ],
+    AccessUpdateBatch: [
+      { name: 'operators', type: 'AccessUpdate[]' },
+      { name: 'signers', type: 'AccessUpdate[]' },
+      { name: 'common', type: 'Common' },
     ],
     ...actionType,
     ...commonType,

@@ -11,8 +11,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
-import { IController } from "./interfaces/IController.sol";
-import { IVerifier } from "./interfaces/IVerifier.sol";
+import { IAccountVerifier, IController } from "./interfaces/IController.sol";
 import { RebalanceLib } from "./libs/RebalanceLib.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
@@ -22,7 +21,8 @@ import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/Rebalan
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 
 /// @title Controller
-/// @notice Facilitates unpermissioned actions between collateral accounts and markets
+/// @notice Facilitates unpermissioned actions between collateral accounts and markets,
+/// without keeper compensation.  No message relaying facilities are provided.
 contract Controller is Factory, IController {
     // used for deterministic address creation through create2
     bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
@@ -36,11 +36,11 @@ contract Controller is Factory, IController {
     /// @dev DSU address
     Token18 public DSU; // solhint-disable-line var-name-mixedcase
 
-    /// @dev Contract used to validate delegated signers
+    /// @inheritdoc IController
     IMarketFactory public marketFactory;
 
-    /// @dev Contract used to validate message signatures
-    IVerifier public verifier;
+    /// @inheritdoc IController
+    IAccountVerifier public verifier;
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
@@ -67,7 +67,7 @@ contract Controller is Factory, IController {
     /// @inheritdoc IController
     function initialize(
         IMarketFactory marketFactory_,
-        IVerifier verifier_
+        IAccountVerifier verifier_
     ) external initializer(1) {
         __Factory__initialize();
         marketFactory = marketFactory_;
@@ -170,6 +170,11 @@ contract Controller is Factory, IController {
         emit AccountDeployed(owner, account);
     }
 
+    /// @dev reverts if user is not authorized to sign transactions for the owner
+    function _ensureValidSigner(address owner, address signer) internal view {
+        if (signer != owner && !marketFactory.signers(owner, signer)) revert ControllerInvalidSignerError();
+    }
+
     function _deployAccountWithSignature(
         DeployAccount calldata deployAccount_,
         bytes calldata signature
@@ -237,11 +242,6 @@ contract Controller is Factory, IController {
         }
 
         emit GroupRebalanced(owner, group);
-    }
-
-    /// @dev calculates the account address and reverts if user is not authorized to sign transactions for the owner
-    function _ensureValidSigner(address owner, address signer) private view {
-        if (signer != owner && !marketFactory.signers(owner, signer)) revert ControllerInvalidSignerError();
     }
 
     /// @dev checks current collateral for each market in a group and aggregates collateral for the group
