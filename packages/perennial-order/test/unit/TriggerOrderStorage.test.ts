@@ -29,7 +29,6 @@ describe('TriggerOrderStorage', () => {
     await expect(orderTester.connect(owner).store(newOrder)).to.not.be.reverted
 
     const readOrder = await orderTester.read()
-    console.log(readOrder)
     expect(readOrder.side).to.equal(newOrder.side)
     expect(readOrder.comparison).to.equal(newOrder.comparison)
     expect(readOrder.price).to.equal(newOrder.price)

@@ -6,6 +6,7 @@ import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/inte
 // import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 import { IManager } from "./interfaces/IManager.sol";
+import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { CancelOrderAction } from "./types/CancelOrderAction.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { TriggerOrderAction } from "./types/TriggerOrderAction.sol";
@@ -19,26 +20,24 @@ abstract contract Manager is IManager, Kept {
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
 
-    // TODO: verifier
-
     /// @dev Contract used to validate delegated signers
     IMarketFactory public marketFactory;
 
-    // TODO: Make this enumerable for keepers?
+    /// @dev Verifies EIP712 messages for this extension
+    IOrderVerifier public verifier;
+
+    // TODO: need a way to invalidate spent order IDs
     /// @dev Stores trigger orders while awaiting their conditions to become true
     /// Market => User => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
-    // TODO: Need a way for keepers to iterate through pending orders.
-    // OZ collections seem impractical unless orderIds are unique across users, which signed messages prohibit.
-    // EnumerableMap.AddressToUintMap public ordersForMarketUser
-
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
     /// @param marketFactory_ Contract used to validate delegated signers
-    constructor(Token18 dsu_, IMarketFactory marketFactory_/*, IOrderVerifier verifier*/) {
+    constructor(Token18 dsu_, IMarketFactory marketFactory_, IOrderVerifier verifier_) {
         DSU = dsu_;
         marketFactory = marketFactory_;
+        verifier = verifier_;
     }
 
     /// @notice Initialize the contract
