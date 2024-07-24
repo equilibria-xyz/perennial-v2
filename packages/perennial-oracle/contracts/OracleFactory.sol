@@ -5,6 +5,7 @@ import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/root/attribute/Factory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import "./interfaces/IOracleFactory.sol";
+import { OracleParameter, OracleParameterStorage } from "./types/OracleParameter.sol";
 
 /// @title OracleFactory
 /// @notice Factory for creating and managing oracles
@@ -27,6 +28,9 @@ contract OracleFactory is IOracleFactory, Factory {
     /// @notice Mapping of oracle instance to oracle id
     mapping(IOracleProvider => bytes32) public ids;
 
+    /// @notice Global settings for all oracles
+    OracleParameterStorage private _parameter;
+
     /// @notice Constructs the contract
     /// @param implementation_ The implementation contract for the oracle
     constructor(address implementation_) Factory(implementation_) { }
@@ -39,6 +43,19 @@ contract OracleFactory is IOracleFactory, Factory {
             __Factory__initialize();
 
         incentive = incentive_;
+        _parameter.store(OracleParameter(1, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
+    }
+
+    /// @notice Returns the global oracle parameter
+    /// @return The global oracle parameter
+    function parameter() external view returns (OracleParameter memory) {
+        return _parameter.read();
+    }
+
+    /// @notice Updates the global oracle parameter
+    /// @param newParameter The new oracle parameter
+    function updateParameter(OracleParameter memory newParameter) external onlyOwner {
+        _parameter.store(newParameter);
     }
 
     /// @notice Retroactively sets the mapping of the oracle id to the oracle instance

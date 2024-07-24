@@ -18,6 +18,7 @@ import {
   DEFAULT_GUARANTEE,
   parse6decimal,
   Guarantee,
+  DEFAULT_ORACLE_RECEIPT,
 } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
@@ -28,7 +29,7 @@ import {
   RiskParameterStruct,
   VersionStruct,
 } from '../../../types/generated/contracts/Market'
-import { OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
+import { OracleReceiptStruct, OracleVersionStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 import { VALID_MARKET_PARAMETER } from './MarketParameter.test'
 import { VALID_RISK_PARAMETER } from './RiskParameter.test'
 
@@ -115,6 +116,7 @@ describe('Version', () => {
     guarantee: GuaranteeStruct,
     fromOracleVersion: OracleVersionStruct,
     toOracleVersion: OracleVersionStruct,
+    toOracleReceipt: OracleReceiptStruct,
     marketParameter: MarketParameterStruct,
     riskParameter: RiskParameterStruct,
   ) => {
@@ -125,6 +127,7 @@ describe('Version', () => {
       guarantee,
       fromOracleVersion,
       toOracleVersion,
+      toOracleReceipt,
       marketParameter,
       riskParameter,
     })
@@ -135,6 +138,7 @@ describe('Version', () => {
       guarantee,
       fromOracleVersion,
       toOracleVersion,
+      toOracleReceipt,
       marketParameter,
       riskParameter,
     })
@@ -629,10 +633,10 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
+          { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('2') },
           {
             ...VALID_MARKET_PARAMETER,
             takerFee: parse6decimal('0.01'),
-            settlementFee: parse6decimal('2'),
             closed: true,
           },
           {
@@ -684,6 +688,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             { ...ORACLE_VERSION_2, valid: false },
+            DEFAULT_ORACLE_RECEIPT,
             VALID_MARKET_PARAMETER,
             VALID_RISK_PARAMETER,
           )
@@ -703,6 +708,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             VALID_MARKET_PARAMETER,
             VALID_RISK_PARAMETER,
           )
@@ -722,6 +728,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             { ...VALID_MARKET_PARAMETER, closed: true },
             VALID_RISK_PARAMETER,
           )
@@ -742,6 +749,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
           { ...ORACLE_VERSION_2, valid: false },
+          DEFAULT_ORACLE_RECEIPT,
           VALID_MARKET_PARAMETER,
           VALID_RISK_PARAMETER,
         )
@@ -805,7 +813,8 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
+          { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('0.05') },
+          { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
         expect(value.settlementFee._value).to.equal(parse6decimal('-0.05')) // 0 - (0.05 / 1)
@@ -824,7 +833,8 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.04') },
+          { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('0.04') },
+          { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
         expect(value.settlementFee._value).to.equal(0)
@@ -840,7 +850,8 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.05') },
+          { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('0.05') },
+          { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
         expect(value.settlementFee._value).to.equal(parse6decimal('-0.05'))
@@ -864,7 +875,8 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.06') },
+          { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('0.06') },
+          { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
         expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount))
@@ -889,7 +901,8 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE, orders: guaranteeCount },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
-          { ...VALID_MARKET_PARAMETER, settlementFee: parse6decimal('0.06') },
+          { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('0.06') },
+          { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
         expect(value.settlementFee._value).to.equal(parse6decimal('-0.06').div(orderCount - guaranteeCount))
@@ -952,6 +965,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
@@ -971,6 +985,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
@@ -990,6 +1005,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2, valid: false },
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
@@ -1055,6 +1071,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 }, // 123
           { ...ORACLE_VERSION_2 }, // 123
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
@@ -1073,6 +1090,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 }, // 123
           { ...ORACLE_VERSION_2, price: parse6decimal('138') },
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
@@ -1098,6 +1116,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1, price: parse6decimal('142') },
           { ...ORACLE_VERSION_2, price: parse6decimal('137') },
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
@@ -1141,6 +1160,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
           {
             ...VALID_RISK_PARAMETER,
@@ -1213,7 +1233,7 @@ describe('Version', () => {
         expect(value.makerOffset._value).to.equal(makerOffset)
         expect(value.takerPosOffset._value).to.equal(takerPosOffset)
         expect(value.takerNegOffset._value).to.equal(takerNegOffset)
-        expect(value.settlementFee._value).to.equal(-2) // 0 -(-1*6 / 4) = 0 - 2 due to rounding
+        expect(value.settlementFee._value).to.equal(0)
 
         expect(ret.tradeOffset).to.equal(offset.add(impact))
         expect(ret.tradeOffsetMaker).to.equal(0)
@@ -1244,6 +1264,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
           {
             ...VALID_RISK_PARAMETER,
@@ -1315,7 +1336,7 @@ describe('Version', () => {
         expect(value.makerOffset._value).to.equal(makerOffset)
         expect(value.takerPosOffset._value).to.equal(takerPosOffset)
         expect(value.takerNegOffset._value).to.equal(takerNegOffset)
-        expect(value.settlementFee._value).to.equal(-2)
+        expect(value.settlementFee._value).to.equal(0)
 
         expect(ret.tradeOffset).to.equal(offset.add(impact))
         expect(ret.tradeOffsetMaker).to.equal(offset)
@@ -1345,6 +1366,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE, takerPos: parse6decimal('40'), takerNeg: parse6decimal('40') },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
           { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
           { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
           {
             ...VALID_RISK_PARAMETER,
@@ -1416,7 +1438,7 @@ describe('Version', () => {
         expect(value.makerOffset._value).to.equal(makerOffset)
         expect(value.takerPosOffset._value).to.equal(takerPosOffset)
         expect(value.takerNegOffset._value).to.equal(takerNegOffset)
-        expect(value.settlementFee._value).to.equal(-2)
+        expect(value.settlementFee._value).to.equal(0)
 
         expect(ret.tradeOffset).to.equal(offset.add(impact))
         expect(ret.tradeOffsetMaker).to.equal(offset)
@@ -1444,6 +1466,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: parse6decimal('0.02'),
@@ -1491,6 +1514,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: parse6decimal('0.02'),
@@ -1534,6 +1558,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: 0,
@@ -1578,6 +1603,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: 0,
@@ -1622,6 +1648,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: 0,
@@ -1669,6 +1696,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_1,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: parse6decimal('0.02'),
@@ -1712,6 +1740,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: parse6decimal('0.02'),
@@ -1762,6 +1791,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: parse6decimal('0.02'),
@@ -1812,6 +1842,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: parse6decimal('0.02'),
@@ -1858,6 +1889,7 @@ describe('Version', () => {
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
             ORACLE_VERSION_2,
+            DEFAULT_ORACLE_RECEIPT,
             {
               ...VALID_MARKET_PARAMETER,
               interestFee: 0,
@@ -1905,6 +1937,7 @@ describe('Version', () => {
                 ...ORACLE_VERSION_2,
                 price: PRICE.add(parse6decimal('2')),
               },
+              DEFAULT_ORACLE_RECEIPT,
               {
                 ...VALID_MARKET_PARAMETER,
                 interestFee: 0,
@@ -1962,6 +1995,7 @@ describe('Version', () => {
                 ...ORACLE_VERSION_2,
                 price: PRICE.add(parse6decimal('2')),
               },
+              DEFAULT_ORACLE_RECEIPT,
               {
                 ...VALID_MARKET_PARAMETER,
                 interestFee: 0,
@@ -2019,6 +2053,7 @@ describe('Version', () => {
                 ...ORACLE_VERSION_2,
                 price: PRICE.add(parse6decimal('2')),
               },
+              DEFAULT_ORACLE_RECEIPT,
               {
                 ...VALID_MARKET_PARAMETER,
                 interestFee: 0,
@@ -2078,6 +2113,7 @@ describe('Version', () => {
                 ...ORACLE_VERSION_2,
                 price: PRICE.add(parse6decimal('-2')),
               },
+              DEFAULT_ORACLE_RECEIPT,
               {
                 ...VALID_MARKET_PARAMETER,
                 interestFee: 0,
@@ -2135,6 +2171,7 @@ describe('Version', () => {
                 ...ORACLE_VERSION_2,
                 price: PRICE.add(parse6decimal('-2')),
               },
+              DEFAULT_ORACLE_RECEIPT,
               {
                 ...VALID_MARKET_PARAMETER,
                 interestFee: 0,
@@ -2192,6 +2229,7 @@ describe('Version', () => {
                 ...ORACLE_VERSION_2,
                 price: PRICE.add(parse6decimal('-2')),
               },
+              DEFAULT_ORACLE_RECEIPT,
               {
                 ...VALID_MARKET_PARAMETER,
                 interestFee: 0,
@@ -2248,6 +2286,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
+          DEFAULT_ORACLE_RECEIPT,
           {
             ...VALID_MARKET_PARAMETER,
             interestFee: 0,
@@ -2286,6 +2325,7 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
           ORACLE_VERSION_2,
+          DEFAULT_ORACLE_RECEIPT,
           {
             ...VALID_MARKET_PARAMETER,
             interestFee: 0,

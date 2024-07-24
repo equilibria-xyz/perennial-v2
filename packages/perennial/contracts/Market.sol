@@ -296,14 +296,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Global memory newGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
-        Fixed6 latestPrice = oracle.at(latestPosition.timestamp).price;
+        (OracleVersion memory latestOracleVersion, ) = oracle.at(latestPosition.timestamp);
 
         // update risk parameter (first to capture truncation)
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         newRiskParameter = _riskParameter.read();
 
         // update global exposure
-        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestPrice);
+        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestOracleVersion.price);
         _global.store(newGlobal);
 
         emit RiskParameterUpdated(newRiskParameter);
@@ -665,7 +665,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // processing accumulators
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
-        settlementContext.orderOracleVersion = oracle.at(context.latestPositionGlobal.timestamp);
+        (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
     }
 
     /// @notice Settles the account position up to the latest version
@@ -749,7 +749,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         uint256 newOrderTimestamp,
         Order memory newOrder
     ) private {
-        OracleVersion memory oracleVersion = oracle.at(newOrderTimestamp);
+        (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) = oracle.at(newOrderTimestamp);
         Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
         // if latest timestamp is more recent than order timestamp, sync the order data
@@ -773,6 +773,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGuarantee,
             settlementContext.orderOracleVersion,
             oracleVersion,
+            oracleReceipt,
             context.marketParameter,
             context.riskParameter
         );
@@ -780,7 +781,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (settlementContext.latestVersion, context.global, accumulationResult) =
             VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
-        context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
+        context.global.update(
+            newOrderId,
+            accumulationResult,
+            context.marketParameter,
+            context.protocolParameter,
+            oracleReceipt
+        );
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;

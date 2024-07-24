@@ -1273,7 +1273,7 @@ describe('Happy Path', () => {
       CHAINLINK_CUSTOM_CURRENCIES.USD,
       { decimals: 0 },
       delay,
-    ).init()
+    ).init(BigNumber.from(0), BigNumber.from(0))
 
     const instanceVars = await deployProtocol(chainlink)
     const { user, userB, dsu, beneficiaryB, payoff } = instanceVars

@@ -68,13 +68,16 @@ contract Oracle is IOracle, Instance {
     /// @notice Returns the oracle version at a given timestamp
     /// @param timestamp The timestamp to query
     /// @return atVersion The oracle version at the given timestamp
-    function at(uint256 timestamp) public view returns (OracleVersion memory atVersion) {
-        if (timestamp == 0) return atVersion;
+    /// @return atReceipt The oracle receipt at the given timestamp
+    function at(uint256 timestamp) public view returns (OracleVersion memory atVersion, OracleReceipt memory atReceipt) {
+        if (timestamp == 0) return (atVersion, atReceipt);
+
         IOracleProvider provider = oracles[global.current].provider;
         for (uint256 i = global.current - 1; i > 0; i--) {
             if (timestamp > uint256(oracles[i].timestamp)) break;
             provider = oracles[i].provider;
         }
+
         return provider.at(timestamp);
     }
 
@@ -117,7 +120,7 @@ contract Oracle is IOracle, Instance {
         uint256 latestOracleTimestamp =
             uint256(isLatestStale ? oracles[global.current].timestamp : oracles[global.latest].timestamp);
         if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp)
-            return at(latestOracleTimestamp);
+            (latestVersion, ) = at(latestOracleTimestamp);
     }
 
     /// @notice Returns whether the latest oracle is ready to be updated

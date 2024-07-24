@@ -22,11 +22,9 @@ export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
   interestFee: 2,
   makerFee: 3,
   takerFee: 13,
-  oracleFee: 4,
   riskFee: 5,
   maxPendingGlobal: 10,
   maxPendingLocal: 11,
-  settlementFee: 6,
   closed: false,
   settle: false,
 }
@@ -70,11 +68,9 @@ describe('MarketParameter', () => {
       expect(value.interestFee).to.equal(2)
       expect(value.makerFee).to.equal(3)
       expect(value.takerFee).to.equal(13)
-      expect(value.oracleFee).to.equal(4)
       expect(value.riskFee).to.equal(5)
       expect(value.maxPendingGlobal).to.equal(10)
       expect(value.maxPendingLocal).to.equal(11)
-      expect(value.settlementFee).to.equal(6)
       expect(value.closed).to.equal(false)
       expect(value.settle).to.equal(false)
     })
@@ -195,39 +191,11 @@ describe('MarketParameter', () => {
       })
     })
 
-    context('.oracleFee', async () => {
-      it('saves if in range', async () => {
-        await marketParameter.validateAndStore(
-          {
-            ...VALID_MARKET_PARAMETER,
-            oracleFee: parse6decimal('1'),
-            riskFee: 0,
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await marketParameter.read()
-        expect(value.oracleFee).to.equal(parse6decimal('1'))
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          marketParameter.validateAndStore(
-            {
-              ...VALID_MARKET_PARAMETER,
-              oracleFee: parse6decimal('1').add(1),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
-      })
-    })
-
     context('.riskFee', async () => {
       it('saves if in range', async () => {
         await marketParameter.validateAndStore(
           {
             ...VALID_MARKET_PARAMETER,
-            oracleFee: 0,
             riskFee: parse6decimal('1'),
           },
           PROTOCOL_PARAMETER,
@@ -242,35 +210,6 @@ describe('MarketParameter', () => {
             {
               ...VALID_MARKET_PARAMETER,
               riskFee: parse6decimal('1').add(1),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
-      })
-    })
-
-    context('.oracleFee + .riskFee', () => {
-      it('saves if in range (oracleFee + riskFee < 1', async () => {
-        await marketParameter.validateAndStore(
-          {
-            ...VALID_MARKET_PARAMETER,
-            oracleFee: parse6decimal('0.75'),
-            riskFee: parse6decimal('0.25'),
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await marketParameter.read()
-        expect(value.oracleFee).to.equal(parse6decimal('0.75'))
-        expect(value.riskFee).to.equal(parse6decimal('0.25'))
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          marketParameter.validateAndStore(
-            {
-              ...VALID_MARKET_PARAMETER,
-              oracleFee: parse6decimal('0.75'),
-              riskFee: parse6decimal('0.25').add(1),
             },
             PROTOCOL_PARAMETER,
           ),
@@ -323,33 +262,6 @@ describe('MarketParameter', () => {
             {
               ...VALID_MARKET_PARAMETER,
               maxPendingLocal: BigNumber.from(2).pow(16),
-            },
-            PROTOCOL_PARAMETER,
-          ),
-        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
-      })
-    })
-
-    context('.settlementFee', async () => {
-      const STORAGE_SIZE = 48
-      it('saves if in range', async () => {
-        await marketParameter.validateAndStore(
-          {
-            ...VALID_MARKET_PARAMETER,
-            settlementFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          },
-          PROTOCOL_PARAMETER,
-        )
-        const value = await marketParameter.read()
-        expect(value.settlementFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          marketParameter.validateAndStore(
-            {
-              ...VALID_MARKET_PARAMETER,
-              settlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
             },
             PROTOCOL_PARAMETER,
           ),

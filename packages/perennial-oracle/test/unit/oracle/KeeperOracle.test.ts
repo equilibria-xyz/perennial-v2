@@ -193,6 +193,12 @@ describe('KeeperOracle', () => {
     ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
   })
 
+  it('reverts requesting no new price before a new price', async () => {
+    await expect(
+      keeperOracle.connect(oracleSigner).request(market.address, user.address, false),
+    ).to.revertedWithCustomError(keeperOracle, 'KeeperOracleNoPriorRequestsError')
+  })
+
   it('discards expired prices', async () => {
     // establish an initial valid version
     const startTime = await currentBlockTimestamp()
@@ -217,8 +223,8 @@ describe('KeeperOracle', () => {
 
     // ensure carryover price is received instead of invalid price
     const invalidPrice = await keeperOracle.at(requestedTime)
-    expect(invalidPrice.timestamp).to.equal(requestedTime)
-    expect(invalidPrice.price).to.equal(parse6decimal('3333.777'))
-    expect(invalidPrice.valid).to.be.false
+    expect(invalidPrice[0].timestamp).to.equal(requestedTime)
+    expect(invalidPrice[0].price).to.equal(parse6decimal('3333.777'))
+    expect(invalidPrice[0].valid).to.be.false
   })
 })

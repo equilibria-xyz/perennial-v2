@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { utils, ContractTransaction, constants } from 'ethers'
+import { utils, BigNumber, ContractTransaction, constants } from 'ethers'
 
 import { impersonate } from '../../../../common/testutil'
 import {
@@ -78,7 +78,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       CHAINLINK_CUSTOM_CURRENCIES.USD,
       { provider: payoff, decimals: -5 },
       1,
-    ).init())
+    ).init(BigNumber.from(0), BigNumber.from(0)))
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -159,6 +159,11 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).authorize(marketFactory.address)
+  await oracleFactory.connect(owner).updateParameter({
+    maxGranularity: 10000,
+    maxSettlementFee: parse6decimal('1000'),
+    maxOracleFee: parse6decimal('0.5'),
+  })
   const oracle = IOracle__factory.connect(
     await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
     owner,

@@ -6,15 +6,12 @@ import "@equilibria/root/attribute/Factory.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 import "../interfaces/IKeeperFactory.sol";
 import "../interfaces/IOracleFactory.sol";
-import { OracleParameter, OracleParameterStorage } from "./types/OracleParameter.sol";
+import { ProviderParameter, ProviderParameterStorage } from "./types/ProviderParameter.sol";
 import { PriceRequest } from "./types/PriceRequest.sol";
 
 /// @title KeeperFactory
 /// @notice Factory contract for creating and managing keeper-based oracles
 abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
-    /// @dev The maximum value for granularity
-    uint256 public constant MAX_GRANULARITY = 1 hours;
-
     /// @dev A Keeper update must come at least this long after a version to be valid
     uint256 public immutable validFrom;
 
@@ -70,7 +67,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     mapping(bytes32 => mapping(IPayoffProvider => bytes32)) public fromUnderlying;
 
     /// @notice The granularity of the oracle
-    OracleParameterStorage private _parameter;
+    ProviderParameterStorage private _parameter;
 
     /// @notice Mapping of oracle instance to oracle id
     mapping(IOracleProvider => bytes32) public ids;
@@ -116,9 +113,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         oracleFactory = oracleFactory_;
         payoffs[IPayoffProvider(address(0))] = true;
 
-        OracleParameter memory oracleParameter;
-        oracleParameter.currentGranularity = 1;
-        _parameter.store(oracleParameter);
+        ProviderParameter memory providerParameter;
+        providerParameter.currentGranularity = 1;
+        _parameter.store(providerParameter);
     }
 
     /// @notice Retroactively sets the mapping of the oracle id to the oracle instance
@@ -171,16 +168,16 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev Rounded up to the nearest granularity
     /// @return The current timestamp
     function current() public view returns (PriceRequest memory) {
-        OracleParameter memory oracleParameter = _parameter.read();
+        ProviderParameter memory providerParameter = _parameter.read();
 
-        uint256 effectiveGranularity = block.timestamp <= oracleParameter.effectiveAfter ?
-            oracleParameter.latestGranularity :
-            oracleParameter.currentGranularity;
+        uint256 effectiveGranularity = block.timestamp <= providerParameter.effectiveAfter ?
+            providerParameter.latestGranularity :
+            providerParameter.currentGranularity;
 
         return PriceRequest(
             Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity,
-            oracleParameter.settlementFee,
-            oracleParameter.oracleFee
+            providerParameter.settlementFee,
+            providerParameter.oracleFee
         );
     }
 
@@ -267,7 +264,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @notice Returns the oracle parameter set
     /// @return The oracle parameter set
-    function parameter() external view returns (OracleParameter memory) {
+    function parameter() external view returns (ProviderParameter memory) {
         return _parameter.read();
     }
 
@@ -277,20 +274,22 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param newOraclefee The new relative oracle fee percentage
     function updateParameter(uint256 newGranularity, UFixed6 newSettlementFee, UFixed6 newOraclefee) external onlyOwner {
         uint256 currentTimestamp = current().timestamp;
-        OracleParameter memory oracleParameter = _parameter.read();
+        OracleParameter memory oracleParameter = oracleFactory.parameter();
+        ProviderParameter memory providerParameter = _parameter.read();
 
-        if (newGranularity == 0) revert KeeperFactoryInvalidGranularityError();
-        if (currentTimestamp <= oracleParameter.effectiveAfter) revert KeeperFactoryInvalidGranularityError();
-        if (newGranularity > MAX_GRANULARITY) revert KeeperFactoryInvalidGranularityError();
+        if (currentTimestamp <= providerParameter.effectiveAfter) revert KeeperFactoryInvalidParameterError();
+        if (newGranularity > oracleParameter.maxGranularity) revert KeeperFactoryInvalidParameterError();
+        if (newSettlementFee.gt(oracleParameter.maxSettlementFee)) revert KeeperFactoryInvalidParameterError();
+        if (newOraclefee.gt(oracleParameter.maxOracleFee)) revert KeeperFactoryInvalidParameterError();
 
-        oracleParameter.latestGranularity = oracleParameter.currentGranularity;
-        oracleParameter.currentGranularity = newGranularity;
-        oracleParameter.effectiveAfter = currentTimestamp;
-        oracleParameter.settlementFee = newSettlementFee;
-        oracleParameter.oracleFee = newOraclefee;
+        providerParameter.latestGranularity = providerParameter.currentGranularity;
+        providerParameter.currentGranularity = newGranularity;
+        providerParameter.effectiveAfter = currentTimestamp;
+        providerParameter.settlementFee = newSettlementFee;
+        providerParameter.oracleFee = newOraclefee;
 
-        _parameter.store(oracleParameter);
-        emit ParameterUpdated(oracleParameter);
+        _parameter.store(providerParameter);
+        emit ParameterUpdated(providerParameter);
     }
 
     /// @notice Returns whether a caller is authorized to request from this factory's instances

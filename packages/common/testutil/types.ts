@@ -7,6 +7,11 @@ export interface OracleVersion {
   timestamp: BigNumberish
 }
 
+export interface OracleReceipt {
+  settlementFee: BigNumberish
+  oracleFee: BigNumberish
+}
+
 export interface Accumulator {
   _value: BigNumberish
 }
@@ -252,4 +257,9 @@ export const DEFAULT_VERSION: Version = {
   takerNegOffset: { _value: 0 },
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
+}
+
+export const DEFAULT_ORACLE_RECEIPT: OracleReceipt = {
+  settlementFee: 0,
+  oracleFee: 0,
 }

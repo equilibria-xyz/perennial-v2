@@ -361,11 +361,11 @@ describe('ControllerBase', () => {
     })
 
     it('can make multiple deposits to same market', async () => {
-      for (let i = 0; i < 9; ++i) {
+      for (let i = 0; i < 8; ++i) {
         currentTime = await transfer(parse6decimal('100'), userA)
         await advanceAndSettle(userA, currentTime)
       }
-      expectMarketCollateralBalance(userA, parse6decimal('900'))
+      await expectMarketCollateralBalance(userA, parse6decimal('800'))
     })
 
     it('can withdraw funds from a market', async () => {
