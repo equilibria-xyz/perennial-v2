@@ -3,9 +3,12 @@ pragma solidity ^0.8.13;
 
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
-/// @notice Fields which need to be hashed for each collateral account action
+/// @notice Fields which need to be hashed for each order action
 struct Action {
+    /// @dev Identifies the market in which user wants to interact
+    IMarket market;
     /// @dev Largest amount to compensate relayer/keeper for the transaction in DSU
     UFixed6 maxFee;
     /// @dev Information shared across all EIP712 collateral account actions;
@@ -19,12 +22,12 @@ using ActionLib for Action global;
 library ActionLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "Action(uint256 maxFee,Common common)"
+        "Action(address market,uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     /// @dev Used to create a signed message
     function hash(Action memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.maxFee, CommonLib.hash(self.common)));
+        return keccak256(abi.encode(STRUCT_HASH, self.market, self.maxFee, CommonLib.hash(self.common)));
     }
 }

@@ -9,7 +9,7 @@ import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { CancelOrderAction } from "./types/CancelOrderAction.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
-import { TriggerOrderAction } from "./types/TriggerOrderAction.sol";
+import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 
 /// @notice Base class with business logic to store and execute trigger orders.
 ///         Derived implementations created as appropriate for different chains.
@@ -55,7 +55,7 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function placeOrderWithSignature(TriggerOrderAction calldata action, bytes calldata signature) external {}
+    function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external {}
 
     /// @inheritdoc IManager
     function cancelOrder(IMarket market, uint256 nonce) external {

@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 import { CancelOrderAction } from "../types/CancelOrderAction.sol";
-import { TriggerOrderAction, TriggerOrder} from "../types/TriggerOrderAction.sol";
+import { PlaceOrderAction, TriggerOrder} from "../types/PlaceOrderAction.sol";
 
 /// @notice Stores and executes trigger orders
 interface IManager {
@@ -35,7 +35,7 @@ interface IManager {
     /// @notice Store a new trigger order via a signed message; cannot be used to replace
     /// @param action Message containing the market, order, and nonce used to uniquely identify the user's order.
     /// @param signature EIP712 message signature
-    function placeOrderWithSignature(TriggerOrderAction calldata action, bytes calldata signature) external;
+    function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external;
 
     /// @notice Cancels a trigger order
     /// @param market Perennial market for which the order was submitted
