@@ -5,6 +5,7 @@ import "@equilibria/root/attribute/Ownable.sol";
 import "@equilibria/root/attribute/Factory.sol";
 import "@equilibria/root/attribute/Pausable.sol";
 import "./interfaces/IVaultFactory.sol";
+import { VaultParameter } from "./types/VaultParameter.sol";
 
 /// @title VaultFactory
 /// @notice Manages creating new markets and global protocol parameters.
@@ -45,16 +46,14 @@ contract VaultFactory is IVaultFactory, Factory {
         IMarket initialMarket,
         string calldata name
     ) external onlyOwner returns (IVault newVault) {
-        UFixed6 initialAmountWithFee = initialAmount.add(initialMarket.parameter().settlementFee);
-
         // create vault
         newVault = IVault(address(
-            _create(abi.encodeCall(IVault.initialize, (asset, initialMarket, initialAmountWithFee, name)))));
+            _create(abi.encodeCall(IVault.initialize, (asset, initialMarket, initialAmount, name)))));
 
         // deposit and lock initial amount of the underlying asset to prevent inflation attacks
-        asset.pull(msg.sender, UFixed18Lib.from(initialAmountWithFee));
-        asset.approve(address(newVault), UFixed18Lib.from(initialAmountWithFee));
-        newVault.update(address(this), initialAmountWithFee, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        asset.pull(msg.sender, UFixed18Lib.from(initialAmount));
+        asset.approve(address(newVault), UFixed18Lib.from(initialAmount));
+        newVault.update(address(this), initialAmount, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
         emit VaultCreated(newVault, asset, initialMarket);
     }

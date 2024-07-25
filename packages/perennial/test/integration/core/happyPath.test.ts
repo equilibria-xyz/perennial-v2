@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle, updateNoOp } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
   DEFAULT_POSITION,
@@ -17,18 +17,14 @@ import {
   expectVersionEq,
   parse6decimal,
   expectCheckpointEq,
+  DEFAULT_GLOBAL,
+  DEFAULT_GUARANTEE,
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
-
-export const PRICE = parse6decimal('1')
-
-export const PRICE_1 = parse6decimal('113.882975')
-export const PRICE_2 = parse6decimal('113.796498')
-export const PRICE_3 = parse6decimal('115.046259')
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -37,6 +33,13 @@ export const TIMESTAMP_3 = 1631114005
 export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
 
+export const PRICE = parse6decimal('1')
+export const PRICE_0 = parse6decimal('113.882975')
+export const PRICE_1 = parse6decimal('113.796498')
+export const PRICE_2 = parse6decimal('113.796498')
+export const PRICE_3 = parse6decimal('115.046259')
+export const PRICE_4 = parse6decimal('117.462552')
+
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
   let riskParameter: RiskParameterStruct
@@ -44,18 +47,7 @@ describe('Happy Path', () => {
   beforeEach(async () => {
     instanceVars = await loadFixture(deployProtocol)
     await instanceVars.chainlink.reset()
-  })
 
-  it('creates a market', async () => {
-    const { owner, marketFactory, beneficiaryB, payoff, oracle, dsu } = instanceVars
-
-    const definition = {
-      name: 'Squeeth',
-      symbol: 'SQTH',
-      token: dsu.address,
-      oracle: oracle.address,
-      payoff: payoff.address,
-    }
     riskParameter = {
       margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
@@ -68,7 +60,6 @@ describe('Happy Path', () => {
       makerFee: {
         linearFee: 0,
         proportionalFee: 0,
-        adiabaticFee: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('1'),
@@ -90,25 +81,36 @@ describe('Happy Path', () => {
       staleAfter: 7200,
       makerReceiveOnly: false,
     }
+  })
+
+  it('creates a market', async () => {
+    const { owner, marketFactory, beneficiaryB, payoff, oracle, dsu } = instanceVars
+
+    const definition = {
+      name: 'Squeeth',
+      symbol: 'SQTH',
+      token: dsu.address,
+      oracle: oracle.address,
+      payoff: payoff.address,
+    }
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
       oracleFee: 0,
       riskFee: 0,
-      positionFee: 0,
+      makerFee: 0,
+      takerFee: 0,
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       settlementFee: 0,
-      makerCloseAlways: false,
-      takerCloseAlways: false,
       closed: false,
       settle: false,
     }
     const marketAddress = await marketFactory.callStatic.create(definition)
     await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
     const market = Market__factory.connect(marketAddress, owner)
-    await market.connect(owner).updateRiskParameter(riskParameter, false)
-    await market.connect(owner).updateParameter(beneficiaryB.address, AddressZero, parameter)
+    await market.connect(owner).updateRiskParameter(riskParameter)
+    await market.connect(owner).updateParameter(parameter)
   })
 
   it('opens a make position', async () => {
@@ -124,16 +126,21 @@ describe('Happy Path', () => {
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, COLLATERAL, false, constants.AddressZero)
       .to.emit(market, 'OrderCreated')
-      .withArgs(user.address, {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
-        orders: 1,
-        collateral: COLLATERAL,
-        makerPos: POSITION,
-      })
+      .withArgs(
+        user.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          collateral: COLLATERAL,
+          makerPos: POSITION,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -159,14 +166,8 @@ describe('Happy Path', () => {
 
     // Check global state
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 1,
-      latestId: 0,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_1,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -181,26 +182,31 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      price: PRICE_0,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await updateNoOp(market, user)
+    await settle(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
       ...DEFAULT_LOCAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       collateral: COLLATERAL,
     })
-    expectOrderEq(await market.pendingOrders(user.address, 2), {
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      makerPos: POSITION,
+      collateral: COLLATERAL,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -210,18 +216,16 @@ describe('Happy Path', () => {
 
     // Check global post-settlement state
     expectGlobalEq(await market.global(), {
-      currentId: 2,
+      ...DEFAULT_GLOBAL,
+      currentId: 1,
       latestId: 1,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_2,
-      exposure: 0,
     })
-    expectOrderEq(await market.pendingOrder(2), {
+    expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      makerPos: POSITION,
+      collateral: COLLATERAL,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -246,8 +250,15 @@ describe('Happy Path', () => {
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, 0, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_1, POSITION, 0, 0, 0, false, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION.div(2) },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
@@ -273,14 +284,8 @@ describe('Happy Path', () => {
 
     // Check global state
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 1,
-      latestId: 0,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_1,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -295,26 +300,31 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      price: PRICE_0,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await updateNoOp(market, user)
+    await settle(market, user)
 
     // check user state
     expectLocalEq(await market.locals(user.address), {
       ...DEFAULT_LOCAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       collateral: COLLATERAL,
     })
-    expectOrderEq(await market.pendingOrders(user.address, 2), {
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL,
+      makerPos: POSITION,
     })
-    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
     })
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
@@ -324,18 +334,16 @@ describe('Happy Path', () => {
 
     // Check global post-settlement state
     expectGlobalEq(await market.global(), {
-      currentId: 2,
+      ...DEFAULT_GLOBAL,
+      currentId: 1,
       latestId: 1,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_2,
-      exposure: 0,
     })
-    expectOrderEq(await market.pendingOrder(2), {
+    expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_2,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL,
+      makerPos: POSITION,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -361,15 +369,20 @@ describe('Happy Path', () => {
     await expect(
       market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false, constants.AddressZero)
       .to.emit(market, 'OrderCreated')
-      .withArgs(user.address, {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
-        orders: 1,
-        makerNeg: POSITION,
-      })
+      .withArgs(
+        user.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_2,
+          orders: 1,
+          makerNeg: POSITION,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // User state
     expectLocalEq(await market.locals(user.address), {
@@ -395,14 +408,9 @@ describe('Happy Path', () => {
 
     // Global State
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_2,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -417,6 +425,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      price: PRICE_1,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
@@ -441,8 +450,15 @@ describe('Happy Path', () => {
     await expect(
       market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_2, 0, 0, 0, 0, false, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION.div(2) },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // User state
     expectLocalEq(await market.locals(user.address), {
@@ -468,14 +484,9 @@ describe('Happy Path', () => {
 
     // Global State
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_2,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -490,6 +501,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      price: PRICE_1,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
@@ -503,10 +515,12 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    await market.updateRiskParameter(riskParameter, false)
+    console.log(riskParameter)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
@@ -519,16 +533,21 @@ describe('Happy Path', () => {
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false, constants.AddressZero)
       .to.emit(market, 'OrderCreated')
-      .withArgs(userB.address, {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
-        orders: 1,
-        collateral: COLLATERAL,
-        longPos: POSITION_B,
-      })
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          collateral: COLLATERAL,
+          longPos: POSITION_B,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // User State
     expectLocalEq(await market.locals(user.address), {
@@ -575,14 +594,8 @@ describe('Happy Path', () => {
 
     // Global State
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 1,
-      latestId: 0,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_1,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -598,6 +611,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      price: PRICE_0,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
@@ -606,21 +620,22 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await updateNoOp(market, userB)
+    await settle(market, userB)
 
     expectGlobalEq(await market.global(), {
-      currentId: 2,
+      ...DEFAULT_GLOBAL,
+      currentId: 1,
       latestId: 1,
       protocolFee: '18',
-      riskFee: 0,
-      oracleFee: 0,
       donation: '18',
-      latestPrice: PRICE_3,
-      exposure: 0,
     })
-    expectOrderEq(await market.pendingOrder(2), {
+    expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_3,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL.mul(2),
+      makerPos: POSITION,
+      longPos: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -631,16 +646,20 @@ describe('Happy Path', () => {
 
     expectLocalEq(await market.locals(userB.address), {
       ...DEFAULT_LOCAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
     })
-    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_3,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      collateral: COLLATERAL,
+      longPos: POSITION_B,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -658,10 +677,11 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    await market.updateRiskParameter(riskParameter, false)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
@@ -678,8 +698,15 @@ describe('Happy Path', () => {
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, 0, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, 0, false, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B.div(2) },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -705,14 +732,8 @@ describe('Happy Path', () => {
 
     // Global State
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 1,
-      latestId: 0,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_1,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -728,6 +749,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
+      price: PRICE_0,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
@@ -736,21 +758,22 @@ describe('Happy Path', () => {
 
     // Another round
     await chainlink.next()
-    await updateNoOp(market, userB)
+    await settle(market, userB)
 
     expectGlobalEq(await market.global(), {
-      currentId: 2,
+      ...DEFAULT_GLOBAL,
+      currentId: 1,
       latestId: 1,
       protocolFee: '18',
-      riskFee: 0,
-      oracleFee: 0,
       donation: '18',
-      latestPrice: PRICE_3,
-      exposure: 0,
     })
-    expectOrderEq(await market.pendingOrder(2), {
+    expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_3,
+      timestamp: TIMESTAMP_1,
+      orders: 3,
+      collateral: COLLATERAL.mul(2),
+      makerPos: POSITION,
+      longPos: POSITION_B,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
@@ -760,16 +783,20 @@ describe('Happy Path', () => {
     })
     expectLocalEq(await market.locals(userB.address), {
       ...DEFAULT_LOCAL,
-      currentId: 2,
+      currentId: 1,
       latestId: 1,
       collateral: COLLATERAL.add(BigNumber.from('1249392')),
     })
-    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
-      timestamp: TIMESTAMP_3,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL,
+      longPos: POSITION_B,
     })
-    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
       ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -805,15 +832,20 @@ describe('Happy Path', () => {
     await expect(
       market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false, constants.AddressZero)
       .to.emit(market, 'OrderCreated')
-      .withArgs(userB.address, {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
-        orders: 1,
-        longNeg: POSITION_B,
-      })
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_2,
+          orders: 1,
+          longNeg: POSITION_B,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -839,14 +871,9 @@ describe('Happy Path', () => {
 
     // Global State
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_2,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -862,6 +889,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      price: PRICE_1,
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
@@ -900,8 +928,15 @@ describe('Happy Path', () => {
     await expect(
       market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_2, 0, 0, 0, 0, false, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longNeg: POSITION_B.div(2) },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // User State
     expectLocalEq(await market.locals(userB.address), {
@@ -927,14 +962,9 @@ describe('Happy Path', () => {
 
     // Global State
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 2,
       latestId: 1,
-      protocolFee: 0,
-      riskFee: 0,
-      oracleFee: 0,
-      donation: 0,
-      latestPrice: PRICE_2,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(2), {
       ...DEFAULT_ORDER,
@@ -950,6 +980,7 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
+      price: PRICE_1,
       liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
@@ -985,10 +1016,11 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    await market.updateRiskParameter(riskParameter, false)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
@@ -1001,8 +1033,15 @@ describe('Happy Path', () => {
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, POSITION_B, 0, COLLATERAL, false, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B, collateral: COLLATERAL },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // 50 rounds (120% max)
     for (let i = 0; i < 50; i++) {
@@ -1026,10 +1065,11 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    await market.updateRiskParameter(riskParameter, false)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
@@ -1042,8 +1082,15 @@ describe('Happy Path', () => {
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, POSITION_B, COLLATERAL, false),
     )
-      .to.emit(market, 'Updated')
-      .withArgs(userB.address, userB.address, TIMESTAMP_1, 0, 0, POSITION_B, COLLATERAL, false, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: POSITION_B, collateral: COLLATERAL },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // 50 rounds (120% max)
     for (let i = 0; i < 50; i++) {
@@ -1109,16 +1156,15 @@ describe('Happy Path', () => {
       settlementFee: 0,
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
-      positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerCloseAlways: false,
-      takerCloseAlways: false,
+      makerFee: positionFeesOn ? parse6decimal('0.2') : 0,
+      takerFee: positionFeesOn ? parse6decimal('0.1') : 0,
       closed: false,
       settle: false,
     }
 
     const market = await createMarket(instanceVars)
-    await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
-    await market.updateRiskParameter(riskParameter, false)
+    await market.updateParameter(parameter)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1149,15 +1195,22 @@ describe('Happy Path', () => {
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
     ) // 4 -> 5
-      .to.emit(market, 'Updated')
-      .withArgs(user.address, user.address, TIMESTAMP_5, POSITION, 0, 0, -1, false, constants.AddressZero)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_5, orders: 1, makerPos: POSITION.div(2), collateral: -1 },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     // Check user is in the correct state
     expectLocalEq(await market.locals(user.address), {
       ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
-      collateral: '985964909',
+      collateral: '871368068',
     })
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
@@ -1177,14 +1230,11 @@ describe('Happy Path', () => {
 
     // Check global state
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: 3,
       latestId: 2,
-      protocolFee: '308688',
-      riskFee: 0,
-      oracleFee: 0,
-      donation: '308690',
-      latestPrice: '117462552',
-      exposure: 0,
+      protocolFee: '86263589',
+      donation: '86263590',
     })
     expectOrderEq(await market.pendingOrder(3), {
       ...DEFAULT_ORDER,
@@ -1201,7 +1251,8 @@ describe('Happy Path', () => {
     })
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       ...DEFAULT_VERSION,
-      makerValue: { _value: '-3546980' },
+      price: PRICE_4,
+      makerValue: { _value: '-3538257' },
       longValue: { _value: '3620965' },
       shortValue: { _value: 0 },
       liquidationFee: { _value: -riskParameter.liquidationFee },
@@ -1220,9 +1271,9 @@ describe('Happy Path', () => {
     const chainlink = await new ChainlinkContext(
       CHAINLINK_CUSTOM_CURRENCIES.ETH,
       CHAINLINK_CUSTOM_CURRENCIES.USD,
-      undefined,
+      { decimals: 0 },
       delay,
-    ).init()
+    ).init(BigNumber.from(0), BigNumber.from(0))
 
     const instanceVars = await deployProtocol(chainlink)
     const { user, userB, dsu, beneficiaryB, payoff } = instanceVars
@@ -1269,16 +1320,15 @@ describe('Happy Path', () => {
       settlementFee: 0,
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
-      positionFee: positionFeesOn ? parse6decimal('0.1') : 0,
-      makerCloseAlways: false,
-      takerCloseAlways: false,
+      makerFee: positionFeesOn ? parse6decimal('0.2') : 0,
+      takerFee: positionFeesOn ? parse6decimal('0.1') : 0,
       closed: false,
       settle: false,
     }
 
     const market = await createMarket(instanceVars)
-    await market.updateParameter(beneficiaryB.address, AddressZero, parameter)
-    await market.updateRiskParameter(riskParameter, false)
+    await market.updateParameter(parameter)
+    await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
@@ -1320,17 +1370,17 @@ describe('Happy Path', () => {
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
     )
-      .to.emit(market, 'Updated')
+      .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        user.address,
-        await chainlink.oracle.current(),
-        POSITION,
-        0,
-        0,
-        -1,
-        false,
-        constants.AddressZero,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: await chainlink.oracle.current(),
+          orders: 1,
+          makerPos: POSITION,
+          collateral: -1,
+        },
+        { ...DEFAULT_GUARANTEE },
       )
 
     // Check user is in the correct state
@@ -1363,7 +1413,6 @@ describe('Happy Path', () => {
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
       donation: (await market.global()).donation,
-      latestPrice: PRICE,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(delay + 1), {

@@ -18,10 +18,11 @@ contract GlobalTester {
         uint256 newLatestId,
         VersionAccumulationResult memory accumulation,
         MarketParameter memory marketParameter,
-        ProtocolParameter memory protocolParameter
+        ProtocolParameter memory protocolParameter,
+        OracleReceipt memory oracleReceipt
     ) external {
         Global memory newGlobal = global.read();
-        newGlobal.update(newLatestId, accumulation, marketParameter, protocolParameter);
+        newGlobal.update(newLatestId, accumulation, marketParameter, protocolParameter, oracleReceipt);
         global.store(newGlobal);
     }
 }

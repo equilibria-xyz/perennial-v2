@@ -26,23 +26,28 @@ struct ProtocolParameter {
     /// @dev The minimum for market efficiency parameters
     UFixed6 minEfficiency;
 
-    /// @dev The default referrer fee
+    /// @dev The default referrer fee percentage for orders
     UFixed6 referralFee;
+
+    /// @dev The minimum ratio between scale vs makerLimit / efficiencyLimit
+    UFixed6 minScale;
 }
 struct StoredProtocolParameter {
-    /* slot 0 */
-    uint24 protocolFee;        // <= 1677%
-    uint24 maxFee;             // <= 1677%
-    uint48 maxFeeAbsolute;     // <= 281m
-    uint24 maxCut;             // <= 1677%
-    uint32 maxRate;            // <= 214748% (capped at 31 bits to accommodate int32 rates)
-    uint24 minMaintenance;     // <= 1677%
-    uint24 minEfficiency;      // <= 1677%
-    uint24 referralFee;        // <= 1677%
+    /* slot 0 (31) */
+    uint24 protocolFee;             // <= 1677%
+    uint24 maxFee;                  // <= 1677%
+    uint48 maxFeeAbsolute;          // <= 281m
+    uint24 maxCut;                  // <= 1677%
+    uint32 maxRate;                 // <= 214748% (capped at 31 bits to accommodate int32 rates)
+    uint24 minMaintenance;          // <= 1677%
+    uint24 minEfficiency;           // <= 1677%
+    uint24 referralFee;             // <= 1677%
+    uint24 minScale;                // <= 1677%
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; } // SECURITY: must remain at (1) slots
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
 
+/// @dev (external-safe): this library is safe to externalize
 library ProtocolParameterStorageLib {
     // sig: 0x4dc1bc59
     error ProtocolParameterStorageInvalidError();
@@ -57,13 +62,16 @@ library ProtocolParameterStorageLib {
             UFixed6.wrap(uint256(value.maxRate)),
             UFixed6.wrap(uint256(value.minMaintenance)),
             UFixed6.wrap(uint256(value.minEfficiency)),
-            UFixed6.wrap(uint256(value.referralFee))
+            UFixed6.wrap(uint256(value.referralFee)),
+            UFixed6.wrap(uint256(value.minScale))
         );
     }
 
     function validate(ProtocolParameter memory self) internal pure {
         if (self.protocolFee.gt(self.maxCut)) revert ProtocolParameterStorageInvalidError();
         if (self.maxCut.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
+        if (self.referralFee.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
+        if (self.minScale.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
     }
 
     function validateAndStore(ProtocolParameterStorage storage self, ProtocolParameter memory newValue) internal {
@@ -74,7 +82,6 @@ library ProtocolParameterStorageLib {
         if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max / 2))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
-        if (newValue.referralFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.protocolFee)),
@@ -84,7 +91,8 @@ library ProtocolParameterStorageLib {
             uint32(UFixed6.unwrap(newValue.maxRate)),
             uint24(UFixed6.unwrap(newValue.minMaintenance)),
             uint24(UFixed6.unwrap(newValue.minEfficiency)),
-            uint24(UFixed6.unwrap(newValue.referralFee))
+            uint24(UFixed6.unwrap(newValue.referralFee)),
+            uint24(UFixed6.unwrap(newValue.minScale))
         );
     }
 }

@@ -10,13 +10,14 @@ import {
   GlobalTester__factory,
 } from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
   MarketParameterStruct,
   VersionAccumulationResultStruct,
 } from '../../../types/generated/contracts/Market'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
+import { OracleReceiptStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -32,7 +33,6 @@ const DEFAULT_GLOBAL: GlobalStruct = {
     _value: 0,
     _skew: 0,
   },
-  latestPrice: 0,
   exposure: 0,
 }
 
@@ -43,17 +43,17 @@ function generateAccumulationResult(
 ): VersionAccumulationResultStruct {
   const interestFee = BigNumber.from(marketFee).div(10)
   const fundingFee = BigNumber.from(marketFee).div(5)
-  const positionFeeProtocol = BigNumber.from(marketFee).sub(interestFee).sub(fundingFee)
+  const tradeFee = BigNumber.from(marketFee).sub(interestFee).sub(fundingFee)
 
   return {
-    positionFee: 0,
-    positionFeeMaker: 0,
-    positionFeeProtocol,
-    positionFeeSubtractive: 0,
-    positionFeeExposure: 0,
-    positionFeeExposureMaker: 0,
-    positionFeeExposureProtocol: marketExposure,
-    positionFeeImpact: 0,
+    tradeFee: tradeFee,
+    tradeOffset: 0,
+    tradeOffsetMaker: 0,
+    tradeOffsetMarket: 0,
+    subtractiveFee: 0,
+    adiabaticExposure: 0,
+    adiabaticExposureMaker: 0,
+    adiabaticExposureMarket: marketExposure,
     fundingMaker: 0,
     fundingLong: 0,
     fundingShort: 0,
@@ -70,20 +70,24 @@ function generateAccumulationResult(
   }
 }
 
-function generateMarketParameter(oracleFee: BigNumberish, riskFee: BigNumberish): MarketParameterStruct {
+function generateOracleRecipt(oracleFee: BigNumberish): OracleReceiptStruct {
+  return {
+    settlementFee: 0,
+    oracleFee,
+  }
+}
+
+function generateMarketParameter(riskFee: BigNumberish): MarketParameterStruct {
   return {
     fundingFee: 0,
     interestFee: 0,
-    oracleFee,
-    positionFee: 0,
-    settlementFee: 0,
+    makerFee: 0,
+    takerFee: 0,
     maxPendingGlobal: 0,
     maxPendingLocal: 0,
     riskFee,
     closed: false,
     settle: false,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
   }
 }
 
@@ -97,10 +101,11 @@ function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameter
     minMaintenance: 0,
     minEfficiency: 0,
     referralFee: 0,
+    minScale: 0,
   }
 }
 
-describe('Global', () => {
+describe.only('Global', () => {
   let owner: SignerWithAddress
 
   let globalStorageLib: GlobalStorageLib
@@ -129,7 +134,6 @@ describe('Global', () => {
           _value: 6,
           _skew: 7,
         },
-        latestPrice: 9,
         exposure: 8,
       })
 
@@ -142,7 +146,6 @@ describe('Global', () => {
       expect(value.donation).to.equal(5)
       expect(value.pAccumulator._value).to.equal(6)
       expect(value.pAccumulator._skew).to.equal(7)
-      expect(value.latestPrice).to.equal(9)
       expect(value.exposure).to.equal(8)
     })
 
@@ -267,27 +270,6 @@ describe('Global', () => {
           global.store({
             ...DEFAULT_GLOBAL,
             donation: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
-      })
-    })
-
-    context('.latestPrice', async () => {
-      const STORAGE_SIZE = 63
-      it('saves if in range', async () => {
-        await global.store({
-          ...DEFAULT_GLOBAL,
-          latestPrice: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await global.read()
-        expect(value.latestPrice).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if latestPrice out of range', async () => {
-        await expect(
-          global.store({
-            ...DEFAULT_GLOBAL,
-            latestPrice: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
@@ -423,8 +405,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0, 0),
+          generateMarketParameter(0),
           generateProtocolParameter(0),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -436,8 +419,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0, 0),
+          generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.1')),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -449,8 +433,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0, parse6decimal('0.1')),
+          generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(0),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -462,8 +447,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateMarketParameter(0),
           generateProtocolParameter(0),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -475,8 +461,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(0),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -489,8 +476,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateMarketParameter(parse6decimal('0.9')),
           generateProtocolParameter(0),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -504,8 +492,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
+            generateMarketParameter(parse6decimal('1.0')),
             generateProtocolParameter(0),
+            generateOracleRecipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -514,8 +503,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0, parse6decimal('0.1')),
+          generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -528,8 +518,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0, parse6decimal('0.1')),
+          generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('1.0')),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -542,8 +533,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0, parse6decimal('1.0')),
+          generateMarketParameter(parse6decimal('1.0')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -557,8 +549,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(0, parse6decimal('0.1')),
+            generateMarketParameter(parse6decimal('0.1')),
             generateProtocolParameter(parse6decimal('1.1')),
+            generateOracleRecipt(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -568,8 +561,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(0, parse6decimal('1.1')),
+            generateMarketParameter(parse6decimal('1.1')),
             generateProtocolParameter(parse6decimal('0.2')),
+            generateOracleRecipt(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -578,8 +572,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -592,8 +587,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('1.0')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -606,8 +602,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('1.0'), 0),
+          generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('1.0')),
         )
 
         const value = await global.read()
@@ -621,8 +618,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('0.1'), 0),
+            generateMarketParameter(0),
             generateProtocolParameter(parse6decimal('1.1')),
+            generateOracleRecipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -632,8 +630,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('1.1'), 0),
+            generateMarketParameter(0),
             generateProtocolParameter(parse6decimal('0.2')),
+            generateOracleRecipt(parse6decimal('1.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -642,8 +641,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -657,8 +657,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('1.0')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -672,8 +673,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateMarketParameter(parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -687,8 +689,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(0, 0, 123),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateMarketParameter(parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -700,8 +703,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+            generateMarketParameter(parse6decimal('0.3')),
             generateProtocolParameter(parse6decimal('1.1')),
+            generateOracleRecipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -711,8 +715,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
+            generateMarketParameter(parse6decimal('1.0')),
             generateProtocolParameter(parse6decimal('0.2')),
+            generateOracleRecipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -723,8 +728,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0, 0),
+          generateMarketParameter(0),
           generateProtocolParameter(0),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -735,8 +741,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0, 0),
+          generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.1')),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -748,8 +755,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0, parse6decimal('0.1')),
+          generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(0),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -761,8 +769,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateMarketParameter(0),
           generateProtocolParameter(0),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -774,8 +783,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(0),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -788,8 +798,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateMarketParameter(parse6decimal('0.9')),
           generateProtocolParameter(0),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -803,8 +814,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
+            generateMarketParameter(parse6decimal('1.0')),
             generateProtocolParameter(0),
+            generateOracleRecipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -813,8 +825,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0, parse6decimal('0.1')),
+          generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -828,8 +841,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0, parse6decimal('0.1')),
+          generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('1.0')),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -843,8 +857,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0, parse6decimal('1.0')),
+          generateMarketParameter(parse6decimal('1.0')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(0),
         )
 
         const value = await global.read()
@@ -859,8 +874,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(0, parse6decimal('0.1')),
+            generateMarketParameter(parse6decimal('0.1')),
             generateProtocolParameter(parse6decimal('1.1')),
+            generateOracleRecipt(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -870,8 +886,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(0, parse6decimal('1.1')),
+            generateMarketParameter(parse6decimal('1.1')),
             generateProtocolParameter(parse6decimal('0.2')),
+            generateOracleRecipt(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -880,8 +897,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -894,8 +912,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1'), 0),
+          generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('1.0')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -908,8 +927,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('1.0'), 0),
+          generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('1.0')),
         )
 
         const value = await global.read()
@@ -923,8 +943,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('0.1'), 0),
+            generateMarketParameter(0),
             generateProtocolParameter(parse6decimal('1.1')),
+            generateOracleRecipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -934,8 +955,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('1.1'), 0),
+            generateMarketParameter(0),
             generateProtocolParameter(parse6decimal('0.2')),
+            generateOracleRecipt(parse6decimal('1.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -944,8 +966,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -959,8 +982,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+          generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('1.0')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -974,8 +998,9 @@ describe('Global', () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.9')),
+          generateMarketParameter(parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleRecipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -990,8 +1015,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('0.1'), parse6decimal('0.3')),
+            generateMarketParameter(parse6decimal('0.3')),
             generateProtocolParameter(parse6decimal('1.1')),
+            generateOracleRecipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -1001,8 +1027,9 @@ describe('Global', () => {
           global.update(
             1,
             generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('0.1'), parse6decimal('1.0')),
+            generateMarketParameter(parse6decimal('1.0')),
             generateProtocolParameter(parse6decimal('0.2')),
+            generateOracleRecipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })

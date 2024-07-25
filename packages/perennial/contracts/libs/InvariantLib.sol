@@ -12,62 +12,55 @@ import "../types/Version.sol";
 import "../types/Checkpoint.sol";
 
 /// @title InvariantLib
+/// @dev (external-safe): this library is safe to externalize
 /// @notice Manages the logic for the system invariant
 library InvariantLib {
     /// @notice Verifies the invariant of the market
     /// @param context The context to use
-    /// @param account The account to verify the invariant for
+    /// @param updateContext The update context to use
     /// @param newOrder The order to verify the invariant for
-    /// @param collateral The collateral change to verify the invariant for
     function validate(
         IMarket.Context memory context,
         IMarket.UpdateContext memory updateContext,
-        address sender,
-        address account,
-        Order memory newOrder,
-        Fixed6 collateral
+        Order memory newOrder
     ) external pure {
-        if (context.pending.local.neg().gt(context.latestPosition.local.magnitude())) revert IMarket.MarketOverCloseError();
+        if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) // total pending close is greater than latest position
+            revert IMarket.MarketOverCloseError();
 
         if (newOrder.protected() && (
-            !context.pending.local.neg().eq(context.latestPosition.local.magnitude()) ||
-            context.latestPosition.local.maintained(
+            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
+            context.latestPositionLocal.maintained(                                     // latest position is properly maintained
                 context.latestOracleVersion,
                 context.riskParameter,
-                context.local.collateral.sub(collateral)
+                context.local.collateral
             ) ||
-            collateral.lt(Fixed6Lib.ZERO) ||
-            newOrder.magnitude().gte(Fixed6Lib.ZERO)
+            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                     // the order is modifying collateral
         )) revert IMarket.MarketInvalidProtectionError();
 
-        if (
-            !(updateContext.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&     // sender has no position
-            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                              // sender is depositing zero or more into account, without position change
-            (context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter)                  // price is not stale
-        ) revert IMarket.MarketStalePriceError();
+        if (context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter)
+            revert IMarket.MarketStalePriceError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert IMarket.MarketClosedError();
 
         if (
-            updateContext.currentPosition.global.maker.gt(context.riskParameter.makerLimit) &&
+            updateContext.currentPositionGlobal.maker.gt(context.riskParameter.makerLimit) &&
             newOrder.increasesMaker()
         ) revert IMarket.MarketMakerOverLimitError();
 
         if (
-            !updateContext.currentPosition.local.singleSided() || (
-                context.latestPosition.local.direction() != updateContext.currentPosition.local.direction() &&
-                    !context.latestPosition.local.empty() &&
-                    !updateContext.currentPosition.local.empty()
+            !updateContext.currentPositionLocal.singleSided() || (                                              // current position is not single-sided with order applied
+                context.latestPositionLocal.direction() != updateContext.currentPositionLocal.direction() &&    // latest and current positions are not in the same direction
+                (!context.latestPositionLocal.empty() && !updateContext.currentPositionLocal.empty())           // both latest and current positions are non-empty
             )
         ) revert IMarket.MarketNotSingleSidedError();
 
         if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            sender != account &&                                    // sender is operating on own account
-            !updateContext.operator &&                                  // sender is operator approved for account
-            !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO))     // sender is depositing zero or more into account, without position change
+            !updateContext.signer &&                                            // sender is relaying the account's signed intention
+            !updateContext.operator &&                                          // sender is operator approved for account
+            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO))    // sender is depositing zero or more into account, without position change
         ) revert IMarket.MarketOperatorNotAllowedError();
 
         if (
@@ -77,29 +70,31 @@ library InvariantLib {
 
         if (
             !PositionLib.margined(
-                context.latestPosition.local.magnitude().add(context.pending.local.pos()),
+                context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
                 context.latestOracleVersion,
                 context.riskParameter,
                 context.local.collateral
             )
         ) revert IMarket.MarketInsufficientMarginError();
 
-        if (context.pending.local.protected() && !newOrder.protected() && !newOrder.isEmpty())
-            revert IMarket.MarketProtectedError();
+        if (
+            context.pendingLocal.protected() && // total pending position is protected
+            !newOrder.protected()               // protection did not occur in this order (semphore already handles double-protection case)
+        ) revert IMarket.MarketProtectedError();
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
-            newOrder.decreasesEfficiency(updateContext.currentPosition.global) &&
-            updateContext.currentPosition.global.efficiency().lt(context.riskParameter.efficiencyLimit)
+            newOrder.decreasesEfficiency(updateContext.currentPositionGlobal) &&
+            updateContext.currentPositionGlobal.efficiency().lt(context.riskParameter.efficiencyLimit)
         ) revert IMarket.MarketEfficiencyUnderLimitError();
 
         if (
             newOrder.liquidityCheckApplicable(context.marketParameter) &&
-            updateContext.currentPosition.global.socialized() &&
-            newOrder.decreasesLiquidity(updateContext.currentPosition.global)
+            updateContext.currentPositionGlobal.socialized() &&
+            newOrder.decreasesLiquidity(updateContext.currentPositionGlobal)
         ) revert IMarket.MarketInsufficientLiquidityError();
 
-        if (collateral.lt(Fixed6Lib.ZERO) && context.local.collateral.lt(Fixed6Lib.ZERO))
+        if (context.local.collateral.lt(Fixed6Lib.ZERO))
             revert IMarket.MarketInsufficientCollateralError();
     }
 }

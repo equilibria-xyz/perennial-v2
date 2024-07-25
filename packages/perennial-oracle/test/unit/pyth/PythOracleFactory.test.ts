@@ -102,8 +102,6 @@ describe('PythOracleFactory', () => {
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
       pyth.address,
       keeperOracleImpl.address,
-      4,
-      10,
       {
         multiplierBase: 0,
         bufferBase: 1_000_000,
@@ -119,6 +117,7 @@ describe('PythOracleFactory', () => {
       5_000,
     )
     await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
+    await pythOracleFactory.updateParameter(1, 0, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
@@ -144,8 +143,8 @@ describe('PythOracleFactory', () => {
   })
 
   it('parses Pyth exponents correctly', async () => {
-    const minDelay = await pythOracleFactory.validFrom()
-    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+    const minDelay = (await pythOracleFactory.parameter()).validFrom
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
     await pythOracleFactory
       .connect(user)
       .commit(
@@ -158,7 +157,7 @@ describe('PythOracleFactory', () => {
       )
     expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('1000', 6))
 
-    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
     await pythOracleFactory
       .connect(user)
       .commit(
@@ -170,5 +169,24 @@ describe('PythOracleFactory', () => {
         },
       )
     expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2000', 6))
+  })
+
+  describe('#updateId', async () => {
+    it('updates max claim', async () => {
+      expect(await pythOracleFactory.ids(keeperOracle.address)).to.equal(PYTH_ETH_USD_PRICE_FEED)
+      await pythOracleFactory.updateId(
+        keeperOracle.address,
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(await pythOracleFactory.ids(keeperOracle.address)).to.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(
+        pythOracleFactory.connect(user).updateId(keeperOracle.address, PYTH_ETH_USD_PRICE_FEED),
+      ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
+    })
   })
 })

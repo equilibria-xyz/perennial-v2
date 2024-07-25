@@ -27,11 +27,11 @@ import {
 
 import { buildApproveTarget, buildPlaceOrder, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
 
-import { parse6decimal } from '../../../../common/testutil/types'
+import { OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 
@@ -48,13 +48,19 @@ describe('Invoke', () => {
   let ethSubOracle: FakeContract<IOracleProvider>
   let btcSubOracle: FakeContract<IOracleProvider>
 
-  async function updateVaultOracle(newEthPrice?: BigNumber, newPriceBtc?: BigNumber) {
-    await _updateVaultOracleEth(newEthPrice)
-    await _updateVaultOracleBtc(newPriceBtc)
+  async function updateVaultOracle(
+    newEthPrice?: BigNumber,
+    newPriceBtc?: BigNumber,
+    newEthReceipt?: OracleReceipt,
+    newBtcReceipt?: OracleReceipt,
+  ) {
+    await _updateVaultOracleEth(newEthPrice, newEthReceipt)
+    await _updateVaultOracleBtc(newPriceBtc, newBtcReceipt)
   }
 
-  async function _updateVaultOracleEth(newPrice?: BigNumber) {
+  async function _updateVaultOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
     const [currentTimestamp, currentPrice] = await ethSubOracle.latest()
+    const [, currentReceipt] = await ethSubOracle.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
@@ -64,11 +70,12 @@ describe('Invoke', () => {
     ethSubOracle.request.returns()
     ethSubOracle.latest.returns(newVersion)
     ethSubOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    ethSubOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+    ethSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
-  async function _updateVaultOracleBtc(newPrice?: BigNumber) {
+  async function _updateVaultOracleBtc(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
     const [currentTimestamp, currentPrice] = await btcSubOracle.latest()
+    const [, currentReceipt] = await btcSubOracle.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
@@ -78,7 +85,7 @@ describe('Invoke', () => {
     btcSubOracle.request.returns()
     btcSubOracle.latest.returns(newVersion)
     btcSubOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+    btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
   beforeEach(async () => {
@@ -455,7 +462,7 @@ describe('Invoke', () => {
           await updateVaultOracle()
           await vault.settle(user.address)
 
-          const funding = BigNumber.from('18411')
+          const funding = BigNumber.from('14352')
           // claim from vault
           await expect(
             invoke(
@@ -647,58 +654,66 @@ describe('Invoke', () => {
         })
 
         it('sets subtractive fee referrer as interface1.receiver if set', async () => {
-          const { owner, user, usdc, dsu } = instanceVars
+          const { marketFactory, owner, user, usdc, dsu } = instanceVars
 
+          await marketFactory.updateParameter({
+            ...(await marketFactory.parameter()),
+            referralFee: parse6decimal('0.05'),
+          })
           await usdc.connect(user).approve(multiInvoker.address, collateral)
           await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
           await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
-          await expect(
-            invoke(
-              buildUpdateMarket({
-                market: market.address,
-                collateral: collateral,
-                maker: parse6decimal('0.01'),
-                interfaceFee1: {
-                  amount: 0,
-                  receiver: owner.address,
-                  unwrap: true,
-                },
-              }),
-            ),
+          await invoke(
+            buildUpdateMarket({
+              market: market.address,
+              collateral: collateral,
+              maker: parse6decimal('0.02'),
+              interfaceFee1: {
+                amount: 0,
+                receiver: owner.address,
+                unwrap: true,
+              },
+            }),
           )
-            .to.emit(market, 'Updated')
-            .withArgs(anyValue, user.address, anyUint, anyUint, anyUint, anyUint, anyValue, false, owner.address)
+
+          expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
+            owner.address,
+          )
         })
 
         it('sets subtractive fee referrer as interfaceFee2.receiver if interfaceFee1.receiver is not set', async () => {
-          const { user, userB, usdc, dsu } = instanceVars
+          const { marketFactory, userB, user, usdc, dsu } = instanceVars
 
+          await marketFactory.updateParameter({
+            ...(await marketFactory.parameter()),
+            referralFee: parse6decimal('0.05'),
+          })
           await usdc.connect(user).approve(multiInvoker.address, collateral)
           await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
           await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
-          await expect(
-            invoke(
-              buildUpdateMarket({
-                market: market.address,
-                collateral: collateral,
-                maker: parse6decimal('0.01'),
-                interfaceFee1: {
-                  amount: 0,
-                  receiver: ethers.constants.AddressZero,
-                  unwrap: false,
-                },
-                interfaceFee2: {
-                  amount: 0,
-                  receiver: userB.address,
-                  unwrap: false,
-                },
-              }),
-            ),
+          await invoke(
+            buildUpdateMarket({
+              market: market.address,
+              collateral: collateral,
+              maker: parse6decimal('0.01'),
+              interfaceFee1: {
+                amount: 0,
+                receiver: ethers.constants.AddressZero,
+                unwrap: false,
+              },
+              interfaceFee2: {
+                amount: 0,
+                receiver: userB.address,
+                unwrap: false,
+              },
+            }),
           )
-            .to.emit(market, 'Updated')
-            .withArgs(anyValue, user.address, anyUint, anyUint, anyUint, anyUint, anyValue, false, userB.address)
+
+          expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
+            userB.address,
+          )
         })
 
         it('Only allows updates to factory created markets', async () => {

@@ -44,8 +44,6 @@ describe('OracleFactory', () => {
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
       PYTH_ADDRESS,
       keeperOracleImpl.address,
-      4,
-      10,
       {
         multiplierBase: 0,
         bufferBase: 1_000_000,
@@ -61,6 +59,7 @@ describe('OracleFactory', () => {
       5_000,
     )
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
+    await pythOracleFactory.updateParameter(1, 0, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
@@ -81,8 +80,6 @@ describe('OracleFactory', () => {
       const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
         PYTH_ADDRESS,
         keeperOracleImpl2.address,
-        4,
-        10,
         {
           multiplierBase: 0,
           bufferBase: 1_000_000,
@@ -98,6 +95,7 @@ describe('OracleFactory', () => {
         5_000,
       )
       await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
+      await pythOracleFactory2.updateParameter(1, 0, 0, 4, 10)
       await oracleFactory.register(pythOracleFactory2.address)
 
       await pythOracleFactory2.connect(owner).authorize(oracleFactory.address)

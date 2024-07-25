@@ -40,15 +40,14 @@ struct StoredTriggerOrder {
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
 
-/**
- * @title TriggerOrderLib
- * @notice Library for TriggerOrder logic and data.
- */
+/// @title TriggerOrderLib
+/// @dev (external-unsafe): this library must be used internally only
+/// @notice Library for TriggerOrder logic and data.
 library TriggerOrderLib {
-    // @notice Returns whether the trigger order is fillable at the latest price
-    // @param self The trigger order
-    // @param latestVersion The latest oracle version
-    // @return Whether the trigger order is fillable
+    /// @notice Returns whether the trigger order is fillable at the latest price
+    /// @param self The trigger order
+    /// @param latestVersion The latest oracle version
+    /// @return Whether the trigger order is fillable
     function fillable(TriggerOrder memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
         if (!latestVersion.valid) return false;
         if (self.comparison == 1) return latestVersion.price.gte(self.price);
@@ -56,10 +55,10 @@ library TriggerOrderLib {
         return false;
     }
 
-    // @notice Executes the trigger order on the given position
-    // @param self The trigger order
-    // @param currentPosition The current position
-    // @return The collateral delta, if any
+    /// @notice Executes the trigger order on the given position
+    /// @param self The trigger order
+    /// @param currentPosition The current position
+    /// @return collateral The collateral delta, if any
     function execute(
         TriggerOrder memory self,
         Position memory currentPosition
@@ -83,6 +82,7 @@ library TriggerOrderLib {
     }
 }
 
+/// @dev (external-safe): this library is safe to externalize
 library TriggerOrderStorageLib {
     // sig: 0xf3469aa7
     error TriggerOrderStorageInvalidError();

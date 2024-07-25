@@ -44,12 +44,6 @@ describe('KeeperOracle', () => {
     const dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu.transfer.returns(true)
 
-    // mock the market
-    market = await smock.fake<IMarket>('IMarket')
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    market.factory.returns(marketFactory.address)
-    marketFactory.instances.whenCalledWith(market.address).returns(true)
-
     // deploy prerequisites
     const oracleImpl = await new Oracle__factory(owner).deploy()
     const oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
@@ -61,8 +55,6 @@ describe('KeeperOracle', () => {
     keeperOracleFactory = await new PythFactory__factory(owner).deploy(
       pyth.address,
       keeperOracleImpl.address,
-      4,
-      10,
       {
         multiplierBase: 0,
         bufferBase: 1_000_000,
@@ -78,6 +70,7 @@ describe('KeeperOracle', () => {
       5_000,
     )
     await keeperOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
+    await keeperOracleFactory.updateParameter(1, 0, 0, 4, 10)
     await oracleFactory.register(keeperOracleFactory.address)
     await keeperOracleFactory.authorize(oracleFactory.address)
 
@@ -120,6 +113,13 @@ describe('KeeperOracle', () => {
   beforeEach(async () => {
     // snapshot initial chain state for multiple tests
     await loadFixture(keeperOracleFixture)
+
+    // mock the market
+    market = await smock.fake<IMarket>('IMarket')
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    market.factory.returns(marketFactory.address)
+    marketFactory.instances.whenCalledWith(market.address).returns(true)
+    market.settle.whenCalledWith(ethers.constants.AddressZero).returns()
 
     // Base fee isn't working properly in coverage, so we need to set it manually
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
@@ -192,6 +192,12 @@ describe('KeeperOracle', () => {
     ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
   })
 
+  it('reverts requesting no new price before a new price', async () => {
+    await expect(
+      keeperOracle.connect(oracleSigner).request(market.address, user.address, false),
+    ).to.revertedWithCustomError(keeperOracle, 'KeeperOracleNoPriorRequestsError')
+  })
+
   it('discards expired prices', async () => {
     // establish an initial valid version
     const startTime = await currentBlockTimestamp()
@@ -199,21 +205,25 @@ describe('KeeperOracle', () => {
     await commitPrice(initialTimestamp, parse6decimal('3333.777'))
 
     // request a version
-    increase(10)
-    const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address, {
+    await increase(10)
+    const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address, true, {
       maxFeePerGas: 100000000,
     })
     // TODO: weaponize this transaction-to-blocktime facility into a utility function
     const requestedTime = (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
 
     // attempt to commit a requested price older than the timeout
-    increase(KEEPER_ORACLE_TIMEOUT + 1)
+    await increase(KEEPER_ORACLE_TIMEOUT + 1)
+
+    // enable market settlement callback
+    market.settle.whenCalledWith(ethers.constants.AddressZero).returns()
+
     await commitPrice(requestedTime, parse6decimal('3333.444'))
 
     // ensure carryover price is received instead of invalid price
     const invalidPrice = await keeperOracle.at(requestedTime)
-    expect(invalidPrice.timestamp).to.equal(requestedTime)
-    expect(invalidPrice.price).to.equal(parse6decimal('3333.777'))
-    expect(invalidPrice.valid).to.be.false
+    expect(invalidPrice[0].timestamp).to.equal(requestedTime)
+    expect(invalidPrice[0].price).to.equal(parse6decimal('3333.777'))
+    expect(invalidPrice[0].valid).to.be.false
   })
 })

@@ -41,7 +41,7 @@ import {
 import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
 import { CheckpointLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
 import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import {
   MarketParameterStruct,
@@ -103,7 +103,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       CHAINLINK_CUSTOM_CURRENCIES.USD,
       { provider: payoff, decimals: -5 },
       1,
-    ).init())
+    ).init(BigNumber.from(0), BigNumber.from(0)))
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -117,6 +117,13 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     [],
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
+
+  const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+  const verifierProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    verifierImpl.address,
+    proxyAdmin.address,
+    [],
+  )
 
   const marketImpl = await new Market__factory(
     {
@@ -152,9 +159,13 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       ).address,
     },
     owner,
-  ).deploy()
+  ).deploy(verifierProxy.address)
 
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(
+    oracleFactory.address,
+    verifierImpl.address,
+    marketImpl.address,
+  )
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -179,6 +190,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
+    minScale: parse6decimal('0.001'),
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).authorize(marketFactory.address)
@@ -278,7 +290,7 @@ export async function createMarket(
       adiabaticFee: 0,
       scale: parse6decimal('10'),
     },
-    makerLimit: parse6decimal('10000'),
+    makerLimit: parse6decimal('2000'),
     efficiencyLimit: parse6decimal('0.2'),
     liquidationFee: parse6decimal('0.50'),
     utilizationCurve: {
@@ -301,14 +313,11 @@ export async function createMarket(
   const marketParameter = {
     fundingFee: parse6decimal('0.1'),
     interestFee: parse6decimal('0.1'),
-    oracleFee: 0,
     riskFee: 0,
-    positionFee: 0,
+    makerFee: 0,
+    takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    settlementFee: 0,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
     closed: false,
     settle: false,
     ...marketParamOverrides,
@@ -319,8 +328,9 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
 
-  await market.updateRiskParameter(riskParameter, false)
-  await market.updateParameter(beneficiaryB.address, constants.AddressZero, marketParameter)
+  await market.updateRiskParameter(riskParameter)
+  await market.updateBeneficiary(beneficiaryB.address)
+  await market.updateParameter(marketParameter)
 
   return market
 }
@@ -366,7 +376,7 @@ export async function createVault(
   ethSubOracle.request.returns()
   ethSubOracle.latest.returns(ethRealVersion)
   ethSubOracle.current.returns(ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-  ethSubOracle.at.whenCalledWith(ethRealVersion.timestamp).returns(ethRealVersion)
+  ethSubOracle.at.whenCalledWith(ethRealVersion.timestamp).returns([ethRealVersion, DEFAULT_ORACLE_RECEIPT])
 
   const btcSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
   const btcRealVersion = {
@@ -379,7 +389,7 @@ export async function createVault(
   btcSubOracle.request.returns()
   btcSubOracle.latest.returns(btcRealVersion)
   btcSubOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-  btcSubOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
+  btcSubOracle.at.whenCalledWith(btcRealVersion.timestamp).returns([btcRealVersion, DEFAULT_ORACLE_RECEIPT])
 
   vaultOracleFactory.instances.whenCalledWith(ethSubOracle.address).returns(true)
   vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
@@ -421,13 +431,12 @@ export async function createVault(
       linearFee: 0,
       proportionalFee: 0,
       adiabaticFee: 0,
-      scale: parse6decimal('10'),
+      scale: parse6decimal('100'),
     },
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('10'),
+      scale: parse6decimal('100'),
     },
   })
   const btcMarket = await deployProductOnMainnetFork({
@@ -436,6 +445,7 @@ export async function createVault(
     owner: owner,
     oracle: btcOracle.address,
     payoff: constants.AddressZero,
+    makerLimit: parse6decimal('100'),
     minMaintenance: parse6decimal('50'),
     takerFee: {
       linearFee: 0,
@@ -446,7 +456,6 @@ export async function createVault(
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      adiabaticFee: 0,
       scale: parse6decimal('10'),
     },
   })
@@ -471,7 +480,8 @@ export async function createVault(
   await vault.updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
 
   await vault.updateParameter({
-    cap: maxCollateral ?? parse6decimal('500000'),
+    maxDeposit: maxCollateral ?? parse6decimal('500000'),
+    minDeposit: 0,
   })
   const usdc = IERC20Metadata__factory.connect(USDC, owner)
   const asset = IERC20Metadata__factory.connect(await vault.asset(), owner)

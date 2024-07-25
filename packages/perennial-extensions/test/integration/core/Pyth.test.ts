@@ -67,8 +67,6 @@ describe('PythOracleFactory', () => {
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
       PYTH_ADDRESS,
       keeperOracleImpl.address,
-      4,
-      10,
       {
         multiplierBase: 0,
         bufferBase: 1_000_000,
@@ -84,6 +82,7 @@ describe('PythOracleFactory', () => {
       5_000,
     )
     await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
+    await pythOracleFactory.updateParameter(1, 0, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
     await pythOracleFactory.authorize(oracleFactory.address)
 
@@ -120,7 +119,7 @@ describe('PythOracleFactory', () => {
   describe('PerennialAction.COMMIT_PRICE', async () => {
     it('commits a requested pyth version', async () => {
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-      await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+      await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])

@@ -13,12 +13,10 @@ contract PythFactory_Optimism is PythFactory, Kept_Optimism {
     constructor(
         AbstractPyth pyth_,
         address implementation_,
-        uint256 validFrom_,
-        uint256 validTo_,
         KeepConfig memory commitKeepConfig_,
         KeepConfig memory settleKeepConfig_,
         uint256 keepCommitIncrementalBufferData_
-    ) PythFactory(pyth_, implementation_, validFrom_, validTo_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) { }
+    ) PythFactory(pyth_, implementation_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) { }
 
     /// @dev Use the Kept_Optimism implementation for calculating the dynamic fee
     function _calldataFee(

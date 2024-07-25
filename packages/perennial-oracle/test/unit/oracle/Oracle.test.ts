@@ -11,23 +11,24 @@ import {
   Oracle__factory,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import { impersonate } from '../../../../common/testutil'
 import { utils } from 'ethers'
-import { OracleVersionStruct } from '../../../types/generated/contracts/Oracle'
+import { OracleReceiptStruct, OracleVersionStruct } from '../../../types/generated/contracts/Oracle'
 
 const { ethers } = HRE
 
 function mockVersion(
   oracle: FakeContract<IOracleProvider>,
   latestVersion: OracleVersionStruct,
+  latestReceipt: OracleReceiptStruct,
   currentTimestamp: number,
 ) {
   oracle.request.returns()
   oracle.status.returns([latestVersion, currentTimestamp])
   oracle.latest.returns(latestVersion)
   oracle.current.returns(currentTimestamp)
-  oracle.at.whenCalledWith(latestVersion.timestamp).returns(latestVersion)
+  oracle.at.whenCalledWith(latestVersion.timestamp).returns([latestVersion, latestReceipt])
 }
 
 describe('Oracle', () => {
@@ -67,6 +68,10 @@ describe('Oracle', () => {
           price: parse6decimal('0'),
           valid: false,
         },
+        {
+          settlementFee: 1234,
+          oracleFee: 5678,
+        },
         0,
       )
 
@@ -88,6 +93,10 @@ describe('Oracle', () => {
           timestamp: 1687229000,
           price: parse6decimal('999'),
           valid: true,
+        },
+        {
+          settlementFee: 1234,
+          oracleFee: 5678,
         },
         1687229905,
       )
@@ -121,6 +130,10 @@ describe('Oracle', () => {
           price: parse6decimal('999'),
           valid: true,
         },
+        {
+          settlementFee: 1234,
+          oracleFee: 5678,
+        },
         1687229905,
       )
       await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
@@ -147,7 +160,9 @@ describe('Oracle', () => {
         expect(latestVersion.valid).to.equal(true)
         expect(currentTimestamp).to.equal(0)
 
-        expect(await oracle.at(1687229000)).to.deep.equal(latestVersion)
+        expect((await oracle.at(1687229000))[0]).to.deep.equal(latestVersion)
+        expect((await oracle.at(1687229000))[1].settlementFee).to.deep.equal(1234)
+        expect((await oracle.at(1687229000))[1].oracleFee).to.deep.equal(5678)
       })
 
       it('syncs another version', async () => {
@@ -158,6 +173,10 @@ describe('Oracle', () => {
             price: parse6decimal('1006'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
         mockVersion(
@@ -166,6 +185,10 @@ describe('Oracle', () => {
             timestamp: 1687230000,
             price: parse6decimal('1000'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687231005,
         )
@@ -181,7 +204,7 @@ describe('Oracle', () => {
           await oracle.connect(caller).current(),
         ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230000)
         expect(latestVersion.price).to.equal(parse6decimal('1000'))
@@ -219,6 +242,10 @@ describe('Oracle', () => {
             price: parse6decimal('1001'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687230905,
         )
         mockVersion(
@@ -228,9 +255,13 @@ describe('Oracle', () => {
             price: parse6decimal('1000'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687230905,
         )
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
         await expect(oracle.connect(oracleFactorySigner).update(underlying1.address))
           .to.emit(oracle, 'OracleUpdated')
           .withArgs(underlying1.address)
@@ -244,19 +275,31 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(1687230905)
 
-        underlying0.at.whenCalledWith(1687230905).returns({
-          timestamp: 1687230905,
-          price: parse6decimal('987'),
-          valid: true,
-        })
-        underlying1.at.whenCalledWith(1687230905).returns({
-          timestamp: 1687230905,
-          price: parse6decimal('988'),
-          valid: true,
-        })
-        expect((await oracle.at(1687230905)).timestamp).to.equal(1687230905)
-        expect((await oracle.at(1687230905)).price).to.equal(parse6decimal('987'))
-        expect((await oracle.at(1687230905)).valid).to.equal(true)
+        underlying0.at.whenCalledWith(1687230905).returns([
+          {
+            timestamp: 1687230905,
+            price: parse6decimal('987'),
+            valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
+        ])
+        underlying1.at.whenCalledWith(1687230905).returns([
+          {
+            timestamp: 1687230905,
+            price: parse6decimal('988'),
+            valid: true,
+          },
+          {
+            settlementFee: 1235,
+            oracleFee: 5679,
+          },
+        ])
+        expect((await oracle.at(1687230905))[0].timestamp).to.equal(1687230905)
+        expect((await oracle.at(1687230905))[0].price).to.equal(parse6decimal('987'))
+        expect((await oracle.at(1687230905))[0].valid).to.equal(true)
       })
 
       it('requests another before current has cleared', async () => {
@@ -268,7 +311,7 @@ describe('Oracle', () => {
           await oracle.connect(caller).current(),
         ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230005)
         expect(latestVersion.price).to.equal(parse6decimal('1001'))
@@ -295,6 +338,10 @@ describe('Oracle', () => {
             price: parse6decimal('1006'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
         mockVersion(
@@ -303,6 +350,10 @@ describe('Oracle', () => {
             timestamp: 1687230000,
             price: parse6decimal('1000'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687231005,
         )
@@ -315,7 +366,7 @@ describe('Oracle', () => {
           await oracle.connect(caller).current(),
         ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230605)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -342,6 +393,10 @@ describe('Oracle', () => {
             price: parse6decimal('1006'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
         mockVersion(
@@ -350,6 +405,10 @@ describe('Oracle', () => {
             timestamp: 1687230000,
             price: parse6decimal('1000'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687231005,
         )
@@ -362,7 +421,7 @@ describe('Oracle', () => {
           await oracle.connect(caller).current(),
         ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230905)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -382,17 +441,27 @@ describe('Oracle', () => {
       })
 
       it('syncs another version after latest before current', async () => {
-        underlying0.at.whenCalledWith(1687230905).returns({
-          timestamp: 1687230905,
-          price: parse6decimal('1006'),
-          valid: true,
-        })
+        underlying0.at.whenCalledWith(1687230905).returns([
+          {
+            timestamp: 1687230905,
+            price: parse6decimal('1006'),
+            valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
+        ])
         mockVersion(
           underlying0,
           {
             timestamp: 1687230955,
             price: parse6decimal('1008'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687231005,
         )
@@ -402,6 +471,10 @@ describe('Oracle', () => {
             timestamp: 1687230000,
             price: parse6decimal('1007'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687231005,
         )
@@ -414,7 +487,7 @@ describe('Oracle', () => {
           await oracle.connect(caller).current(),
         ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230905)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -441,6 +514,10 @@ describe('Oracle', () => {
             price: parse6decimal('1008'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
         mockVersion(
@@ -449,6 +526,10 @@ describe('Oracle', () => {
             timestamp: 1687230955,
             price: parse6decimal('1007'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687231005,
         )
@@ -461,7 +542,7 @@ describe('Oracle', () => {
           await oracle.connect(caller).current(),
         ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230955)
         expect(latestVersion.price).to.equal(parse6decimal('1007'))
@@ -488,6 +569,10 @@ describe('Oracle', () => {
             price: parse6decimal('1008'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
         mockVersion(
@@ -497,9 +582,13 @@ describe('Oracle', () => {
             price: parse6decimal('1007'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         mockVersion(
           underlying1,
@@ -507,6 +596,10 @@ describe('Oracle', () => {
             timestamp: 1687235000,
             price: parse6decimal('1015'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687235080,
         )
@@ -519,7 +612,7 @@ describe('Oracle', () => {
           await oracle.connect(caller).current(),
         ]
         const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687235000)
         expect(latestVersion.price).to.equal(parse6decimal('1015'))
@@ -546,6 +639,10 @@ describe('Oracle', () => {
             price: parse6decimal('1008'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
         mockVersion(
@@ -555,41 +652,63 @@ describe('Oracle', () => {
             price: parse6decimal('1007'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
 
         underlying0.request.reset()
         underlying1.request.reset()
 
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
-        expect((await oracle.at(0)).timestamp).to.equal(0)
-        expect((await oracle.at(0)).price).to.equal(parse6decimal('0'))
-        expect((await oracle.at(0)).valid).to.equal(false)
-        underlying0.at.whenCalledWith(1677229905).returns({
-          timestamp: 1677229905,
-          price: parse6decimal('800'),
-          valid: true,
-        })
-        expect((await oracle.at(1677229905)).timestamp).to.equal(1677229905)
-        expect((await oracle.at(1677229905)).price).to.equal(parse6decimal('800'))
-        expect((await oracle.at(1677229905)).valid).to.equal(true)
-        underlying0.at.whenCalledWith(1687230905).returns({
-          timestamp: 1687230905,
-          price: parse6decimal('999'),
-          valid: true,
-        })
-        expect((await oracle.at(1687230905)).timestamp).to.equal(1687230905)
-        expect((await oracle.at(1687230905)).price).to.equal(parse6decimal('999'))
-        expect((await oracle.at(1687230905)).valid).to.equal(true)
-        underlying1.at.whenCalledWith(1687230906).returns({
-          timestamp: 1687230906,
-          price: parse6decimal('1001'),
-          valid: true,
-        })
-        expect((await oracle.at(1687230906)).timestamp).to.equal(1687230906)
-        expect((await oracle.at(1687230906)).price).to.equal(parse6decimal('1001'))
-        expect((await oracle.at(1687230906)).valid).to.equal(true)
+        expect((await oracle.at(0))[0].timestamp).to.equal(0)
+        expect((await oracle.at(0))[0].price).to.equal(parse6decimal('0'))
+        expect((await oracle.at(0))[0].valid).to.equal(false)
+        underlying0.at.whenCalledWith(1677229905).returns([
+          {
+            timestamp: 1677229905,
+            price: parse6decimal('800'),
+            valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
+        ])
+        expect((await oracle.at(1677229905))[0].timestamp).to.equal(1677229905)
+        expect((await oracle.at(1677229905))[0].price).to.equal(parse6decimal('800'))
+        expect((await oracle.at(1677229905))[0].valid).to.equal(true)
+        underlying0.at.whenCalledWith(1687230905).returns([
+          {
+            timestamp: 1687230905,
+            price: parse6decimal('999'),
+            valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
+        ])
+        expect((await oracle.at(1687230905))[0].timestamp).to.equal(1687230905)
+        expect((await oracle.at(1687230905))[0].price).to.equal(parse6decimal('999'))
+        expect((await oracle.at(1687230905))[0].valid).to.equal(true)
+        underlying1.at.whenCalledWith(1687230906).returns([
+          {
+            timestamp: 1687230906,
+            price: parse6decimal('1001'),
+            valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
+        ])
+        expect((await oracle.at(1687230906))[0].timestamp).to.equal(1687230906)
+        expect((await oracle.at(1687230906))[0].price).to.equal(parse6decimal('1001'))
+        expect((await oracle.at(1687230906))[0].valid).to.equal(true)
 
         expect(underlying0.request).to.have.not.been.called
         expect(underlying1.request).to.have.been.called
@@ -605,9 +724,13 @@ describe('Oracle', () => {
             price: parse6decimal('1001'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687230905,
         )
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         mockVersion(
           underlying0,
@@ -615,6 +738,10 @@ describe('Oracle', () => {
             timestamp: 1687231005,
             price: parse6decimal('1001'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687231905,
         )
@@ -624,6 +751,10 @@ describe('Oracle', () => {
             timestamp: 1687230000,
             price: parse6decimal('1000'),
             valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
           },
           1687231905,
         )
@@ -640,19 +771,31 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(1687231905)
 
-        underlying0.at.whenCalledWith(1687231005).returns({
-          timestamp: 1687231005,
-          price: parse6decimal('987'),
-          valid: true,
-        })
-        underlying1.at.whenCalledWith(1687231005).returns({
-          timestamp: 1687231005,
-          price: parse6decimal('988'),
-          valid: true,
-        })
-        expect((await oracle.at(1687231005)).timestamp).to.equal(1687231005)
-        expect((await oracle.at(1687231005)).price).to.equal(parse6decimal('987'))
-        expect((await oracle.at(1687231005)).valid).to.equal(true)
+        underlying0.at.whenCalledWith(1687231005).returns([
+          {
+            timestamp: 1687231005,
+            price: parse6decimal('987'),
+            valid: true,
+          },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
+        ])
+        underlying1.at.whenCalledWith(1687231005).returns([
+          {
+            timestamp: 1687231005,
+            price: parse6decimal('988'),
+            valid: true,
+          },
+          {
+            settlementFee: 1235,
+            oracleFee: 5679,
+          },
+        ])
+        expect((await oracle.at(1687231005))[0].timestamp).to.equal(1687231005)
+        expect((await oracle.at(1687231005))[0].price).to.equal(parse6decimal('987'))
+        expect((await oracle.at(1687231005))[0].valid).to.equal(true)
       })
     })
 
@@ -677,11 +820,15 @@ describe('Oracle', () => {
             price: parse6decimal('1000'),
             valid: true,
           },
+          {
+            settlementFee: 1234,
+            oracleFee: 5678,
+          },
           1687231005,
         )
         underlying1.request.reset()
         underlying2.request.reset()
-        await oracle.connect(caller).request(market.address, user.address)
+        await oracle.connect(caller).request(market.address, user.address, true)
 
         expect((await oracle.global()).latest).to.equal(2)
         expect((await oracle.oracles(1)).timestamp).to.equal(0)
@@ -718,6 +865,10 @@ describe('Oracle', () => {
           price: parse6decimal('999'),
           valid: true,
         },
+        {
+          settlementFee: 1234,
+          oracleFee: 5678,
+        },
         1687229905,
       )
       await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
@@ -726,7 +877,7 @@ describe('Oracle', () => {
     it('reverts when not the authorized', async () => {
       oracleFactory.authorized.whenCalledWith(user.address).returns(false)
 
-      await expect(oracle.connect(user).request(market.address, user.address)).to.revertedWithCustomError(
+      await expect(oracle.connect(user).request(market.address, user.address, true)).to.revertedWithCustomError(
         oracle,
         'OracleProviderUnauthorizedError',
       )

@@ -14,10 +14,10 @@ struct MarketParameter {
     UFixed6 interestFee;
 
     /// @dev The fee that is taken out of maker and taker fees
-    UFixed6 positionFee;
+    UFixed6 makerFee;
 
-    /// @dev The share of the collected fees that is paid to the oracle
-    UFixed6 oracleFee;
+    /// @dev The fee that is taken out of maker and taker fees
+    UFixed6 takerFee;
 
     /// @dev The share of the collected fees that is paid to the risk coordinator
     UFixed6 riskFee;
@@ -27,15 +27,6 @@ struct MarketParameter {
 
     /// @dev The maximum amount of orders that can be pending at one time per account
     uint256 maxPendingLocal;
-
-    /// @dev The fixed fee that is charge whenever an oracle request occurs
-    UFixed6 settlementFee;
-
-    /// @dev Whether longs and shorts can always close even when they'd put the market into socialization
-    bool takerCloseAlways;
-
-    /// @dev Whether makers can always close even when they'd put the market into socialization
-    bool makerCloseAlways;
 
     /// @dev Whether the market is in close-only mode
     bool closed;
@@ -47,17 +38,19 @@ struct MarketParameterStorage { uint256 slot0; uint256 slot1; } // SECURITY: mus
 using MarketParameterStorageLib for MarketParameterStorage global;
 
 /// @dev Manually encodes and decodes the MarketParameter struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///    struct StoredMarketParameter {
 ///        /* slot 0 */
 ///        uint24 fundingFee;          // <= 1677%
 ///        uint24 interestFee;         // <= 1677%
-///        uint24 positionFee;         // <= 1677%
-///        uint24 oracleFee;           // <= 1677%
+///        uint24 makerFee;            // <= 1677%
+///        uint24 takerFee;            // <= 1677%
+///        uint24 __unallocated__;     // <= 1677%
 ///        uint24 riskFee;             // <= 1677%
 ///        uint16 maxPendingGlobal;    // <= 65k
 ///        uint16 maxPendingLocal;     // <= 65k
-///        uint48 settlementFee;       // <= 281m
+///        uint48 __unallocated__;     // <= 281m
 ///        uint8 flags;
 ///    }
 ///
@@ -68,33 +61,29 @@ library MarketParameterStorageLib {
     function read(MarketParameterStorage storage self) internal view returns (MarketParameter memory) {
         uint256 slot0 = self.slot0;
 
-        uint256 flags = uint256(slot0) >> (256 - 8);
-        (bool takerCloseAlways, bool makerCloseAlways, bool closed, bool settle) =
-            (flags & 0x01 == 0x01, flags & 0x02 == 0x02, flags & 0x04 == 0x04, flags & 0x08 == 0x08);
+        uint256 flags = uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 16 - 16 - 48 - 8)) >> (256 - 8);
+        (bool closed, bool settle) =
+            (flags & 0x04 == 0x04, flags & 0x08 == 0x08);
 
         return MarketParameter(
             UFixed6.wrap(uint256(slot0 << (256 - 24)) >> (256 - 24)),
             UFixed6.wrap(uint256(slot0 << (256 - 24 - 24)) >> (256 - 24)),
             UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24)) >> (256 - 24)),
             UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24)) >> (256 - 24)),
-            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
-            uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16)) >> (256 - 16),
-            uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16)) >> (256 - 16),
-            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16 - 48)) >> (256 - 48)),
-            takerCloseAlways,
-            makerCloseAlways,
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+            uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 16)) >> (256 - 16),
+            uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 16 - 16)) >> (256 - 16),
             closed,
             settle
         );
     }
 
     function validate(MarketParameter memory self, ProtocolParameter memory protocolParameter) private pure {
-        if (self.settlementFee.gt(protocolParameter.maxFeeAbsolute)) revert MarketParameterStorageInvalidError();
-
-        if (self.fundingFee.max(self.interestFee).max(self.positionFee).gt(protocolParameter.maxCut))
+        if (self.fundingFee.max(self.interestFee).max(self.makerFee).max(self.takerFee).gt(protocolParameter.maxCut))
             revert MarketParameterStorageInvalidError();
 
-        if (self.oracleFee.add(self.riskFee).gt(UFixed6Lib.ONE)) revert MarketParameterStorageInvalidError();
+        if (self.riskFee.gt(UFixed6Lib.ONE))
+            revert MarketParameterStorageInvalidError();
     }
 
     function validateAndStore(
@@ -111,21 +100,18 @@ library MarketParameterStorageLib {
     }
 
     function _store(MarketParameterStorage storage self, MarketParameter memory newValue) private {
-        uint256 flags = (newValue.takerCloseAlways ? 0x01 : 0x00) |
-            (newValue.makerCloseAlways ? 0x02 : 0x00) |
-            (newValue.closed ? 0x04 : 0x00) |
+        uint256 flags = (newValue.closed ? 0x04 : 0x00) |
             (newValue.settle ? 0x08 : 0x00);
 
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.fundingFee) << (256 - 24)) >> (256 - 24) |
             uint256(UFixed6.unwrap(newValue.interestFee) << (256 - 24)) >> (256 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.positionFee) << (256 - 24)) >> (256 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.oracleFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.riskFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
-            uint256(newValue.maxPendingGlobal << (256 - 16)) >> (256 - 24 - 24 - 24 - 24 - 24 - 16) |
-            uint256(newValue.maxPendingLocal << (256 - 16)) >> (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16) |
-            uint256(UFixed6.unwrap(newValue.settlementFee) << (256 - 48)) >> (256 - 24 - 24 - 24 - 24 - 24 - 16 - 16 - 48) |
-            uint256(flags << (256 - 8)) >> (256 - 24 - 24 - 24 - 24 - 24 - 32 - 32 - 32 - 32 - 8);
+            uint256(UFixed6.unwrap(newValue.makerFee) << (256 - 24)) >> (256 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.riskFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24) |
+            uint256(newValue.maxPendingGlobal << (256 - 16)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 16) |
+            uint256(newValue.maxPendingLocal << (256 - 16)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 16 - 16) |
+            uint256(flags << (256 - 8)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 16 - 16 - 48 - 8);
 
         assembly {
             sstore(self.slot, encoded0)

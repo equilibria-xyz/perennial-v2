@@ -127,8 +127,6 @@ describe('ChainlinkFactory', () => {
       mockFeeManager.address,
       weth.address,
       keeperOracleImpl.address,
-      4,
-      10,
       {
         multiplierBase: 0,
         bufferBase: 1_000_000,
@@ -144,6 +142,7 @@ describe('ChainlinkFactory', () => {
       5_000,
     )
     await chainlinkFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
+    await chainlinkFactory.updateParameter(1, 0, 0, 4, 10)
     await oracleFactory.register(chainlinkFactory.address)
     await chainlinkFactory.authorize(oracleFactory.address)
 
@@ -169,12 +168,12 @@ describe('ChainlinkFactory', () => {
   })
 
   it('parses Chainlink report correctly', async () => {
-    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
     const report = listify(
       overwriteTimestamp(
         CHAINLINK_PAYLOAD,
-        (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+        (await keeperOracle.callStatic.next()).add((await chainlinkFactory.parameter()).validFrom),
       ),
     )
     const version = await keeperOracle.callStatic.next()
@@ -191,12 +190,12 @@ describe('ChainlinkFactory', () => {
   })
 
   it('commit reverts if msg.value is too low', async () => {
-    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
     const report = listify(
       overwriteTimestamp(
         CHAINLINK_PAYLOAD,
-        (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+        (await keeperOracle.callStatic.next()).add((await chainlinkFactory.parameter()).validFrom),
       ),
     )
 
@@ -207,5 +206,24 @@ describe('ChainlinkFactory', () => {
           value: 4799,
         }),
     ).to.be.reverted
+  })
+
+  describe('#updateId', async () => {
+    it('updates max claim', async () => {
+      expect(await chainlinkFactory.ids(keeperOracle.address)).to.equal(CHAINLINK_ETH_USD_PRICE_FEED)
+      await chainlinkFactory.updateId(
+        keeperOracle.address,
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(await chainlinkFactory.ids(keeperOracle.address)).to.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(
+        chainlinkFactory.connect(user).updateId(keeperOracle.address, CHAINLINK_ETH_USD_PRICE_FEED),
+      ).to.be.revertedWithCustomError(chainlinkFactory, 'OwnableNotOwnerError')
+    })
   })
 })
