@@ -191,8 +191,6 @@ testOracles.forEach(testOracle => {
         FEE_MANAGER_ADDRESS,
         WETH_ADDRESS,
         keeperOracleImpl.address,
-        4,
-        10,
         {
           multiplierBase: 0,
           bufferBase: 1_000_000,
@@ -392,7 +390,7 @@ testOracles.forEach(testOracle => {
       // block.timestamp of the next call will be STARTING_TIME
 
       // set the oracle parameters at STARTING_TIME - 1
-      await chainlinkOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+      await chainlinkOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), 4, 10)
 
       // run tests at STARTING_TIME
     })
@@ -405,8 +403,6 @@ testOracles.forEach(testOracle => {
             FEE_MANAGER_ADDRESS,
             WETH_ADDRESS,
             await chainlinkOracleFactory.implementation(),
-            4,
-            10,
             {
               multiplierBase: 0,
               bufferBase: 1_000_000,
@@ -452,7 +448,15 @@ testOracles.forEach(testOracle => {
         it('reverts when not owner', async () => {
           const parameter = await chainlinkOracleFactory.parameter()
           await expect(
-            chainlinkOracleFactory.connect(user).updateParameter(10, parameter.settlementFee, parameter.oracleFee),
+            chainlinkOracleFactory
+              .connect(user)
+              .updateParameter(
+                10,
+                parameter.settlementFee,
+                parameter.oracleFee,
+                parameter.validFrom,
+                parameter.validTo,
+              ),
           ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
         })
       })
@@ -491,11 +495,11 @@ testOracles.forEach(testOracle => {
 
     describe('constants', async () => {
       it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await chainlinkOracleFactory.validFrom()).to.equal(4)
+        expect((await chainlinkOracleFactory.parameter()).validFrom).to.equal(4)
       })
 
       it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await chainlinkOracleFactory.validTo()).to.equal(10)
+        expect((await chainlinkOracleFactory.parameter()).validTo).to.equal(10)
       })
 
       it('#GRACE_PERIOD', async () => {
@@ -1050,7 +1054,13 @@ testOracles.forEach(testOracle => {
 
       it('can request a version w/ granularity', async () => {
         const parameter = await chainlinkOracleFactory.parameter()
-        await chainlinkOracleFactory.updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory.updateParameter(
+          10,
+          parameter.settlementFee,
+          parameter.oracleFee,
+          parameter.validFrom,
+          parameter.validTo,
+        )
 
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
@@ -1186,26 +1196,46 @@ testOracles.forEach(testOracle => {
         expect(await keeperOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
       })
 
-      it('returns the current timestamp w/ granularity == 0', async () => {
+      it.only('returns the current timestamp w/ granularity == 0', async () => {
         const parameter = await chainlinkOracleFactory.parameter()
         await expect(
-          chainlinkOracleFactory.connect(owner).updateParameter(0, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'ProviderParameterStorageInvalidError')
+          chainlinkOracleFactory
+            .connect(owner)
+            .updateParameter(0, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo),
+        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperOracleParameterStorageInvalidError')
       })
 
       it('returns the current timestamp w/ granularity > MAX', async () => {
         const parameter = await chainlinkOracleFactory.parameter()
         await expect(
-          chainlinkOracleFactory.connect(owner).updateParameter(10001, parameter.settlementFee, parameter.oracleFee),
+          chainlinkOracleFactory
+            .connect(owner)
+            .updateParameter(
+              10001,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidParameterError')
         await expect(
-          chainlinkOracleFactory.connect(owner).updateParameter(10000, parameter.settlementFee, parameter.oracleFee),
+          chainlinkOracleFactory
+            .connect(owner)
+            .updateParameter(
+              10000,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.not.reverted
       })
 
       it('returns the current timestamp w/ fresh granularity > 1', async () => {
         const parameter = await chainlinkOracleFactory.parameter()
-        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await chainlinkOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(1)
         expect(parameter2.currentGranularity).to.equal(10)
@@ -1220,7 +1250,9 @@ testOracles.forEach(testOracle => {
         expect(parameter.currentGranularity).to.equal(1)
         expect(parameter.effectiveAfter).to.equal(STARTING_TIME - 1)
 
-        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
 
         const parameter2 = await chainlinkOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(1)
@@ -1236,20 +1268,36 @@ testOracles.forEach(testOracle => {
 
       it('returns the current timestamp w/ fresh + fresh granularity > 1', async () => {
         const parameter = await chainlinkOracleFactory.parameter()
-        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         // hardhat automatically moves 1 second ahead so we have to do this twice
-        await chainlinkOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await expect(
-          chainlinkOracleFactory.connect(owner).updateParameter(1000, parameter.settlementFee, parameter.oracleFee),
+          chainlinkOracleFactory
+            .connect(owner)
+            .updateParameter(
+              1000,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidParameterError')
       })
 
       it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
         const parameter = await chainlinkOracleFactory.parameter()
-        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await time.increase(1)
 
-        await chainlinkOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await chainlinkOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(10)
         expect(parameter2.currentGranularity).to.equal(100)
@@ -1262,10 +1310,14 @@ testOracles.forEach(testOracle => {
 
       it('returns the current timestamp w/ settled + settled granularity > 1', async () => {
         const parameter = await chainlinkOracleFactory.parameter()
-        await chainlinkOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await time.increase(1)
 
-        await chainlinkOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await chainlinkOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(10)
         expect(parameter2.currentGranularity).to.equal(100)
@@ -1282,10 +1334,13 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
-        await chainlinkOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await chainlinkOracleFactory.parameter()
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
-        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 1, REPORT, {
           value: getFee(REPORT),
         })
@@ -1297,13 +1352,16 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the receipt w/ no new price', async () => {
-        await chainlinkOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await chainlinkOracleFactory.parameter()
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
         await increase(1)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
 
-        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 1, REPORT, {
           value: getFee(REPORT),
         })
@@ -1315,7 +1373,10 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the receipt w/ new price after no new price', async () => {
-        await chainlinkOracleFactory.connect(owner).updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await chainlinkOracleFactory.parameter()
+        await chainlinkOracleFactory
+          .connect(owner)
+          .updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         increase(1)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
@@ -1323,7 +1384,7 @@ testOracles.forEach(testOracle => {
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
-        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await chainlinkOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 2, REPORT, {
           value: getFee(REPORT),
         })

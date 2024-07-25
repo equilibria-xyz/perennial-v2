@@ -20,8 +20,6 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
     /// @param chainlink_ Chainlink verifier contract
     /// @param feeTokenAddress_ Fee token address
     /// @param implementation_ IKeeperOracle implementation contract
-    /// @param validFrom_ The minimum time after a version that a keeper update can be valid
-    /// @param validTo_ The maximum time after a version that a keeper update can be valid
     /// @param commitKeepConfig_ Parameter configuration for commit keeper incentivization
     /// @param settleKeepConfig_ Parameter configuration for settle keeper incentivization
     constructor(
@@ -29,12 +27,10 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
         IFeeManager feeManager_,
         address feeTokenAddress_,
         address implementation_,
-        uint256 validFrom_,
-        uint256 validTo_,
         KeepConfig memory commitKeepConfig_,
         KeepConfig memory settleKeepConfig_,
         uint256 keepCommitIncrementalBufferData_
-    ) KeeperFactory(implementation_, validFrom_, validTo_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) {
+    ) KeeperFactory(implementation_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) {
         chainlink = chainlink_;
         feeManager = feeManager_;
         feeTokenAddress = feeTokenAddress_;

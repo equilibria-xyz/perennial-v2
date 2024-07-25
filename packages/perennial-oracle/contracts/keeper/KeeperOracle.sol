@@ -94,7 +94,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param account The account to callback to
     /// @param newPrice Whether a new price should be requested
     function request(IMarket market, address account, bool newPrice) external onlyAuthorized {
-        ProviderParameter memory providerParameter = IKeeperFactory(address(factory())).parameter();
+        KeeperOracleParameter memory keeperOracleParameter = IKeeperFactory(address(factory())).parameter();
         uint256 currentTimestamp = current();
 
         if (newPrice) {
@@ -107,8 +107,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         if (currentRequest.timestamp == currentTimestamp) return; // already requested new price
         if (newPrice) {
-            _requests[++_global.currentIndex]
-                .store(PriceRequest(currentTimestamp, providerParameter.settlementFee, providerParameter.oracleFee));
+            _requests[++_global.currentIndex].store(
+                PriceRequest(currentTimestamp, keeperOracleParameter.settlementFee, keeperOracleParameter.oracleFee)
+            );
             delete linkbacks[currentTimestamp];
             emit OracleProviderVersionRequested(currentTimestamp, true);
         } else {

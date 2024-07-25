@@ -55,8 +55,6 @@ export async function createFactories(
   const pythOracleFactory = await new PythFactory__factory(owner).deploy(
     PYTH_ADDRESS,
     keeperOracleImpl.address,
-    4,
-    10,
     {
       multiplierBase: 0,
       bufferBase: 1_000_000,
@@ -72,6 +70,7 @@ export async function createFactories(
     5_000,
   )
   await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, DSU_ADDRESS)
+  await pythOracleFactory.updateParameter(1, 0, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
   await pythOracleFactory.authorize(oracleFactory.address)
 

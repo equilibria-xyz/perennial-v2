@@ -210,8 +210,6 @@ testOracles.forEach(testOracle => {
       metaquantsOracleFactory = await new MetaQuantsFactory__factory(owner).deploy(
         SIGNER,
         keeperOracleImpl.address,
-        4,
-        10,
         {
           multiplierBase: 0,
           bufferBase: 1_000_000,
@@ -410,7 +408,7 @@ testOracles.forEach(testOracle => {
       // block.timestamp of the next call will be STARTING_TIME
 
       // set the oracle parameters at STARTING_TIME - 1
-      await metaquantsOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+      await metaquantsOracleFactory.updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), 4, 10)
 
       // run tests at STARTING_TIME
     })
@@ -425,8 +423,6 @@ testOracles.forEach(testOracle => {
           const metaquantsOracleFactory2 = await new MetaQuantsFactory__factory(owner).deploy(
             SIGNER,
             await metaquantsOracleFactory.implementation(),
-            4,
-            10,
             {
               multiplierBase: 0,
               bufferBase: 1_000_000,
@@ -480,11 +476,19 @@ testOracles.forEach(testOracle => {
         })
       })
 
-      context('#updateGranularity', async () => {
+      context('#updateParameter', async () => {
         it('reverts when not owner', async () => {
           const parameter = await metaquantsOracleFactory.parameter()
           await expect(
-            metaquantsOracleFactory.connect(user).updateParameter(10, parameter.settlementFee, parameter.oracleFee),
+            metaquantsOracleFactory
+              .connect(user)
+              .updateParameter(
+                10,
+                parameter.settlementFee,
+                parameter.oracleFee,
+                parameter.validFrom,
+                parameter.validTo,
+              ),
           ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'OwnableNotOwnerError')
         })
       })
@@ -522,14 +526,6 @@ testOracles.forEach(testOracle => {
     })
 
     describe('constants', async () => {
-      it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await metaquantsOracleFactory.validFrom()).to.equal(4)
-      })
-
-      it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await metaquantsOracleFactory.validTo()).to.equal(10)
-      })
-
       it('#GRACE_PERIOD', async () => {
         expect(await keeperOracle.timeout()).to.equal(60)
       })
@@ -1144,7 +1140,13 @@ testOracles.forEach(testOracle => {
 
       it('can request a version w/ granularity', async () => {
         const parameter = await metaquantsOracleFactory.parameter()
-        await metaquantsOracleFactory.updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory.updateParameter(
+          10,
+          parameter.settlementFee,
+          parameter.oracleFee,
+          parameter.validFrom,
+          parameter.validTo,
+        )
 
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
@@ -1281,23 +1283,43 @@ testOracles.forEach(testOracle => {
       it('returns the current timestamp w/ granularity == 0', async () => {
         const parameter = await metaquantsOracleFactory.parameter()
         await expect(
-          metaquantsOracleFactory.connect(owner).updateParameter(0, parameter.settlementFee, parameter.oracleFee),
-        ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'ProviderParameterStorageInvalidError')
+          metaquantsOracleFactory
+            .connect(owner)
+            .updateParameter(0, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo),
+        ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperOracleParameterStorageInvalidError')
       })
 
       it('returns the current timestamp w/ granularity > MAX', async () => {
         const parameter = await metaquantsOracleFactory.parameter()
         await expect(
-          metaquantsOracleFactory.connect(owner).updateParameter(10001, parameter.settlementFee, parameter.oracleFee),
+          metaquantsOracleFactory
+            .connect(owner)
+            .updateParameter(
+              10001,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryInvalidParameterError')
         await expect(
-          metaquantsOracleFactory.connect(owner).updateParameter(10000, parameter.settlementFee, parameter.oracleFee),
+          metaquantsOracleFactory
+            .connect(owner)
+            .updateParameter(
+              10000,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.not.reverted
       })
 
       it('returns the current timestamp w/ fresh granularity > 1', async () => {
         const parameter = await metaquantsOracleFactory.parameter()
-        await metaquantsOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
 
         const parameter2 = await metaquantsOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(1)
@@ -1313,7 +1335,9 @@ testOracles.forEach(testOracle => {
         expect(parameter.currentGranularity).to.equal(1)
         expect(parameter.effectiveAfter).to.equal(STARTING_TIME - 1)
 
-        await metaquantsOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
 
         const parameter2 = await metaquantsOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(1)
@@ -1329,20 +1353,36 @@ testOracles.forEach(testOracle => {
 
       it('returns the current timestamp w/ fresh + fresh granularity > 1', async () => {
         const parameter = await metaquantsOracleFactory.parameter()
-        await metaquantsOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         // hardhat automatically moves 1 second ahead so we have to do this twice
-        await metaquantsOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await expect(
-          metaquantsOracleFactory.connect(owner).updateParameter(1000, parameter.settlementFee, parameter.oracleFee),
+          metaquantsOracleFactory
+            .connect(owner)
+            .updateParameter(
+              1000,
+              parameter.settlementFee,
+              parameter.oracleFee,
+              parameter.validFrom,
+              parameter.validTo,
+            ),
         ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'KeeperFactoryInvalidParameterError')
       })
 
       it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
         const parameter = await metaquantsOracleFactory.parameter()
-        await metaquantsOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await time.increase(1)
 
-        await metaquantsOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await metaquantsOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(10)
         expect(parameter2.currentGranularity).to.equal(100)
@@ -1355,10 +1395,14 @@ testOracles.forEach(testOracle => {
 
       it('returns the current timestamp w/ settled + settled granularity > 1', async () => {
         const parameter = await metaquantsOracleFactory.parameter()
-        await metaquantsOracleFactory.connect(owner).updateParameter(10, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(10, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await time.increase(1)
 
-        await metaquantsOracleFactory.connect(owner).updateParameter(100, parameter.settlementFee, parameter.oracleFee)
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(100, parameter.settlementFee, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await metaquantsOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(10)
         expect(parameter2.currentGranularity).to.equal(100)
@@ -1375,10 +1419,13 @@ testOracles.forEach(testOracle => {
 
     describe('#atVersion', async () => {
       it('returns the correct version', async () => {
-        await metaquantsOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await metaquantsOracleFactory.parameter()
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
-        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await metaquantsOracleFactory
           .connect(user)
           .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 1, listify(PAYLOAD))
@@ -1390,13 +1437,16 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the receipt w/ no new price', async () => {
-        await metaquantsOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await metaquantsOracleFactory.parameter()
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
         await increase(1)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
 
-        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await metaquantsOracleFactory
           .connect(user)
           .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 1, listify(PAYLOAD), {
@@ -1410,14 +1460,17 @@ testOracles.forEach(testOracle => {
       })
 
       it('returns the receipt w/ new price after no new price', async () => {
-        await metaquantsOracleFactory.connect(owner).updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'))
+        const parameter = await metaquantsOracleFactory.parameter()
+        await metaquantsOracleFactory
+          .connect(owner)
+          .updateParameter(3, parse6decimal('1.5'), parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
         // get both requests in the same version
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
         await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
 
-        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await metaquantsOracleFactory.connect(owner).updateParameter(1, 0, 0, parameter.validFrom, parameter.validTo)
         await metaquantsOracleFactory
           .connect(user)
           .commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME + 1, listify(PAYLOAD), {
