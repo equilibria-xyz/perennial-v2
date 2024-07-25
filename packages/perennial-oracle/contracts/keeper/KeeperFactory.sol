@@ -155,18 +155,14 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @notice Returns the current timestamp
     /// @dev Rounded up to the nearest granularity
     /// @return The current timestamp
-    function current() public view returns (PriceRequest memory) {
-        KeeperOracleParameter memory providerParameter = _parameter.read();
+    function current() public view returns (uint256) {
+        KeeperOracleParameter memory keeperOracleParameter = _parameter.read();
 
-        uint256 effectiveGranularity = block.timestamp <= providerParameter.effectiveAfter ?
-            providerParameter.latestGranularity :
-            providerParameter.currentGranularity;
+        uint256 effectiveGranularity = block.timestamp <= keeperOracleParameter.effectiveAfter ?
+            keeperOracleParameter.latestGranularity :
+            keeperOracleParameter.currentGranularity;
 
-        return PriceRequest(
-            Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity,
-            providerParameter.settlementFee,
-            providerParameter.oracleFee
-        );
+        return Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity;
     }
 
     /// @notice Commits the price to specified version
@@ -260,6 +256,8 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param newGranularity The new granularity value in seconds
     /// @param newSettlementFee The new fixed settlement fee percentage
     /// @param newOraclefee The new relative oracle fee percentage
+    /// @param newValidFrom The new valid from value in seconds
+    /// @param newValidTo The new valid to value in seconds
     function updateParameter(
         uint256 newGranularity,
         UFixed6 newSettlementFee,
@@ -267,25 +265,25 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         uint256 newValidFrom,
         uint256 newValidTo
     ) external onlyOwner {
-        uint256 currentTimestamp = current().timestamp;
+        uint256 currentTimestamp = current();
         OracleParameter memory oracleParameter = oracleFactory.parameter();
-        KeeperOracleParameter memory providerParameter = _parameter.read();
+        KeeperOracleParameter memory keeperOracleParameter = _parameter.read();
 
-        if (currentTimestamp <= providerParameter.effectiveAfter) revert KeeperFactoryInvalidParameterError();
+        if (currentTimestamp <= keeperOracleParameter.effectiveAfter) revert KeeperFactoryInvalidParameterError();
         if (newGranularity > oracleParameter.maxGranularity) revert KeeperFactoryInvalidParameterError();
         if (newSettlementFee.gt(oracleParameter.maxSettlementFee)) revert KeeperFactoryInvalidParameterError();
         if (newOraclefee.gt(oracleParameter.maxOracleFee)) revert KeeperFactoryInvalidParameterError();
 
-        providerParameter.latestGranularity = providerParameter.currentGranularity;
-        providerParameter.currentGranularity = newGranularity;
-        providerParameter.effectiveAfter = currentTimestamp;
-        providerParameter.settlementFee = newSettlementFee;
-        providerParameter.oracleFee = newOraclefee;
-        providerParameter.validFrom = newValidFrom;
-        providerParameter.validTo = newValidTo;
+        keeperOracleParameter.latestGranularity = keeperOracleParameter.currentGranularity;
+        keeperOracleParameter.currentGranularity = newGranularity;
+        keeperOracleParameter.effectiveAfter = currentTimestamp;
+        keeperOracleParameter.settlementFee = newSettlementFee;
+        keeperOracleParameter.oracleFee = newOraclefee;
+        keeperOracleParameter.validFrom = newValidFrom;
+        keeperOracleParameter.validTo = newValidTo;
 
-        _parameter.store(providerParameter);
-        emit ParameterUpdated(providerParameter);
+        _parameter.store(keeperOracleParameter);
+        emit ParameterUpdated(keeperOracleParameter);
     }
 
     /// @notice Returns whether a caller is authorized to request from this factory's instances
