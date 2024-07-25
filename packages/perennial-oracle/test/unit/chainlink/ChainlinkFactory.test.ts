@@ -127,8 +127,6 @@ describe('ChainlinkFactory', () => {
       mockFeeManager.address,
       weth.address,
       keeperOracleImpl.address,
-      4,
-      10,
       {
         multiplierBase: 0,
         bufferBase: 1_000_000,
@@ -144,6 +142,7 @@ describe('ChainlinkFactory', () => {
       5_000,
     )
     await chainlinkFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
+    await chainlinkFactory.updateParameter(1, 0, 0, 4, 10)
     await oracleFactory.register(chainlinkFactory.address)
     await chainlinkFactory.authorize(oracleFactory.address)
 
@@ -174,7 +173,7 @@ describe('ChainlinkFactory', () => {
     const report = listify(
       overwriteTimestamp(
         CHAINLINK_PAYLOAD,
-        (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+        (await keeperOracle.callStatic.next()).add((await chainlinkFactory.parameter()).validFrom),
       ),
     )
     const version = await keeperOracle.callStatic.next()
@@ -196,7 +195,7 @@ describe('ChainlinkFactory', () => {
     const report = listify(
       overwriteTimestamp(
         CHAINLINK_PAYLOAD,
-        (await keeperOracle.callStatic.next()).add(await chainlinkFactory.validFrom()),
+        (await keeperOracle.callStatic.next()).add((await chainlinkFactory.parameter()).validFrom),
       ),
     )
 

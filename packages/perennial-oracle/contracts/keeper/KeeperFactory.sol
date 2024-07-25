@@ -6,18 +6,12 @@ import "@equilibria/root/attribute/Factory.sol";
 import "@equilibria/root/attribute/Kept/Kept.sol";
 import "../interfaces/IKeeperFactory.sol";
 import "../interfaces/IOracleFactory.sol";
-import { ProviderParameter, ProviderParameterStorage } from "./types/ProviderParameter.sol";
+import { KeeperOracleParameter, KeeperOracleParameterStorage } from "./types/KeeperOracleParameter.sol";
 import { PriceRequest } from "./types/PriceRequest.sol";
 
 /// @title KeeperFactory
 /// @notice Factory contract for creating and managing keeper-based oracles
 abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
-    /// @dev A Keeper update must come at least this long after a version to be valid
-    uint256 public immutable validFrom;
-
-    /// @dev A Keeper update must come at most this long after a version to be valid
-    uint256 public immutable validTo;
-
     /// @dev The multiplier for the keeper fee on top of cost of commit
     UFixed18 internal immutable _keepCommitMultiplierBase;
 
@@ -67,28 +61,22 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     mapping(bytes32 => mapping(IPayoffProvider => bytes32)) public fromUnderlying;
 
     /// @notice The granularity of the oracle
-    ProviderParameterStorage private _parameter;
+    KeeperOracleParameterStorage private _parameter;
 
     /// @notice Mapping of oracle instance to oracle id
     mapping(IOracleProvider => bytes32) public ids;
 
     /// @notice Initializes the immutable contract state
     /// @param implementation_ IKeeperOracle implementation contract
-    /// @param validFrom_ The minimum time after a version that a keeper update can be valid
-    /// @param validTo_ The maximum time after a version that a keeper update can be valid
     /// @param commitKeepConfig_ Parameter configuration for commit keeper incentivization
     /// @param settleKeepConfig_ Parameter configuration for settle keeper incentivization
     /// @param keepCommitIncrementalBufferCallata_ Calldata buffer amount for each incremental requested update
     constructor(
         address implementation_,
-        uint256 validFrom_,
-        uint256 validTo_,
         KeepConfig memory commitKeepConfig_,
         KeepConfig memory settleKeepConfig_,
         uint256 keepCommitIncrementalBufferCallata_
     ) Factory(implementation_) {
-        validFrom = validFrom_;
-        validTo = validTo_;
         _keepCommitMultiplierBase = commitKeepConfig_.multiplierBase;
         _keepCommitBufferBase = commitKeepConfig_.bufferBase;
         _keepCommitMultiplierCalldata = commitKeepConfig_.multiplierCalldata;
@@ -113,7 +101,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         oracleFactory = oracleFactory_;
         payoffs[IPayoffProvider(address(0))] = true;
 
-        ProviderParameter memory providerParameter;
+        KeeperOracleParameter memory providerParameter;
         providerParameter.currentGranularity = 1;
         _parameter.store(providerParameter);
     }
@@ -168,7 +156,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @dev Rounded up to the nearest granularity
     /// @return The current timestamp
     function current() public view returns (PriceRequest memory) {
-        ProviderParameter memory providerParameter = _parameter.read();
+        KeeperOracleParameter memory providerParameter = _parameter.read();
 
         uint256 effectiveGranularity = block.timestamp <= providerParameter.effectiveAfter ?
             providerParameter.latestGranularity :
@@ -264,7 +252,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
 
     /// @notice Returns the oracle parameter set
     /// @return The oracle parameter set
-    function parameter() external view returns (ProviderParameter memory) {
+    function parameter() external view returns (KeeperOracleParameter memory) {
         return _parameter.read();
     }
 
@@ -272,10 +260,16 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param newGranularity The new granularity value in seconds
     /// @param newSettlementFee The new fixed settlement fee percentage
     /// @param newOraclefee The new relative oracle fee percentage
-    function updateParameter(uint256 newGranularity, UFixed6 newSettlementFee, UFixed6 newOraclefee) external onlyOwner {
+    function updateParameter(
+        uint256 newGranularity,
+        UFixed6 newSettlementFee,
+        UFixed6 newOraclefee,
+        uint256 newValidFrom,
+        uint256 newValidTo
+    ) external onlyOwner {
         uint256 currentTimestamp = current().timestamp;
         OracleParameter memory oracleParameter = oracleFactory.parameter();
-        ProviderParameter memory providerParameter = _parameter.read();
+        KeeperOracleParameter memory providerParameter = _parameter.read();
 
         if (currentTimestamp <= providerParameter.effectiveAfter) revert KeeperFactoryInvalidParameterError();
         if (newGranularity > oracleParameter.maxGranularity) revert KeeperFactoryInvalidParameterError();
@@ -287,6 +281,8 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
         providerParameter.effectiveAfter = currentTimestamp;
         providerParameter.settlementFee = newSettlementFee;
         providerParameter.oracleFee = newOraclefee;
+        providerParameter.validFrom = newValidFrom;
+        providerParameter.validTo = newValidTo;
 
         _parameter.store(providerParameter);
         emit ParameterUpdated(providerParameter);
@@ -330,9 +326,12 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param version The oracle version to validate against
     /// @param prices The list of price records to validate
     function _validatePrices(uint256 version, PriceRecord[] memory prices) private view {
+        KeeperOracleParameter memory keeperOracleParameter = _parameter.read();
         for (uint256 i; i < prices.length; i++)
-            if (prices[i].timestamp < version + validFrom || prices[i].timestamp > version + validTo)
-                revert KeeperFactoryVersionOutsideRangeError();
+            if (
+                prices[i].timestamp < version + keeperOracleParameter.validFrom ||
+                prices[i].timestamp > version + keeperOracleParameter.validTo
+            ) revert KeeperFactoryVersionOutsideRangeError();
     }
 
     /// @notice Returns the applicable value for the keeper fee
