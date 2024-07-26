@@ -15,13 +15,15 @@ struct OracleParameter {
     UFixed6 maxOracleFee;
 }
 struct StoredOracleParameter {
-    uint16 maxGranularity;
-    uint48 maxSettlementFee;
-    uint24 maxOracleFee;
+    /* slot 0 */
+    uint16 maxGranularity;      // <= 65k
+    uint48 maxSettlementFee;    // <= 281m
+    uint24 maxOracleFee;        // <= 100%
 }
 struct OracleParameterStorage { StoredOracleParameter value; }
 using OracleParameterStorageLib for OracleParameterStorage global;
 
+/// @dev (external-safe): this library is safe to externalize
 library OracleParameterStorageLib {
     // sig: 0xfc481d85
     error OracleParameterStorageInvalidError();
@@ -37,6 +39,7 @@ library OracleParameterStorageLib {
 
     function validate(OracleParameter memory newValue) private pure {
         if (newValue.maxGranularity < 1) revert OracleParameterStorageInvalidError();
+        if (newValue.maxOracleFee.gt(UFixed6Lib.ONE)) revert OracleParameterStorageInvalidError();
     }
 
     function store(OracleParameterStorage storage self, OracleParameter memory newValue) internal {
