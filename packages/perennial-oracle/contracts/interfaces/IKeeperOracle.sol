@@ -11,6 +11,7 @@ import { PriceRequest } from "../keeper/types/PriceRequest.sol";
 interface IKeeperOracle is IOracleProvider, IInstance {
     event CallbackRequested(SettlementCallback indexed callback);
     event CallbackFulfilled(SettlementCallback indexed callback);
+    event OracleUpdated(IOracleProvider newOracle);
 
     struct SettlementCallback {
         /// @dev The market to settle
@@ -42,15 +43,18 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     error KeeperOracleInvalidCallbackError();
     //sig: 0x7321f78c
     error KeeperOracleNoPriorRequestsError();
+    //sig: TODO
+    error OracleNotOracleError();
 
     function initialize() external;
-    function commit(OracleVersion memory version) external returns (bool);
-    function settle(IMarket market, uint256 version, uint256 maxCount) external;
+    function register(IOracle newOracle) external;
+    function commit(OracleVersion memory version, address receiver) external;
+    function settle(uint256 version, uint256 maxCount) external;
     function next() external view returns (uint256);
-    function globalCallbacks(uint256 version) external view returns (address[] memory);
-    function localCallbacks(uint256 version, IMarket market) external view returns (address[] memory);
+    function localCallbacks(uint256 version) external view returns (address[] memory);
 
     function timeout() external view returns (uint256);
+    function oracle() external view returns (IOracle);
     function requests(uint256 index) external view returns (PriceRequest memory);
     function responses(uint256 timestamp) external view returns (PriceResponse memory);
     function linkbacks(uint256 timestamp) external view returns (uint256);

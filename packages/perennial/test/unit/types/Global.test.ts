@@ -105,7 +105,7 @@ function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameter
   }
 }
 
-describe.only('Global', () => {
+describe('Global', () => {
   let owner: SignerWithAddress
 
   let globalStorageLib: GlobalStorageLib

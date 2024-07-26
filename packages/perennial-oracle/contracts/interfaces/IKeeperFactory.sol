@@ -59,5 +59,5 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory, IKept {
     function parameter() external view returns (KeeperOracleParameter memory);
     function updateParameter(uint256 newGranularity, UFixed6 newSettlementFee, UFixed6 newOracleFee, uint256 newValidFrom, uint256 newValidTo) external;
     function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable;
-    function settle(bytes32[] memory ids, IMarket[] memory markets, uint256[] memory versions, uint256[] memory maxCounts) external;
+    function settle(bytes32[] memory ids, uint256[] memory versions, uint256[] memory maxCounts) external;
 }

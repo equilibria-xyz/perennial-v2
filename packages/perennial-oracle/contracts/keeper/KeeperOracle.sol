@@ -16,6 +16,9 @@ import { PriceRequest, PriceRequestStorage } from "./types/PriceRequest.sol";
 contract KeeperOracle is IKeeperOracle, Instance {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+    /// @dev The oracle provider authorized to call this sub oracle
+    IOracle public oracle;
+
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 public immutable timeout;
 
@@ -28,11 +31,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev Mapping from timestamp to oracle version responses
     mapping(uint256 => PriceResponseStorage) private _responses;
 
-    /// @dev Mapping from version to a set of registered markets for settlement callback
-    mapping(uint256 => EnumerableSet.AddressSet) private _globalCallbacks;
-
     /// @dev Mapping from version and market to a set of registered accounts for settlement callback
-    mapping(uint256 => mapping(IMarket => EnumerableSet.AddressSet)) private _localCallbacks;
+    mapping(uint256 => EnumerableSet.AddressSet) private _localCallbacks;
 
     /// @dev Mapping of lookback links for versions requested with out a new price
     mapping(uint256 => uint256) public linkbacks;
@@ -52,19 +52,17 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @return The global state of the oracle
     function global() external view returns (Global memory) { return _global; }
 
-    /// @notice Returns the global oracle callback set for a version
-    /// @param version The version to lookup
-    /// @return The global oracle callback set for the version
-    function globalCallbacks(uint256 version) external view returns (address[] memory) {
-        return _globalCallbacks[version].values();
+    // TODO
+    function register(IOracle newOracle) external onlyOwner {
+        oracle = newOracle;
+        emit OracleUpdated(newOracle);
     }
 
     /// @notice Returns the local oracle callback set for a version and market
     /// @param version The version to lookup
-    /// @param market The market to lookup
     /// @return The local oracle callback set for the version and market
-    function localCallbacks(uint256 version, IMarket market) external view returns (address[] memory) {
-        return _localCallbacks[version][market].values();
+    function localCallbacks(uint256 version) external view returns (address[] memory) {
+        return _localCallbacks[version].values();
     }
 
     /// @notice Returns the next requested oracle version
@@ -74,10 +72,12 @@ contract KeeperOracle is IKeeperOracle, Instance {
         return _requests[_global.latestIndex + 1].read().timestamp;
     }
 
+    // TODO
     function requests(uint256 index) external view returns (PriceRequest memory) {
         return _requests[index].read();
     }
 
+    // TODO
     function responses(uint256 timestamp) external view returns (PriceResponse memory) {
         return _responses[timestamp].read();
     }
@@ -90,17 +90,15 @@ contract KeeperOracle is IKeeperOracle, Instance {
     ///       - If no request has been made this version, a new price request will be created
     ///       - If a request has been made without a new price this version, its linkback will be removed, and a new price request will be created
     ///       - If a request has been made with a new price this version, no action will be taken
-    /// @param market The market to callback to
     /// @param account The account to callback to
     /// @param newPrice Whether a new price should be requested
-    function request(IMarket market, address account, bool newPrice) external onlyAuthorized {
+    function request(IMarket, address account, bool newPrice) external onlyOracle {
         KeeperOracleParameter memory keeperOracleParameter = IKeeperFactory(address(factory())).parameter();
         uint256 currentTimestamp = current();
 
         if (newPrice) {
-            _globalCallbacks[currentTimestamp].add(address(market));
-            _localCallbacks[currentTimestamp][market].add(account);
-            emit CallbackRequested(SettlementCallback(market, account, currentTimestamp));
+            _localCallbacks[currentTimestamp].add(account);
+            emit CallbackRequested(SettlementCallback(oracle.market(), account, currentTimestamp));
         }
 
         PriceRequest memory currentRequest = _requests[_global.currentIndex].read();
@@ -108,7 +106,12 @@ contract KeeperOracle is IKeeperOracle, Instance {
         if (currentRequest.timestamp == currentTimestamp) return; // already requested new price
         if (newPrice) {
             _requests[++_global.currentIndex].store(
-                PriceRequest(currentTimestamp, keeperOracleParameter.settlementFee, keeperOracleParameter.oracleFee)
+                PriceRequest(
+                    currentTimestamp,
+                    keeperOracleParameter.syncFee,
+                    keeperOracleParameter.asyncFee,
+                    keeperOracleParameter.oracleFee
+                )
             );
             delete linkbacks[currentTimestamp];
             emit OracleProviderVersionRequested(currentTimestamp, true);
@@ -155,86 +158,89 @@ contract KeeperOracle is IKeeperOracle, Instance {
         else
             (oracleVersion, oracleReceipt) = (
                 _responses[timestamp].read().toOracleVersion(timestamp),
-                _responses[timestamp].read().toOracleReceipt()
+                _responses[timestamp].read().toOracleReceipt(_localCallbacks[timestamp].length())
             );
     }
 
     /// @notice Commits the price to specified version
     /// @dev Verification of price happens in the oracle's factory
     /// @param version The oracle version to commit
-    /// @return requested Whether the commit was requested
-    function commit(OracleVersion memory version) external onlyFactory returns (bool requested) {
+    /// @param receiver The receiver of the settlement fee
+    function commit(OracleVersion memory version, address receiver) external onlyFactory {
         if (version.timestamp == 0) revert KeeperOracleVersionOutsideRangeError();
-        requested = (version.timestamp == next()) ? _commitRequested(version) : _commitUnrequested(version);
+        PriceResponse memory priceResponse = (version.timestamp == next()) ?
+            _commitRequested(version) :
+            _commitUnrequested(version);
         _global.latestVersion = uint64(version.timestamp);
 
         emit OracleProviderVersionFulfilled(version);
 
-        for (uint256 i; i < _globalCallbacks[version.timestamp].length(); i++)
-            _settle(IMarket(_globalCallbacks[version.timestamp].at(i)), address(0));
+        IMarket market = oracle.market();
+        market.settle(address(0));
+        oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
+        market.token().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
     }
 
     /// @notice Performs an asynchronous local settlement callback
     /// @dev Distribution of keeper incentive is consolidated in the oracle's factory
-    /// @param market The market to settle
     /// @param version The version to settle
     /// @param maxCount The maximum number of settlement callbacks to perform before exiting
-    function settle(IMarket market, uint256 version, uint256 maxCount) external onlyFactory {
-        EnumerableSet.AddressSet storage callbacks = _localCallbacks[version][market];
+    function settle(uint256 version, uint256 maxCount) external onlyFactory {
+        EnumerableSet.AddressSet storage callbacks = _localCallbacks[version];
 
         if (_global.latestVersion < version) revert KeeperOracleVersionOutsideRangeError();
         if (maxCount == 0) revert KeeperOracleInvalidCallbackError();
         if (callbacks.length() == 0) revert KeeperOracleInvalidCallbackError();
 
+        IMarket market = oracle.market();
+
         for (uint256 i; i < maxCount && callbacks.length() > 0; i++) {
             address account = callbacks.at(0);
-            _settle(market, account);
+            market.settle(account);
             callbacks.remove(account);
             emit CallbackFulfilled(SettlementCallback(market, account, version));
+
+            // full settlement fee already cleamed in commit
+            PriceResponse memory priceResponse = _responses[version].read();
+            market.token().push(msg.sender, UFixed18Lib.from(priceResponse.asyncFee));
         }
     }
 
     /// @notice Commits the price to a requested version
     /// @dev This commit function will pay out a keeper fee for providing a valid price or carrying over latest price
     /// @param oracleVersion The oracle version to commit
-    /// @return Whether the commit was requested
-    function _commitRequested(OracleVersion memory oracleVersion) private returns (bool) {
+    /// @return priceResponse The response to the price request
+    function _commitRequested(OracleVersion memory oracleVersion) private returns (PriceResponse memory priceResponse) {
         PriceRequest memory priceRequest = _requests[_global.latestIndex + 1].read();
 
         if (block.timestamp <= (next() + timeout)) {
             if (!oracleVersion.valid) revert KeeperOracleInvalidPriceError();
-            _responses[oracleVersion.timestamp].store(priceRequest.toPriceResponse(oracleVersion));
+            priceResponse = priceRequest.toPriceResponse(oracleVersion);
         } else {
             PriceResponse memory latestPrice = _responses[_global.latestVersion].read();
-            _responses[oracleVersion.timestamp].store(priceRequest.toPriceResponseInvalid(latestPrice));
+            priceResponse = priceRequest.toPriceResponseInvalid(latestPrice);
         }
 
+        _responses[oracleVersion.timestamp].store(priceResponse);
         _global.latestIndex++;
-        return true;
     }
 
     /// @notice Commits the price to a non-requested version
     /// @param oracleVersion The oracle version to commit
-    /// @return Whether the commit was requested
-    function _commitUnrequested(OracleVersion memory oracleVersion) private returns (bool) {
+    /// @return priceResponse The response to the price request
+    function _commitUnrequested(OracleVersion memory oracleVersion) private returns (PriceResponse memory priceResponse) {
         if (!oracleVersion.valid) revert KeeperOracleInvalidPriceError();
         if (oracleVersion.timestamp <= _global.latestVersion || (next() != 0 && oracleVersion.timestamp >= next()))
             revert KeeperOracleVersionOutsideRangeError();
 
-        _responses[oracleVersion.timestamp].store(PriceResponseLib.fromUnrequested(oracleVersion));
-        return false;
+        priceResponse = PriceResponseLib.fromUnrequested(oracleVersion);
+
+        _responses[oracleVersion.timestamp].store(priceResponse);
     }
 
-    /// @notice Performs a settlement callback for the account on the market
-    /// @param market The market to settle
-    /// @param account The account to settle
-    function _settle(IMarket market, address account) private {
-        market.settle(account);
-    }
-
-    /// @dev Only allow authorized callers
-    modifier onlyAuthorized {
-        if (!IOracleProviderFactory(address(factory())).authorized(msg.sender)) revert OracleProviderUnauthorizedError();
+    /// @dev Only allow authorized oracle provider to call
+    modifier onlyOracle {
+        if (msg.sender != address(oracle)) revert OracleNotOracleError();
         _;
     }
 }

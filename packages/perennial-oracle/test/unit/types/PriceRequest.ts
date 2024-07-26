@@ -47,22 +47,43 @@ describe('PriceRequest', () => {
       })
     })
 
-    context('.settlementFee', async () => {
+    context('.syncFee', async () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await priceRequest.store({
           ...DEFAULT_PRICE_REQUEST,
-          settlementFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          syncFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await priceRequest.read()
-        expect(value.settlementFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.syncFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if settlementFee out of range', async () => {
+      it('reverts if syncFee out of range', async () => {
         await expect(
           priceRequest.store({
             ...DEFAULT_PRICE_REQUEST,
-            settlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
+            syncFee: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(priceRequest, 'PriceRequestStorageInvalidError')
+      })
+    })
+
+    context('.asyncFee', async () => {
+      const STORAGE_SIZE = 48
+      it('saves if in range', async () => {
+        await priceRequest.store({
+          ...DEFAULT_PRICE_REQUEST,
+          asyncFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await priceRequest.read()
+        expect(value.asyncFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if asyncFee out of range', async () => {
+        await expect(
+          priceRequest.store({
+            ...DEFAULT_PRICE_REQUEST,
+            asyncFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(priceRequest, 'PriceRequestStorageInvalidError')
       })
