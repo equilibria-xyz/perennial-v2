@@ -26,6 +26,9 @@ abstract contract Manager is IManager, Kept {
     /// @dev Verifies EIP712 messages for this extension
     IOrderVerifier public verifier;
 
+    /// @dev Serial order identifier unique across all orders
+    uint256 private _nextOrderId;
+
     // TODO: need a way to invalidate spent order IDs
     /// @dev Stores trigger orders while awaiting their conditions to become true
     /// Market => User => Nonce => Order
@@ -42,26 +45,30 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Initialize the contract
     /// @param ethOracle_ Chainlink ETH/USD oracle used for keeper compensation
-    function initialize(AggregatorV3Interface ethOracle_, KeepConfig memory keepConfig_) external initializer(1) {
+    function initialize(
+        AggregatorV3Interface ethOracle_, 
+        KeepConfig memory keepConfig_, 
+        uint256 firstOrderId
+    ) external initializer(1) {
         __Kept__initialize(ethOracle_, DSU);
         keepConfig = keepConfig_;
+        _nextOrderId = firstOrderId;
     }
 
     /// @inheritdoc IManager
-    function placeOrder(IMarket market, TriggerOrder calldata order, uint256 nonce) external {
-        _orders[market][msg.sender][nonce].store(order);
-        // TODO: invalidate the nonce through the verifier
-        emit OrderPersisted(market, msg.sender, order, nonce);
+    function placeOrder(IMarket market, TriggerOrder calldata order) external {
+        uint256 orderId = _nextOrderId++;
+        _orders[market][msg.sender][orderId].store(order);
+        emit OrderPlaced(market, msg.sender, order, 0, orderId);
     }
 
     /// @inheritdoc IManager
     function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external {}
 
     /// @inheritdoc IManager
-    function cancelOrder(IMarket market, uint256 nonce) external {
-        delete _orders[market][msg.sender][nonce];
-        // TODO: invalidate the nonce through the verifier
-        emit OrderCancelled(market, msg.sender, nonce);
+    function cancelOrder(IMarket market, uint256 orderId) external {
+        delete _orders[market][msg.sender][orderId];
+        emit OrderCancelled(market, msg.sender, orderId);
     }
 
     /// @inheritdoc IManager

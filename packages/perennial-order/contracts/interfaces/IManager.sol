@@ -12,25 +12,33 @@ interface IManager {
     /// @param market Perennial market for which the order is intended
     /// @param user Actor who wants to change their position in the market
     /// @param order Desired change in position and conditions upon which change may be made
-    event OrderPersisted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 nonce);
+    /// @param nonce Message identifier assigned by the client, 0 if not created from message
+    /// @param orderId Order identifier assigned by the manager, unique across users
+    event OrderPlaced(
+        IMarket indexed market, 
+        address indexed user, 
+        TriggerOrder order, 
+        uint256 nonce,
+        uint256 orderId
+    );
 
     /// @notice Emitted when an order has been cancelled
     /// @param market Perennial market for which the order was intended
     /// @param user Actor whose order was cancelled
-    /// @param nonce Uniquely identifies the cancelled order for the user
-    event OrderCancelled(IMarket indexed market, address indexed user, uint256 nonce);
+    /// @param orderId Uniquely identifies the cancelled order
+    event OrderCancelled(IMarket indexed market, address indexed user, uint256 orderId);
 
     /// @notice Emitted when a trigger orders conditions have been met and the user's position has been updated
     /// @param market Perennial market which the order affected
     /// @param user Actor whose position was changed
     /// @param order Change in position and conditions which were satisfied
-    event OrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 nonce);
+    /// @param orderId Uniquely identifies the executed order
+    event OrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderId);
 
     /// @notice Store a new trigger order or replace an existing trigger order
     /// @param market Perennial market in which user wants to change their position
     /// @param order Desired change in position and conditions upon which change may be made
-    /// @param nonce Order identifier, unique per-user; set to existing order identifier to replace
-    function placeOrder(IMarket market, TriggerOrder calldata order, uint256 nonce) external;
+    function placeOrder(IMarket market, TriggerOrder calldata order) external;
 
     /// @notice Store a new trigger order via a signed message; cannot be used to replace
     /// @param action Message containing the market, order, and nonce used to uniquely identify the user's order.
@@ -39,8 +47,8 @@ interface IManager {
 
     /// @notice Cancels a trigger order
     /// @param market Perennial market for which the order was submitted
-    /// @param nonce Identifies the order to cancel
-    function cancelOrder(IMarket market, uint256 nonce) external;
+    /// @param orderId Uniquely identifies the order to cancel
+    function cancelOrder(IMarket market, uint256 orderId) external;
 
     /// @notice Cancels a trigger order via a signed message
     /// @param action Message containing the market, order, and nonce used to uniquely identify the order to cancel
