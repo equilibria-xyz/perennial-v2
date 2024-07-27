@@ -402,6 +402,7 @@ describe('Market', () => {
   let operator: SignerWithAddress
   let coordinator: SignerWithAddress
   let factorySigner: SignerWithAddress
+  let oracleSigner: SignerWithAddress
   let oracleFactorySigner: SignerWithAddress
   let verifier: FakeContract<IVerifier>
   let factory: FakeContract<IMarketFactory>
@@ -428,6 +429,7 @@ describe('Market', () => {
       oracleFactorySigner,
     ] = await ethers.getSigners()
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    oracleSigner = await impersonate.impersonateWithBalance(oracle.address, utils.parseEther('10'))
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
 
     verifier = await smock.fake<IVerifier>('IVerifier')
@@ -22637,7 +22639,7 @@ describe('Market', () => {
       })
     })
 
-    describe.only('#claimFee', async () => {
+    describe('#claimFee', async () => {
       const FEE = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).sub(5) // loss of precision
       const PROTOCOL_FEE = FEE.div(2)
       const MARKET_FEE = FEE.sub(PROTOCOL_FEE)
@@ -22696,12 +22698,12 @@ describe('Market', () => {
         expect((await market.global()).donation).to.equal(DONATION)
       })
 
-      it.only('claims fee (oracle)', async () => {
-        dsu.transfer.whenCalledWith(oracleFactorySigner.address, ORACLE_FEE.mul(1e12)).returns(true)
+      it('claims fee (oracle)', async () => {
+        dsu.transfer.whenCalledWith(oracleSigner.address, ORACLE_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(oracleFactorySigner).claimFee())
+        await expect(market.connect(oracleSigner).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(oracleFactorySigner.address, ORACLE_FEE)
+          .withArgs(oracleSigner.address, ORACLE_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
         expect((await market.global()).oracleFee).to.equal(0)
@@ -22735,7 +22737,7 @@ describe('Market', () => {
         expect((await market.global()).donation).to.equal(0)
       })
 
-      it.only('claims fee (none)', async () => {
+      it('claims fee (none)', async () => {
         await market.connect(user).claimFee()
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)

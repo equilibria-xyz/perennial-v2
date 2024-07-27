@@ -347,8 +347,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _global.store(newGlobal);
         _locals[msg.sender].store(newLocal);
 
-        token.push(msg.sender, UFixed18Lib.from(feeReceived));
-        emit FeeClaimed(msg.sender, feeReceived);
+        if (!feeReceived.isZero()) {
+            token.push(msg.sender, UFixed18Lib.from(feeReceived));
+            emit FeeClaimed(msg.sender, feeReceived);
+        }
     }
 
     /// @notice Settles any exposure that has accrued to the market
