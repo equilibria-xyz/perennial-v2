@@ -12,7 +12,8 @@ const { ethers } = HRE
 
 const DEFAULT_PRICE_RESPONSE: PriceResponseStruct = {
   price: 0,
-  settlementFee: 0,
+  syncFee: 0,
+  asyncFee: 0,
   oracleFee: 0,
   valid: false,
 }
@@ -162,7 +163,8 @@ describe('PriceResponse', () => {
       })
 
       expect(value.price).to.equal(parse6decimal('123'))
-      expect(value.settlementFee).to.equal(0)
+      expect(value.syncFee).to.equal(0)
+      expect(value.asyncFee).to.equal(0)
       expect(value.oracleFee).to.equal(0)
       expect(value.valid).to.equal(true)
     })

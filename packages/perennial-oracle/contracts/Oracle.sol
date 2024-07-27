@@ -37,7 +37,7 @@ contract Oracle is IOracle, Instance {
     }
 
     function register(IMarket newMarket) external onlyOwner {
-        market = market;
+        market = newMarket;
         emit MarketUpdated(newMarket);
     }
 

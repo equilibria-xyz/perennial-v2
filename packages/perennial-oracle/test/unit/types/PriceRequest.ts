@@ -11,7 +11,8 @@ const { ethers } = HRE
 
 const DEFAULT_PRICE_REQUEST: PriceRequestStruct = {
   timestamp: 0,
-  settlementFee: 0,
+  syncFee: 0,
+  asyncFee: 0,
   oracleFee: 0,
 }
 
@@ -116,7 +117,8 @@ describe('PriceRequest', () => {
       const value = await priceRequest.toPriceResponse(
         {
           ...DEFAULT_PRICE_REQUEST,
-          settlementFee: parse6decimal('2.0'),
+          syncFee: parse6decimal('1.0'),
+          asyncFee: parse6decimal('0.5'),
           oracleFee: parse6decimal('0.1'),
           timestamp: 1337,
         },
@@ -128,7 +130,8 @@ describe('PriceRequest', () => {
       )
 
       expect(value.price).to.equal(parse6decimal('123'))
-      expect(value.settlementFee).to.equal(parse6decimal('2.0'))
+      expect(value.syncFee).to.equal(parse6decimal('1.0'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.5'))
       expect(value.oracleFee).to.equal(parse6decimal('0.1'))
       expect(value.valid).to.equal(true)
     })
@@ -137,7 +140,8 @@ describe('PriceRequest', () => {
       const value = await priceRequest.toPriceResponse(
         {
           ...DEFAULT_PRICE_REQUEST,
-          settlementFee: parse6decimal('2.0'),
+          syncFee: parse6decimal('1.0'),
+          asyncFee: parse6decimal('0.5'),
           oracleFee: parse6decimal('0.1'),
           timestamp: 1337,
         },
@@ -149,7 +153,8 @@ describe('PriceRequest', () => {
       )
 
       expect(value.price).to.equal(parse6decimal('123'))
-      expect(value.settlementFee).to.equal(parse6decimal('2.0'))
+      expect(value.syncFee).to.equal(parse6decimal('1.0'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.5'))
       expect(value.oracleFee).to.equal(parse6decimal('0.1'))
       expect(value.valid).to.equal(false)
     })
@@ -160,20 +165,23 @@ describe('PriceRequest', () => {
       const value = await priceRequest.toPriceResponseInvalid(
         {
           ...DEFAULT_PRICE_REQUEST,
-          settlementFee: parse6decimal('2.0'),
+          syncFee: parse6decimal('1.0'),
+          asyncFee: parse6decimal('0.5'),
           oracleFee: parse6decimal('0.1'),
           timestamp: 1337,
         },
         {
           price: parse6decimal('123'),
-          settlementFee: parse6decimal('3.0'),
+          syncFee: parse6decimal('2.0'),
+          asyncFee: parse6decimal('1.0'),
           oracleFee: parse6decimal('0.2'),
           valid: true,
         },
       )
 
       expect(value.price).to.equal(parse6decimal('123'))
-      expect(value.settlementFee).to.equal(parse6decimal('2.0'))
+      expect(value.syncFee).to.equal(parse6decimal('1.0'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.5'))
       expect(value.oracleFee).to.equal(parse6decimal('0.1'))
       expect(value.valid).to.equal(false)
     })

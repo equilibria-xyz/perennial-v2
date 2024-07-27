@@ -14,9 +14,6 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @dev The root oracle factory
     IOracleFactory public oracleFactory;
 
-    /// @dev Mapping of which factory's instances are authorized to request from this factory's instances
-    mapping(IFactory => bool) public callers;
-
     /// @dev Registered payoff providers
     mapping(IPayoffProvider => bool) public payoffs;
 
@@ -44,7 +41,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
     /// @notice Initializes the contract state
     /// @param oracleFactory_ The root oracle factory
-    function initialize(IOracleFactory oracleFactory_, Token18 dsu_) external initializer(1) {
+    function initialize(IOracleFactory oracleFactory_) external initializer(1) {
         __Factory__initialize();
 
         oracleFactory = oracleFactory_;
@@ -61,13 +58,6 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param id The id of the oracle
     function updateId(IOracleProvider oracleProvider, bytes32 id) external onlyOwner {
         ids[oracleProvider] = id;
-    }
-
-    /// @notice Authorizes a factory's instances to request from this factory's instances
-    /// @param factory The factory to authorize
-    function authorize(IFactory factory) external onlyOwner {
-        callers[factory] = true;
-        emit CallerAuthorized(factory);
     }
 
     /// @notice Authorizes a factory's instances to request from this factory's instances
@@ -191,16 +181,6 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
         _parameter.store(keeperOracleParameter);
         emit ParameterUpdated(keeperOracleParameter);
-    }
-
-    /// @notice Returns whether a caller is authorized to request from this factory's instances
-    /// @param caller The caller to check
-    /// @return Whether the caller is authorized
-    function authorized(address caller) external view returns (bool) {
-        IInstance callerInstance = IInstance(caller);
-        IFactory callerFactory = callerInstance.factory();
-        if (!callerFactory.instances(callerInstance)) return false;
-        return callers[callerFactory];
     }
 
     /// @notice Returns the payoff definition for the specified id

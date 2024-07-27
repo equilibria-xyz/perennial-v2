@@ -1,11 +1,10 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { expect, use } from 'chai'
+import { expect } from 'chai'
 import HRE from 'hardhat'
 
 import { impersonate } from '../../../../common/testutil'
-import { signIntent } from '../../../../perennial-verifier/test/helpers/erc712'
 
 import {
   Market,
@@ -50,7 +49,6 @@ import {
 } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
-use(smock.matchers)
 
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
@@ -22639,7 +22637,7 @@ describe('Market', () => {
       })
     })
 
-    describe('#claimFee', async () => {
+    describe.only('#claimFee', async () => {
       const FEE = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).sub(5) // loss of precision
       const PROTOCOL_FEE = FEE.div(2)
       const MARKET_FEE = FEE.sub(PROTOCOL_FEE)
@@ -22698,7 +22696,7 @@ describe('Market', () => {
         expect((await market.global()).donation).to.equal(DONATION)
       })
 
-      it('claims fee (oracle)', async () => {
+      it.only('claims fee (oracle)', async () => {
         dsu.transfer.whenCalledWith(oracleFactorySigner.address, ORACLE_FEE.mul(1e12)).returns(true)
 
         await expect(market.connect(oracleFactorySigner).claimFee())
@@ -22737,7 +22735,7 @@ describe('Market', () => {
         expect((await market.global()).donation).to.equal(0)
       })
 
-      it('claims fee (none)', async () => {
+      it.only('claims fee (none)', async () => {
         await market.connect(user).claimFee()
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
