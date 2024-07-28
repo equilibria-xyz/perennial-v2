@@ -79,6 +79,7 @@ export async function createMarketETH(
   )
   // Create the market in which user or collateral account may interact
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  await keeperOracle.register(oracle.address)
   await oracle.register(market.address)
   return [market, oracle, keeperOracle]
 }
@@ -102,6 +103,8 @@ export async function createMarketBTC(
   )
   // Create the market in which user or collateral account may interact
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  await keeperOracle.register(oracle.address)
+  await oracle.register(market.address)
   return [market, oracle, keeperOracle]
 }
 

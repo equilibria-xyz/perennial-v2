@@ -44,6 +44,7 @@ import {
   Oracle__factory,
   IOracleFactory,
   IOracle,
+  IOracle__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
@@ -148,8 +149,6 @@ export async function createMarket(
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateRiskParameter(riskParameter, overrides ?? {})
   await market.updateParameter(marketParameter, overrides ?? {})
-
-  await oracle.connect(owner).register(market.address)
 
   return market
 }
