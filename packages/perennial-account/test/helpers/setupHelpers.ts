@@ -43,6 +43,7 @@ import {
   IKeeperOracle,
   Oracle__factory,
   IOracleFactory,
+  IOracle,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
@@ -51,6 +52,7 @@ import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/gener
 // If timestamp matches a requested version, callbacks implicitly settle the market.
 export async function advanceToPrice(
   keeperOracle: IKeeperOracle,
+  receiver: SignerWithAddress,
   timestamp: BigNumber,
   price: BigNumber,
   overrides?: CallOverrides,
@@ -70,7 +72,9 @@ export async function advanceToPrice(
     price: price,
     valid: true,
   }
-  const tx: ContractTransaction = await keeperOracle.connect(oracleFactory).commit(oracleVersion, overrides ?? {})
+  const tx: ContractTransaction = await keeperOracle
+    .connect(oracleFactory)
+    .commit(oracleVersion, receiver.address, overrides ?? {})
 
   // inform the caller of the current timestamp
   return (await HRE.ethers.provider.getBlock(tx.blockNumber ?? 0)).timestamp
@@ -81,7 +85,7 @@ export async function createMarket(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
   dsu: IERC20Metadata,
-  oracle: IOracleProvider,
+  oracle: IOracle,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
   overrides?: CallOverrides,
@@ -145,6 +149,8 @@ export async function createMarket(
   await market.updateRiskParameter(riskParameter, overrides ?? {})
   await market.updateParameter(marketParameter, overrides ?? {})
 
+  await oracle.connect(owner).register(market.address)
+
   return market
 }
 
@@ -183,7 +189,6 @@ export async function deployProtocolForOracle(
 
   // Impersonate the owner of the oracle factory to authorize it for the newly-deployed market factory
   const authorizableOracleFactory = new OracleFactory__factory(owner).attach(oracleFactory.address)
-  await authorizableOracleFactory.connect(owner).authorize(marketFactory.address)
   return marketFactory
 }
 
@@ -248,7 +253,7 @@ export async function deployOracleFactory(owner: SignerWithAddress, dsuAddress: 
   // Deploy oracle factory to a proxy
   const oracleImpl = await new Oracle__factory(owner).deploy()
   const oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-  await oracleFactory.connect(owner).initialize(dsuAddress)
+  await oracleFactory.connect(owner).initialize()
   return oracleFactory
 }
 

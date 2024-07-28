@@ -38,6 +38,7 @@ interface IOracle is IOracleProvider, IInstance {
     }
 
     function initialize(IOracleProvider initialProvider) external;
+    function register(IMarket newMarket) external;
     function update(IOracleProvider newProvider) external;
     function claimFee(UFixed6 settlementFeeRequested) external;
     function market() external view returns (IMarket);

@@ -82,6 +82,7 @@ describe('Controller_Arbitrum', () => {
   let userB: SignerWithAddress
   let userC: SignerWithAddress
   let keeper: SignerWithAddress
+  let receiver: SignerWithAddress
   let lastNonce = 0
   let lastEthPrice: BigNumber
   let currentTime: BigNumber
@@ -162,7 +163,7 @@ describe('Controller_Arbitrum', () => {
 
   const fixture = async () => {
     // deploy the protocol
-    ;[owner, userA, userB, userC, keeper] = await ethers.getSigners()
+    ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
     ;[dsu, usdc] = await getStablecoins(owner)
     let oracle: IOracleProvider
@@ -173,7 +174,7 @@ describe('Controller_Arbitrum', () => {
       marketFactory,
       dsu,
     )
-    await advanceToPrice(ethKeeperOracle, currentTime, parse6decimal('3113.7128'), TX_OVERRIDES)
+    await advanceToPrice(ethKeeperOracle, receiver, currentTime, parse6decimal('3113.7128'), TX_OVERRIDES)
     lastEthPrice = (await oracle.status())[0].price
 
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
@@ -512,7 +513,7 @@ describe('Controller_Arbitrum', () => {
         dsu,
         TX_OVERRIDES,
       )
-      await advanceToPrice(btcKeeperOracle, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
+      await advanceToPrice(btcKeeperOracle, receiver, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
 
       // create a new group with two markets
       const message = {
@@ -563,7 +564,7 @@ describe('Controller_Arbitrum', () => {
         dsu,
         TX_OVERRIDES,
       )
-      await advanceToPrice(btcKeeperOracle, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
+      await advanceToPrice(btcKeeperOracle, receiver, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
 
       // create a new group with two markets and a maxFee smaller than the actual fee
       const message = {
