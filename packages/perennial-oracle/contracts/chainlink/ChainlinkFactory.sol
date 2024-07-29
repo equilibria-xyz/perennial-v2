@@ -18,13 +18,14 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
 
     /// @notice Initializes the immutable contract state
     /// @param chainlink_ Chainlink verifier contract
+    /// @param feeManager_ Chainlink fee manager contract
     /// @param feeTokenAddress_ Fee token address
     /// @param implementation_ IKeeperOracle implementation contract
     constructor(
         IVerifierProxy chainlink_,
-        address implementation_,
         IFeeManager feeManager_,
-        address feeTokenAddress_
+        address feeTokenAddress_,
+        address implementation_
     ) KeeperFactory(implementation_) {
         chainlink = chainlink_;
         feeManager = feeManager_;

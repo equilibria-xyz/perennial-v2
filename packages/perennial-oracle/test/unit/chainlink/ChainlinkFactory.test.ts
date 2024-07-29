@@ -121,9 +121,9 @@ describe('ChainlinkFactory', () => {
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
     chainlinkFactory = await new ChainlinkFactory__factory(owner).deploy(
       mockVerifierProxy.address,
-      keeperOracleImpl.address,
       mockFeeManager.address,
       weth.address,
+      keeperOracleImpl.address,
     )
     await chainlinkFactory.initialize(oracleFactory.address)
     await chainlinkFactory.updateParameter(1, 0, 0, 0, 4, 10)
