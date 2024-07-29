@@ -26,13 +26,15 @@ abstract contract Manager is IManager, Kept {
     /// @dev Verifies EIP712 messages for this extension
     IOrderVerifier public verifier;
 
-    /// @dev Serial order identifier unique across all orders
-    uint256 private _nextOrderId;
-
-    // TODO: need a way to invalidate spent order IDs
     /// @dev Stores trigger orders while awaiting their conditions to become true
     /// Market => User => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
+
+    /// @dev Prevents user from reusing orderIds
+    /// User => Nonce => true if spent
+    mapping(address => mapping(uint256 => bool)) private _spentOrderIds;
+
+    // TODO: will also need a _spentGroupIds mapping upon implementing the feature
 
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
@@ -45,30 +47,32 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Initialize the contract
     /// @param ethOracle_ Chainlink ETH/USD oracle used for keeper compensation
+    /// @param keepConfig_ Keeper compensation configuration
     function initialize(
-        AggregatorV3Interface ethOracle_, 
-        KeepConfig memory keepConfig_, 
-        uint256 firstOrderId
+        AggregatorV3Interface ethOracle_,
+        KeepConfig memory keepConfig_
     ) external initializer(1) {
         __Kept__initialize(ethOracle_, DSU);
         keepConfig = keepConfig_;
-        _nextOrderId = firstOrderId;
     }
 
     /// @inheritdoc IManager
-    function placeOrder(IMarket market, TriggerOrder calldata order) external {
-        uint256 orderId = _nextOrderId++;
-        _orders[market][msg.sender][orderId].store(order);
-        emit OrderPlaced(market, msg.sender, order, 0, orderId);
+    function placeOrder(IMarket market, uint256 orderNonce, TriggerOrder calldata order) external {
+        // prevent user from reusing an order identifier
+        if (_spentOrderIds[msg.sender][orderNonce]) revert ManagerInvalidOrderNonceError();
+
+        _orders[market][msg.sender][orderNonce].store(order);
+        emit OrderPlaced(market, msg.sender, order, orderNonce);
     }
 
     /// @inheritdoc IManager
     function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external {}
 
     /// @inheritdoc IManager
-    function cancelOrder(IMarket market, uint256 orderId) external {
-        delete _orders[market][msg.sender][orderId];
-        emit OrderCancelled(market, msg.sender, orderId);
+    function cancelOrder(IMarket market, uint256 orderNonce) external {
+        delete _orders[market][msg.sender][orderNonce];
+        _spentOrderIds[msg.sender][orderNonce] = true;
+        emit OrderCancelled(market, msg.sender, orderNonce);
     }
 
     /// @inheritdoc IManager
@@ -83,8 +87,11 @@ abstract contract Manager is IManager, Kept {
     function checkOrder(IMarket market, address user, uint256 nonce) external returns (bool canExecute) {}
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address user, uint256 nonce) external {}
+    function executeOrder(IMarket market, address user, uint256 nonce) external {
+        // TODO: call update on the market, changing the user's position
+        _spentOrderIds[msg.sender][nonce] = true;
+    }
 
-    // TODO: keeper compensated as referrer; may not need this
+    // TODO: pull compensation from the market
     // function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override returns (UFixed18) {}
 }

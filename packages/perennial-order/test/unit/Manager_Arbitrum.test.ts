@@ -24,7 +24,7 @@ const KEEP_CONFIG = {
   bufferCalldata: 500_000,
 }
 
-const FIRST_ORDER_ID = BigNumber.from(300)
+const FIRST_ORDER_NONCE = BigNumber.from(300)
 
 const MAKER_ORDER = {
   side: BigNumber.from(0),
@@ -45,7 +45,7 @@ describe('Manager_Arbitrum', () => {
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
   const lastNonce = 0
-  let lastOrderId = FIRST_ORDER_ID
+  let lastOrderNonce = FIRST_ORDER_NONCE
 
   const fixture = async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
@@ -70,7 +70,7 @@ describe('Manager_Arbitrum', () => {
       updatedAt: 0,
       answeredInRound: 0,
     })
-    await manager.initialize(ethOracle.address, KEEP_CONFIG, FIRST_ORDER_ID)
+    await manager.initialize(ethOracle.address, KEEP_CONFIG)
   }
 
   beforeEach(async () => {
@@ -84,17 +84,17 @@ describe('Manager_Arbitrum', () => {
   })
 
   it('can place an order', async () => {
-    await expect(manager.connect(userA).placeOrder(market.address, MAKER_ORDER))
+    await expect(manager.connect(userA).placeOrder(market.address, lastOrderNonce, MAKER_ORDER))
       .to.emit(manager, 'OrderPlaced')
-      .withArgs(market.address, userA.address, MAKER_ORDER, 0, lastOrderId)
-    lastOrderId = lastOrderId.add(BigNumber.from(1))
+      .withArgs(market.address, userA.address, MAKER_ORDER, lastOrderNonce)
+    lastOrderNonce = lastOrderNonce.add(BigNumber.from(1))
   })
 
   it('can cancel an order', async () => {
-    manager.connect(userA).placeOrder(market.address, MAKER_ORDER)
+    await manager.connect(userA).placeOrder(market.address, lastOrderNonce, MAKER_ORDER)
 
-    await expect(manager.connect(userA).cancelOrder(market.address, lastOrderId))
+    await expect(manager.connect(userA).cancelOrder(market.address, lastOrderNonce))
       .to.emit(manager, 'OrderCancelled')
-      .withArgs(market.address, userA.address, lastOrderId)
+      .withArgs(market.address, userA.address, lastOrderNonce)
   })
 })

@@ -12,14 +12,12 @@ interface IManager {
     /// @param market Perennial market for which the order is intended
     /// @param user Actor who wants to change their position in the market
     /// @param order Desired change in position and conditions upon which change may be made
-    /// @param nonce Message identifier assigned by the client, 0 if not created from message
-    /// @param orderId Order identifier assigned by the manager, unique across users
+    /// @param orderNonce Client-supplied order identifier, unique to client
     event OrderPlaced(
-        IMarket indexed market, 
-        address indexed user, 
-        TriggerOrder order, 
-        uint256 nonce,
-        uint256 orderId
+        IMarket indexed market,
+        address indexed user,
+        TriggerOrder order,
+        uint256 orderNonce
     );
 
     /// @notice Emitted when an order has been cancelled
@@ -35,20 +33,25 @@ interface IManager {
     /// @param orderId Uniquely identifies the executed order
     event OrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderId);
 
+    // sig: 0xd0cfc108
+    /// @custom:error Order nonce has already been used
+    error ManagerInvalidOrderNonceError();
+
     /// @notice Store a new trigger order or replace an existing trigger order
     /// @param market Perennial market in which user wants to change their position
+    /// @param orderNonce Client-specific order identifier
     /// @param order Desired change in position and conditions upon which change may be made
-    function placeOrder(IMarket market, TriggerOrder calldata order) external;
+    function placeOrder(IMarket market, uint256 orderNonce, TriggerOrder calldata order) external;
 
-    /// @notice Store a new trigger order via a signed message; cannot be used to replace
+    /// @notice Store a new or replace an existing trigger order via a signed message
     /// @param action Message containing the market, order, and nonce used to uniquely identify the user's order.
     /// @param signature EIP712 message signature
     function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external;
 
     /// @notice Cancels a trigger order
     /// @param market Perennial market for which the order was submitted
-    /// @param orderId Uniquely identifies the order to cancel
-    function cancelOrder(IMarket market, uint256 orderId) external;
+    /// @param orderNonce Uniquely identifies the order to cancel
+    function cancelOrder(IMarket market, uint256 orderNonce) external;
 
     /// @notice Cancels a trigger order via a signed message
     /// @param action Message containing the market, order, and nonce used to uniquely identify the order to cancel

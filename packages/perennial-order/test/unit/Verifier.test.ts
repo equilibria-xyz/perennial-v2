@@ -33,6 +33,7 @@ describe('Verifier', () => {
   let managerSigner: SignerWithAddress
   let orderVerifierSigner: SignerWithAddress
   let lastNonce = 0
+  let lastOrderNonce = 30
   let currentTime: BigNumber
 
   function createCommonMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 6) {
@@ -53,6 +54,7 @@ describe('Verifier', () => {
     return {
       action: {
         market: market.address,
+        orderNonce: nextOrderNonce(),
         maxFee: MAX_FEE,
         ...createCommonMessage(userAddress, signerAddress, expiresInSeconds),
       },
@@ -77,8 +79,11 @@ describe('Verifier', () => {
 
   // create a serial nonce for testing purposes; real users may choose a nonce however they please
   function nextNonce(): BigNumber {
-    lastNonce += 1
-    return BigNumber.from(lastNonce)
+    return BigNumber.from(++lastNonce)
+  }
+
+  function nextOrderNonce(): BigNumber {
+    return BigNumber.from(++lastOrderNonce)
   }
 
   const fixture = async () => {
@@ -113,8 +118,8 @@ describe('Verifier', () => {
     // facility for signing and checking that verification was sucessful for any message containing an action
     async function check(
       message: { action: { common: { nonce: any } } },
-      signFunction: signFunctionPrototype,
-      verifyFunction: verifyFunctionPrototype,
+      signFunction: typeof signFunctionPrototype,
+      verifyFunction: typeof verifyFunctionPrototype,
     ) {
       const signature = await signFunction(userA, orderVerifier, message)
 
@@ -156,16 +161,6 @@ describe('Verifier', () => {
         signPlaceOrderAction,
         orderVerifier.connect(orderVerifierSigner).verifyPlaceOrder,
       )
-
-      // TODO: old way of testing; remove this
-      /*const message = createPlaceOrderActionMessage()
-      const signature = await signPlaceOrderAction(userA, orderVerifier, message)
-
-      await expect(orderVerifier.connect(orderVerifierSigner).verifyPlaceOrder(message, signature))
-        .to.emit(orderVerifier, 'NonceCancelled')
-        .withArgs(userA.address, message.action.common.nonce)
-
-      expect(await orderVerifier.nonces(userA.address, message.action.common.nonce)).to.eq(true)*/
     })
   })
 
