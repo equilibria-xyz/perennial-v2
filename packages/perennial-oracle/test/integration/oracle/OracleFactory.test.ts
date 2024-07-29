@@ -37,31 +37,13 @@ describe('OracleFactory', () => {
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
 
-    await oracleFactory.initialize(dsu.address)
-    await oracleFactory.updateMaxClaim(parse6decimal('10'))
+    await oracleFactory.initialize()
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(
-      PYTH_ADDRESS,
-      keeperOracleImpl.address,
-      {
-        multiplierBase: 0,
-        bufferBase: 1_000_000,
-        multiplierCalldata: 0,
-        bufferCalldata: 500_000,
-      },
-      {
-        multiplierBase: ethers.utils.parseEther('1.02'),
-        bufferBase: 2_000_000,
-        multiplierCalldata: ethers.utils.parseEther('1.03'),
-        bufferCalldata: 1_500_000,
-      },
-      5_000,
-    )
-    await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
-    await pythOracleFactory.updateParameter(1, 0, 0, 4, 10)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+    await pythOracleFactory.initialize(oracleFactory.address)
+    await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
-    await pythOracleFactory.authorize(oracleFactory.address)
 
     await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
       provider: ethers.constants.AddressZero,
@@ -77,28 +59,11 @@ describe('OracleFactory', () => {
   describe('#update', async () => {
     it('can update the price id', async () => {
       const keeperOracleImpl2 = await new KeeperOracle__factory(owner).deploy(60)
-      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
-        PYTH_ADDRESS,
-        keeperOracleImpl2.address,
-        {
-          multiplierBase: 0,
-          bufferBase: 1_000_000,
-          multiplierCalldata: 0,
-          bufferCalldata: 500_000,
-        },
-        {
-          multiplierBase: ethers.utils.parseEther('1.02'),
-          bufferBase: 2_000_000,
-          multiplierCalldata: ethers.utils.parseEther('1.03'),
-          bufferCalldata: 1_500_000,
-        },
-        5_000,
-      )
-      await pythOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
-      await pythOracleFactory2.updateParameter(1, 0, 0, 4, 10)
+      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl2.address)
+      await pythOracleFactory2.initialize(oracleFactory.address)
+      await pythOracleFactory2.updateParameter(1, 0, 0, 0, 4, 10)
       await oracleFactory.register(pythOracleFactory2.address)
 
-      await pythOracleFactory2.connect(owner).authorize(oracleFactory.address)
       await pythOracleFactory2.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
         provider: ethers.constants.AddressZero,
         decimals: 0,

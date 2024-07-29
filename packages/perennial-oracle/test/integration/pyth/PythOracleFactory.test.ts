@@ -51,6 +51,7 @@ const PYTH_ARB_USD_PRICE_FEED = '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8
 const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
+const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 const STARTING_TIME = 1686198981
 
@@ -86,8 +87,6 @@ const testOracles = [
     },
   },
 ]
-
-const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress): Promise<void> {
   const dsuMinter = await impersonateWithBalance(DSU_MINTER, utils.parseEther('10'))
@@ -503,7 +502,7 @@ testOracles.forEach(testOracle => {
       })
     })
 
-    describe.skip('#commit', async () => {
+    describe('#commit', async () => {
       it('commits successfully and incentivizes the keeper', async () => {
         await includeAt(
           async () =>
