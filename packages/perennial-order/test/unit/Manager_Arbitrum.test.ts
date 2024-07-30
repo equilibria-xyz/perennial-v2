@@ -96,5 +96,30 @@ describe('Manager_Arbitrum', () => {
     await expect(manager.connect(userA).cancelOrder(market.address, lastOrderNonce))
       .to.emit(manager, 'OrderCancelled')
       .withArgs(market.address, userA.address, lastOrderNonce)
+    lastOrderNonce = lastOrderNonce.add(BigNumber.from(1))
+  })
+
+  it('can replace an order', async () => {
+    // submit the original order
+    await manager.connect(userA).placeOrder(market.address, lastOrderNonce, MAKER_ORDER)
+
+    const replacement = MAKER_ORDER
+    replacement.price = parse6decimal('2333.44')
+
+    // submit a replacement with the same order nonce
+    await expect(manager.connect(userA).placeOrder(market.address, lastOrderNonce, replacement))
+      .to.emit(manager, 'OrderPlaced')
+      .withArgs(market.address, userA.address, replacement, lastOrderNonce)
+    lastOrderNonce = lastOrderNonce.add(BigNumber.from(1))
+  })
+
+  it('cannot reuse an order nonce', async () => {
+    // place and cancel an order, invalidating the order nonce
+    await manager.connect(userA).placeOrder(market.address, lastOrderNonce, MAKER_ORDER)
+    await manager.connect(userA).cancelOrder(market.address, lastOrderNonce)
+
+    await expect(
+      manager.connect(userA).placeOrder(market.address, lastOrderNonce, MAKER_ORDER),
+    ).to.revertedWithCustomError(manager, 'ManagerInvalidOrderNonceError')
   })
 })

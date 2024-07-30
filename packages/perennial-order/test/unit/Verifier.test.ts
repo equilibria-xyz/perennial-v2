@@ -12,6 +12,7 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import {
   IERC20,
+  IOrderVerifier,
   Manager_Arbitrum,
   Manager_Arbitrum__factory,
   OrderVerifier,
@@ -110,7 +111,7 @@ describe('Verifier', () => {
     currentTime = BigNumber.from(await currentBlockTimestamp())
   })
 
-  let signFunctionPrototype: (signer: SignerWithAddress, verifier: any, action: any) => string
+  let signFunctionPrototype: (signer: SignerWithAddress, verifier: IOrderVerifier, action: any) => Promise<string>
   let verifyFunctionPrototype: (action: any, signature: string) => any
 
   describe('#positive', () => {
@@ -165,7 +166,58 @@ describe('Verifier', () => {
   })
 
   describe('#negative', () => {
-    // TODO: create check facility which expects specific reverts
-    // TODO: iterate through each message type, testing each revert case
+    let requests: Array<{
+      message: { action: any }
+      signFunc: typeof signFunctionPrototype
+      verifyFunc: typeof verifyFunctionPrototype
+    }>
+
+    beforeEach(async () => {
+      requests = [
+        {
+          message: createPlaceOrderActionMessage(),
+          signFunc: signPlaceOrderAction,
+          verifyFunc: orderVerifier.connect(orderVerifierSigner).verifyPlaceOrder,
+        },
+      ]
+    })
+
+    async function reject(
+      message: { action: { common: { nonce: any } } },
+      signFunction: typeof signFunctionPrototype,
+      verifyFunction: typeof verifyFunctionPrototype,
+      reason: string,
+      signer = userA,
+    ) {
+      const signature = await signFunction(signer, orderVerifier, message)
+
+      const verification = verifyFunction(message, signature)
+      await expect(verification).to.be.revertedWithCustomError(orderVerifier, reason)
+    }
+
+    it('rejects requests with invalid domain', async () => {
+      for (const request of requests) {
+        request.message.action.common.domain = userB.address
+        await reject(request.message, request.signFunc, request.verifyFunc, 'VerifierInvalidDomainError')
+      }
+    })
+
+    async function signIncorrectly(signer: SignerWithAddress, verifier: IOrderVerifier, action: any): Promise<string> {
+      return '0xd3Adb33f'
+    }
+
+    it('rejects requests with invalid signature', async () => {
+      for (const request of requests) {
+        await reject(request.message, signIncorrectly, request.verifyFunc, 'VerifierInvalidSignatureError')
+      }
+    })
+
+    it('rejects requests with invalid signer', async () => {
+      for (const request of requests) {
+        await reject(request.message, request.signFunc, request.verifyFunc, 'VerifierInvalidSignerError', userB)
+      }
+    })
+
+    // TODO: test VerifierInvalidNonceError, VerifierInvalidGroupError, and VerifierInvalidExpiryError
   })
 })
