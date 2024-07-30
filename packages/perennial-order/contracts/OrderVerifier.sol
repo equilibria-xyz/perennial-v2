@@ -7,6 +7,7 @@ import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";
+import { CancelOrderAction, CancelOrderActionLib } from "./types/CancelOrderAction.sol";
 import { PlaceOrderAction, PlaceOrderActionLib } from "./types/PlaceOrderAction.sol";
 
 contract OrderVerifier is VerifierBase, IOrderVerifier {
@@ -21,11 +22,20 @@ contract OrderVerifier is VerifierBase, IOrderVerifier {
         _verifySignature(action, ActionLib.hash(action), signature);
     }
 
-    function verifyPlaceOrder(PlaceOrderAction calldata action, bytes calldata signature) 
+    /// @inheritdoc IOrderVerifier
+    function verifyPlaceOrder(PlaceOrderAction calldata action, bytes calldata signature)
         external
         validateAndCancel(action.action.common, signature)
     {
         _verifySignature(action.action, PlaceOrderActionLib.hash(action), signature);
+    }
+
+    /// @inheritdoc IOrderVerifier
+    function verifyCancelOrder(CancelOrderAction calldata action, bytes calldata signature)
+        external
+        validateAndCancel(action.action.common, signature)
+    {
+        _verifySignature(action.action, CancelOrderActionLib.hash(action), signature);
     }
 
     function _verifySignature(Action calldata action, bytes32 hash, bytes calldata signature) internal {

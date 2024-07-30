@@ -58,40 +58,79 @@ abstract contract Manager is IManager, Kept {
 
     /// @inheritdoc IManager
     function placeOrder(IMarket market, uint256 orderNonce, TriggerOrder calldata order) external {
-        // prevent user from reusing an order identifier
-        if (_spentOrderIds[msg.sender][orderNonce]) revert ManagerInvalidOrderNonceError();
-
-        _orders[market][msg.sender][orderNonce].store(order);
-        emit OrderPlaced(market, msg.sender, order, orderNonce);
+        _placeOrder(market, msg.sender, orderNonce, order);
     }
 
     /// @inheritdoc IManager
-    function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external {}
+    function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyPlaceOrder(action, signature);
+        _ensureValidSigner(action.action.common.account, action.action.common.signer);
+
+        _placeOrder(action.action.market, action.action.common.account, action.action.orderNonce, action.order);
+    }
 
     /// @inheritdoc IManager
     function cancelOrder(IMarket market, uint256 orderNonce) external {
-        delete _orders[market][msg.sender][orderNonce];
-        _spentOrderIds[msg.sender][orderNonce] = true;
-        emit OrderCancelled(market, msg.sender, orderNonce);
+        _cancelOrder(market, msg.sender, orderNonce);
     }
 
     /// @inheritdoc IManager
-    function cancelOrderWithSignature(CancelOrderAction calldata action, bytes calldata signature) external {}
+    function cancelOrderWithSignature(CancelOrderAction calldata action, bytes calldata signature) external {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyCancelOrder(action, signature);
+        _ensureValidSigner(action.action.common.account, action.action.common.signer);
 
-    /// @inheritdoc IManager
-    function orders(IMarket market, address user, uint256 nonce) external view returns (TriggerOrder memory) {
-        return _orders[market][user][nonce].read();
+        _cancelOrder(action.action.market, action.action.common.account, action.action.orderNonce);
     }
 
     /// @inheritdoc IManager
-    function checkOrder(IMarket market, address user, uint256 nonce) external returns (bool canExecute) {}
+    function orders(IMarket market, address user, uint256 orderNonce) external view returns (TriggerOrder memory) {
+        return _orders[market][user][orderNonce].read();
+    }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address user, uint256 nonce) external {
+    function checkOrder(IMarket market, address user, uint256 orderNonce) external returns (bool canExecute) {}
+
+    /// @inheritdoc IManager
+    function executeOrder(IMarket market, address user, uint256 orderNonce) external {
+        // TODO: check conditions to ensure order is executable
         // TODO: call update on the market, changing the user's position
-        _spentOrderIds[msg.sender][nonce] = true;
+        delete _orders[market][user][orderNonce];
+        _spentOrderIds[user][orderNonce] = true;
+    }
+
+    function _doesOrderExist(IMarket market, address user, uint256 orderNonce) internal view returns (bool exists){
+        TriggerOrder memory order = _orders[market][user][orderNonce].read();
+        return !(order.price.isZero() && order.delta.isZero());
+    }
+
+    /// @dev reverts if user is not authorized to sign transactions for the user
+    function _ensureValidSigner(address user, address signer) internal view {
+        if (user != signer && !marketFactory.signers(user, signer)) revert ManagerInvalidSignerError();
     }
 
     // TODO: pull compensation from the market
     // function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override returns (UFixed18) {}
+
+    function _cancelOrder(IMarket market, address user, uint256 orderNonce) private
+    {
+        // ensure this order wasn't already executed/cancelled
+        if (!_doesOrderExist(market, user, orderNonce)) revert ManagerCannotCancelError();
+
+        // free storage and invalidate the order nonce
+        delete _orders[market][user][orderNonce];
+        _spentOrderIds[user][orderNonce] = true;
+        emit OrderCancelled(market, user, orderNonce);
+    }
+
+    function _placeOrder(IMarket market, address user, uint256 orderNonce, TriggerOrder calldata order) private
+    {
+        // prevent user from reusing an order identifier
+        if (_spentOrderIds[user][orderNonce]) revert ManagerInvalidOrderNonceError();
+
+        _orders[market][user][orderNonce].store(order);
+        emit OrderPlaced(market, user, order, orderNonce);
+    }
+
 }

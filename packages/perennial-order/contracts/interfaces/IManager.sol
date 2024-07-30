@@ -33,9 +33,17 @@ interface IManager {
     /// @param orderId Uniquely identifies the executed order
     event OrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderId);
 
+    // sig: 0x955cc4b9
+    /// @custom:error Order does not exist or was already cancelled or executed
+    error ManagerCannotCancelError();
+
     // sig: 0xd0cfc108
     /// @custom:error Order nonce has already been used
     error ManagerInvalidOrderNonceError();
+
+    // sig: 0x6673613b
+    /// @custom:error Signer is not authorized to interact with markets for the specified user
+    error ManagerInvalidSignerError();
 
     /// @notice Store a new trigger order or replace an existing trigger order
     /// @param market Perennial market in which user wants to change their position
@@ -61,19 +69,19 @@ interface IManager {
     /// @notice Retrieves an unexecuted trigger order
     /// @param market Perennial market for which the order was submitted
     /// @param account User for whom the order was submitted
-    /// @param nonce Uniquely identifies the order for a user
-    function orders(IMarket market, address account, uint256 nonce) external view returns (TriggerOrder memory);
+    /// @param orderNonce Uniquely identifies the order for a user
+    function orders(IMarket market, address account, uint256 orderNonce) external view returns (TriggerOrder memory);
 
     /// @notice Determines whether trigger conditions for an order have been met
     /// @param market Perennial market for which the order is intended
     /// @param user Actor whose position is to be changed
-    /// @param nonce Uniquely identifies the order for a user
+    /// @param orderNonce Uniquely identifies the order for a user
     /// @return canExecute True if trigger conditions have been met and executeOrder may be called on the order
-    function checkOrder(IMarket market, address user, uint256 nonce) external returns (bool canExecute);
+    function checkOrder(IMarket market, address user, uint256 orderNonce) external returns (bool canExecute);
 
     /// @notice Called by keeper to execute an order whose trigger conditions have been met
     /// @param market Perennial market for which the order is intended
     /// @param user Actor whose position is to be changed
-    /// @param nonce Uniquely identifies the order for a user
-    function executeOrder(IMarket market, address user, uint256 nonce) external;
+    /// @param orderNonce Uniquely identifies the order for a user
+    function executeOrder(IMarket market, address user, uint256 orderNonce) external;
 }

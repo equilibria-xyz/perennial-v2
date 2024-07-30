@@ -82,3 +82,16 @@ export async function signPlaceOrderAction(
   }
   return await signer._signTypedData(eip712Domain(verifier), types, action)
 }
+
+export async function signCancelOrderAction(
+  signer: SignerWithAddress,
+  verifier: IOrderVerifier | FakeContract<IOrderVerifier>,
+  action: CancelOrderActionStruct,
+): Promise<string> {
+  const types = {
+    CancelOrderAction: [{ name: 'action', type: 'Action' }],
+    ...actionType,
+    ...commonType,
+  }
+  return await signer._signTypedData(eip712Domain(verifier), types, action)
+}

@@ -18,7 +18,7 @@ import {
   OrderVerifier,
   OrderVerifier__factory,
 } from '../../types/generated'
-import { signAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
+import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
 
 const { ethers } = HRE
 
@@ -78,6 +78,16 @@ describe('Verifier', () => {
     }
   }
 
+  function createCancelOrderActionMessage(
+    userAddress = userA.address,
+    signerAddress = userAddress,
+    expiresInSeconds = 6,
+  ) {
+    return {
+      ...createActionMessage(userAddress, signerAddress, expiresInSeconds),
+    }
+  }
+
   // create a serial nonce for testing purposes; real users may choose a nonce however they please
   function nextNonce(): BigNumber {
     return BigNumber.from(++lastNonce)
@@ -112,7 +122,7 @@ describe('Verifier', () => {
   })
 
   let signFunctionPrototype: (signer: SignerWithAddress, verifier: IOrderVerifier, action: any) => Promise<string>
-  let verifyFunctionPrototype: (action: any, signature: string) => any
+  let verifyFunctionPrototype: (action: any, signature: string) => Promise<undefined>
 
   describe('#positive', () => {
     // TODO: consider optional nonce parameter allowing this to be used for common and action messages
@@ -124,7 +134,7 @@ describe('Verifier', () => {
     ) {
       const signature = await signFunction(userA, orderVerifier, message)
 
-      const verification = verifyFunction(message, signature)
+      const verification = await verifyFunction(message, signature)
       await expect(verification)
         .to.emit(orderVerifier, 'NonceCancelled')
         .withArgs(userA.address, message.action.common.nonce)
@@ -163,6 +173,14 @@ describe('Verifier', () => {
         orderVerifier.connect(orderVerifierSigner).verifyPlaceOrder,
       )
     })
+
+    it('verifies cancel order requests', async () => {
+      await check(
+        createCancelOrderActionMessage(),
+        signCancelOrderAction,
+        orderVerifier.connect(orderVerifierSigner).verifyCancelOrder,
+      )
+    })
   })
 
   describe('#negative', () => {
@@ -178,6 +196,11 @@ describe('Verifier', () => {
           message: createPlaceOrderActionMessage(),
           signFunc: signPlaceOrderAction,
           verifyFunc: orderVerifier.connect(orderVerifierSigner).verifyPlaceOrder,
+        },
+        {
+          message: createCancelOrderActionMessage(),
+          signFunc: signCancelOrderAction,
+          verifyFunc: orderVerifier.connect(orderVerifierSigner).verifyCancelOrder,
         },
       ]
     })
@@ -218,6 +241,14 @@ describe('Verifier', () => {
       }
     })
 
-    // TODO: test VerifierInvalidNonceError, VerifierInvalidGroupError, and VerifierInvalidExpiryError
+    it('rejects requests with invalid nonce', async () => {
+      for (const request of requests) {
+        const signature = await request.signFunc(userA, orderVerifier, request.message)
+        await request.verifyFunc(request.message, signature)
+        await reject(request.message, request.signFunc, request.verifyFunc, 'VerifierInvalidNonceError', userB)
+      }
+    })
+
+    // TODO: test VerifierInvalidGroupError, and VerifierInvalidExpiryError
   })
 })
