@@ -1406,7 +1406,7 @@ testOracles.forEach(testOracle => {
 
         await expect(
           keeperOracle.connect(badSigner).request(market.address, user.address, true),
-        ).to.be.revertedWithCustomError(keeperOracle, 'OracleNotOracleError')
+        ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleNotOracleError')
       })
 
       it('a version can only be requested once (new, new)', async () => {

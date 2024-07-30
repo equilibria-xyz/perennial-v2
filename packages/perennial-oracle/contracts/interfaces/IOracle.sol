@@ -10,9 +10,9 @@ interface IOracle is IOracleProvider, IInstance {
     error OracleOutOfSyncError();
     // sig: 0x0f7338e5
     error OracleOutOfOrderCommitError();
-    //sig: TODO
+    //sig: 0xb0850572
     error OracleNotSubOracleError();
-    //sig: TODO
+    //sig: 0xc65186ee
     error OracleNotMarketError();
 
     event OracleUpdated(IOracleProvider newProvider);

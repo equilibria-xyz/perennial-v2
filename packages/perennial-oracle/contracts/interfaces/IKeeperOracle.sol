@@ -43,8 +43,8 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     error KeeperOracleInvalidCallbackError();
     //sig: 0x7321f78c
     error KeeperOracleNoPriorRequestsError();
-    //sig: TODO
-    error OracleNotOracleError();
+    //sig: 0xdcfc48f1
+    error KeeperOracleNotOracleError();
 
     function initialize() external;
     function register(IOracle newOracle) external;

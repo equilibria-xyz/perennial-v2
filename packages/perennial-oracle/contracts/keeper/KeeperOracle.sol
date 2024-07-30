@@ -52,7 +52,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @return The global state of the oracle
     function global() external view returns (Global memory) { return _global; }
 
-    // TODO
+    /// @notice Updates the registered oracle provider
+    /// @dev The oracle provider is the only authorized caller
+    /// @param newOracle The new oracle provider
     function register(IOracle newOracle) external onlyOwner {
         oracle = newOracle;
         emit OracleUpdated(newOracle);
@@ -72,12 +74,16 @@ contract KeeperOracle is IKeeperOracle, Instance {
         return _requests[_global.latestIndex + 1].read().timestamp;
     }
 
-    // TODO
+    /// @notice Returns the requested oracle version at index `index`
+    /// @param index The index of the requested oracle version
+    /// @return The requested oracle version at index `index`
     function requests(uint256 index) external view returns (PriceRequest memory) {
         return _requests[index].read();
     }
 
-    // TODO
+    /// @notice Returns the response for a given oracle version
+    /// @param timestamp The timestamp of the oracle version
+    /// @return The response for the given oracle version
     function responses(uint256 timestamp) external view returns (PriceResponse memory) {
         return _responses[timestamp].read();
     }
@@ -240,7 +246,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
     /// @dev Only allow authorized oracle provider to call
     modifier onlyOracle {
-        if (msg.sender != address(oracle)) revert OracleNotOracleError();
+        if (msg.sender != address(oracle)) revert KeeperOracleNotOracleError();
         _;
     }
 }

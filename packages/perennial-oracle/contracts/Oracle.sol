@@ -168,7 +168,7 @@ contract Oracle is IOracle, Instance {
     /// @dev Only if the caller is the registered sub oracle
     modifier onlySubOracle {
         if (
-            msg.sender != address(oracles[global.current].provider) && // TODO: can we pick one of these?
+            msg.sender != address(oracles[global.current].provider) &&
             msg.sender != address(oracles[global.latest].provider)
         ) revert OracleNotSubOracleError();
         _;

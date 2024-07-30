@@ -10,14 +10,14 @@ import { OracleParameter, OracleParameterStorage } from "./types/OracleParameter
 /// @title OracleFactory
 /// @notice Factory for creating and managing oracles
 contract OracleFactory is IOracleFactory, Factory {
-    /// @dev DEPRECATED SLOT -- previously the incentive token
+    /// @notice DEPRECATED SLOT -- previously the incentive token
     bytes32 private __unused0__;
 
     /// @notice DEPRECATED SLOT -- previously the max claim
     bytes32 private __unused1__;
 
     /// @notice  DEPRECATED SLOT -- previously the authrorized callers
-    mapping(IFactory => bool) public __unused2__;
+    bytes32 private __unused2__;
 
     /// @notice Mapping of oracle id to oracle instance
     mapping(bytes32 => IOracleProvider) public oracles;
@@ -36,7 +36,7 @@ contract OracleFactory is IOracleFactory, Factory {
     constructor(address implementation_) Factory(implementation_) { }
 
     /// @notice Initializes the contract state
-    function initialize() external initializer(3) { // TODO: do we need to bump version?
+    function initialize() external initializer(3) {
         // Re-initialize if owner is unset
         if (owner() == address(0)) __Factory__initialize();
 
