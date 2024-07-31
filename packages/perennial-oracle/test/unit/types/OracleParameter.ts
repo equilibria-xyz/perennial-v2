@@ -87,21 +87,20 @@ describe('OracleParameter', () => {
     })
 
     context('.maxOracleFee', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
         await oracleParameter.store({
           ...DEFAULT_ORACLE_PARAMETER,
-          maxOracleFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          maxOracleFee: parse6decimal('1'),
         })
         const value = await oracleParameter.read()
-        expect(value.maxOracleFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxOracleFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if maxOracleFee out of range', async () => {
         await expect(
           oracleParameter.store({
             ...DEFAULT_ORACLE_PARAMETER,
-            maxOracleFee: BigNumber.from(2).pow(STORAGE_SIZE),
+            maxOracleFee: parse6decimal('1').add(1),
           }),
         ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
       })
