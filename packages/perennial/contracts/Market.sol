@@ -124,7 +124,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ///      - The sender is charged the settlement fee
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
-    function update(Intent calldata intent, bytes memory signature) external {
+    function update(Intent calldata intent, bytes memory signature) external nonReentrant whenNotPaused {
         if (intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
 
         verifier.verifyIntent(intent, signature);
