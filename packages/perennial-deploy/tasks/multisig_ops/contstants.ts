@@ -487,6 +487,43 @@ export const NewRiskParams: Record<string, [string, RiskParameterStruct]> = {
       makerReceiveOnly: false,
     },
   ],
+  XAU: [
+    '',
+    {
+      margin: '9500',
+      maintenance: '8000',
+      takerFee: {
+        linearFee: '300',
+        proportionalFee: '200',
+        adiabaticFee: '1000',
+        scale: '4500000000',
+      },
+      makerFee: {
+        linearFee: '100',
+        proportionalFee: '0',
+        adiabaticFee: '0',
+        scale: '4500000000',
+      },
+      makerLimit: '450000000',
+      efficiencyLimit: '1000000',
+      liquidationFee: '5000000',
+      utilizationCurve: {
+        minRate: '0',
+        maxRate: '85000',
+        targetRate: '85000',
+        targetUtilization: '500000',
+      },
+      pController: {
+        k: '130000000000',
+        min: '-500000',
+        max: '500000',
+      },
+      minMargin: '50000000',
+      minMaintenance: '40000000',
+      staleAfter: '40',
+      makerReceiveOnly: false,
+    },
+  ],
 }
 
 export const NewMarketParameter: MarketParameterStruct = {
@@ -501,7 +538,7 @@ export const NewMarketParameter: MarketParameterStruct = {
   takerCloseAlways: true,
   makerCloseAlways: false,
   closed: false,
-  settle: true,
+  settle: false,
 }
 
 export const NewProtocolParameter: ProtocolParameterStruct = {

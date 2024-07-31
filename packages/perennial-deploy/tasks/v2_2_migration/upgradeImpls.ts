@@ -3,7 +3,7 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PopulatedTransaction } from 'ethers'
 import { getMarketBeneficiaryAndCoordinator } from '../changeMarketsMode'
-import { NewRiskParams, NewMarketParameter, NewProtocolParameter } from './contstants'
+import { NewRiskParams, NewMarketParameter, NewProtocolParameter } from '../multisig_ops/contstants'
 
 export default task('2_2_upgrade-impls', 'Upgrades implementations for v2.2 Migration')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
