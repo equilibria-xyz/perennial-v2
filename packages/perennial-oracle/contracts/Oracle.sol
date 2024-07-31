@@ -20,6 +20,9 @@ contract Oracle is IOracle, Instance {
     /// @notice The market associated with this oracle
     IMarket public market;
 
+    /// @notice The beneficiary of the oracle fee
+    address public beneficiary;
+
     /// @notice Initializes the contract state
     /// @param initialProvider The initial oracle provider
     function initialize(IOracleProvider initialProvider) external initializer(1) {
@@ -36,9 +39,18 @@ contract Oracle is IOracle, Instance {
         _updateLatest(newProvider.latest());
     }
 
+    /// @notice Registers the market associated with this oracle
+    /// @param newMarket The market to register
     function register(IMarket newMarket) external onlyOwner {
         market = newMarket;
         emit MarketUpdated(newMarket);
+    }
+
+    /// @notice Updates the beneficiary of the oracle fee
+    /// @param newBeneficiary The new beneficiary
+    function updateBeneficiary(address newBeneficiary) external onlyOwner {
+        beneficiary = newBeneficiary;
+        emit BeneficiaryUpdated(newBeneficiary);
     }
 
     /// @notice Requests a new version at the current timestamp
@@ -88,6 +100,12 @@ contract Oracle is IOracle, Instance {
         }
 
         (atVersion, atReceipt) = provider.at(timestamp);
+    }
+
+    /// @notice Withdraws the accrued oracle fees to the beneficiary
+    /// @param token The token to withdraw
+    function withdraw(Token18 token) external onlyBeneficiary {
+        token.push(beneficiary);
     }
 
     /// @notice Claims an amount of incentive tokens, to be paid out as a fee to the keeper
@@ -157,6 +175,12 @@ contract Oracle is IOracle, Instance {
         if (uint256(oracles[global.latest].timestamp) >= currentOracleLatestVersion.timestamp) return false;
 
         return true;
+    }
+
+    /// @dev Only if the caller is the beneficiary
+    modifier onlyBeneficiary {
+        if (msg.sender != beneficiary) revert OracleNotBeneficiaryError();
+        _;
     }
 
     /// @dev Only if the caller is the registered market
