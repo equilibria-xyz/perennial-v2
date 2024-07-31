@@ -249,6 +249,20 @@ describe('Verifier', () => {
       }
     })
 
-    // TODO: test VerifierInvalidGroupError, and VerifierInvalidExpiryError
+    it('rejects requests with invalid group', async () => {
+      await orderVerifier.connect(userA).cancelGroup(4)
+      for (const request of requests) {
+        request.message.action.common.group = 4
+        await reject(request.message, request.signFunc, request.verifyFunc, 'VerifierInvalidGroupError', userB)
+      }
+    })
+
+    it('rejects expired requests', async () => {
+      await orderVerifier.connect(userA).cancelGroup(4)
+      for (const request of requests) {
+        request.message.action.common.expiry = 1487005200
+        await reject(request.message, request.signFunc, request.verifyFunc, 'VerifierInvalidExpiryError', userB)
+      }
+    })
   })
 })
