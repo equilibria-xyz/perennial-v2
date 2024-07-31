@@ -2,6 +2,9 @@
 pragma solidity ^0.8.13;
 
 import { AggregatorV3Interface, Kept, Token18 } from "@equilibria/root/attribute/Kept/Kept.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 // import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
@@ -110,8 +113,29 @@ abstract contract Manager is IManager, Kept {
         if (user != signer && !marketFactory.signers(user, signer)) revert ManagerInvalidSignerError();
     }
 
-    // TODO: pull compensation from the market
-    // function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override returns (UFixed18) {}
+    /// @notice Transfers DSU from market to manager to compensate keeper
+    /// @param amount Keeper fee as calculated
+    /// @param data Identifies the market from and user for which funds should be withdrawn,
+    ///             and the user-defined fee cap
+    /// @return Amount of funds transferred from market to manager
+    function _raiseKeeperFee(
+        UFixed18 amount,
+        bytes memory data
+    ) internal virtual override returns (UFixed18) {
+        (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
+        UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
+
+        market.update(
+            account,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            UFixed6Lib.MAX,
+            Fixed6Lib.from(-1, raisedKeeperFee),
+            false
+        );
+
+        return UFixed18Lib.from(raisedKeeperFee);
+    }
 
     function _cancelOrder(IMarket market, address user, uint256 orderNonce) private
     {

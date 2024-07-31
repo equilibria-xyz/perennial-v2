@@ -19,11 +19,11 @@ contract Manager_Arbitrum is Manager, Kept_Arbitrum {
         return Kept_Arbitrum._calldataFee(applicableCalldata, multiplierCalldata, bufferCalldata);
     }
 
-    /*/// @dev Use the base implementation for raising the keeper fee
+    /// @dev Use the base implementation for raising the keeper fee
     function _raiseKeeperFee(
         UFixed18 amount,
         bytes memory data
     ) internal override(Manager, Kept) returns (UFixed18) {
         return Manager._raiseKeeperFee(amount, data);
-    }*/
+    }
 }
