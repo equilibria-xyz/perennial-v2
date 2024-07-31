@@ -43,7 +43,10 @@ library InvariantLib {
         if (
             !(updateContext.currentPosition.local.magnitude().isZero() && context.latestPosition.local.magnitude().isZero()) &&     // sender has no position
             !(newOrder.isEmpty() && collateral.gte(Fixed6Lib.ZERO)) &&                                                              // sender is depositing zero or more into account, without position change
-            (context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter)                  // price is not stale
+            (
+                !context.latestOracleVersion.valid ||
+                context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter
+            )                                                                                                                       // price is not stale
         ) revert IMarket.MarketStalePriceError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())

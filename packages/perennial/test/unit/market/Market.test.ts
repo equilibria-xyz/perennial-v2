@@ -14159,6 +14159,29 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
         })
 
+        it('reverts if price is stale (invalid)', async () => {
+          const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(10800) }
+          await market.connect(owner).updateRiskParameter(riskParameter, false)
+
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns({ ...ORACLE_VERSION_1, valid: false })
+          oracle.status.returns([{ ...ORACLE_VERSION_1, valid: false }, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          // revert if withdrawing
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
+          ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
+
+          // revert if changing position
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, -1, false),
+          ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
+        })
+
         it('reverts if sender is not account', async () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(7200) }
           await market.connect(owner).updateRiskParameter(riskParameter, false)
@@ -15152,8 +15175,15 @@ describe('Market', () => {
           oracle.at
             .whenCalledWith(ORACLE_VERSION_4.timestamp)
             .returns({ ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false })
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_4.timestamp + 1)
+            .returns({
+              ...ORACLE_VERSION_4,
+              timestamp: ORACLE_VERSION_4.timestamp + 1,
+              price: oracleVersionLowerPrice.price,
+            })
           oracle.status.returns([
-            { ...ORACLE_VERSION_4, price: oracleVersionLowerPrice.price, valid: false },
+            { ...ORACLE_VERSION_4, timestamp: ORACLE_VERSION_4.timestamp + 1, price: oracleVersionLowerPrice.price },
             ORACLE_VERSION_5.timestamp,
           ])
           oracle.request.whenCalledWith(user.address).returns()
@@ -15239,7 +15269,8 @@ describe('Market', () => {
               .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
               .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
               .add(EXPECTED_ROUND_3_ACC_WITHOUT_FEE)
-              .sub(32), // loss of precision
+              .sub(32)
+              .sub(10), // loss of precision / 1-sec invalid delay
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -15260,10 +15291,10 @@ describe('Market', () => {
           expectGlobalEq(await market.global(), {
             currentId: 6,
             latestId: 5,
-            protocolFee: totalFee.div(2).sub(2), // loss of precision
+            protocolFee: totalFee.div(2).sub(2).sub(1), // loss of precision / 1-sec invalid delay
             oracleFee: totalFee.div(2).div(10).sub(1), // loss of precision
             riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
-            donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
+            donation: totalFee.div(2).mul(8).div(10).add(4).sub(1), // loss of precision / 1-sec invalid delay
             latestPrice: parse6decimal('150'),
             exposure: 0,
           })
@@ -15318,7 +15349,8 @@ describe('Market', () => {
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                 .add(EXPECTED_ROUND_3_ACC_WITHOUT_FEE)
                 .div(10)
-                .sub(3), // loss of precision
+                .sub(3)
+                .sub(1), // loss of precision / 1-sec invalid delay
             },
             longValue: { _value: 0 },
             shortValue: {
@@ -15887,7 +15919,13 @@ describe('Market', () => {
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp + 1)
+            .returns({ ...ORACLE_VERSION_3, timestamp: ORACLE_VERSION_3.timestamp + 1 })
+          oracle.status.returns([
+            { ...ORACLE_VERSION_3, timestamp: ORACLE_VERSION_3.timestamp + 1 },
+            ORACLE_VERSION_4.timestamp,
+          ])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(
@@ -16089,7 +16127,13 @@ describe('Market', () => {
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns({ ...ORACLE_VERSION_3, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp + 1)
+            .returns({ ...ORACLE_VERSION_3, timestamp: ORACLE_VERSION_3.timestamp + 1 })
+          oracle.status.returns([
+            { ...ORACLE_VERSION_3, timestamp: ORACLE_VERSION_3.timestamp + 1 },
+            ORACLE_VERSION_4.timestamp,
+          ])
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(
@@ -16111,7 +16155,13 @@ describe('Market', () => {
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns({ ...ORACLE_VERSION_4, valid: false })
-          oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_4.timestamp + 1)
+            .returns({ ...ORACLE_VERSION_4, timestamp: ORACLE_VERSION_4.timestamp + 1 })
+          oracle.status.returns([
+            { ...ORACLE_VERSION_4, timestamp: ORACLE_VERSION_4.timestamp + 1 },
+            ORACLE_VERSION_5.timestamp,
+          ])
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, user)
@@ -16125,7 +16175,7 @@ describe('Market', () => {
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_4.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp + 1,
           })
           expectOrderEq(await market.pendingOrders(user.address, 1), {
             ...DEFAULT_ORDER,
@@ -16165,7 +16215,7 @@ describe('Market', () => {
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_4.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp + 1,
             maker: POSITION,
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
@@ -16198,7 +16248,7 @@ describe('Market', () => {
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_4.timestamp,
+            timestamp: ORACLE_VERSION_4.timestamp + 1,
             maker: POSITION,
           })
           expectOrderEq(await market.pendingOrder(2), {
