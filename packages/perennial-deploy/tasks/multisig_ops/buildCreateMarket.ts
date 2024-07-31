@@ -93,7 +93,7 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
       }
     }, 'Update Market Parameter')
 
-    const [, riskParam] = NewRiskParams[args.market]
+    const riskParam = NewRiskParams[args.market]
     if (!riskParam) throw new Error('Invalid market key')
 
     await addPayload(async () => {
