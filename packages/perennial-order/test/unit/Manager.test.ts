@@ -11,6 +11,7 @@ import { IERC20, IMarketFactory, IMarket } from '@equilibria/perennial-v2/types/
 
 import {
   AggregatorV3Interface,
+  IOrderVerifier,
   Manager_Arbitrum,
   Manager_Arbitrum__factory,
   OrderVerifier__factory,
@@ -37,7 +38,7 @@ const MAKER_ORDER = {
 
 const MAX_FEE = utils.parseEther('7')
 
-describe('Manager_Arbitrum', () => {
+describe('Manager', () => {
   let dsu: FakeContract<IERC20>
   let manager: Manager_Arbitrum
   let marketFactory: FakeContract<IMarketFactory>
