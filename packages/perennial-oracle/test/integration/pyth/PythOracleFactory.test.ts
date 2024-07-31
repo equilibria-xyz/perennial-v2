@@ -446,7 +446,7 @@ testOracles.forEach(testOracle => {
           ).to.be.revertedWithCustomError(pythOracleFactory, 'PythFactoryInvalidIdError')
         })
 
-        it.only('reverts when not owner', async () => {
+        it('reverts when not owner', async () => {
           await expect(
             pythOracleFactory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
               provider: ethers.constants.AddressZero,
