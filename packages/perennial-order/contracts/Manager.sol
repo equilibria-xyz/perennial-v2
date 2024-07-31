@@ -6,7 +6,6 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
-// import { EnumerableMap } from "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
@@ -93,19 +92,20 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function checkOrder(IMarket market, address user, uint256 orderNonce) external returns (bool canExecute) {}
+    function checkOrder(IMarket market, address user, uint256 orderNonce) public view returns (bool canExecute) {
+        TriggerOrder memory order = _orders[market][user][orderNonce].read();
+        return order.canExecute(market.oracle().latest());
+    }
 
     /// @inheritdoc IManager
     function executeOrder(IMarket market, address user, uint256 orderNonce) external {
-        // TODO: check conditions to ensure order is executable
+        // check conditions to ensure order is executable
+        if (!checkOrder(market, user, orderNonce)) revert ManagerCannotExecuteError();
+
         // TODO: call update on the market, changing the user's position
+
         delete _orders[market][user][orderNonce];
         _spentOrderIds[user][orderNonce] = true;
-    }
-
-    function _doesOrderExist(IMarket market, address user, uint256 orderNonce) internal view returns (bool exists){
-        TriggerOrder memory order = _orders[market][user][orderNonce].read();
-        return !(order.price.isZero() && order.delta.isZero());
     }
 
     /// @dev reverts if user is not authorized to sign transactions for the user
@@ -140,7 +140,8 @@ abstract contract Manager is IManager, Kept {
     function _cancelOrder(IMarket market, address user, uint256 orderNonce) private
     {
         // ensure this order wasn't already executed/cancelled
-        if (!_doesOrderExist(market, user, orderNonce)) revert ManagerCannotCancelError();
+        TriggerOrder memory order = _orders[market][user][orderNonce].read();
+        if (order.isEmpty()) revert ManagerCannotCancelError();
 
         // free storage and invalidate the order nonce
         delete _orders[market][user][orderNonce];

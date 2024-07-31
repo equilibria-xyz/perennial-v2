@@ -7,7 +7,7 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import { IERC20, IMarketFactory, IMarket } from '@equilibria/perennial-v2/types/generated'
+import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@equilibria/perennial-v2/types/generated'
 
 import {
   AggregatorV3Interface,
@@ -17,6 +17,8 @@ import {
   OrderVerifier__factory,
 } from '../../types/generated'
 import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
+import { OracleVersionStruct } from '../../types/generated/contracts/test/TriggerOrderTester'
+import { Compare, Side } from '../helpers/order'
 
 const { ethers } = HRE
 
@@ -30,8 +32,8 @@ const KEEP_CONFIG = {
 }
 
 const MAKER_ORDER = {
-  side: BigNumber.from(0),
-  comparison: BigNumber.from(-2),
+  side: Side.MAKER,
+  comparison: Compare.LT,
   price: parse6decimal('2222.33'),
   delta: parse6decimal('100'),
 }
@@ -43,6 +45,7 @@ describe('Manager', () => {
   let manager: Manager_Arbitrum
   let marketFactory: FakeContract<IMarketFactory>
   let market: FakeContract<IMarket>
+  let marketOracle: FakeContract<IOracleProvider>
   let verifier: IOrderVerifier
   let ethOracle: FakeContract<AggregatorV3Interface>
   let owner: SignerWithAddress
@@ -53,6 +56,14 @@ describe('Manager', () => {
 
   function advanceOrderNonce() {
     nextOrderNonce = nextOrderNonce.add(BigNumber.from(1))
+  }
+
+  function createOracleVersion(price: BigNumber, valid = true): OracleVersionStruct {
+    return {
+      timestamp: Math.floor(Date.now() / 1000),
+      price: price,
+      valid: valid,
+    }
   }
 
   const fixture = async () => {
@@ -68,6 +79,14 @@ describe('Manager', () => {
     dsu.approve.whenCalledWith(manager.address).returns(true)
     dsu.transferFrom.returns(true)
     dsu.transfer.returns(true)
+
+    // fake an oracle, for testing market comparison
+    marketOracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    market.oracle.returns(marketOracle.address)
+    marketOracle.latest.returns(createOracleVersion(parse6decimal('2111.22')))
+    const oracleFactory = await smock.fake<IFactory>('IFactory')
+    oracleFactory.instances.whenCalledWith(marketOracle.address).returns(true)
+    marketFactory.oracleFactory.returns(oracleFactory)
 
     // initialize the order manager
     ethOracle = await smock.fake<AggregatorV3Interface>('AggregatorV3Interface')
@@ -179,6 +198,19 @@ describe('Manager', () => {
       await expect(
         manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER),
       ).to.revertedWithCustomError(manager, 'ManagerInvalidOrderNonceError')
+    })
+
+    it('checks whether an order is executable', async () => {
+      // check an executable order
+      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
+      expect(await manager.checkOrder(market.address, userA.address, nextOrderNonce)).to.be.true
+      advanceOrderNonce()
+
+      // check an unexecutable order
+      const unexecutableOrder = MAKER_ORDER
+      unexecutableOrder.comparison = Compare.GTE
+      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, unexecutableOrder)
+      expect(await manager.checkOrder(market.address, userA.address, nextOrderNonce)).to.be.false
     })
   })
 

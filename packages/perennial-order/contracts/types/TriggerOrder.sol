@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Fixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
 
 struct TriggerOrder {
     uint8 side;      // 0 = maker, 1 = long, 2 = short
@@ -9,9 +10,33 @@ struct TriggerOrder {
     Fixed6 price;    // <= 9.22t
     Fixed6 delta;    // <= 9.22t
 }
-// TODO: create lib for processing trigger order logic
 // TODO: move message verification stuff here, because it doesn't involve storage
-// using TriggerOrderLib for TriggerOrder global;
+// TODO: maybe add an isEmpty method which checks price and delta for 0
+using TriggerOrderLib for TriggerOrder global;
+
+/// @notice Logic for interacting with trigger orders
+/// @dev (external-unsafe): this library must be used internally only
+library TriggerOrderLib {
+    /// @notice Determines whether the trigger order is fillable at the latest price
+    /// @param self Trigger order
+    /// @param latestVersion Latest oracle version
+    /// @return Whether the trigger order is fillable
+    function canExecute(TriggerOrder memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
+        if (!latestVersion.valid) return false;
+        if (self.comparison == 1) return latestVersion.price.gte(self.price);
+        if (self.comparison == -1) return latestVersion.price.lte(self.price);
+        if (self.comparison == 2) return latestVersion.price.gt(self.price);
+        if (self.comparison == -2) return latestVersion.price.lt(self.price);
+        return false;
+    }
+
+    /// @notice Determines if the order has been deleted
+    /// @param self Trigger order
+    /// @return True if order has no function, otherwise false
+    function isEmpty(TriggerOrder memory self) internal pure returns (bool) {
+        return self.price.isZero() && self.delta.isZero();
+    }
+}
 
 struct StoredTriggerOrder {
     /* slot 0 */
@@ -23,9 +48,9 @@ struct StoredTriggerOrder {
 struct TriggerOrderStorage { StoredTriggerOrder value; /*uint256 slot0;*/ }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
 
-// TODO: What makes this "external-safe"?
-/// @dev Manually encodes and decodes the TriggerOrder struct to/from storage, 
-///      and provides facility for hashing for inclusion in EIP-712 messages 
+/// @dev Manually encodes and decodes the TriggerOrder struct to/from storage,
+///      and provides facility for hashing for inclusion in EIP-712 messages
+/// (external-safe): this library is safe to externalize
 library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(

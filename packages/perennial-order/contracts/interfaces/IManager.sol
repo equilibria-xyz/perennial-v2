@@ -37,6 +37,10 @@ interface IManager {
     /// @custom:error Order does not exist or was already cancelled or executed
     error ManagerCannotCancelError();
 
+    // sig: 0x8013a216
+    /// @custom:error Conditions required for order execution are not currently met
+    error ManagerCannotExecuteError();
+
     // sig: 0xd0cfc108
     /// @custom:error Order nonce has already been used
     error ManagerInvalidOrderNonceError();
