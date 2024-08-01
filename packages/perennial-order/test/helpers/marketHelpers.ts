@@ -5,9 +5,9 @@ import {
   CheckpointStorageLib__factory,
   GlobalStorageLib__factory,
   IMarket,
+  IMarketFactory,
   InvariantLib__factory,
   IOracleProvider,
-  MarketFactory,
   MarketParameterStorageLib__factory,
   MarketParameterStruct,
   Market__factory,
@@ -19,7 +19,7 @@ import {
   VersionStorageLib__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IERC20Metadata, IMarketFactory } from '../../types/generated'
+import { IERC20Metadata } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
 
 // TODO: consider sharing this across extensions, possibly by moving to packages/common
@@ -125,4 +125,11 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
     owner,
   ).deploy(verifierAddress)
   return marketImpl
+}
+
+// deposits collateral to (amount > 0) or withdraws collateral from (amount < 0) a market
+export async function transferCollateral(user: SignerWithAddress, market: IMarket, amount: BigNumber) {
+  await market
+    .connect(user)
+    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, amount, false)
 }

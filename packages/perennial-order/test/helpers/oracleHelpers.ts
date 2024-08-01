@@ -1,19 +1,53 @@
-import { BigNumber, CallOverrides, constants, utils } from 'ethers'
+import { BigNumber, CallOverrides, constants, ContractTransaction, utils } from 'ethers'
+import HRE from 'hardhat'
 import { Address } from 'hardhat-deploy/dist/types'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { impersonateWithBalance } from '../../../common/testutil/impersonate'
+import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
 import {
   IKeeperOracle,
   IOracleFactory,
-  IOracleProvider,
   KeeperOracle,
   KeeperOracle__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
   OracleFactory__factory,
+  OracleVersionStruct,
   PythFactory,
-  PythFactory__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+
+const { ethers } = HRE
+
+// TODO: consider sharing this across extensions, possibly by moving to packages/common
+// Simulates an oracle update from KeeperOracle.
+// If timestamp matches a requested version, callbacks implicitly settle the market.
+export async function advanceToPrice(
+  keeperOracle: IKeeperOracle,
+  timestamp: BigNumber,
+  price: BigNumber,
+  overrides?: CallOverrides,
+): Promise<number> {
+  const keeperFactoryAddress = await keeperOracle.factory()
+  const oracleFactory = await impersonateWithBalance(keeperFactoryAddress, utils.parseEther('10'))
+
+  // a keeper cannot commit a future price, so advance past the block
+  const currentBlockTime = BigNumber.from(await currentBlockTimestamp())
+  if (currentBlockTime < timestamp) {
+    await increaseTo(timestamp.toNumber() + 2)
+  }
+
+  // create a version with the desired parameters and commit to the KeeperOracle
+  const oracleVersion: OracleVersionStruct = {
+    timestamp: timestamp,
+    price: price,
+    valid: true,
+  }
+  const tx: ContractTransaction = await keeperOracle.connect(oracleFactory).commit(oracleVersion, overrides ?? {})
+
+  // inform the caller of the current timestamp
+  return (await HRE.ethers.provider.getBlock(tx.blockNumber ?? 0)).timestamp
+}
 
 export async function createPythOracle(
   owner: SignerWithAddress,

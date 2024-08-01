@@ -103,6 +103,8 @@ abstract contract Manager is IManager, Kept {
         uint256 orderNonce
     ) public view returns (TriggerOrder memory order, bool canExecute) {
         order = _orders[market][user][orderNonce].read();
+        // prevent calling canExecute on a deleted order
+        if (order.isEmpty()) revert ManagerInvalidOrderNonceError();
         canExecute = order.canExecute(market.oracle().latest());
     }
 

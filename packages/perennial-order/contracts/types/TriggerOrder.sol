@@ -5,6 +5,8 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarket, OracleVersion, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
+// TODO: would prefer making comparison uint8 for logability, and reserving 0 as invalid/empty,
+// but leaving these same as MultiInvoker for backward compatibility
 struct TriggerOrder {
     uint8 side;      // 0 = maker, 1 = long, 2 = short
     int8 comparison; // -1 = lte, 1 = gte
