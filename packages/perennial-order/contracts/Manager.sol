@@ -5,7 +5,12 @@ import { AggregatorV3Interface, Kept, Token18 } from "@equilibria/root/attribute
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
-import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
+import {
+    IMarket,
+    IMarketFactory,
+    Order,
+    Position
+} from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
@@ -92,20 +97,33 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function checkOrder(IMarket market, address user, uint256 orderNonce) public view returns (bool canExecute) {
-        TriggerOrder memory order = _orders[market][user][orderNonce].read();
-        return order.canExecute(market.oracle().latest());
+    function checkOrder(
+        IMarket market,
+        address user,
+        uint256 orderNonce
+    ) public view returns (TriggerOrder memory order, bool canExecute) {
+        order = _orders[market][user][orderNonce].read();
+        canExecute = order.canExecute(market.oracle().latest());
     }
 
     /// @inheritdoc IManager
     function executeOrder(IMarket market, address user, uint256 orderNonce) external {
         // check conditions to ensure order is executable
-        if (!checkOrder(market, user, orderNonce)) revert ManagerCannotExecuteError();
+        (TriggerOrder memory order, bool canExecute) = checkOrder(market, user, orderNonce);
+        if (!canExecute) revert ManagerCannotExecuteError();
 
-        // TODO: call update on the market, changing the user's position
+        // settle and get the pending position of the account
+        market.settle(user);
+        // TODO: move this logic into TriggerOrder?
+        Order memory pending = market.pendings(user);
+        Position memory currentPosition = market.positions(user);
+        currentPosition.update(pending);
+        order.execute(market, user, currentPosition);
 
         delete _orders[market][user][orderNonce];
         _spentOrderIds[user][orderNonce] = true;
+
+        emit OrderExecuted(market, user, order, orderNonce);
     }
 
     /// @dev reverts if user is not authorized to sign transactions for the user

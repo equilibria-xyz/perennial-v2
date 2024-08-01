@@ -18,7 +18,7 @@ import {
 } from '../../types/generated'
 import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
 import { OracleVersionStruct } from '../../types/generated/contracts/test/TriggerOrderTester'
-import { Compare, Side } from '../helpers/order'
+import { Compare, compareOrders, Side } from '../helpers/order'
 
 const { ethers } = HRE
 
@@ -33,7 +33,7 @@ const KEEP_CONFIG = {
 
 const MAKER_ORDER = {
   side: Side.MAKER,
-  comparison: Compare.LT,
+  comparison: Compare.LTE,
   price: parse6decimal('2222.33'),
   delta: parse6decimal('100'),
 }
@@ -118,10 +118,7 @@ describe('Manager', () => {
         .withArgs(market.address, userA.address, MAKER_ORDER, nextOrderNonce)
 
       const order = await manager.orders(market.address, userA.address, nextOrderNonce)
-      expect(order.side).to.equal(MAKER_ORDER.side)
-      expect(order.comparison).to.equal(MAKER_ORDER.comparison)
-      expect(order.price).to.equal(MAKER_ORDER.price)
-      expect(order.delta).to.equal(MAKER_ORDER.delta)
+      compareOrders(order, MAKER_ORDER)
     })
 
     it('cancels an order', async () => {
@@ -146,10 +143,7 @@ describe('Manager', () => {
         .withArgs(market.address, userA.address, replacement, nextOrderNonce)
 
       const order = await manager.orders(market.address, userA.address, nextOrderNonce)
-      expect(order.side).to.equal(replacement.side)
-      expect(order.comparison).to.equal(replacement.comparison)
-      expect(order.price).to.equal(replacement.price)
-      expect(order.delta).to.equal(replacement.delta)
+      compareOrders(order, replacement)
     })
 
     it('cannot cancel an executed order', async () => {
@@ -203,14 +197,17 @@ describe('Manager', () => {
     it('checks whether an order is executable', async () => {
       // check an executable order
       await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
-      expect(await manager.checkOrder(market.address, userA.address, nextOrderNonce)).to.be.true
+      let canExecute: boolean
+      ;[, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderNonce)
+      expect(canExecute).to.be.true
       advanceOrderNonce()
 
       // check an unexecutable order
       const unexecutableOrder = MAKER_ORDER
       unexecutableOrder.comparison = Compare.GTE
       await manager.connect(userA).placeOrder(market.address, nextOrderNonce, unexecutableOrder)
-      expect(await manager.checkOrder(market.address, userA.address, nextOrderNonce)).to.be.false
+      ;[, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderNonce)
+      expect(canExecute).to.be.false
     })
   })
 
@@ -262,10 +259,7 @@ describe('Manager', () => {
         .withArgs(market.address, userA.address, message.order, nextOrderNonce)
 
       const order = await manager.orders(market.address, userA.address, nextOrderNonce)
-      expect(order.side).to.equal(message.order.side)
-      expect(order.comparison).to.equal(message.order.comparison)
-      expect(order.price).to.equal(message.order.price)
-      expect(order.delta).to.equal(message.order.delta)
+      compareOrders(order, message.order)
     })
 
     it('cancels a request to place an order', async () => {

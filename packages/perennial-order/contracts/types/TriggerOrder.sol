@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Fixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { IMarket, OracleVersion, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 struct TriggerOrder {
     uint8 side;      // 0 = maker, 1 = long, 2 = short
-    int8 comparison; // -2 = lt, -1 = lte, 0 = eq, 1 = gte, 2 = gt
+    int8 comparison; // -1 = lte, 1 = gte
     Fixed6 price;    // <= 9.22t
     Fixed6 delta;    // <= 9.22t
+    // TODO: support collateral deposit/withdrawal by adding a field?
 }
 // TODO: move message verification stuff here, because it doesn't involve storage
 // TODO: maybe add an isEmpty method which checks price and delta for 0
@@ -25,9 +27,38 @@ library TriggerOrderLib {
         if (!latestVersion.valid) return false;
         if (self.comparison == 1) return latestVersion.price.gte(self.price);
         if (self.comparison == -1) return latestVersion.price.lte(self.price);
-        if (self.comparison == 2) return latestVersion.price.gt(self.price);
-        if (self.comparison == -2) return latestVersion.price.lt(self.price);
         return false;
+    }
+
+    function execute(
+        TriggerOrder memory self,
+        IMarket market,
+        address user,
+        Position memory position
+    ) internal {
+        // update position
+        if (self.side == 0)
+            position.maker = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(position.maker).add(self.delta));
+        if (self.side == 1)
+            position.long = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(position.long).add(self.delta));
+        if (self.side == 2)
+            position.short = self.delta.isZero() ?
+                UFixed6Lib.ZERO :
+                UFixed6Lib.from(Fixed6Lib.from(position.short).add(self.delta));
+
+        market.update(
+            user,
+            position.maker,
+            position.long,
+            position.short,
+            Fixed6Lib.ZERO,
+            false,
+            address(0) // TODO: referrer should be "passthrough"
+        );
     }
 
     /// @notice Determines if the order has been deleted
@@ -41,7 +72,7 @@ library TriggerOrderLib {
 struct StoredTriggerOrder {
     /* slot 0 */
     uint8 side;      // 0 = maker, 1 = long, 2 = short
-    int8 comparison; // -2 = lt, -1 = lte, 0 = eq, 1 = gte, 2 = gt
+    int8 comparison; // -1 = lte, 1 = gte
     int64 price;     // <= 9.22t
     int64 delta;     // <= 9.22t
 }

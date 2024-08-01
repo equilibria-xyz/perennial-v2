@@ -14,7 +14,7 @@ const { ethers } = HRE
 // go long 300 if price drops below 1999.88
 const ORDER_LONG: TriggerOrderStruct = {
   side: Side.LONG,
-  comparison: Compare.LT,
+  comparison: Compare.LTE,
   price: parse6decimal('1999.88'),
   delta: parse6decimal('300'),
 }
@@ -22,7 +22,7 @@ const ORDER_LONG: TriggerOrderStruct = {
 // short 400 if price exceeds 2444.55
 const ORDER_SHORT: TriggerOrderStruct = {
   side: Side.SHORT,
-  comparison: Compare.GT,
+  comparison: Compare.GTE,
   price: parse6decimal('2444.55'),
   delta: parse6decimal('400'),
 }

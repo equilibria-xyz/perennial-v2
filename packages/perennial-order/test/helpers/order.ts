@@ -1,3 +1,6 @@
+import { expect } from 'chai'
+import { TriggerOrderStruct } from '../../types/generated/contracts/Manager'
+
 export enum Side {
   MAKER = 0,
   LONG = 1,
@@ -5,9 +8,13 @@ export enum Side {
 }
 
 export enum Compare {
-  LT = -2,
   LTE = -1,
-  EQ = 0,
   GTE = 1,
-  GT = 2,
+}
+
+export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrderStruct) {
+  expect(actual.side).to.equal(expected.side)
+  expect(actual.comparison).to.equal(expected.comparison)
+  expect(actual.price).to.equal(expected.price)
+  expect(actual.delta).to.equal(expected.delta)
 }

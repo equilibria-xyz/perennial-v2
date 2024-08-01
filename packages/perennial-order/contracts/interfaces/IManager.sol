@@ -23,15 +23,15 @@ interface IManager {
     /// @notice Emitted when an order has been cancelled
     /// @param market Perennial market for which the order was intended
     /// @param user Actor whose order was cancelled
-    /// @param orderId Uniquely identifies the cancelled order
-    event OrderCancelled(IMarket indexed market, address indexed user, uint256 orderId);
+    /// @param orderNonce Uniquely identifies the cancelled order
+    event OrderCancelled(IMarket indexed market, address indexed user, uint256 orderNonce);
 
     /// @notice Emitted when a trigger orders conditions have been met and the user's position has been updated
     /// @param market Perennial market which the order affected
     /// @param user Actor whose position was changed
     /// @param order Change in position and conditions which were satisfied
-    /// @param orderId Uniquely identifies the executed order
-    event OrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderId);
+    /// @param orderNonce Uniquely identifies the executed order
+    event OrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderNonce);
 
     // sig: 0x955cc4b9
     /// @custom:error Order does not exist or was already cancelled or executed
@@ -80,8 +80,13 @@ interface IManager {
     /// @param market Perennial market for which the order is intended
     /// @param user Actor whose position is to be changed
     /// @param orderNonce Uniquely identifies the order for a user
+    /// @return order Trigger order read from storage
     /// @return canExecute True if trigger conditions have been met and executeOrder may be called on the order
-    function checkOrder(IMarket market, address user, uint256 orderNonce) external returns (bool canExecute);
+    function checkOrder(
+        IMarket market,
+        address user,
+        uint256 orderNonce
+    ) external returns (TriggerOrder memory order, bool canExecute);
 
     /// @notice Called by keeper to execute an order whose trigger conditions have been met
     /// @param market Perennial market for which the order is intended
