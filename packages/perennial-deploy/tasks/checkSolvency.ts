@@ -108,6 +108,7 @@ export default task('check-solvency', 'Check the solvency of all markets')
           'DSU',
           `\n\tBalance: ${utils.formatUnits(marketBalance6, 6)}, Collateral: ${utils.formatUnits(marketCollateral, 6)}`,
           `\n\t\tFees: ${utils.formatUnits(globalFees, 6)}, Exposure: ${utils.formatUnits(global.exposure, 6)}`,
+          `\n\t\tClaimable: ${utils.formatUnits(totalClaimable, 6)}`,
         )
       }
     }
