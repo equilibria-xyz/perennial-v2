@@ -4,7 +4,6 @@ import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PAYOFFS } from '../../deploy/002_deploy_payoff'
 import { PopulatedTransaction, utils } from 'ethers'
 import { NewMarketParameter, NewRiskParams } from './contstants'
-import { Market__factory } from '../../types/generated'
 
 export default task('multisig_ops:buildCreateMarket', 'Builds the create market transaction')
   .addParam('underlyingid', 'The oracle ID to use')
@@ -79,7 +78,7 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
       nonce: await ethers.provider.getTransactionCount(marketFactory.address),
     })
     const coordinatorAddress = (await getOrNull('GauntletCoordinator'))?.address || ethers.constants.AddressZero
-    const marketInterface = Market__factory.createInterface()
+    const marketInterface = (await ethers.getContractFactory('Market')).interface
 
     await addPayload(async () => {
       return {
