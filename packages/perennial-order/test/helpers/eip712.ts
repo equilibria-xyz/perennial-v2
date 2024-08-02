@@ -1,5 +1,10 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ActionStruct, CommonStruct, PlaceOrderActionStruct } from '../../types/generated/contracts/Verifier'
+import {
+  ActionStruct,
+  CommonStruct,
+  CancelOrderActionStruct,
+  PlaceOrderActionStruct,
+} from '../../types/generated/contracts/Verifier'
 import { FakeContract } from '@defi-wonderland/smock'
 import { IOrderVerifier } from '../../types/generated'
 
@@ -41,8 +46,8 @@ const triggerOrderType = {
   TriggerOrder: [
     { name: 'side', type: 'uint8' },
     { name: 'comparison', type: 'int8' },
-    { name: 'price', type: 'uint256' },
-    { name: 'delta', type: 'uint256' },
+    { name: 'price', type: 'int64' },
+    { name: 'delta', type: 'int64' },
   ],
 }
 

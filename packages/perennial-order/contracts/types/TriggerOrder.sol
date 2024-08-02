@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarket, OracleVersion, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 // TODO: would prefer making comparison uint8 for logability, and reserving 0 as invalid/empty,
 // but leaving these same as MultiInvoker for backward compatibility
@@ -35,10 +35,15 @@ library TriggerOrderLib {
     function execute(
         TriggerOrder memory self,
         IMarket market,
-        address user,
-        Position memory position
+        address user
     ) internal {
-        // update position
+        // settle and get the pending position of the account
+        market.settle(user);
+        Order memory pending = market.pendings(user);
+        Position memory position = market.positions(user);
+        position.update(pending);
+
+        // apply order to position
         if (self.side == 0)
             position.maker = self.delta.isZero() ?
                 UFixed6Lib.ZERO :
@@ -52,6 +57,7 @@ library TriggerOrderLib {
                 UFixed6Lib.ZERO :
                 UFixed6Lib.from(Fixed6Lib.from(position.short).add(self.delta));
 
+        // apply position to market
         market.update(
             user,
             position.maker,
@@ -87,7 +93,7 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "TriggerOrder(uint8 side,int8 comparison,uint256 price,uint256 delta)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta)"
     );
 
     // sig: 0xf3469aa7

@@ -33,7 +33,7 @@ library PlaceOrderActionLib {
         "PlaceOrderAction(TriggerOrder order,Action action)"
         "Action(address market,uint256 orderNonce,uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
-        "TriggerOrder(uint8 side,int8 comparison,uint256 price,uint256 delta)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta)"
     );
 
     /// @dev Used to create a signed message
