@@ -45,9 +45,9 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory {
     function initialize(IOracleFactory oracleFactory) external;
     function updateId(IOracleProvider oracleProvider, bytes32 id) external;
     function register(IPayoffProvider payoff) external;
-    function toUnderlyingId(bytes32 id) external returns (bytes32);
-    function toUnderlyingPayoff(bytes32 id) external returns (PayoffDefinition memory payoff);
-    function fromUnderlying(bytes32 underlyingId, IPayoffProvider payoff) external returns (bytes32);
+    function toUnderlyingId(bytes32 id) external view returns (bytes32);
+    function toUnderlyingPayoff(bytes32 id) external view returns (PayoffDefinition memory payoff);
+    function fromUnderlying(bytes32 underlyingId, IPayoffProvider payoff) external view returns (bytes32);
     function create(bytes32 id, bytes32 underlyingId, PayoffDefinition memory payoff) external returns (IKeeperOracle oracle);
     function current() external view returns (uint256);
     function parameter() external view returns (KeeperOracleParameter memory);
