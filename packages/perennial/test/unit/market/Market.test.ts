@@ -371,9 +371,9 @@ const EXPECTED_INTEREST_WITHOUT_FEE_10_67_96_ALL = EXPECTED_INTEREST_10_67_96_AL
   EXPECTED_INTEREST_FEE_10_67_96_ALL,
 )
 
-async function settle(market: Market, account: SignerWithAddress, sender?: SignerWithAddress) {
+async function sync(market: Market, account: SignerWithAddress, sender?: SignerWithAddress) {
   const local = await market.locals(account.address)
-  return await market.connect(sender || account).settle(account.address)
+  return await market.connect(sender || account).sync(account.address)
 }
 
 async function deposit(market: Market, amount: BigNumber, account: SignerWithAddress, sender?: SignerWithAddress) {
@@ -803,8 +803,8 @@ describe('Market', () => {
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
-        await settle(market, user)
-        await settle(market, userB)
+        await sync(market, user)
+        await sync(market, userB)
 
         // test the risk parameter update
         await market.connect(owner).updateParameter(await market.parameter())
@@ -899,9 +899,9 @@ describe('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
         oracle.request.returns()
-        await settle(market, user)
-        await settle(market, userB)
-        await settle(market, userC)
+        await sync(market, user)
+        await sync(market, userB)
+        await sync(market, userC)
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
           timestamp: ORACLE_VERSION_2.timestamp,
@@ -919,7 +919,7 @@ describe('Market', () => {
         oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
         oracle.request.returns()
-        await settle(market, user)
+        await sync(market, user)
 
         // userB gets liquidated, eliminating the maker position
         const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -946,7 +946,7 @@ describe('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
         oracle.request.returns()
-        await settle(market, userB)
+        await sync(market, userB)
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
           timestamp: ORACLE_VERSION_4.timestamp,
@@ -1023,7 +1023,7 @@ describe('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
         oracle.request.returns()
-        await settle(market, user)
+        await sync(market, user)
 
         // rate_3 = rate_2 + (elapsed * scaledSkew / k) = -0.18 + 3600 * -1 / 40000 = −0.27
         // (-0.18 + -0.27)/2 * 3600 * 6 * 45 / (86400 * 365) = −0.006934
@@ -1095,9 +1095,9 @@ describe('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
         oracle.request.returns()
-        await settle(market, user)
-        await settle(market, userB)
-        await settle(market, userC)
+        await sync(market, user)
+        await sync(market, userB)
+        await sync(market, userC)
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
           timestamp: ORACLE_VERSION_2.timestamp,
@@ -1115,7 +1115,7 @@ describe('Market', () => {
         oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
         oracle.request.returns()
-        await settle(market, user)
+        await sync(market, user)
 
         // userB gets liquidated, eliminating the maker position
         const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -1142,7 +1142,7 @@ describe('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
         oracle.request.returns()
-        await settle(market, userB)
+        await sync(market, userB)
         expectPositionEq(await market.position(), {
           ...DEFAULT_POSITION,
           timestamp: ORACLE_VERSION_4.timestamp,
@@ -1221,7 +1221,7 @@ describe('Market', () => {
         oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
         oracle.request.returns()
-        await settle(market, user)
+        await sync(market, user)
 
         // rate_3 = rate_2 + (elapsed * scaledSkew / k) = -0.18 + 3600 * -1 / 40000 = −0.27
         // (-0.18 + -0.27)/2 * 3600 * 6 * 45 / (86400 * 365) = −0.006934
@@ -1299,7 +1299,8 @@ describe('Market', () => {
           )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT]) // ignores non-requested version
+        oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
         await expect(await market.settle(user.address))
@@ -1412,7 +1413,8 @@ describe('Market', () => {
           )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT]) // ignores non-requested version
+        oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
         const marketParameter = { ...(await market.parameter()) }
@@ -1495,6 +1497,177 @@ describe('Market', () => {
           price: PRICE,
           liquidationFee: { _value: -riskParameter.liquidationFee },
         })
+      })
+    })
+
+    describe('#sync', async () => {
+      beforeEach(async () => {
+        await market.connect(owner).updateCoordinator(coordinator.address)
+        await market.connect(owner).updateBeneficiary(beneficiary.address)
+        await market.connect(owner).updateParameter(marketParameter)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
+
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+      })
+
+      it('opens the position and syncs', async () => {
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        )
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            0,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            user.address,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              makerPos: POSITION,
+              collateral: COLLATERAL,
+            },
+            { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await expect(await market.sync(user.address))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(
+            1,
+            {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_VERSION_ACCUMULATION_RESULT,
+          )
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            1,
+            {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 1,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
+          currentId: 1,
+          latestId: 1,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrder(1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          ...DEFAULT_VERSION,
+          price: PRICE,
+          liquidationFee: { _value: -riskParameter.liquidationFee },
+        })
+      })
+
+      it('doesnt sync when market is in settle-only mode', async () => {
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        )
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            0,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            user.address,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              makerPos: POSITION,
+              collateral: COLLATERAL,
+            },
+            { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        const marketParameter = { ...(await market.parameter()) }
+        marketParameter.settle = true
+        await market.connect(owner).updateParameter(marketParameter)
+
+        await expect(market.sync(user.address)).to.revertedWithCustomError(market, 'MarketSettleOnlyError')
       })
     })
 
@@ -1673,7 +1846,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
           await expect(
@@ -1849,7 +2022,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(await settle(market, user))
+            await expect(await sync(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
                 1,
@@ -2001,7 +2174,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -2143,7 +2316,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -2224,7 +2397,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -2319,7 +2492,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -2387,7 +2560,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
             })
 
             it('closes the position', async () => {
@@ -2471,7 +2644,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2603,7 +2776,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2747,7 +2920,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2816,7 +2989,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2900,7 +3073,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3079,7 +3252,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3225,7 +3398,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3390,8 +3563,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3508,8 +3681,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3641,8 +3814,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3735,7 +3908,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               const riskParameter = { ...(await market.riskParameter()) }
               const riskParameterTakerFee = { ...riskParameter.takerFee }
@@ -3792,8 +3965,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3915,7 +4088,7 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
+                await sync(market, user)
               })
 
               it('closes the position', async () => {
@@ -4000,8 +4173,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -4169,8 +4342,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -4274,8 +4447,8 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -4394,8 +4567,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -4524,8 +4697,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -4646,8 +4819,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -4761,8 +4934,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
           })
 
           it('same price same timestamp settle', async () => {
@@ -4778,8 +4951,8 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -4861,7 +5034,7 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(settle(market, user))
+            await expect(sync(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
                 1,
@@ -4891,7 +5064,7 @@ describe('Market', () => {
                 },
               )
 
-            await expect(settle(market, userB))
+            await expect(sync(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(
                 userB.address,
@@ -5006,7 +5179,7 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(settle(market, user))
+            await expect(sync(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
                 1,
@@ -5036,7 +5209,7 @@ describe('Market', () => {
                 },
               )
 
-            await expect(settle(market, userB))
+            await expect(sync(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(
                 userB.address,
@@ -5172,8 +5345,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -5189,7 +5362,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -5220,8 +5393,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const oracleVersionHigherPrice2 = {
                 price: parse6decimal('150'),
@@ -5234,8 +5407,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
@@ -5396,9 +5569,9 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userC)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userC)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -5414,8 +5587,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userC)
+              await sync(market, user)
+              await sync(market, userC)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
               await expect(
@@ -5445,9 +5618,9 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userC)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userC)
 
               const oracleVersionHigherPrice2 = {
                 price: parse6decimal('150'),
@@ -5460,9 +5633,9 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userC)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userC)
 
               // (0.08 / 365 / 24 / 60 / 60 ) * 3600 * 5 * 123 = 5620
               const EXPECTED_INTEREST_1 = BigNumber.from(5620)
@@ -5666,8 +5839,8 @@ describe('Market', () => {
               riskParameter.liquidationFee = parse6decimal('100')
               await market.connect(owner).updateRiskParameter(riskParameter)
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('100')
@@ -5683,7 +5856,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -5904,8 +6077,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -5921,7 +6094,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, userB)
+              await sync(market, userB)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -5952,8 +6125,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const oracleVersionLowerPrice2 = {
                 price: parse6decimal('96'),
@@ -5966,8 +6139,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -6113,8 +6286,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -6130,7 +6303,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, userB)
+              await sync(market, userB)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -6336,8 +6509,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
           })
 
           it('zeroes PnL and fees (price change)', async () => {
@@ -6365,8 +6538,8 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -6566,7 +6739,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -6713,7 +6886,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -6878,8 +7051,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7001,8 +7174,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7138,8 +7311,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7232,7 +7405,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               const riskParameter = { ...(await market.riskParameter()) }
               const riskParameterTakerFee = { ...riskParameter.takerFee }
@@ -7292,8 +7465,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -7414,7 +7587,7 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
+                await sync(market, user)
               })
 
               it('closes the position', async () => {
@@ -7499,8 +7672,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -7669,8 +7842,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -7775,7 +7948,7 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                await settle(market, userB)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -7895,8 +8068,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -8027,8 +8200,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -8151,8 +8324,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.whenCalledWith(user.address).returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -8267,8 +8440,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
           })
 
           it('same price same timestamp settle', async () => {
@@ -8284,8 +8457,8 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -8367,7 +8540,7 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(settle(market, user))
+            await expect(sync(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
                 1,
@@ -8397,7 +8570,7 @@ describe('Market', () => {
                 },
               )
 
-            await expect(settle(market, userB))
+            await expect(sync(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(
                 userB.address,
@@ -8514,7 +8687,7 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await expect(settle(market, user))
+            await expect(sync(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
                 1,
@@ -8544,7 +8717,7 @@ describe('Market', () => {
                 },
               )
 
-            await expect(settle(market, userB))
+            await expect(sync(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(
                 userB.address,
@@ -8684,8 +8857,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -8701,7 +8874,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -8732,8 +8905,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const oracleVersionLowerPrice2 = {
                 price: parse6decimal('96'),
@@ -8746,8 +8919,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
@@ -8901,9 +9074,9 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userC)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userC)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5).div(2)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -8934,8 +9107,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userC)
+              await sync(market, user)
+              await sync(market, userC)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
               await expect(
@@ -8965,9 +9138,9 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userC)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userC)
 
               const oracleVersionHigherPrice2 = {
                 price: parse6decimal('96'),
@@ -8980,9 +9153,9 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userC)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userC)
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
@@ -9163,8 +9336,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -9180,7 +9353,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
+              await sync(market, user)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -9393,8 +9566,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -9410,7 +9583,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, userB)
+              await sync(market, userB)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -9441,8 +9614,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const oracleVersionLowerPrice2 = {
                 price: parse6decimal('150'),
@@ -9455,8 +9628,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
@@ -9608,8 +9781,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -9625,7 +9798,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              await settle(market, userB)
+              await sync(market, userB)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -9833,8 +10006,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
           })
 
           it('zeroes PnL and funding / interest fees (price change)', async () => {
@@ -9862,8 +10035,8 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -9980,8 +10153,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -10216,7 +10389,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10366,7 +10539,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10534,8 +10707,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10669,8 +10842,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10834,8 +11007,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -10981,8 +11154,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user, userB)
-              await settle(market, userB, user)
+              await sync(market, user, userB)
+              await sync(market, userB, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -11253,8 +11426,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_6.timestamp])
               oracle.request.returns()
 
-              await settle(market, user, userB)
-              await settle(market, userB, user)
+              await sync(market, user, userB)
+              await sync(market, userB, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -11400,7 +11573,7 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
                 oracle.request.returns()
 
-                await settle(market, user)
+                await sync(market, user)
               })
 
               it('closes the position', async () => {
@@ -11486,8 +11659,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -11671,8 +11844,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
                 oracle.request.returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -11791,8 +11964,8 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -11919,8 +12092,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -12081,8 +12254,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -12190,8 +12363,8 @@ describe('Market', () => {
                 oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
                 oracle.request.returns()
 
-                await settle(market, user)
-                await settle(market, userB)
+                await sync(market, user)
+                await sync(market, userB)
 
                 expectLocalEq(await market.locals(user.address), {
                   ...DEFAULT_LOCAL,
@@ -12286,8 +12459,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
           })
 
           it('same price same timestamp settle', async () => {
@@ -12303,8 +12476,8 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionSameTimestamp, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -12387,7 +12560,7 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
-            await expect(settle(market, user))
+            await expect(sync(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
                 1,
@@ -12422,7 +12595,7 @@ describe('Market', () => {
                 },
               )
 
-            await expect(settle(market, userB))
+            await expect(sync(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(
                 userB.address,
@@ -12554,7 +12727,7 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
-            await expect(settle(market, user))
+            await expect(sync(market, user))
               .to.emit(market, 'PositionProcessed')
               .withArgs(
                 1,
@@ -12589,7 +12762,7 @@ describe('Market', () => {
                 },
               )
 
-            await expect(settle(market, userB))
+            await expect(sync(market, userB))
               .to.emit(market, 'AccountPositionProcessed')
               .withArgs(
                 userB.address,
@@ -12754,8 +12927,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('78').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -12771,7 +12944,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
@@ -12802,8 +12975,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const oracleVersionHigherPrice2 = {
                 price: parse6decimal('45'),
@@ -12816,8 +12989,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
@@ -13012,8 +13185,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               // establish risk parameters with adiabatic fees
               const adiabaticRiskParameter = {
@@ -13042,7 +13215,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
               oracle.request.returns()
 
-              await settle(market, user)
+              await sync(market, user)
 
               // userB gets liquidated, eliminating the maker position
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
@@ -13074,7 +13247,7 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
-              await settle(market, userB)
+              await sync(market, userB)
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
@@ -13165,9 +13338,9 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userD)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userD)
 
               const EXPECTED_PNL = parse6decimal('78').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -13183,8 +13356,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userD)
+              await sync(market, user)
+              await sync(market, userD)
 
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
@@ -13215,9 +13388,9 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userD)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userD)
 
               const oracleVersionHigherPrice2 = {
                 price: parse6decimal('45'),
@@ -13230,9 +13403,9 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice2, oracleVersionHigherPrice2.timestamp + 3600])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
-              await settle(market, userD)
+              await sync(market, user)
+              await sync(market, userB)
+              await sync(market, userD)
 
               expectLocalEq(await market.locals(liquidator.address), {
                 ...DEFAULT_LOCAL,
@@ -13426,8 +13599,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('90').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -13443,7 +13616,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionHigherPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
+              await sync(market, user)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -13684,8 +13857,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('27').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -13701,7 +13874,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, userB)
+              await sync(market, userB)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -13732,8 +13905,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const oracleVersionLowerPrice2 = {
                 price: parse6decimal('96'),
@@ -13746,8 +13919,8 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               // rate_0 = 0.09
               // rate_1 = rate_0 + (elapsed * skew / k)
@@ -13953,8 +14126,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.returns()
 
-              await settle(market, user)
-              await settle(market, userB)
+              await sync(market, user)
+              await sync(market, userB)
 
               const EXPECTED_PNL = parse6decimal('80').mul(5)
               const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -13970,7 +14143,7 @@ describe('Market', () => {
               oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              await settle(market, userB)
+              await sync(market, userB)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -14207,8 +14380,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
           })
 
           it('zeroes PnL and fees (price change)', async () => {
@@ -14236,8 +14409,8 @@ describe('Market', () => {
             oracle.status.returns([oracleVersionHigherPrice_1, ORACLE_VERSION_5.timestamp])
             oracle.request.returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -14703,7 +14876,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           // open to POSITION (POSITION / 2 settled)
           await market
@@ -14787,7 +14960,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -15013,7 +15186,7 @@ describe('Market', () => {
                 .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
-              await settle(market, user)
+              await sync(market, user)
             })
 
             it('allows closing long', async () => {
@@ -15094,7 +15267,7 @@ describe('Market', () => {
                 .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
-              await settle(market, user)
+              await sync(market, user)
             })
 
             it('allows closing short position', async () => {
@@ -15175,7 +15348,7 @@ describe('Market', () => {
                 .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
-              await settle(market, user)
+              await sync(market, user)
             })
 
             it('disallows closing maker', async () => {
@@ -15235,8 +15408,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const EXPECTED_PNL = parse6decimal('80').mul(5)
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
@@ -15252,7 +15425,7 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, userB)
+          await sync(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -15399,7 +15572,7 @@ describe('Market', () => {
               0,
               false,
             )
-          await settle(market, userB)
+          await sync(market, userB)
         })
 
         it('default', async () => {
@@ -15416,7 +15589,7 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, userB)
+          await sync(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -15466,8 +15639,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const oracleVersionLowerPrice2 = {
             price: parse6decimal('150'),
@@ -15480,8 +15653,8 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(liquidator.address), {
             ...DEFAULT_LOCAL,
@@ -15528,8 +15701,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const EXPECTED_PNL = parse6decimal('27').mul(5)
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -15545,7 +15718,7 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, userB)
+          await sync(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           await expect(
@@ -15601,14 +15774,14 @@ describe('Market', () => {
               constants.AddressZero,
               constants.AddressZero,
             )
-          await settle(market, userB)
+          await sync(market, userB)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([ORACLE_VERSION_5, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const oracleVersionLowerPrice2 = {
             price: parse6decimal('150'),
@@ -15621,8 +15794,8 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const EXPECTED_ROUND_3_ACC = BigNumber.from(28795) // position open one extra version due to invalid first liquidation
           const EXPECTED_ROUND_3_ACC_WITHOUT_FEE = BigNumber.from(26010)
@@ -15803,8 +15976,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const EXPECTED_PNL = parse6decimal('27').mul(5)
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
@@ -15820,7 +15993,7 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, userB)
+          await sync(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -15832,8 +16005,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const oracleVersionLowerPrice2 = {
             price: parse6decimal('96'),
@@ -15846,8 +16019,8 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -16010,8 +16183,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const EXPECTED_PNL = parse6decimal('80').mul(5)
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
@@ -16027,7 +16200,7 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, userB)
+          await sync(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -16066,8 +16239,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('50') // 6.45 -> under minimum
 
@@ -16082,7 +16255,7 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, userB)
+          await sync(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
@@ -16116,7 +16289,7 @@ describe('Market', () => {
               parse6decimal('1000'),
               false,
             )
-          await settle(market, user)
+          await sync(market, user)
 
           expect((await market.locals(user.address)).currentId).to.equal(3)
           expect(await market.liquidators(user.address, 3)).to.equal(constants.AddressZero)
@@ -16138,7 +16311,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
           const riskParameterTakerFee = { ...riskParameter.takerFee }
@@ -16186,8 +16359,8 @@ describe('Market', () => {
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -16269,7 +16442,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
           const riskParameterTakerFee = { ...riskParameter.takerFee }
@@ -16349,8 +16522,8 @@ describe('Market', () => {
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -16466,7 +16639,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
           const riskParameterTakerFee = { ...riskParameter.takerFee }
@@ -16538,8 +16711,8 @@ describe('Market', () => {
           oracle.status.returns([{ ...ORACLE_VERSION_4, valid: false }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -16647,7 +16820,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
           const riskParameterTakerFee = { ...riskParameter.takerFee }
@@ -16719,8 +16892,8 @@ describe('Market', () => {
           oracle.status.returns([{ ...ORACLE_VERSION_4 }, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -16819,7 +16992,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           const riskParameter = { ...(await market.riskParameter()) }
           const riskParameterTakerFee = { ...riskParameter.takerFee }
@@ -16921,8 +17094,8 @@ describe('Market', () => {
           oracle.status.returns([{ ...ORACLE_VERSION_5 }, ORACLE_VERSION_6.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -17097,8 +17270,8 @@ describe('Market', () => {
           oracle.status.returns([{ ...ORACLE_VERSION_3, valid: false }, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -17226,9 +17399,9 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
-          await settle(market, userC)
+          await sync(market, user)
+          await sync(market, userB)
+          await sync(market, userC)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -17371,9 +17544,9 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
-          await settle(market, userC)
+          await sync(market, user)
+          await sync(market, userB)
+          await sync(market, userC)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -17779,9 +17952,9 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
-          await settle(market, userC)
+          await sync(market, user)
+          await sync(market, userB)
+          await sync(market, userC)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -17975,8 +18148,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -19050,8 +19223,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
           })
 
           it('correctly dampens the funding rate increase', async () => {
@@ -19059,8 +19232,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -19189,8 +19362,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
           })
 
           it('correctly dampens the funding rate decrease', async () => {
@@ -19198,8 +19371,8 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
+            await sync(market, user)
+            await sync(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -19640,7 +19813,7 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
+          await sync(market, user)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -19763,8 +19936,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -19922,8 +20095,8 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await settle(market, user)
-          await settle(market, userB)
+          await sync(market, user)
+          await sync(market, userB)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -20144,9 +20317,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -20385,9 +20558,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -20626,9 +20799,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -20866,9 +21039,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -21047,7 +21220,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
             const riskParameter = { ...(await market.riskParameter()) }
@@ -21120,9 +21293,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -21300,7 +21473,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
             const riskParameter = { ...(await market.riskParameter()) }
@@ -21373,9 +21546,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -21553,7 +21726,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
             const riskParameter = { ...(await market.riskParameter()) }
@@ -21626,9 +21799,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -21808,7 +21981,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
             const riskParameter = { ...(await market.riskParameter()) }
@@ -21881,9 +22054,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -22070,7 +22243,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             const riskParameter = { ...(await market.riskParameter()) }
             await market.updateRiskParameter({
@@ -22142,9 +22315,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -22331,7 +22504,7 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
+            await sync(market, user)
 
             const riskParameter = { ...(await market.riskParameter()) }
             await market.updateRiskParameter({
@@ -22403,9 +22576,9 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
-            await settle(market, user)
-            await settle(market, userB)
-            await settle(market, userC)
+            await sync(market, user)
+            await sync(market, userB)
+            await sync(market, userC)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
@@ -22681,8 +22854,8 @@ describe('Market', () => {
         oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
-        await settle(market, user)
-        await settle(market, userB)
+        await sync(market, user)
+        await sync(market, userB)
       })
 
       it('claims fee (protocol)', async () => {

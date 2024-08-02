@@ -441,7 +441,7 @@ describe('Invoke', () => {
           expect((await vault.accounts(user.address)).shares).to.eq(0)
 
           await updateVaultOracle()
-          await vault.settle(user.address)
+          await vault.sync(user.address)
 
           // redeem from vault
           await invoke(
@@ -460,7 +460,7 @@ describe('Invoke', () => {
           expect((await vault.accounts(user.address)).shares).to.eq(0)
 
           await updateVaultOracle()
-          await vault.settle(user.address)
+          await vault.sync(user.address)
 
           const funding = BigNumber.from('14352')
           // claim from vault

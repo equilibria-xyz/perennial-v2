@@ -391,7 +391,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             abi.encode(account, market, order.fee)
         );
 
-        _marketSettle(market, account);
+        market.sync(account);
 
         Order memory pending = market.pendings(account);
         Position memory currentPosition = market.positions(account);
@@ -462,13 +462,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param withdrawal Amount to withdraw
     function _marketWithdraw(IMarket market, address account, UFixed6 withdrawal) private {
         market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, withdrawal), false);
-    }
-
-    /// @notice Settles `account`'s `market` position
-    /// @param market Market to settle
-    /// @param account Account to settle
-    function _marketSettle(IMarket market, address account) private {
-        market.settle(account);
     }
 
     /// @notice Target market must be created by MarketFactory

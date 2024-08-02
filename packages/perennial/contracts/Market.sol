@@ -109,12 +109,23 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         oracle = definition_.oracle;
     }
 
-    /// @notice Settles the account's position and collateral
+    /// @notice Settles the account's position and collateral to the latest order
     /// @param account The account to operate on
     function settle(address account) external nonReentrant whenNotPaused {
         Context memory context = _loadContext(account);
 
         _settle(context);
+
+        _storeContext(context);
+    }
+
+    /// @notice Syncs the account's position and collateral to the latest timestamp
+    /// @param account The account to operate on
+    function sync(address account) external nonReentrant whenNotPaused {
+        Context memory context = _loadContext(account);
+
+        SettlementContext memory settlementContext = _settle(context);
+        _sync(context, settlementContext);
 
         _storeContext(context);
     }
@@ -172,7 +183,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         // settle market & account
         Context memory context = _loadContext(account);
-        _settle(context);
+        SettlementContext memory settlementContext = _settle(context);
+        _sync(context, settlementContext);
 
         // load update context
         UpdateContext memory updateContext = _loadUpdateContext(context, signer, orderReferrer, guaranteeReferralFee);
@@ -234,7 +246,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) public nonReentrant whenNotPaused {
         // settle market & account
         Context memory context = _loadContext(account);
-        _settle(context);
+        SettlementContext memory settlementContext = _settle(context);
+        _sync(context, settlementContext);
 
         // load update context
         UpdateContext memory updateContext = _loadUpdateContext(context, address(0), referrer, UFixed6Lib.ZERO);
@@ -684,15 +697,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
     }
 
-    /// @notice Settles the account position up to the latest version
+    /// @notice Settles the account position up to the latest order
+    /// @dev - Process orders whose requested prices are now available from oracle
+    ///      - All requested prices are guaranteed to be present in the oracle, but could be stale
     /// @param context The context to use
-    function _settle(Context memory context) private {
-        SettlementContext memory settlementContext = _loadSettlementContext(context);
-
+    /// @return settlementContext The settlement context
+    function _settle(Context memory context) private returns (SettlementContext memory settlementContext) {
+        settlementContext = _loadSettlementContext(context);
         Order memory nextOrder;
 
-        // settle - process orders whose requested prices are now available from oracle
-        //        - all requested prices are guaranteed to be present in the oracle, but could be stale
         while (
             context.global.currentId != context.global.latestId &&
             (nextOrder = _pendingOrder[context.global.latestId + 1].read()).ready(context.latestOracleVersion)
@@ -702,9 +715,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.local.currentId != context.local.latestId &&
             (nextOrder = _pendingOrders[context.account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
+    }
 
-        // sync - advance position timestamps to the latest oracle version
-        //      - latest versions are guaranteed to have present prices in the oracle, but could be stale
+    /// @notice Syncs the account position up to the latest timestamp
+    /// @dev - Advance position timestamps to the latest oracle version
+    ///      - Latest versions are guaranteed to have present prices in the oracle, but could be stale
+    /// @param context The context to use
+    /// @param settlementContext The settlement context to use
+    function _sync(Context memory context, SettlementContext memory settlementContext) private notSettleOnly(context) {
         if (context.latestOracleVersion.timestamp > context.latestPositionGlobal.timestamp)
             _processOrderGlobal(
                 context,

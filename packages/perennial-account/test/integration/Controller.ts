@@ -84,7 +84,7 @@ describe('ControllerBase', () => {
     keeperOracle = ethKeeperOracle,
   ) {
     await advanceToPrice(keeperOracle, receiver, timestamp, price, TX_OVERRIDES)
-    await ethMarket.settle(user.address, TX_OVERRIDES)
+    await ethMarket.sync(user.address, TX_OVERRIDES)
   }
 
   // ensures user has expected amount of collateral in a market

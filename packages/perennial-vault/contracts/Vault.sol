@@ -222,11 +222,11 @@ contract Vault is IVault, Instance {
 
     /// @notice Syncs `account`'s state up to current
     /// @param account The account that should be synced
-    function settle(address account) public whenNotPaused {
-        _settleUnderlying();
+    function sync(address account) public whenNotPaused {
+        _syncUnderlying();
         Context memory context = _loadContext(account);
 
-        _settle(context, account);
+        _sync(context, account);
         _saveContext(context, account);
     }
 
@@ -234,10 +234,10 @@ contract Vault is IVault, Instance {
     /// @dev Rebalances only the collateral of the vault
     /// @param account The account that should be synced
     function rebalance(address account) public whenNotPaused {
-        _settleUnderlying();
+        _syncUnderlying();
         Context memory context = _loadContext(account);
 
-        _settle(context, account);
+        _sync(context, account);
         _manage(context, UFixed6Lib.ZERO, UFixed6Lib.ZERO, false);
         _saveContext(context, account);
     }
@@ -253,10 +253,10 @@ contract Vault is IVault, Instance {
         UFixed6 redeemShares,
         UFixed6 claimAssets
     ) external whenNotPaused {
-        _settleUnderlying();
+        _syncUnderlying();
         Context memory context = _loadContext(account);
 
-        _settle(context, account);
+        _sync(context, account);
         _checkpoint(context);
         _update(context, account, depositAssets, redeemShares, claimAssets);
         _saveContext(context, account);
@@ -333,18 +333,18 @@ contract Vault is IVault, Instance {
     }
 
     /// @notice Handles settling the vault's underlying markets
-    function _settleUnderlying() private {
+    function _syncUnderlying() private {
         for (uint256 marketId; marketId < totalMarkets; marketId++)
-            _registrations[marketId].read().market.settle(address(this));
+            _registrations[marketId].read().market.sync(address(this));
     }
 
-    /// @notice Handles settling the vault state
-    /// @dev Run before every stateful operation to settle up the latest global state of the vault
+    /// @notice Handles syncing the vault state
+    /// @dev Run before every stateful operation to sync up the latest global state of the vault
     /// @param context The context to use
-    function _settle(Context memory context, address account) private {
+    function _sync(Context memory context, address account) private {
         Checkpoint memory nextCheckpoint;
 
-        // settle global positions
+        // ssync global positions
         while (
             context.global.current > context.global.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.global.latest + 1].read()).timestamp
@@ -362,7 +362,7 @@ contract Vault is IVault, Instance {
 
         if (account == address(0)) return;
 
-        // settle local position
+        // sync local position
         if (
             context.local.current > context.local.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.local.current].read()).timestamp

@@ -281,6 +281,6 @@ export async function createMarket(
   return market
 }
 
-export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  return market.connect(account).settle(account.address)
+export async function sync(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
+  return market.connect(account).sync(account.address)
 }

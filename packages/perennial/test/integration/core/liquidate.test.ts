@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, sync } from '../helpers/setupHelpers'
 import { expectPositionEq, parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
@@ -98,11 +98,11 @@ describe('Liquidate', () => {
 
     // Settle the market with a new oracle version
     await chainlink.next()
-    await settle(market, user)
+    await sync(market, user)
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
-    await settle(market, userB)
+    await sync(market, userB)
     const userBCollateral = (await market.locals(userB.address)).collateral
     await expect(
       market
@@ -120,7 +120,7 @@ describe('Liquidate', () => {
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true) // liquidate
 
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await settle(market, user)
+    await sync(market, user)
 
     expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2523154460'))
 
@@ -186,10 +186,10 @@ describe('Liquidate', () => {
       )
 
     await chainlink.next()
-    await settle(market, user)
-    await settle(market, userB)
-    await settle(market, userC)
-    await settle(market, userD)
+    await sync(market, user)
+    await sync(market, userB)
+    await sync(market, userC)
+    await sync(market, userD)
 
     const currA = (await market.locals(user.address)).collateral
     const currB = (await market.locals(userB.address)).collateral
@@ -202,10 +202,10 @@ describe('Liquidate', () => {
       .add((await market.global()).donation)
 
     await chainlink.next()
-    await settle(market, user)
-    await settle(market, userB)
-    await settle(market, userC)
-    await settle(market, userD)
+    await sync(market, user)
+    await sync(market, userB)
+    await sync(market, userC)
+    await sync(market, userD)
 
     const newA = (await market.locals(user.address)).collateral
     const newB = (await market.locals(userB.address)).collateral
@@ -272,9 +272,9 @@ describe('Liquidate', () => {
     let price = (await chainlink.oracle.latest()).price
     expect(price).to.equal(parse6decimal('113.882975'))
     await chainlink.nextWithPriceModification(price => price.mul(9).div(10)) // 10% drop
-    await settle(market, user)
+    await sync(market, user)
     await chainlink.nextWithPriceModification(price => price.mul(8).div(10)) // 20% drop
-    await settle(market, user)
+    await sync(market, user)
     price = (await chainlink.oracle.latest()).price
 
     // ensure user's collateral is now lower than minMaintenance but above maintenance requirement
@@ -302,7 +302,7 @@ describe('Liquidate', () => {
     expect(await market.liquidators(user.address, 2)).to.eq(userC.address)
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1500'))
     await chainlink.next()
-    await settle(market, user)
+    await sync(market, user)
     expectPositionEq(await market.position(), {
       timestamp: TIMESTAMP_3,
       long: 0,
@@ -383,14 +383,14 @@ describe('Liquidate', () => {
     await market.connect(userB).claimFee() // liquidator withdrawal
 
     const expectedClaimable = parse6decimal('6.902775')
-    await settle(market, userC)
+    await sync(market, userC)
     expect((await market.locals(userC.address)).claimable).to.equal(expectedClaimable)
 
     await chainlink.next()
     await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
     await chainlink.next()
-    await settle(market, user)
+    await sync(market, user)
     expect((await market.locals(user.address)).latestId).to.equal(4)
     expect(await market.liquidators(user.address, 4)).to.eq(constants.AddressZero)
     expect(await market.orderReferrers(user.address, 4)).to.eq(constants.AddressZero)

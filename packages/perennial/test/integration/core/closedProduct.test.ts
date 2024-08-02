@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, sync } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
@@ -33,7 +33,7 @@ describe('Closed Market', () => {
 
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(10))
-    await settle(market, owner)
+    await sync(market, owner)
 
     await chainlink.next()
     const parameters = { ...(await market.parameter()) }
@@ -110,8 +110,8 @@ describe('Closed Market', () => {
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
     await market.updateParameter(parameters)
-    await settle(market, user)
-    await settle(market, userB)
+    await sync(market, user)
+    await sync(market, userB)
 
     const userCollateralBefore = (await market.locals(user.address)).collateral
     const userBCollateralBefore = (await market.locals(userB.address)).collateral
@@ -161,8 +161,8 @@ describe('Closed Market', () => {
     await market.updateParameter(parameters)
     await chainlink.next()
 
-    await settle(market, user)
-    await settle(market, userB)
+    await sync(market, user)
+    await sync(market, userB)
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_3)
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
@@ -177,7 +177,7 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(4))
 
     const LIQUIDATION_FEE = BigNumber.from('1000000000')
-    await settle(market, user)
+    await sync(market, user)
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
 
     expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)

@@ -182,7 +182,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
         emit OracleProviderVersionFulfilled(version);
 
         IMarket market = oracle.market();
-        market.settle(address(0));
+        market.sync(address(0));
         oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
         market.token().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
     }

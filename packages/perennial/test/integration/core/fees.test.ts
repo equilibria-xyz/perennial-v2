@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants, ContractTransaction, utils } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, sync } from '../helpers/setupHelpers'
 import {
   DEFAULT_CHECKPOINT,
   DEFAULT_POSITION,
@@ -129,7 +129,7 @@ describe('Fees', () => {
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
-      const tx = await settle(market, user)
+      const tx = await sync(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -231,7 +231,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await settle(market, user)
+      await sync(market, user)
 
       await market.updateRiskParameter(previousRiskParams)
       await market.updateParameter(previousMarketParams)
@@ -239,7 +239,7 @@ describe('Fees', () => {
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
-      const tx = await settle(market, user)
+      const tx = await sync(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -347,7 +347,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await sync(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -460,7 +460,7 @@ describe('Fees', () => {
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
-      await settle(market, user)
+      await sync(market, user)
 
       await expect(
         market
@@ -485,7 +485,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await sync(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -568,7 +568,7 @@ describe('Fees', () => {
         long: LONG_POSITION,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await sync(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -659,8 +659,8 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await settle(market, userB)
-      await settle(market, user)
+      await sync(market, userB)
+      await sync(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
       await market.updateRiskParameter({
@@ -687,7 +687,7 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await sync(market, userB)
 
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
@@ -756,7 +756,7 @@ describe('Fees', () => {
         timestamp: TIMESTAMP_2,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await sync(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -835,7 +835,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await sync(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -948,7 +948,7 @@ describe('Fees', () => {
 
       // Settle maker to give them portion of fees
       await nextWithConstantPrice()
-      await settle(market, user)
+      await sync(market, user)
 
       await expect(
         market
@@ -973,7 +973,7 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await sync(market, userB)
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1054,7 +1054,7 @@ describe('Fees', () => {
         short: SHORT_POSITION,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await sync(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1145,8 +1145,8 @@ describe('Fees', () => {
         )
 
       await nextWithConstantPrice()
-      await settle(market, userB)
-      await settle(market, user)
+      await sync(market, userB)
+      await sync(market, user)
 
       // Re-enable fees for close, disable skew and impact for ease of calculation
       await market.updateRiskParameter({
@@ -1172,7 +1172,7 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
 
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
+      const txLong = await sync(market, userB)
 
       const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
@@ -1241,7 +1241,7 @@ describe('Fees', () => {
         timestamp: TIMESTAMP_2,
       })
 
-      const txMaker = await settle(market, user)
+      const txMaker = await sync(market, user)
       const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
@@ -1313,7 +1313,7 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
         await nextWithConstantPrice()
-        await settle(market, user)
+        await sync(market, user)
       })
 
       it('charges skew fee for changing skew', async () => {
@@ -1332,7 +1332,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        const txShort = await settle(market, userB)
+        const txShort = await sync(market, userB)
         const accountProcessEventShort: AccountPositionProcessedEventObject = (await txShort.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
         )?.args as unknown as AccountPositionProcessedEventObject
@@ -1361,7 +1361,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        const txLong = await settle(market, userC)
+        const txLong = await sync(market, userC)
         const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
         )?.args as unknown as AccountPositionProcessedEventObject
@@ -1422,7 +1422,7 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
         await nextWithConstantPrice()
-        await settle(market, user)
+        await sync(market, user)
       })
 
       it('charges taker impact fee for changing skew (short)', async () => {
@@ -1441,7 +1441,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        const tx = await settle(market, userB)
+        const tx = await sync(market, userB)
         const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
         )?.args as unknown as AccountPositionProcessedEventObject
@@ -1462,7 +1462,7 @@ describe('Fees', () => {
           ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
         await nextWithConstantPrice()
-        const tx = await settle(market, userB)
+        const tx = await sync(market, userB)
         const accountProcessEventShort: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
         )?.args as unknown as AccountPositionProcessedEventObject
@@ -1490,7 +1490,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        await settle(market, userB)
+        await sync(market, userB)
 
         // Enable position fee to test refund
         const riskParams = await market.riskParameter()
@@ -1508,7 +1508,7 @@ describe('Fees', () => {
           ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
         await nextWithConstantPrice()
-        const tx = await settle(market, userC)
+        const tx = await sync(market, userC)
         const accountProcessEventShort: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
         )?.args as unknown as AccountPositionProcessedEventObject
@@ -1539,7 +1539,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        await settle(market, userB)
+        await sync(market, userB)
 
         // Enable position fee to test refund
         const riskParams = await market.riskParameter()
@@ -1557,7 +1557,7 @@ describe('Fees', () => {
           ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
         await nextWithConstantPrice()
-        const tx = await settle(market, userC)
+        const tx = await sync(market, userC)
         const accountProcessEventShort: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
         )?.args as unknown as AccountPositionProcessedEventObject
@@ -1612,7 +1612,7 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
         await nextWithConstantPrice()
-        await settle(market, user)
+        await sync(market, user)
 
         await market.updateParameter({
           ...marketParams,
@@ -1635,7 +1635,7 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        const tx = await settle(market, instanceVars.user)
+        const tx = await sync(market, instanceVars.user)
 
         const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
@@ -1669,8 +1669,8 @@ describe('Fees', () => {
           )
 
         await nextWithConstantPrice()
-        const txB = await settle(market, userB)
-        const txC = await settle(market, userC)
+        const txB = await sync(market, userB)
+        const txC = await sync(market, userC)
 
         const accountProcessEventB: AccountPositionProcessedEventObject = (await txB.wait()).events?.find(
           e => e.event === 'AccountPositionProcessed',
@@ -1732,7 +1732,7 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
       await nextWithConstantPrice()
-      await settle(market, user)
+      await sync(market, user)
     })
 
     it('charges interest fee for long position', async () => {
@@ -1743,13 +1743,13 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
       await nextWithConstantPrice()
-      await settle(market, userB)
+      await sync(market, userB)
 
       await nextWithConstantPrice()
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await settle(market, userB)
+      const tx = await sync(market, userB)
       const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
       // payoffPrice = 3374.655169**2 * 0.00001 = 113.882975
@@ -1781,13 +1781,13 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
 
       await nextWithConstantPrice()
-      await settle(market, userB)
+      await sync(market, userB)
 
       await nextWithConstantPrice()
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await settle(market, userB)
+      const tx = await sync(market, userB)
       const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
       // payoffPrice = 3374.655169**2 * 0.00001 = 113.882975
@@ -1850,7 +1850,7 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, MAKER_POSITION, 0, 0, COLLATERAL, false)
       await nextWithConstantPrice()
-      await settle(market, user)
+      await sync(market, user)
     })
 
     it('charges funding fee for long position', async () => {
@@ -1861,13 +1861,13 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, LONG_POSITION, 0, COLLATERAL, false)
 
       await nextWithConstantPrice()
-      await settle(market, userB)
+      await sync(market, userB)
 
       await nextWithConstantPrice()
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await settle(market, userB)
+      const tx = await sync(market, userB)
       const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
       const expectedFunding = BigNumber.from('21259')
@@ -1899,13 +1899,13 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, SHORT_POSITION, COLLATERAL, false)
 
       await nextWithConstantPrice()
-      await settle(market, userB)
+      await sync(market, userB)
 
       await nextWithConstantPrice()
       await nextWithConstantPrice()
       await nextWithConstantPrice()
 
-      const tx = await settle(market, userB)
+      const tx = await sync(market, userB)
       const [accountProcessEvents, positionProcessEvents] = await getOrderProcessingEvents(tx)
 
       const expectedFunding = BigNumber.from('21259')
@@ -1982,8 +1982,8 @@ describe('Fees', () => {
         makerReferral: expectedReferral,
       })
       await nextWithConstantPrice()
-      await settle(market, user)
-      await settle(market, userB)
+      await sync(market, user)
+      await sync(market, userB)
 
       // ensure the proper amount of the base fee is claimable by the referrer
       // makerFee = position * makerFee * price = 3 * 0.05 * 113.882975 = 17.082446
@@ -2038,9 +2038,9 @@ describe('Fees', () => {
         takerReferral: expectedReferral,
       })
       await nextWithConstantPrice()
-      await settle(market, user)
-      await settle(market, userB)
-      await settle(market, userC)
+      await sync(market, user)
+      await sync(market, userB)
+      await sync(market, userC)
 
       // ensure the proper amount of the base fee is claimable by the referrer
       // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223
@@ -2087,8 +2087,8 @@ describe('Fees', () => {
         makerReferral: expectedReferral,
       })
       await nextWithConstantPrice()
-      await settle(market, user)
-      await settle(market, userB)
+      await sync(market, user)
+      await sync(market, userB)
 
       // ensure the proper amount of the base fee is claimable by the referrer
       // makerFee = position * makerFee * price = 3 * 0.05 * 113.882975 = 17.082446
@@ -2145,9 +2145,9 @@ describe('Fees', () => {
 
       // settle all users
       await nextWithConstantPrice()
-      await settle(market, user)
-      await settle(market, userB)
-      await settle(market, userC)
+      await sync(market, user)
+      await sync(market, userB)
+      await sync(market, userC)
 
       // userB claims the maker referral fee at the default rate
       // makerFee = position * makerFee * price = 6 * 0.05 * 113.882975 = 34.164892
@@ -2198,8 +2198,8 @@ describe('Fees', () => {
 
       // settle relevant users
       await nextWithConstantPrice()
-      await settle(market, user)
-      await settle(market, userD)
+      await sync(market, user)
+      await sync(market, userD)
 
       // user claims both taker referral fees
       // takerFee = position * takerFee * price = 2 * 0.025 * 113.882975 = 5.694148
@@ -2249,9 +2249,9 @@ describe('Fees', () => {
         takerReferral: expectedReferral,
       })
       await nextWithConstantPrice()
-      await settle(market, user)
-      await settle(market, userB)
-      await settle(market, userC) // update userC to clear values
+      await sync(market, user)
+      await sync(market, userB)
+      await sync(market, userC) // update userC to clear values
       expect(await market.orderReferrers(userC.address, currentId)).to.equal(userB.address)
       expect((await market.locals(userC.address)).currentId).to.equal(currentId)
 
@@ -2275,9 +2275,9 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool,address)'](userC.address, 0, 0, 0, 0, false, user.address)
 
       await nextWithConstantPrice()
-      await settle(market, user)
-      await settle(market, userB)
-      await settle(market, userC)
+      await sync(market, user)
+      await sync(market, userB)
+      await sync(market, userC)
 
       // ensure the proper amount of the base fee is claimable by the referrer
       // takerFee = position * linearFee * price = 3 * 0.025 * 113.882975 = 8.541223

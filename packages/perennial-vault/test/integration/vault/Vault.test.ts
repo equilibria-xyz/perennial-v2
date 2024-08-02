@@ -21,7 +21,7 @@ import {
   CheckpointLib__factory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
-import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
+import { deployProtocol, fundWallet, sync } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
 import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import {
   MarketFactory,
@@ -75,9 +75,9 @@ describe('Vault', () => {
     await _updateOracleBtc(newPriceBtc, newReceiptBtc)
   }
 
-  async function settleUnderlying(account: SignerWithAddress) {
-    await settle(market, account)
-    await settle(btcMarket, account)
+  async function syncUnderlying(account: SignerWithAddress) {
+    await sync(market, account)
+    await sync(btcMarket, account)
   }
 
   async function _updateOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
@@ -637,7 +637,7 @@ describe('Vault', () => {
     })
   })
 
-  describe('#settle', () => {
+  describe('#sync', () => {
     it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -669,7 +669,7 @@ describe('Vault', () => {
       expect(await vault.convertToAssets(parse6decimal('10'))).to.equal(parse6decimal('10'))
       expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.sync(user.address)
       const checkpoint2 = await vault.checkpoints(2)
       expect(checkpoint2.deposit).to.equal(largeDeposit)
       expect(checkpoint2.assets).to.equal(smallDeposit)
@@ -697,7 +697,7 @@ describe('Vault', () => {
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.sync(user.address)
 
       // We should have closed all positions.
       expect(await position()).to.equal(0)
@@ -955,12 +955,12 @@ describe('Vault', () => {
     })
 
     it('pending order limits max position size', async () => {
-      // settle pending orders from test setup to simplify the test
+      // sync pending orders from test setup to simplify the test
       await updateOracle()
-      await market.connect(user).settle(user.address)
-      await market.connect(user2).settle(user.address)
-      await market.connect(btcUser1).settle(btcUser1.address)
-      await market.connect(btcUser2).settle(btcUser2.address)
+      await market.connect(user).sync(user.address)
+      await market.connect(user2).sync(user.address)
+      await market.connect(btcUser1).sync(btcUser1.address)
+      await market.connect(btcUser2).sync(btcUser2.address)
 
       const makerAvailable = (await market.riskParameter()).makerLimit.sub((await currentPositionGlobal(market)).maker)
       const reservedForVault = parse6decimal('5')
@@ -1089,13 +1089,13 @@ describe('Vault', () => {
       const smallDeposit = parse6decimal('11000')
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
-      await vault.settle(user.address)
+      await vault.sync(user.address)
 
       await vault.connect(user2).update(user2.address, smallDeposit, 0, 0)
       await vault.connect(user).update(user.address, 0, parse6decimal('10000'), 0)
       await updateOracle()
-      await vault.settle(user.address)
-      await vault.settle(user2.address)
+      await vault.sync(user.address)
+      await vault.sync(user2.address)
 
       const localShares = (await vault.accounts(user.address)).shares.add((await vault.accounts(user2.address)).shares)
       expect(await vault.totalShares()).to.equal(localShares)
@@ -1166,7 +1166,7 @@ describe('Vault', () => {
           false,
         )
 
-      // Settle the take position
+      // Sync the take position
       await updateOracle()
       await vault.rebalance(user.address)
 
@@ -1206,7 +1206,7 @@ describe('Vault', () => {
           false,
         )
 
-      // Settle the take position
+      // Sync the take position
       await updateOracle()
       await vault.rebalance(user.address)
 
@@ -1419,7 +1419,7 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, 0, 1, 0) // redeem 1 share to trigger rebalance
 
       await updateOracle()
-      await settleUnderlying(vaultSigner)
+      await syncUnderlying(vaultSigner)
 
       // We should have closed all positions
       expect(await position()).to.equal(0)
@@ -1434,7 +1434,7 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, 0, 1, 0) // redeem 1 share to trigger rebalance
 
       await updateOracle()
-      await settleUnderlying(vaultSigner)
+      await syncUnderlying(vaultSigner)
 
       // Positions should be opened back up again
       expect(await position()).to.equal(largeDeposit.mul(leverage).mul(4).div(5).div(originalOraclePrice))
@@ -1767,7 +1767,7 @@ describe('Vault', () => {
       expect((await vault2.accounts(vaultFactory2.address)).shares).to.equal(parse6decimal('1'))
     })
 
-    it('zero address settle w/ settlement fee', async () => {
+    it('zero address sync w/ settlement fee', async () => {
       const riskParameters = { ...(await market.riskParameter()) }
       await market.updateRiskParameter({
         ...riskParameters,
@@ -1922,7 +1922,7 @@ describe('Vault', () => {
           // Increase the oracle price such that the vault's maker position violates margin requirements.
           const price = parse6decimal('50000')
           await updateOracle(undefined, price)
-          await btcMarket.connect(user).settle(vault.address)
+          await btcMarket.connect(user).sync(vault.address)
 
           // Ensure maintenance requirement is violated.
           let collateral = (await btcMarket.locals(vault.address)).collateral
@@ -1942,7 +1942,7 @@ describe('Vault', () => {
 
           // Redeem funds from the vault.
           await updateOracle()
-          vault.connect(user).settle(user.address)
+          vault.connect(user).sync(user.address)
           await expect(vault.connect(user).update(user.address, 0, constants.MaxUint256, 0)).to.not.be.reverted
         })
 
@@ -1972,7 +1972,7 @@ describe('Vault', () => {
           // 1. An oracle update increases the price, making the vault's position liquidatable.
           await updateOracle(undefined, parse6decimal('50000'))
 
-          // 2. Settle accounts / Liquidate the vault's maker position.
+          // 2. Sync accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('5149547500')
           await btcMarket
             .connect(user)
@@ -1982,10 +1982,10 @@ describe('Vault', () => {
           ) // no shortfall
           expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
 
-          // 3. Settle the liquidation.
+          // 3. Sync the liquidation.
           // We should now be able to deposit.
           await updateOracle()
-          await btcMarket.settle(vault.address)
+          await btcMarket.sync(vault.address)
           await btcMarket.connect(user).claimFee() // claim liquidation fee to pay for deposit
           await vault.connect(user).update(user.address, 2, 0, 0)
 
@@ -2009,7 +2009,7 @@ describe('Vault', () => {
           // 1. An oracle update increases the price, making the vault's position liquidatable.
           await updateOracle(undefined, parse6decimal('80000'))
 
-          // 2. Settle accounts / Liquidate the vault's maker position.
+          // 2. Sync accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('8239276000')
           await btcMarket
             .connect(user)
@@ -2019,10 +2019,10 @@ describe('Vault', () => {
           ) // shortfall
           expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
 
-          // 3. Settle the liquidation.
+          // 3. Sync the liquidation.
           // We should now be able to deposit.
           await updateOracle()
-          await btcMarket.settle(vault.address)
+          await btcMarket.sync(vault.address)
           await btcMarket.connect(user).claimFee() // claim liquidation fee to pay for deposit
           await vault.connect(user).update(user.address, 2, 0, 0)
 
@@ -2085,7 +2085,7 @@ describe('Vault', () => {
           // 1. An oracle update decreases the price, making the vault's position liquidatable.
           await updateOracle(undefined, parse6decimal('20000'))
 
-          // 2. Settle accounts / Liquidate the vault's maker position.
+          // 2. Sync accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('2059819000')
           await btcMarket
             .connect(user)
@@ -2095,10 +2095,10 @@ describe('Vault', () => {
           ) // no shortfall
           expect((await btcMarket.pendingOrders(vault.address, 3)).protection).to.equal(1)
 
-          // 3. Settle the liquidation.
+          // 3. Sync the liquidation.
           // We should now be able to deposit.
           await updateOracle()
-          await btcMarket.settle(vault.address)
+          await btcMarket.sync(vault.address)
           await btcMarket.connect(user).claimFee() // claim liquidation fee to pay for deposit
           await vault.connect(user).update(user.address, 2, 0, 0)
 
@@ -2122,7 +2122,7 @@ describe('Vault', () => {
           // 1. An oracle update decreases the price, making the vault's position liquidatable.
           await updateOracle(undefined, parse6decimal('19000'))
 
-          // 2. Settle accounts / Liquidate the vault's maker position.
+          // 2. Sync accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('1956828050')
           await btcMarket
             .connect(user)
@@ -2132,10 +2132,10 @@ describe('Vault', () => {
           ) // shortfall
           expect((await btcMarket.pendingOrders(vault.address, 3)).protection).to.equal(1)
 
-          // 3. Settle the liquidation.
+          // 3. Sync the liquidation.
           // We should now be able to deposit.
           await updateOracle()
-          await btcMarket.settle(vault.address)
+          await btcMarket.sync(vault.address)
           await btcMarket.connect(user).claimFee() // claim liquidation fee to pay for deposit
           await vault.connect(user).update(user.address, 2, 0, 0)
 
@@ -2171,13 +2171,13 @@ describe('Vault', () => {
         await market
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
-        await settle(market, user2)
+        await sync(market, user2)
         await market
           .connect(user2)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user2.address, 0, 0, 0, 0, false)
 
-        // 4. Settle the vault to recover and rebalance
-        await updateOracle() // let take settle at high price
+        // 4. Sync the vault to recover and rebalance
+        await updateOracle() // let take sync at high price
         await vault.connect(user).update(user.address, 0, 2, 0) // rebalance
 
         await updateOracle()
