@@ -12,7 +12,6 @@ const { ethers } = HRE
 use(smock.matchers)
 
 export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
-  protocolFee: 2,
   maxFee: 3,
   maxFeeAbsolute: 4,
   maxCut: 5,
@@ -39,7 +38,6 @@ describe('ProtocolParameter', () => {
       await protocolParameter.validateAndStore(VALID_PROTOCOL_PARAMETER)
 
       const value = await protocolParameter.read()
-      expect(value.protocolFee).to.equal(2)
       expect(value.maxFee).to.equal(3)
       expect(value.maxFeeAbsolute).to.equal(4)
       expect(value.maxCut).to.equal(5)
@@ -48,28 +46,6 @@ describe('ProtocolParameter', () => {
       expect(value.minEfficiency).to.equal(8)
       expect(value.referralFee).to.equal(9)
       expect(value.minScale).to.equal(10)
-    })
-
-    context('.protocolFee', async () => {
-      it('saves if in range', async () => {
-        await protocolParameter.validateAndStore({
-          ...VALID_PROTOCOL_PARAMETER,
-          protocolFee: 123,
-          maxCut: 123,
-        })
-        const value = await protocolParameter.read()
-        expect(value.protocolFee).to.equal(123)
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          protocolParameter.validateAndStore({
-            ...VALID_PROTOCOL_PARAMETER,
-            protocolFee: 123,
-            maxCut: 122,
-          }),
-        ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
-      })
     })
 
     context('.maxFee', async () => {

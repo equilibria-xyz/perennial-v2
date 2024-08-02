@@ -625,8 +625,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 1,
       latestId: 1,
-      protocolFee: '18',
-      donation: '18',
+      protocolFee: '36',
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -763,8 +762,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 1,
       latestId: 1,
-      protocolFee: '18',
-      donation: '18',
+      protocolFee: '36',
     })
     expectOrderEq(await market.pendingOrder(1), {
       ...DEFAULT_ORDER,
@@ -1232,8 +1230,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 3,
       latestId: 2,
-      protocolFee: '86263589',
-      donation: '86263590',
+      protocolFee: '172527179',
     })
     expectOrderEq(await market.pendingOrder(3), {
       ...DEFAULT_ORDER,
@@ -1406,13 +1403,12 @@ describe('Happy Path', () => {
 
     // Check global state
     expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
       currentId: delay + 1,
       latestId: delay,
       protocolFee: (await market.global()).protocolFee,
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
-      donation: (await market.global()).donation,
-      exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(delay + 1), {
       ...DEFAULT_ORDER,

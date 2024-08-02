@@ -98,7 +98,6 @@ describe('MarketFactory', () => {
       expect(await factory.verifier()).to.equal(verifier.address)
 
       const parameter = await factory.parameter()
-      expect(parameter.protocolFee).to.equal(0)
       expect(parameter.maxFee).to.equal(0)
       expect(parameter.maxFeeAbsolute).to.equal(0)
       expect(parameter.maxCut).to.equal(0)
@@ -202,7 +201,6 @@ describe('MarketFactory', () => {
 
   describe('#updateParameter', async () => {
     const newParameter = {
-      protocolFee: parse6decimal('0.50'),
       maxFee: parse6decimal('0.01'),
       maxFeeAbsolute: parse6decimal('1000'),
       maxCut: parse6decimal('0.50'),
@@ -217,7 +215,6 @@ describe('MarketFactory', () => {
       await expect(factory.updateParameter(newParameter)).to.emit(factory, 'ParameterUpdated').withArgs(newParameter)
 
       const parameter = await factory.parameter()
-      expect(parameter.protocolFee).to.equal(newParameter.protocolFee)
       expect(parameter.maxFee).to.equal(newParameter.maxFee)
       expect(parameter.maxFeeAbsolute).to.equal(newParameter.maxFeeAbsolute)
       expect(parameter.maxCut).to.equal(newParameter.maxCut)
@@ -238,7 +235,6 @@ describe('MarketFactory', () => {
 
   describe('#updateReferralFee', async () => {
     const newParameter = {
-      protocolFee: parse6decimal('0.50'),
       maxFee: parse6decimal('0.01'),
       maxFeeAbsolute: parse6decimal('1000'),
       maxCut: parse6decimal('0.50'),
