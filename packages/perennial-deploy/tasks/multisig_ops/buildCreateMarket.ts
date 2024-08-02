@@ -78,7 +78,7 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
       nonce: await ethers.provider.getTransactionCount(marketFactory.address),
     })
     const coordinatorAddress = (await getOrNull('GauntletCoordinator'))?.address || ethers.constants.AddressZero
-    const marketInterface = (await ethers.getContractFactory('Market')).interface
+    const marketInterface = new ethers.utils.Interface((await get('MarketImpl')).abi)
 
     await addPayload(async () => {
       return {
