@@ -11,6 +11,7 @@ import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@equ
 
 import {
   AggregatorV3Interface,
+  ArbGasInfo,
   IOrderVerifier,
   Manager_Arbitrum,
   Manager_Arbitrum__factory,
@@ -67,7 +68,6 @@ describe('Manager', () => {
   }
 
   const fixture = async () => {
-    ;[owner, userA, userB, keeper] = await ethers.getSigners()
     dsu = await smock.fake<IERC20>('IERC20')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
@@ -99,6 +99,14 @@ describe('Manager', () => {
     })
     await manager.initialize(ethOracle.address, KEEP_CONFIG)
   }
+
+  before(async () => {
+    ;[owner, userA, userB, keeper] = await ethers.getSigners()
+    // Hardhat testnet does not support Arbitrum built-ins
+    await smock.fake<ArbGasInfo>('ArbGasInfo', {
+      address: '0x000000000000000000000000000000000000006C',
+    })
+  })
 
   beforeEach(async () => {
     await loadFixture(fixture)

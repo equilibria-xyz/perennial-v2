@@ -9,6 +9,7 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { IERC20, IMarketFactory, IMarket } from '@equilibria/perennial-v2/types/generated'
 import { IKeeperOracle, IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 import {
+  ArbGasInfo,
   IOrderVerifier,
   Manager_Arbitrum,
   Manager_Arbitrum__factory,
@@ -20,10 +21,20 @@ import { createMarketETH, deployProtocol, deployPythOracleFactory, fundWalletDSU
 import { Compare, compareOrders, Side } from '../helpers/order'
 import { transferCollateral } from '../helpers/marketHelpers'
 import { advanceToPrice } from '../helpers/oracleHelpers'
+import { PlaceOrderActionStruct } from '../../types/generated/contracts/Manager'
+import { Address } from 'hardhat-deploy/dist/types'
+import { smock } from '@defi-wonderland/smock'
 
 const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
+
+const EMPTY_ORDER = {
+  side: 0,
+  comparison: 0,
+  price: 0,
+  delta: 0,
+}
 
 const KEEP_CONFIG = {
   multiplierBase: 0,
@@ -47,13 +58,17 @@ describe('Manager_Arbitrum', () => {
   let manager: Manager_Arbitrum
   let marketFactory: IMarketFactory
   let market: IMarket
+  let oracle: IOracleProvider
   let verifier: IOrderVerifier
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
   let checkKeeperCompensation: boolean
+  let currentTime: BigNumber
   let keeperBalanceBefore: BigNumber
+  let lastMessageNonce = 0
+  let lastPriceCommitted: BigNumber
   const nextOrderNonce: { [key: string]: BigNumber } = {}
 
   function advanceOrderNonce(user: SignerWithAddress) {
@@ -66,7 +81,7 @@ describe('Manager_Arbitrum', () => {
     let oracleFactory: IOracleFactory
     ;[marketFactory, dsu, oracleFactory] = await deployProtocol(owner)
     const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory)
-    ;[market, , keeperOracle] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+    ;[market, oracle, keeperOracle] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
 
     // deploy the order manager
     verifier = await new OrderVerifier__factory(owner).deploy()
@@ -74,7 +89,7 @@ describe('Manager_Arbitrum', () => {
     await manager.initialize(CHAINLINK_ETH_USD_FEED, KEEP_CONFIG)
 
     // commit a start price
-    const timestamp = await commitPrice(parse6decimal('4444'))
+    await commitPrice(parse6decimal('4444'))
 
     // fund accounts and deposit all into market
     const amount = parse6decimal('100000')
@@ -93,12 +108,72 @@ describe('Manager_Arbitrum', () => {
     await marketFactory.connect(user).updateOperator(manager.address, true)
   }
 
-  // commits an oracle version and advances time 10 seconds
-  async function commitPrice(price: BigNumber): Promise<number> {
-    return advanceToPrice(keeperOracle, BigNumber.from((await currentBlockTimestamp()) + 10), price)
+  // checks that the sum of the users current position and unsettled orders represents the expected change in position
+  async function checkPendingPosition(user: SignerWithAddress, side: Side, expectedPosition: BigNumber) {
+    const position = await market.positions(user.address)
+    const pending = await market.pendings(user.address)
+
+    let actualPos: BigNumber
+    let pendingPos: BigNumber
+    switch (side) {
+      case Side.MAKER:
+        actualPos = position.maker
+        pendingPos = pending.makerPos.sub(pending.makerNeg)
+        break
+      case Side.LONG:
+        actualPos = position.long
+        pendingPos = pending.longPos.sub(pending.longNeg)
+        break
+      case Side.SHORT:
+        actualPos = position.short
+        pendingPos = pending.shortPos.sub(pending.shortNeg)
+        break
+      default:
+        throw new Error('Unexpected side')
+    }
+
+    expect(actualPos.add(pendingPos)).to.equal(expectedPosition)
   }
 
-  // submits a trigger order, validating event and storage
+  // commits an oracle version and advances time 10 seconds
+  async function commitPrice(
+    price = lastPriceCommitted,
+    timestamp: BigNumber | undefined = undefined,
+  ): Promise<number> {
+    if (!timestamp) timestamp = await oracle.current()
+
+    lastPriceCommitted = price
+    return advanceToPrice(keeperOracle, timestamp!, price)
+  }
+
+  function createActionMessage(
+    userAddress: Address,
+    nonce = nextMessageNonce(),
+    signerAddress = userAddress,
+    expiresInSeconds = 12,
+  ) {
+    return {
+      action: {
+        market: market.address,
+        orderNonce: nextOrderNonce[userAddress],
+        maxFee: MAX_FEE,
+        common: {
+          account: userAddress,
+          signer: signerAddress,
+          domain: manager.address,
+          nonce: nonce,
+          group: 0,
+          expiry: currentTime.add(expiresInSeconds),
+        },
+      },
+    }
+  }
+
+  function nextMessageNonce(): BigNumber {
+    return BigNumber.from(++lastMessageNonce)
+  }
+
+  // submits a trigger order, validating event and storage, returning nonce of order
   async function placeOrder(
     user: SignerWithAddress,
     side: Side,
@@ -123,7 +198,34 @@ describe('Manager_Arbitrum', () => {
     return nonce
   }
 
-  // TODO: placeOrderWithSignature
+  async function placeOrderWithSignature(
+    user: SignerWithAddress,
+    side: Side,
+    comparison: Compare,
+    price: BigNumber,
+    delta: BigNumber,
+  ): Promise<BigNumber> {
+    advanceOrderNonce(user)
+    const message: PlaceOrderActionStruct = {
+      order: {
+        side: side,
+        comparison: comparison,
+        price: price,
+        delta: delta,
+      },
+      ...createActionMessage(user.address),
+    }
+    const signature = await signPlaceOrderAction(userA, verifier, message)
+
+    await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
+      .to.emit(manager, 'OrderPlaced')
+      .withArgs(market.address, user.address, message.order, message.action.orderNonce)
+
+    const storedOrder = await manager.orders(market.address, user.address, message.action.orderNonce)
+    compareOrders(storedOrder, message.order)
+
+    return BigNumber.from(message.action.orderNonce)
+  }
 
   // executes an order as keeper
   async function executeOrder(user: SignerWithAddress, orderNonce: BigNumberish) {
@@ -141,26 +243,45 @@ describe('Manager_Arbitrum', () => {
     expect(deletedOrder.price).to.equal(0)
     expect(deletedOrder.delta).to.equal(0)
 
-    // TODO: validate the user's position changed
+    // helps diagnose missing oracle versions
+    // console.log('executed order; latest', (await oracle.latest()).timestamp.toString(), 'current', (await oracle.current()).toString())
   }
 
   // running tests serially; can build a few scenario scripts and test multiple things within each script
   before(async () => {
+    currentTime = BigNumber.from(await currentBlockTimestamp())
     await loadFixture(fixture)
     nextOrderNonce[userA.address] = BigNumber.from(500)
     nextOrderNonce[userB.address] = BigNumber.from(500)
+
+    // Hardhat fork does not support Arbitrum built-ins
+    await smock.fake<ArbGasInfo>('ArbGasInfo', {
+      address: '0x000000000000000000000000000000000000006C',
+    })
+    // set a realistic base gas fee
+    await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
   })
 
   beforeEach(async () => {
+    currentTime = BigNumber.from(await currentBlockTimestamp())
     checkKeeperCompensation = false
     keeperBalanceBefore = await dsu.balanceOf(keeper.address)
   })
 
   afterEach(async () => {
+    // ensure keeper was paid for their transaction
     if (checkKeeperCompensation) {
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      const keeperBalanceAfter = await dsu.balanceOf(keeper.address)
+      const keeperFeePaid = keeperBalanceAfter.sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), MAX_FEE)
     }
+    // ensure manager has no funds at rest
+    expect(await dsu.balanceOf(manager.address)).to.equal(constants.Zero)
+  })
+
+  after(async () => {
+    // reset to avoid impact to other tests
+    await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
   })
 
   it('constructs and initializes', async () => {
@@ -171,13 +292,13 @@ describe('Manager_Arbitrum', () => {
 
   it('single user can place order', async () => {
     // userA places a 5k maker order
-    const nonce = await placeOrder(userA, Side.MAKER, Compare.LTE, parse6decimal('3993.6'), parse6decimal('50'))
+    const nonce = await placeOrder(userA, Side.MAKER, Compare.LTE, parse6decimal('3993.6'), parse6decimal('55'))
     expect(nonce).to.equal(BigNumber.from(501))
   })
 
   it('multiple users can place orders', async () => {
     // if price drops below 3636.99, userA would have 10k maker position after both orders executed
-    let nonce = await placeOrder(userA, Side.MAKER, Compare.LTE, parse6decimal('3636.99'), parse6decimal('50'))
+    let nonce = await placeOrder(userA, Side.MAKER, Compare.LTE, parse6decimal('3636.99'), parse6decimal('45'))
     expect(nonce).to.equal(BigNumber.from(502))
 
     // userB queues up a 2.5k long position; same order nonce as userA's first order
@@ -200,7 +321,68 @@ describe('Manager_Arbitrum', () => {
 
     // execute two maker orders and the long order
     await executeOrder(userA, 501)
+    await commitPrice()
     await executeOrder(userA, 502)
+    await commitPrice()
     await executeOrder(userB, 501)
+    await commitPrice()
+
+    // validate positions
+    await checkPendingPosition(userA, Side.MAKER, parse6decimal('100'))
+    await checkPendingPosition(userB, Side.LONG, parse6decimal('2.5'))
+    await market.connect(userA).settle(userA.address)
+  })
+
+  it('user can place an order using a signed message', async () => {
+    const nonce = await placeOrderWithSignature(
+      userA,
+      Side.MAKER,
+      Compare.GTE,
+      parse6decimal('1000'),
+      parse6decimal('-10'),
+    )
+    expect(nonce).to.equal(BigNumber.from(503))
+    await executeOrder(userA, 503)
+
+    await checkPendingPosition(userA, Side.MAKER, parse6decimal('90'))
+    await commitPrice(parse6decimal('2801'))
+
+    checkKeeperCompensation = true
+  })
+
+  it('user can cancel an order', async () => {
+    // user places an order
+    const nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, parse6decimal('1001'), parse6decimal('-7'))
+    expect(nonce).to.equal(BigNumber.from(504))
+
+    // user cancels the order nonce
+    await expect(manager.connect(userA).cancelOrder(market.address, nonce))
+      .to.emit(manager, 'OrderCancelled')
+      .withArgs(market.address, userA.address, nonce)
+
+    const storedOrder = await manager.orders(market.address, userA.address, nonce)
+    compareOrders(storedOrder, EMPTY_ORDER)
+  })
+
+  it('user can cancel an order using a signed message', async () => {
+    // user places an order
+    const nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, parse6decimal('1002'), parse6decimal('-6'))
+    expect(nonce).to.equal(BigNumber.from(505))
+
+    // user creates and signs a message to cancel the order nonce
+    const message = {
+      ...createActionMessage(userA.address, nonce),
+    }
+    const signature = await signCancelOrderAction(userA, verifier, message)
+
+    // keeper handles the request
+    await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature))
+      .to.emit(manager, 'OrderCancelled')
+      .withArgs(market.address, userA.address, nonce)
+
+    const storedOrder = await manager.orders(market.address, userA.address, nonce)
+    compareOrders(storedOrder, EMPTY_ORDER)
+
+    checkKeeperCompensation = true
   })
 })

@@ -55,20 +55,20 @@ interface IManager {
     /// @param order Desired change in position and conditions upon which change may be made
     function placeOrder(IMarket market, uint256 orderNonce, TriggerOrder calldata order) external;
 
-    /// @notice Store a new or replace an existing trigger order via a signed message
-    /// @param action Message containing the market, order, and nonce used to uniquely identify the user's order.
+    /// @notice Called by keeper to store a new or replace an existing trigger order via a signed message
+    /// @param request Message containing the market, order, and nonce used to uniquely identify the user's order.
     /// @param signature EIP712 message signature
-    function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external;
+    function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature) external;
 
     /// @notice Cancels a trigger order
     /// @param market Perennial market for which the order was submitted
     /// @param orderNonce Uniquely identifies the order to cancel
     function cancelOrder(IMarket market, uint256 orderNonce) external;
 
-    /// @notice Cancels a trigger order via a signed message
-    /// @param action Message containing the market, order, and nonce used to uniquely identify the order to cancel
+    /// @notice Called by keeper to cancel a trigger order via a signed message
+    /// @param request Message containing the market, order, and nonce used to uniquely identify the order to cancel
     /// @param signature EIP712 message signature
-    function cancelOrderWithSignature(CancelOrderAction calldata action, bytes calldata signature) external;
+    function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature) external;
 
     /// @notice Retrieves an unexecuted trigger order
     /// @param market Perennial market for which the order was submitted

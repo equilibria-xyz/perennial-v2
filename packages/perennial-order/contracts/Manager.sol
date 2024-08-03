@@ -9,6 +9,7 @@ import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/inte
 
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
+import { Action } from "./types/Action.sol";
 import { CancelOrderAction } from "./types/CancelOrderAction.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
@@ -64,12 +65,13 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function placeOrderWithSignature(PlaceOrderAction calldata action, bytes calldata signature) external {
+    function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature) external {
         // ensure the message was signed by the owner or a delegated signer
-        verifier.verifyPlaceOrder(action, signature);
-        _ensureValidSigner(action.action.common.account, action.action.common.signer);
+        verifier.verifyPlaceOrder(request, signature);
+        _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _placeOrder(action.action.market, action.action.common.account, action.action.orderNonce, action.order);
+        _compensateKeeper(request.action);
+        _placeOrder(request.action.market, request.action.common.account, request.action.orderNonce, request.order);
     }
 
     /// @inheritdoc IManager
@@ -78,12 +80,13 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function cancelOrderWithSignature(CancelOrderAction calldata action, bytes calldata signature) external {
+    function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature) external {
         // ensure the message was signed by the owner or a delegated signer
-        verifier.verifyCancelOrder(action, signature);
-        _ensureValidSigner(action.action.common.account, action.action.common.signer);
+        verifier.verifyCancelOrder(request, signature);
+        _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _cancelOrder(action.action.market, action.action.common.account, action.action.orderNonce);
+        _compensateKeeper(request.action);
+        _cancelOrder(request.action.market, request.action.common.account, request.action.orderNonce);
     }
 
     /// @inheritdoc IManager
@@ -114,7 +117,15 @@ abstract contract Manager is IManager, Kept {
         delete _orders[market][user][orderNonce];
         _spentOrderIds[user][orderNonce] = true;
 
+        // TODO: need to configure a per-user maxFee for order execution, and compensate keeper here
+
         emit OrderExecuted(market, user, order, orderNonce);
+    }
+
+    /// @dev encodes data needed to pull DSU from market to pay keeper for fulfilling requests
+    function _compensateKeeper(Action calldata action) internal virtual {
+        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
+        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @dev reverts if user is not authorized to sign transactions for the user
