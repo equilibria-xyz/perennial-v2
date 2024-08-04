@@ -1,11 +1,10 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { expect, use } from 'chai'
+import { expect } from 'chai'
 import HRE from 'hardhat'
 
 import { impersonate } from '../../../../common/testutil'
-import { signIntent } from '../../../../perennial-verifier/test/helpers/erc712'
 
 import {
   Market,
@@ -50,7 +49,6 @@ import {
 } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
-use(smock.matchers)
 
 const POSITION = parse6decimal('10.000')
 const COLLATERAL = parse6decimal('10000')
@@ -404,6 +402,7 @@ describe('Market', () => {
   let operator: SignerWithAddress
   let coordinator: SignerWithAddress
   let factorySigner: SignerWithAddress
+  let oracleSigner: SignerWithAddress
   let oracleFactorySigner: SignerWithAddress
   let verifier: FakeContract<IVerifier>
   let factory: FakeContract<IMarketFactory>
@@ -430,6 +429,7 @@ describe('Market', () => {
       oracleFactorySigner,
     ] = await ethers.getSigners()
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    oracleSigner = await impersonate.impersonateWithBalance(oracle.address, utils.parseEther('10'))
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
 
     verifier = await smock.fake<IVerifier>('IVerifier')
@@ -22699,11 +22699,11 @@ describe('Market', () => {
       })
 
       it('claims fee (oracle)', async () => {
-        dsu.transfer.whenCalledWith(oracleFactorySigner.address, ORACLE_FEE.mul(1e12)).returns(true)
+        dsu.transfer.whenCalledWith(oracleSigner.address, ORACLE_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(oracleFactorySigner).claimFee())
+        await expect(market.connect(oracleSigner).claimFee())
           .to.emit(market, 'FeeClaimed')
-          .withArgs(oracleFactorySigner.address, ORACLE_FEE)
+          .withArgs(oracleSigner.address, ORACLE_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
         expect((await market.global()).oracleFee).to.equal(0)

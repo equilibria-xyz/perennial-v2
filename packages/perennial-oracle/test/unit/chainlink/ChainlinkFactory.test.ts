@@ -1,5 +1,5 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { expect } from 'chai'
+import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import {
@@ -26,6 +26,7 @@ import { utils, BigNumberish } from 'ethers'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
 const { ethers } = HRE
+use(smock.matchers)
 
 const CHAINLINK_ETH_USD_PRICE_FEED = '0x00027bbaff688c906a3e20a34fe951715d1018d262a5b66e38eda027a674cd1b'
 
@@ -110,16 +111,12 @@ describe('ChainlinkFactory', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market.factory.returns(marketFactory.address)
     marketFactory.instances.whenCalledWith(market.address).returns(true)
-
-    market = await smock.fake<IMarket>('IMarket')
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    market.factory.returns(marketFactory.address)
-    marketFactory.instances.whenCalledWith(market.address).returns(true)
+    market.settle.returns()
+    market.token.returns(dsu.address)
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address)
-    await oracleFactory.updateMaxClaim(parse6decimal('10'))
+    await oracleFactory.initialize()
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
     chainlinkFactory = await new ChainlinkFactory__factory(owner).deploy(
@@ -127,24 +124,10 @@ describe('ChainlinkFactory', () => {
       mockFeeManager.address,
       weth.address,
       keeperOracleImpl.address,
-      {
-        multiplierBase: 0,
-        bufferBase: 1_000_000,
-        multiplierCalldata: 0,
-        bufferCalldata: 500_000,
-      },
-      {
-        multiplierBase: ethers.utils.parseEther('1.02'),
-        bufferBase: 2_000_000,
-        multiplierCalldata: ethers.utils.parseEther('1.03'),
-        bufferCalldata: 1_500_000,
-      },
-      5_000,
     )
-    await chainlinkFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
-    await chainlinkFactory.updateParameter(1, 0, 0, 4, 10)
+    await chainlinkFactory.initialize(oracleFactory.address)
+    await chainlinkFactory.updateParameter(1, 0, 0, 0, 4, 10)
     await oracleFactory.register(chainlinkFactory.address)
-    await chainlinkFactory.authorize(oracleFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(
       await chainlinkFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_ETH_USD_PRICE_FEED, {
@@ -164,6 +147,9 @@ describe('ChainlinkFactory', () => {
     )
     await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkFactory.address)
 
+    await keeperOracle.register(oracle.address)
+    await oracle.register(market.address)
+
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
   })
 
@@ -177,6 +163,7 @@ describe('ChainlinkFactory', () => {
       ),
     )
     const version = await keeperOracle.callStatic.next()
+
     await expect(
       chainlinkFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], version, report, {
         value: 4800,
@@ -185,7 +172,6 @@ describe('ChainlinkFactory', () => {
     )
       .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
       .withArgs([version, '2092999105', true])
-      .to.emit(chainlinkFactory, 'KeeperCall')
     expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2092.999105', 6))
   })
 

@@ -25,6 +25,7 @@ import {
   OracleFactory,
   Oracle__factory,
   OracleFactory__factory,
+  IOracle,
   IOracle__factory,
   IOracleFactory,
   InvariantLib__factory,
@@ -85,7 +86,7 @@ export interface InstanceVars {
   usdc: IERC20Metadata
   usdcHolder: SignerWithAddress
   chainlink: ChainlinkContext
-  oracle: IOracleProvider
+  oracle: IOracle
   marketImpl: Market
 }
 
@@ -176,7 +177,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address)
+  await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 
   // Params
@@ -193,7 +194,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     minScale: parse6decimal('0.001'),
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
-  await oracleFactory.connect(owner).authorize(marketFactory.address)
   const oracle = IOracle__factory.connect(
     await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
     owner,
@@ -265,7 +265,7 @@ export async function createMarket(
   instanceVars: InstanceVars,
   name?: string,
   symbol?: string,
-  oracleOverride?: IOracleProvider,
+  oracleOverride?: IOracle,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
@@ -332,6 +332,8 @@ export async function createMarket(
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateParameter(marketParameter)
 
+  await oracle.register(market.address)
+
   return market
 }
 
@@ -363,7 +365,6 @@ export async function createVault(
 
   const vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
   await oracleFactory.connect(owner).register(vaultOracleFactory.address)
-  await oracleFactory.connect(owner).authorize(marketFactory.address)
 
   const ethSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
   const ethRealVersion = {
@@ -465,6 +466,10 @@ export async function createVault(
     vaultImpl.address,
     0,
   )
+
+  await ethOracle.register(ethMarket.address)
+  await btcOracle.register(btcMarket.address)
+
   await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
   const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
   await vaultFactory.initialize()

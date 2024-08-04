@@ -311,19 +311,46 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @notice Claims any available fee that the sender has accrued
     /// @dev Applicable fees include: protocol, oracle, risk, donation, and claimable
-    function claimFee() external {
+    /// @return feeReceived The amount of the fee claimed
+    function claimFee() external returns (UFixed6 feeReceived) {
         Global memory newGlobal = _global.read();
         Local memory newLocal = _locals[msg.sender].read();
 
-        if (_claimFee(factory().owner(), newGlobal.protocolFee)) newGlobal.protocolFee = UFixed6Lib.ZERO;
-        if (_claimFee(address(IMarketFactory(address(factory())).oracleFactory()), newGlobal.oracleFee))
+        // protocol fee
+        if (msg.sender == factory().owner()) {
+            feeReceived = feeReceived.add(newGlobal.protocolFee);
+            newGlobal.protocolFee = UFixed6Lib.ZERO;
+        }
+
+        // oracle fee
+        if (msg.sender == address(oracle)) {
+            feeReceived = feeReceived.add(newGlobal.oracleFee);
             newGlobal.oracleFee = UFixed6Lib.ZERO;
-        if (_claimFee(coordinator, newGlobal.riskFee)) newGlobal.riskFee = UFixed6Lib.ZERO;
-        if (_claimFee(beneficiary, newGlobal.donation)) newGlobal.donation = UFixed6Lib.ZERO;
-        if (_claimFee(msg.sender, newLocal.claimable)) newLocal.claimable = UFixed6Lib.ZERO;
+        }
+
+        // risk fee
+        if (msg.sender == coordinator) {
+            feeReceived = feeReceived.add(newGlobal.riskFee);
+            newGlobal.riskFee = UFixed6Lib.ZERO;
+        }
+
+        // donation
+        if (msg.sender == beneficiary) {
+            feeReceived = feeReceived.add(newGlobal.donation);
+            newGlobal.donation = UFixed6Lib.ZERO;
+        }
+
+        // claimable
+        feeReceived = feeReceived.add(newLocal.claimable);
+        newLocal.claimable = UFixed6Lib.ZERO;
 
         _global.store(newGlobal);
         _locals[msg.sender].store(newLocal);
+
+        if (!feeReceived.isZero()) {
+            token.push(msg.sender, UFixed18Lib.from(feeReceived));
+            emit FeeClaimed(msg.sender, feeReceived);
+        }
     }
 
     /// @notice Settles any exposure that has accrued to the market
@@ -338,17 +365,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         newGlobal.exposure = Fixed6Lib.ZERO;
         _global.store(newGlobal);
-    }
-
-    /// @notice Helper function to handle a singular fee claim.
-    /// @param receiver The address to receive the fee
-    /// @param fee The amount of the fee to claim
-    function _claimFee(address receiver, UFixed6 fee) private returns (bool) {
-        if (msg.sender != receiver || fee.isZero()) return false;
-
-        token.push(receiver, UFixed18Lib.from(fee));
-        emit FeeClaimed(receiver, fee);
-        return true;
     }
 
     /// @notice Returns the payoff provider

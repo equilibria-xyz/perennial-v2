@@ -17,15 +17,7 @@ contract PythFactory is IPythFactory, KeeperFactory {
     /// @notice Initializes the immutable contract state
     /// @param pyth_ Pyth contract
     /// @param implementation_ IPythOracle implementation contract
-    /// @param commitKeepConfig_ Parameter configuration for commit keeper incentivization
-    /// @param settleKeepConfig_ Parameter configuration for settle keeper incentivization
-    constructor(
-        AbstractPyth pyth_,
-        address implementation_,
-        KeepConfig memory commitKeepConfig_,
-        KeepConfig memory settleKeepConfig_,
-        uint256 keepCommitIncrementalBufferData_
-    ) KeeperFactory(implementation_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) {
+    constructor(AbstractPyth pyth_, address implementation_) KeeperFactory(implementation_) {
         pyth = pyth_;
     }
 
@@ -83,12 +75,5 @@ contract PythFactory is IPythFactory, KeeperFactory {
             underlyingIds[i] = toUnderlyingId[ids[i]];
             if (underlyingIds[i] == bytes32(0)) revert KeeperFactoryNotCreatedError();
         }
-    }
-
-    /// @notice Returns the applicable value for the keeper fee
-    /// @param numRequested The number of requested price commits
-    /// @return The applicable value for the keeper fee
-    function _applicableValue(uint256 numRequested, bytes memory) internal view override returns (uint256) {
-        return IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * numRequested;
     }
 }

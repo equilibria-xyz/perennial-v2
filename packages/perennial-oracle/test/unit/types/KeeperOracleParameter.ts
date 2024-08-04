@@ -13,7 +13,8 @@ const DEFAULT_PROVIDER_PARAMETER: KeeperOracleParameterStruct = {
   latestGranularity: 0,
   currentGranularity: 1,
   effectiveAfter: 0,
-  settlementFee: 0,
+  syncFee: 0,
+  asyncFee: 0,
   oracleFee: 0,
   validFrom: 0,
   validTo: 0,
@@ -140,22 +141,43 @@ describe('KeeperOracleParameter', () => {
       })
     })
 
-    context('.settlementFee', async () => {
+    context('.syncFee', async () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await providerParameter.store({
           ...DEFAULT_PROVIDER_PARAMETER,
-          settlementFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          syncFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await providerParameter.read()
-        expect(value.settlementFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.syncFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if settlementFee out of range', async () => {
+      it('reverts if syncFee out of range', async () => {
         await expect(
           providerParameter.store({
             ...DEFAULT_PROVIDER_PARAMETER,
-            settlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
+            syncFee: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(providerParameter, 'KeeperOracleParameterStorageInvalidError')
+      })
+    })
+
+    context('.asyncFee', async () => {
+      const STORAGE_SIZE = 48
+      it('saves if in range', async () => {
+        await providerParameter.store({
+          ...DEFAULT_PROVIDER_PARAMETER,
+          asyncFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await providerParameter.read()
+        expect(value.asyncFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if asyncFee out of range', async () => {
+        await expect(
+          providerParameter.store({
+            ...DEFAULT_PROVIDER_PARAMETER,
+            asyncFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(providerParameter, 'KeeperOracleParameterStorageInvalidError')
       })

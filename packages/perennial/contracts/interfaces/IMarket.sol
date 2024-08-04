@@ -158,5 +158,5 @@ interface IMarket is IInstance {
     function updateCoordinator(address newCoordinator) external;
     function updateParameter(MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
-    function claimFee() external;
+    function claimFee() external returns (UFixed6);
 }

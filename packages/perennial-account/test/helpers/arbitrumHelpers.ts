@@ -52,27 +52,10 @@ export async function createFactories(
 
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
-    PYTH_ADDRESS,
-    keeperOracleImpl.address,
-    {
-      multiplierBase: 0,
-      bufferBase: 1_000_000,
-      multiplierCalldata: 0,
-      bufferCalldata: 500_000,
-    },
-    {
-      multiplierBase: utils.parseEther('1.02'),
-      bufferBase: 2_000_000,
-      multiplierCalldata: utils.parseEther('1.03'),
-      bufferCalldata: 1_500_000,
-    },
-    5_000,
-  )
-  await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, DSU_ADDRESS)
-  await pythOracleFactory.updateParameter(1, 0, 0, 4, 10)
+  const pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+  await pythOracleFactory.initialize(oracleFactory.address)
+  await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
-  await pythOracleFactory.authorize(oracleFactory.address)
 
   return [oracleFactory, marketFactory, pythOracleFactory]
 }
@@ -96,6 +79,8 @@ export async function createMarketETH(
   )
   // Create the market in which user or collateral account may interact
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  await keeperOracle.register(oracle.address)
+  await oracle.register(market.address)
   return [market, oracle, keeperOracle]
 }
 
@@ -118,6 +103,8 @@ export async function createMarketBTC(
   )
   // Create the market in which user or collateral account may interact
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  await keeperOracle.register(oracle.address)
+  await oracle.register(market.address)
   return [market, oracle, keeperOracle]
 }
 
