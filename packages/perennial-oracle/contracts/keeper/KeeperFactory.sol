@@ -171,18 +171,18 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     ///      Accepts any publish time in the underlying price message, as long as it is within the validity window,
     ///      which means its possible for publish times to be slightly out of order with respect to versions.
     ///      Batched updates are supported by passing in a list of price feed ids along with a valid batch update data.
-    /// @param ids The list of price feed ids to commit
+    /// @param oracleIds The list of price feed ids to commit
     /// @param version The oracle version to commit
     /// @param data The update data to commit
-    function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
+    function commit(bytes32[] memory oracleIds, uint256 version, bytes calldata data) external payable {
         bool valid = data.length != 0;
-        PriceRecord[] memory prices = valid ? _parsePrices(ids, data) : new PriceRecord[](ids.length);
+        PriceRecord[] memory prices = valid ? _parsePrices(oracleIds, data) : new PriceRecord[](oracleIds.length);
         if (valid) _validatePrices(version, prices);
-        _transformPrices(ids, prices);
+        if (valid) _transformPrices(oracleIds, prices);
 
         uint256 numRequested;
-        for (uint256 i; i < ids.length; i++)
-            if (IKeeperOracle(address(oracles[ids[i]])).commit(
+        for (uint256 i; i < oracleIds.length; i++)
+            if (IKeeperOracle(address(oracles[oracleIds[i]])).commit(
                 OracleVersion(version, Fixed6Lib.from(prices[i].price), valid))
             ) numRequested++;
 
@@ -193,6 +193,21 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
             _applicableValue(numRequested, data),
             ""
         );
+    }
+
+    function _dedup(
+        bytes32[] memory oracleIds
+    ) private view returns (bytes32[] memory underlyingIds, uint256[] memory indices) {
+
+        bytes32[] memory allUnderlyingIds = new bytes32[](oracleIds.length);
+        for (uint256 i; i < oracleIds.length; i++) allUnderlyingIds[i] = toUnderlyingId[oracleIds[i]];
+
+        for (uint256 i; i < allUnderlyingIds.length; i++)
+            for (uint256 j; j < i; j++)
+                if (underlyingIds[j] == underlyingIds[i]) {
+                    indices[i] = i;
+                    break;
+                }
     }
 
     /// @notice Returns the keep config for commit
