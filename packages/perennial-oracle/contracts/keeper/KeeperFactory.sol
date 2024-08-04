@@ -8,6 +8,7 @@ import "../interfaces/IKeeperFactory.sol";
 import "../interfaces/IOracleFactory.sol";
 import { KeeperOracleParameter, KeeperOracleParameterStorage } from "./types/KeeperOracleParameter.sol";
 import { PriceRequest } from "./types/PriceRequest.sol";
+import { DedupLib } from "./libs/DedupLib.sol";
 
 /// @title KeeperFactory
 /// @notice Factory contract for creating and managing keeper-based oracles
@@ -175,16 +176,31 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     /// @param version The oracle version to commit
     /// @param data The update data to commit
     function commit(bytes32[] memory oracleIds, uint256 version, bytes calldata data) external payable {
+        // commit invalid version if no data
         bool valid = data.length != 0;
-        PriceRecord[] memory prices = valid ? _parsePrices(oracleIds, data) : new PriceRecord[](oracleIds.length);
-        if (valid) _validatePrices(version, prices);
-        if (valid) _transformPrices(oracleIds, prices);
 
+        // create array of underlying ids
+        bytes32[] memory underlyingIds = new bytes32[](oracleIds.length);
+        for (uint256 i; i < oracleIds.length; i++) underlyingIds[i] = toUnderlyingId[oracleIds[i]];
+
+        // dedup underlying ids
+        (bytes32[] memory dedupedIds, uint256[] memory indices) = DedupLib.dedup(underlyingIds);
+
+        // parse prices
+        PriceRecord[] memory dedupedPrices;
+        if (valid) {
+            dedupedPrices = _parsePrices(dedupedIds, data);
+            _validatePrices(version, dedupedPrices);
+        }
+
+        // create array of prices
+        Fixed6[] memory prices = _transformPrices(oracleIds, indices, dedupedPrices, valid);
+
+        // commit to oracles
         uint256 numRequested;
         for (uint256 i; i < oracleIds.length; i++)
-            if (IKeeperOracle(address(oracles[oracleIds[i]])).commit(
-                OracleVersion(version, Fixed6Lib.from(prices[i].price), valid))
-            ) numRequested++;
+            if (IKeeperOracle(address(oracles[oracleIds[i]])).commit(OracleVersion(version, prices[i], valid)))
+                numRequested++;
 
         if (numRequested != 0) _handleKeeperFee(
             commitKeepConfig(numRequested),
@@ -193,21 +209,6 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
             _applicableValue(numRequested, data),
             ""
         );
-    }
-
-    function _dedup(
-        bytes32[] memory oracleIds
-    ) private view returns (bytes32[] memory underlyingIds, uint256[] memory indices) {
-
-        bytes32[] memory allUnderlyingIds = new bytes32[](oracleIds.length);
-        for (uint256 i; i < oracleIds.length; i++) allUnderlyingIds[i] = toUnderlyingId[oracleIds[i]];
-
-        for (uint256 i; i < allUnderlyingIds.length; i++)
-            for (uint256 j; j < i; j++)
-                if (underlyingIds[j] == underlyingIds[i]) {
-                    indices[i] = i;
-                    break;
-                }
     }
 
     /// @notice Returns the keep config for commit
@@ -319,19 +320,35 @@ abstract contract KeeperFactory is IKeeperFactory, Factory, Kept {
     }
 
     /// @notice Transforms the price records by the payoff and decimal offset
-    /// @param ids The list of price feed ids to transform
-    /// @param prices The list of price records to transform
-    function _transformPrices(bytes32[] memory ids, PriceRecord[] memory prices) private view {
-        for (uint256 i; i < prices.length; i++) {
-            PayoffDefinition memory payoff = _toUnderlyingPayoff[ids[i]];
+    /// @param oracleIds The list of price feed ids to transform
+    /// @param indices The mapping of indecies from oracle ids to deduped ids
+    /// @param dedupedPrices The list of deduped price records to transform
+    /// @param valid Whether the prices we are committing are valid
+    /// @return prices The transformed prices
+    function _transformPrices(
+        bytes32[] memory oracleIds,
+        uint256[] memory indices,
+        PriceRecord[] memory dedupedPrices,
+        bool valid
+    ) private view returns (Fixed6[] memory prices) {
+        prices = new Fixed6[](oracleIds.length);
+        if (!valid) return prices;
+
+        for (uint256 i; i < oracleIds.length; i++) {
+            // remap the price to the original index
+            Fixed18 price = dedupedPrices[indices[i]].price;
 
             // apply payoff if it exists
+            PayoffDefinition memory payoff = _toUnderlyingPayoff[oracleIds[i]];
             if (payoff.provider != IPayoffProvider(address(0)))
-                prices[i].price = payoff.provider.payoff(prices[i].price);
+                price = payoff.provider.payoff(price);
 
             // apply decimal offset
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(payoff.decimals)));
-            prices[i].price = payoff.decimals < 0 ? prices[i].price.div(base) : prices[i].price.mul(base);
+            price = payoff.decimals < 0 ? price.div(base) : price.mul(base);
+
+            // trucate to 6-decimal
+            prices[i] = Fixed6Lib.from(price);
         }
     }
 
