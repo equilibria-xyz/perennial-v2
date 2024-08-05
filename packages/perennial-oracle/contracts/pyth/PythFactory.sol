@@ -36,20 +36,20 @@ contract PythFactory is IPythFactory, KeeperFactory {
     }
 
     /// @notice Validates and parses the update data payload against the specified version
-    /// @param ids The list of price feed ids validate against
+    /// @param underlyingIds The list of price feed ids validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
     function _parsePrices(
-        bytes32[] memory ids,
+        bytes32[] memory underlyingIds,
         bytes calldata data
     ) internal override returns (PriceRecord[] memory prices) {
-        prices = new PriceRecord[](ids.length);
+        prices = new PriceRecord[](underlyingIds.length);
         bytes[] memory datas = new bytes[](1);
         datas[0] = data;
 
         PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{value: msg.value}(
             datas,
-            _toUnderlyingIds(ids),
+            underlyingIds,
             type(uint64).min,
             type(uint64).max
         );
@@ -62,18 +62,6 @@ contract PythFactory is IPythFactory, KeeperFactory {
                 parsedPrices[i].price.publishTime,
                 exponent < 0 ? significand.div(base) : significand.mul(base)
             );
-        }
-    }
-
-    /// @notice Converts a list of oracle ids to a list of underlying ids
-    /// @dev Reverts if any of the ids are not associated
-    /// @param ids The list of oracle ids to convert
-    /// @return underlyingIds The list of underlying ids
-    function _toUnderlyingIds(bytes32[] memory ids) private view returns (bytes32[] memory underlyingIds) {
-        underlyingIds = new bytes32[](ids.length);
-        for (uint256 i; i < ids.length; i++) {
-            underlyingIds[i] = toUnderlyingId[ids[i]];
-            if (underlyingIds[i] == bytes32(0)) revert KeeperFactoryNotCreatedError();
         }
     }
 }
