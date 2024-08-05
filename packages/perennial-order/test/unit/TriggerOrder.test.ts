@@ -65,6 +65,25 @@ describe('TriggerOrder', () => {
       expect(await orderTester.canExecute(ORDER_LONG, createOracleVersion(parse6decimal('1800')))).to.be.true
       expect(await orderTester.canExecute(ORDER_LONG, createOracleVersion(parse6decimal('2000')))).to.be.false
     })
+
+    it('handles invalid comparison', async () => {
+      const badOrder = ORDER_SHORT
+      badOrder.comparison = 0
+      expect(await orderTester.canExecute(badOrder, createOracleVersion(parse6decimal('1800')))).to.be.false
+      expect(await orderTester.canExecute(badOrder, createOracleVersion(parse6decimal('2000')))).to.be.false
+    })
+
+    it('allows execution greater than 0 trigger price', async () => {
+      const zeroPriceOrder = {
+        side: Side.MAKER,
+        comparison: Compare.GTE,
+        price: 0,
+        delta: parse6decimal('200'),
+        maxFee: parse6decimal('0.55'),
+        referrer: constants.AddressZero,
+      }
+      expect(await orderTester.canExecute(zeroPriceOrder, createOracleVersion(parse6decimal('1')))).to.be.true
+    })
   })
 
   describe('#storage', () => {

@@ -57,8 +57,8 @@ describe('Manager', () => {
   let keeper: SignerWithAddress
   let nextOrderNonce = FIRST_ORDER_NONCE
 
-  function advanceOrderNonce() {
-    nextOrderNonce = nextOrderNonce.add(BigNumber.from(1))
+  function advanceOrderNonce(): BigNumber {
+    return (nextOrderNonce = nextOrderNonce.add(BigNumber.from(1)))
   }
 
   function createOracleVersion(price: BigNumber, valid = true): OracleVersionStruct {
@@ -144,7 +144,7 @@ describe('Manager', () => {
       // submit the original order
       await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
 
-      const replacement = MAKER_ORDER
+      const replacement = { ...MAKER_ORDER }
       replacement.price = parse6decimal('2333.44')
 
       // submit a replacement with the same order nonce
@@ -156,7 +156,27 @@ describe('Manager', () => {
       compareOrders(order, replacement)
     })
 
-    it('cannot cancel an executed order', async () => {
+    it('keeper can execute orders', async () => {
+      // place a maker and long order
+      const nonce1 = advanceOrderNonce()
+      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
+      const nonce2 = advanceOrderNonce()
+      const longOrder = {
+        side: Side.LONG,
+        comparison: Compare.GTE,
+        price: parse6decimal('2111.2'),
+        delta: parse6decimal('60'),
+        maxFee: MAX_FEE,
+        referrer: userA.address,
+      }
+      await manager.connect(userB).placeOrder(market.address, nextOrderNonce, longOrder)
+
+      // execute the orders
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nonce1)
+      await manager.connect(keeper).executeOrder(market.address, userB.address, nonce2)
+    })
+
+    it('cannot cancel an executed maker order', async () => {
       // place an order
       advanceOrderNonce()
       await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
@@ -213,7 +233,7 @@ describe('Manager', () => {
       advanceOrderNonce()
 
       // check an unexecutable order
-      const unexecutableOrder = MAKER_ORDER
+      const unexecutableOrder = { ...MAKER_ORDER }
       unexecutableOrder.comparison = Compare.GTE
       await manager.connect(userA).placeOrder(market.address, nextOrderNonce, unexecutableOrder)
       ;[, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderNonce)
@@ -255,8 +275,8 @@ describe('Manager', () => {
       advanceOrderNonce()
       const message = {
         order: {
-          side: 0,
-          comparison: 1,
+          side: Side.MAKER,
+          comparison: Compare.GTE,
           price: parse6decimal('1888.99'),
           delta: parse6decimal('200'),
           maxFee: MAX_FEE,
@@ -279,8 +299,8 @@ describe('Manager', () => {
       advanceOrderNonce()
       const message = {
         order: {
-          side: 0,
-          comparison: 1,
+          side: Side.MAKER,
+          comparison: Compare.GTE,
           price: parse6decimal('1777.88'),
           delta: parse6decimal('100'),
           maxFee: MAX_FEE,
@@ -328,6 +348,36 @@ describe('Manager', () => {
       await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature))
         .to.emit(manager, 'OrderCancelled')
         .withArgs(market.address, userA.address, message.action.orderNonce)
+    })
+
+    it('keeper can execute short order placed from a signed message', async () => {
+      // directly place and execute a maker order
+      advanceOrderNonce()
+      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderNonce)
+
+      // place a short order using a signed message
+      // different user can use the same order nonce
+      const message = {
+        order: {
+          side: Side.SHORT,
+          comparison: Compare.GTE,
+          price: parse6decimal('1888.99'),
+          delta: parse6decimal('30'),
+          maxFee: MAX_FEE,
+          referrer: userA.address,
+        },
+        ...createActionMessage(userB.address),
+      }
+      const signature = await signPlaceOrderAction(userB, verifier, message)
+
+      // keeper places the order
+      await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
+        .to.emit(manager, 'OrderPlaced')
+        .withArgs(market.address, userB.address, message.order, nextOrderNonce)
+
+      // keeper executes the short order
+      await manager.connect(keeper).executeOrder(market.address, userB.address, nextOrderNonce)
     })
   })
 })
