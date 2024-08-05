@@ -38,7 +38,7 @@ contract OrderVerifier is VerifierBase, IOrderVerifier {
         _verifySignature(action.action, CancelOrderActionLib.hash(action), signature);
     }
 
-    function _verifySignature(Action calldata action, bytes32 hash, bytes calldata signature) internal {
+    function _verifySignature(Action calldata action, bytes32 hash, bytes calldata signature) internal view {
         if (!SignatureChecker.isValidSignatureNow(
             action.common.signer,
             _hashTypedDataV4(hash),

@@ -1,5 +1,5 @@
 import HRE from 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { expect } from 'chai'
@@ -17,6 +17,8 @@ const ORDER_LONG: TriggerOrderStruct = {
   comparison: Compare.LTE,
   price: parse6decimal('1999.88'),
   delta: parse6decimal('300'),
+  maxFee: parse6decimal('0.66'),
+  referrer: constants.AddressZero,
 }
 
 // short 400 if price exceeds 2444.55
@@ -25,6 +27,8 @@ const ORDER_SHORT: TriggerOrderStruct = {
   comparison: Compare.GTE,
   price: parse6decimal('2444.55'),
   delta: parse6decimal('400'),
+  maxFee: parse6decimal('0.66'),
+  referrer: constants.AddressZero,
 }
 
 describe('TriggerOrder', () => {
@@ -61,8 +65,6 @@ describe('TriggerOrder', () => {
       expect(await orderTester.canExecute(ORDER_LONG, createOracleVersion(parse6decimal('1800')))).to.be.true
       expect(await orderTester.canExecute(ORDER_LONG, createOracleVersion(parse6decimal('2000')))).to.be.false
     })
-
-    // TODO: gte, lte, eq, if we keep them
   })
 
   describe('#storage', () => {

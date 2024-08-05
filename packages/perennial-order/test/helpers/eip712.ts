@@ -48,6 +48,8 @@ const triggerOrderType = {
     { name: 'comparison', type: 'int8' },
     { name: 'price', type: 'int64' },
     { name: 'delta', type: 'int64' },
+    { name: 'maxFee', type: 'uint64' },
+    { name: 'referrer', type: 'address' },
   ],
 }
 

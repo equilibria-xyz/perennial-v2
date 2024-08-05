@@ -17,4 +17,6 @@ export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrder
   expect(actual.comparison).to.equal(expected.comparison)
   expect(actual.price).to.equal(expected.price)
   expect(actual.delta).to.equal(expected.delta)
+  expect(actual.maxFee).to.equal(expected.maxFee)
+  expect(actual.referrer).to.equal(expected.referrer)
 }

@@ -25,6 +25,8 @@ const { ethers } = HRE
 
 const FIRST_ORDER_NONCE = BigNumber.from(300)
 
+const MAX_FEE = utils.parseEther('7')
+
 const KEEP_CONFIG = {
   multiplierBase: 0,
   bufferBase: 1_000_000,
@@ -37,9 +39,9 @@ const MAKER_ORDER = {
   comparison: Compare.LTE,
   price: parse6decimal('2222.33'),
   delta: parse6decimal('100'),
+  maxFee: MAX_FEE,
+  referrer: constants.AddressZero,
 }
-
-const MAX_FEE = utils.parseEther('7')
 
 describe('Manager', () => {
   let dsu: FakeContract<IERC20>
@@ -257,6 +259,8 @@ describe('Manager', () => {
           comparison: 1,
           price: parse6decimal('1888.99'),
           delta: parse6decimal('200'),
+          maxFee: MAX_FEE,
+          referrer: constants.AddressZero,
         },
         ...createActionMessage(),
       }
@@ -279,6 +283,8 @@ describe('Manager', () => {
           comparison: 1,
           price: parse6decimal('1777.88'),
           delta: parse6decimal('100'),
+          maxFee: MAX_FEE,
+          referrer: constants.AddressZero,
         },
         ...createActionMessage(),
       }

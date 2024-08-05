@@ -8,11 +8,18 @@ import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v
 // TODO: would prefer making comparison uint8 for logability, and reserving 0 as invalid/empty,
 // but leaving these same as MultiInvoker for backward compatibility
 struct TriggerOrder {
-    uint8 side;      // 0 = maker, 1 = long, 2 = short
-    int8 comparison; // -1 = lte, 1 = gte
-    Fixed6 price;    // <= 9.22t
-    Fixed6 delta;    // <= 9.22t
-    // TODO: support collateral deposit/withdrawal by adding a field?
+    /// @dev Determines the desired position type to establish or change
+    uint8 side;       // 0 = maker, 1 = long, 2 = short
+    /// @dev Trigger condition; market price to be less/greater than trigger price
+    int8 comparison;  // -1 = lte, 1 = gte
+    /// @dev Trigger price used on right hand side of comparison
+    Fixed6 price;     // <= 9.22t
+    /// @dev Amount to change position by
+    Fixed6 delta;     // <= 9.22t
+    /// @dev Limit on keeper compensation for executing the order
+    UFixed6 maxFee;   // < 18.45qt
+    /// @dev Passed to market for awarding referral fee
+    address referrer;
 }
 // TODO: move message verification stuff here, because it doesn't involve storage
 // TODO: maybe add an isEmpty method which checks price and delta for 0
@@ -65,7 +72,7 @@ library TriggerOrderLib {
             position.short,
             Fixed6Lib.ZERO,
             false,
-            address(0) // TODO: referrer should be "passthrough"
+            self.referrer
         );
     }
 
@@ -79,10 +86,12 @@ library TriggerOrderLib {
 
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;      // 0 = maker, 1 = long, 2 = short
-    int8 comparison; // -1 = lte, 1 = gte
-    int64 price;     // <= 9.22t
-    int64 delta;     // <= 9.22t
+    uint8 side;       // 0 = maker, 1 = long, 2 = short
+    int8 comparison;  // -1 = lte, 1 = gte
+    int64 price;      // <= 9.22t
+    int64 delta;      // <= 9.22t
+    uint64 maxFee;    // < 18.45qt
+    address referrer;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; /*uint256 slot0;*/ }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
@@ -93,7 +102,7 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,address referrer)"
     );
 
     // sig: 0xf3469aa7
@@ -106,7 +115,9 @@ library TriggerOrderStorageLib {
             uint8(storedValue.side),
             int8(storedValue.comparison),
             Fixed6.wrap(int256(storedValue.price)),
-            Fixed6.wrap(int256(storedValue.delta))
+            Fixed6.wrap(int256(storedValue.delta)),
+            UFixed6.wrap(uint256(storedValue.maxFee)),
+            storedValue.referrer
         );
     }
 
@@ -119,17 +130,20 @@ library TriggerOrderStorageLib {
         if (newValue.price.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
+        if (newValue.maxFee.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
 
         self.value = StoredTriggerOrder(
             uint8(newValue.side),
             int8(newValue.comparison),
             int64(Fixed6.unwrap(newValue.price)),
-            int64(Fixed6.unwrap(newValue.delta))
+            int64(Fixed6.unwrap(newValue.delta)),
+            uint64(UFixed6.unwrap(newValue.maxFee)),
+            newValue.referrer
         );
     }
 
     /// @dev Used to create a signed message
     function hash(TriggerOrder memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.side, self.comparison, self.price, self.delta));
+        return keccak256(abi.encode(STRUCT_HASH, self.side, self.comparison, self.price, self.delta, self.maxFee, self.referrer));
     }
 }

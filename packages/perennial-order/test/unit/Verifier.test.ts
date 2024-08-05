@@ -73,6 +73,8 @@ describe('Verifier', () => {
         comparison: -1,
         price: parse6decimal('2010.33'),
         delta: parse6decimal('400'),
+        maxFee: parse6decimal('0.67'),
+        referrer: userB.address,
       },
       ...createActionMessage(userAddress, signerAddress, expiresInSeconds),
     }

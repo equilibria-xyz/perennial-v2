@@ -29,11 +29,15 @@ const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 
+const MAX_FEE = utils.parseEther('7')
+
 const EMPTY_ORDER = {
   side: 0,
   comparison: 0,
   price: 0,
   delta: 0,
+  maxFee: 0,
+  referrer: constants.AddressZero,
 }
 
 const KEEP_CONFIG = {
@@ -48,9 +52,9 @@ const MAKER_ORDER = {
   comparison: BigNumber.from(-2),
   price: parse6decimal('2222.33'),
   delta: parse6decimal('100'),
+  maxFee: MAX_FEE,
+  referrer: constants.AddressZero,
 }
-
-const MAX_FEE = utils.parseEther('7')
 
 describe('Manager_Arbitrum', () => {
   let dsu: IERC20
@@ -180,12 +184,16 @@ describe('Manager_Arbitrum', () => {
     comparison: Compare,
     price: BigNumber,
     delta: BigNumber,
+    maxFee = MAX_FEE,
+    referrer = constants.AddressZero,
   ): Promise<BigNumber> {
     const order = {
       side: side,
       comparison: comparison,
       price: price,
       delta: delta,
+      maxFee: maxFee,
+      referrer: referrer,
     }
     advanceOrderNonce(user)
     const nonce = nextOrderNonce[user.address]
@@ -204,6 +212,8 @@ describe('Manager_Arbitrum', () => {
     comparison: Compare,
     price: BigNumber,
     delta: BigNumber,
+    maxFee = MAX_FEE,
+    referrer = constants.AddressZero,
   ): Promise<BigNumber> {
     advanceOrderNonce(user)
     const message: PlaceOrderActionStruct = {
@@ -212,6 +222,8 @@ describe('Manager_Arbitrum', () => {
         comparison: comparison,
         price: price,
         delta: delta,
+        maxFee: maxFee,
+        referrer: referrer,
       },
       ...createActionMessage(user.address),
     }
@@ -331,6 +343,8 @@ describe('Manager_Arbitrum', () => {
     await checkPendingPosition(userA, Side.MAKER, parse6decimal('100'))
     await checkPendingPosition(userB, Side.LONG, parse6decimal('2.5'))
     await market.connect(userA).settle(userA.address)
+
+    checkKeeperCompensation = true
   })
 
   it('user can place an order using a signed message', async () => {

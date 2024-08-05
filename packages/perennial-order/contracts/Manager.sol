@@ -70,7 +70,7 @@ abstract contract Manager is IManager, Kept {
         verifier.verifyPlaceOrder(request, signature);
         _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _compensateKeeper(request.action);
+        _compensateKeeperAction(request.action);
         _placeOrder(request.action.market, request.action.common.account, request.action.orderNonce, request.order);
     }
 
@@ -85,7 +85,7 @@ abstract contract Manager is IManager, Kept {
         verifier.verifyCancelOrder(request, signature);
         _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _compensateKeeper(request.action);
+        _compensateKeeperAction(request.action);
         _cancelOrder(request.action.market, request.action.common.account, request.action.orderNonce);
     }
 
@@ -112,19 +112,24 @@ abstract contract Manager is IManager, Kept {
         (TriggerOrder memory order, bool canExecute) = checkOrder(market, user, orderNonce);
         if (!canExecute) revert ManagerCannotExecuteError();
 
+        _compensateKeeper(market, user, order.maxFee);
         order.execute(market, user);
 
         delete _orders[market][user][orderNonce];
         _spentOrderIds[user][orderNonce] = true;
 
-        // TODO: need to configure a per-user maxFee for order execution, and compensate keeper here
 
         emit OrderExecuted(market, user, order, orderNonce);
     }
 
+    /// @dev reads keeper compensation parameters from an action message
+    function _compensateKeeperAction(Action calldata action) internal {
+        _compensateKeeper(action.market, action.common.account, action.maxFee);
+    }
+
     /// @dev encodes data needed to pull DSU from market to pay keeper for fulfilling requests
-    function _compensateKeeper(Action calldata action) internal virtual {
-        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
+    function _compensateKeeper(IMarket market, address user, UFixed6 maxFee) internal {
+        bytes memory data = abi.encode(market, user, maxFee);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
@@ -177,5 +182,4 @@ abstract contract Manager is IManager, Kept {
         _orders[market][user][orderNonce].store(order);
         emit OrderPlaced(market, user, order, orderNonce);
     }
-
 }
