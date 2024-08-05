@@ -10,14 +10,7 @@ import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
-import {
-  IERC20,
-  IOrderVerifier,
-  Manager_Arbitrum,
-  Manager_Arbitrum__factory,
-  OrderVerifier,
-  OrderVerifier__factory,
-} from '../../types/generated'
+import { IERC20, IManager, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../types/generated'
 import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
 
 const { ethers } = HRE
@@ -26,7 +19,7 @@ const MAX_FEE = utils.parseEther('8')
 
 describe('Verifier', () => {
   let orderVerifier: OrderVerifier
-  let manager: Manager_Arbitrum
+  let manager: FakeContract<IManager>
   let market: FakeContract<IMarket>
   let owner: SignerWithAddress
   let userA: SignerWithAddress
@@ -106,12 +99,7 @@ describe('Verifier', () => {
     orderVerifier = await new OrderVerifier__factory(owner).deploy()
     const dsu = await smock.fake<IERC20>('IERC20')
     const marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    // TODO: don't really need a real manager here
-    manager = await new Manager_Arbitrum__factory(owner).deploy(
-      dsu.address,
-      marketFactory.address,
-      orderVerifier.address,
-    )
+    manager = await smock.fake<IManager>('IManager')
 
     orderVerifierSigner = await impersonate.impersonateWithBalance(orderVerifier.address, utils.parseEther('10'))
     managerSigner = await impersonate.impersonateWithBalance(manager.address, utils.parseEther('10'))
@@ -127,8 +115,6 @@ describe('Verifier', () => {
   let verifyFunctionPrototype: (action: any, signature: string) => Promise<undefined>
 
   describe('#positive', () => {
-    // TODO: consider optional nonce parameter allowing this to be used for common and action messages
-    // facility for signing and checking that verification was sucessful for any message containing an action
     async function check(
       message: { action: { common: { nonce: any } } },
       signFunction: typeof signFunctionPrototype,

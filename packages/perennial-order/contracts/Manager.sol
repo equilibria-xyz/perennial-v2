@@ -37,8 +37,6 @@ abstract contract Manager is IManager, Kept {
     /// User => Nonce => true if spent
     mapping(address => mapping(uint256 => bool)) private _spentOrderIds;
 
-    // TODO: will also need a _spentGroupIds mapping upon implementing the feature
-
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
     /// @param marketFactory_ Contract used to validate delegated signers
