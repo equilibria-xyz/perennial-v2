@@ -104,7 +104,7 @@ describe('Manager', () => {
 
   before(async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    // Hardhat testnet does not support Arbitrum built-ins
+    // Hardhat testnet does not support Arbitrum built-ins; need this for realistic keeper fees
     await smock.fake<ArbGasInfo>('ArbGasInfo', {
       address: '0x000000000000000000000000000000000000006C',
     })

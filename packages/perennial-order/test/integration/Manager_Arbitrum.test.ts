@@ -56,6 +56,9 @@ const MAKER_ORDER = {
   referrer: constants.AddressZero,
 }
 
+// because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
+const TX_OVERRIDES = { maxFeePerGas: 150_000_000 }
+
 describe('Manager_Arbitrum', () => {
   let dsu: IERC20
   let keeperOracle: IKeeperOracle
@@ -147,7 +150,7 @@ describe('Manager_Arbitrum', () => {
     if (!timestamp) timestamp = await oracle.current()
 
     lastPriceCommitted = price
-    return advanceToPrice(keeperOracle, timestamp!, price)
+    return advanceToPrice(keeperOracle, timestamp!, price, TX_OVERRIDES)
   }
 
   function createActionMessage(
@@ -197,7 +200,7 @@ describe('Manager_Arbitrum', () => {
     }
     advanceOrderNonce(user)
     const nonce = nextOrderNonce[user.address]
-    await expect(manager.connect(user).placeOrder(market.address, nonce, order))
+    await expect(manager.connect(user).placeOrder(market.address, nonce, order, TX_OVERRIDES))
       .to.emit(manager, 'OrderPlaced')
       .withArgs(market.address, user.address, order, nonce)
 
@@ -229,7 +232,7 @@ describe('Manager_Arbitrum', () => {
     }
     const signature = await signPlaceOrderAction(userA, verifier, message)
 
-    await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
+    await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
       .to.emit(manager, 'OrderPlaced')
       .withArgs(market.address, user.address, message.order, message.action.orderNonce)
 
@@ -246,7 +249,7 @@ describe('Manager_Arbitrum', () => {
     expect(canExecute).to.be.true
 
     // validate event
-    await expect(manager.connect(keeper).executeOrder(market.address, user.address, orderNonce))
+    await expect(manager.connect(keeper).executeOrder(market.address, user.address, orderNonce, TX_OVERRIDES))
       .to.emit(manager, 'OrderExecuted')
       .withArgs(market.address, user.address, order, orderNonce)
 
@@ -270,7 +273,7 @@ describe('Manager_Arbitrum', () => {
     await smock.fake<ArbGasInfo>('ArbGasInfo', {
       address: '0x000000000000000000000000000000000000006C',
     })
-    // set a realistic base gas fee
+    // set a realistic base gas fee to get realistic keeper compensation
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
   })
 
@@ -342,7 +345,7 @@ describe('Manager_Arbitrum', () => {
     // validate positions
     await checkPendingPosition(userA, Side.MAKER, parse6decimal('100'))
     await checkPendingPosition(userB, Side.LONG, parse6decimal('2.5'))
-    await market.connect(userA).settle(userA.address)
+    await market.connect(userA).settle(userA.address, TX_OVERRIDES)
 
     checkKeeperCompensation = true
   })
@@ -370,7 +373,7 @@ describe('Manager_Arbitrum', () => {
     expect(nonce).to.equal(BigNumber.from(504))
 
     // user cancels the order nonce
-    await expect(manager.connect(userA).cancelOrder(market.address, nonce))
+    await expect(manager.connect(userA).cancelOrder(market.address, nonce, TX_OVERRIDES))
       .to.emit(manager, 'OrderCancelled')
       .withArgs(market.address, userA.address, nonce)
 
@@ -390,7 +393,7 @@ describe('Manager_Arbitrum', () => {
     const signature = await signCancelOrderAction(userA, verifier, message)
 
     // keeper handles the request
-    await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature))
+    await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature, TX_OVERRIDES))
       .to.emit(manager, 'OrderCancelled')
       .withArgs(market.address, userA.address, nonce)
 
