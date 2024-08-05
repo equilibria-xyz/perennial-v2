@@ -30,7 +30,7 @@ describe('Verifier', () => {
   let lastOrderNonce = 30
   let currentTime: BigNumber
 
-  function createCommonMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 6) {
+  function createCommonMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 18) {
     return {
       common: {
         account: userAddress,
@@ -44,7 +44,7 @@ describe('Verifier', () => {
   }
 
   // create a default action for the specified user
-  function createActionMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 6) {
+  function createActionMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 12) {
     return {
       action: {
         market: market.address,

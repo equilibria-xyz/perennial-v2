@@ -108,7 +108,7 @@ jobs:
 
   # [ACCOUNT]
   account-unit-test:
-    name: '[Collateral Account] Unit Tests w/ Coverage'
+    name: '[Collateral Accounts] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v3
@@ -140,7 +140,7 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   account-integration-test:
-    name: '[Collateral Account] Integration Tests w/ Coverage'
+    name: '[Collateral Accounts] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/setup-node@v3

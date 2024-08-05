@@ -249,7 +249,7 @@ describe('Manager', () => {
       currentTime = BigNumber.from(await currentBlockTimestamp())
     })
 
-    function createActionMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 6) {
+    function createActionMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 18) {
       return {
         action: {
           market: market.address,

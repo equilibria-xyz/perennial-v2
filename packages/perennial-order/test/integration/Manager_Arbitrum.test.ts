@@ -157,7 +157,7 @@ describe('Manager_Arbitrum', () => {
     userAddress: Address,
     nonce = nextMessageNonce(),
     signerAddress = userAddress,
-    expiresInSeconds = 12,
+    expiresInSeconds = 24,
   ) {
     return {
       action: {
