@@ -10,10 +10,10 @@ struct PriceRequest {
     /// @dev The version that is being requested
     uint256 timestamp;
 
-    /// @dev the synchronous portion of the fixed settlement fee of the request
+    /// @dev the synchronous portion of the fixed settlement fee of the request delivered on commit
     UFixed6 syncFee;
 
-    /// @dev the asynchronous portion of the fixed settlement fee of the request
+    /// @dev the asynchronous portion of the fixed settlement fee of the request delivered on settlement callback
     UFixed6 asyncFee;
 
     /// @dev The relative oracle fee percentage of the request
