@@ -10,6 +10,7 @@ const config = defaultConfig({
     '@openzeppelin/contracts/interfaces/IERC20.sol',
     '@equilibria/perennial-v2-oracle/contracts/payoff/PowerHalf.sol',
     '@equilibria/perennial-v2-oracle/contracts/payoff/PowerTwo.sol',
+    '@equilibria/perennial-v2-oracle/contracts/payoff/Inverse.sol',
     '@equilibria/perennial-v2-oracle/contracts/Oracle.sol',
     '@equilibria/perennial-v2-oracle/contracts/OracleFactory.sol',
     '@equilibria/perennial-v2-oracle/contracts/keeper/KeeperFactory.sol',
