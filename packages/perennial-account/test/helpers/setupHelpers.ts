@@ -44,7 +44,6 @@ import {
   Oracle__factory,
   IOracleFactory,
   IOracle,
-  IOracle__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
@@ -173,7 +172,7 @@ export async function deployController(
 // Deploys the protocol using a provided oracle
 export async function deployProtocolForOracle(
   owner: SignerWithAddress,
-  oracleFactory: OracleFactory,
+  oracleFactory: IOracleFactory,
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
   const verifier = await new Verifier__factory(owner).deploy()
@@ -185,9 +184,6 @@ export async function deployProtocolForOracle(
     verifier.address,
     marketImpl.address,
   )
-
-  // Impersonate the owner of the oracle factory to authorize it for the newly-deployed market factory
-  const authorizableOracleFactory = new OracleFactory__factory(owner).attach(oracleFactory.address)
   return marketFactory
 }
 

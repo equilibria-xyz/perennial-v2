@@ -6,7 +6,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import { IERC20, IMarketFactory, IMarket } from '@equilibria/perennial-v2/types/generated'
+import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@equilibria/perennial-v2/types/generated'
 import { IKeeperOracle, IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 import {
   ArbGasInfo,
@@ -16,7 +16,7 @@ import {
   OrderVerifier__factory,
 } from '../../types/generated'
 
-import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
+import { signCancelOrderAction, signPlaceOrderAction } from '../helpers/eip712'
 import { createMarketETH, deployProtocol, deployPythOracleFactory, fundWalletDSU } from '../helpers/arbitrumHelpers'
 import { Compare, compareOrders, Side } from '../helpers/order'
 import { transferCollateral } from '../helpers/marketHelpers'
@@ -60,7 +60,7 @@ const MAKER_ORDER = {
 const TX_OVERRIDES = { maxFeePerGas: 150_000_000 }
 
 describe('Manager_Arbitrum', () => {
-  let dsu: IERC20
+  let dsu: IERC20Metadata
   let keeperOracle: IKeeperOracle
   let manager: Manager_Arbitrum
   let marketFactory: IMarketFactory
@@ -94,11 +94,7 @@ describe('Manager_Arbitrum', () => {
     // deploy the order manager
     verifier = await new OrderVerifier__factory(owner).deploy()
     manager = await new Manager_Arbitrum__factory(owner).deploy(dsu.address, marketFactory.address, verifier.address)
-    // FIXME: CI interpreting KEEP_CONFIG as transaction overrides rather than second param to the method
-    console.log('about to init manager with functions', manager.functions)
-    await manager
-      .connect(owner)
-      ['initialize(address,(uint256,uint256,uint256,uint256))'](CHAINLINK_ETH_USD_FEED, KEEP_CONFIG)
+    await manager['initialize(address,(uint256,uint256,uint256,uint256))'](CHAINLINK_ETH_USD_FEED, KEEP_CONFIG)
 
     // commit a start price
     await commitPrice(parse6decimal('4444'))

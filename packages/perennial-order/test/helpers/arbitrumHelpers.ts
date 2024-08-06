@@ -94,7 +94,7 @@ export async function deployProtocol(
   return [marketFactory, dsu, oracleFactory]
 }
 
-// Deploys the protocol using an existing oracle
+// Deploys a market implementation and the MarketFactory for a provided oracle factory
 async function deployProtocolForOracle(
   owner: SignerWithAddress,
   oracleFactory: OracleFactory,

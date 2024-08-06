@@ -179,6 +179,7 @@ describe('Verifier', () => {
     }>
 
     beforeEach(async () => {
+      // builds a list of messages upon which negative testing shall be performed
       requests = [
         {
           message: createPlaceOrderActionMessage(),

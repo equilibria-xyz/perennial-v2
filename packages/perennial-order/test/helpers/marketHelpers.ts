@@ -127,7 +127,7 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
   return marketImpl
 }
 
-// deposits collateral to (amount > 0) or withdraws collateral from (amount < 0) a market
+// Deposits collateral to (amount > 0) or withdraws collateral from (amount < 0) a market
 export async function transferCollateral(user: SignerWithAddress, market: IMarket, amount: BigNumber) {
   await market
     .connect(user)

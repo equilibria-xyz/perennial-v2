@@ -167,16 +167,8 @@ describe('Controller_Arbitrum', () => {
     ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
     ;[dsu, usdc] = await getStablecoins(owner)
-    let oracle: IOracleProvider
-    ;[market, oracle, ethKeeperOracle] = await createMarketETH(
-      owner,
-      oracleFactory,
-      pythOracleFactory,
-      marketFactory,
-      dsu,
-    )
-    let btcOracle: IOracleProvider
-    ;[btcMarket, btcOracle, btcKeeperOracle] = await createMarketBTC(
+    ;[market, , ethKeeperOracle] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+    ;[btcMarket, , btcKeeperOracle] = await createMarketBTC(
       owner,
       oracleFactory,
       pythOracleFactory,

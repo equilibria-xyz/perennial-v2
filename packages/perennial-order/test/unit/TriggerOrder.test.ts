@@ -4,8 +4,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { expect } from 'chai'
 
-import { TriggerOrderTester, TriggerOrderTester__factory } from '../../types/generated'
-import { TriggerOrderStruct } from '../../types/generated/contracts/test/TriggerOrderStorageTester'
+import { TriggerOrderTester, TriggerOrderTester__factory, TriggerOrderStruct } from '../../types/generated'
 import { Compare, Side } from '../helpers/order'
 import { OracleVersionStruct } from '../../types/generated/contracts/test/TriggerOrderTester'
 
