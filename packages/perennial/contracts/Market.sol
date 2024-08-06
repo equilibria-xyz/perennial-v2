@@ -296,14 +296,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Global memory newGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
-        (OracleVersion memory latestOracleVersion, ) = oracle.at(latestPosition.timestamp);
 
         // update risk parameter (first to capture truncation)
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         newRiskParameter = _riskParameter.read();
 
         // update global exposure
-        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestOracleVersion.price);
+        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition);
         _global.store(newGlobal);
 
         emit RiskParameterUpdated(newRiskParameter);
@@ -606,7 +605,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _processReferrer(updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
 
         // request version, only request new price on position change
-        oracle.request(IMarket(this), context.account, !newOrder.isEmpty());
+        if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
 
         // after
         InvariantLib.validate(context, updateContext, newOrder);
@@ -678,10 +677,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadSettlementContext(
         Context memory context
     ) private view returns (SettlementContext memory settlementContext) {
-        // processing accumulators
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
+
         (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
+        context.global.overrideIfZero(settlementContext.orderOracleVersion);
     }
 
     /// @notice Settles the account position up to the latest version
@@ -766,6 +766,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder
     ) private {
         (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) = oracle.at(newOrderTimestamp);
+        context.global.overrideIfZero(oracleVersion);
         Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
         // if latest timestamp is more recent than order timestamp, sync the order data

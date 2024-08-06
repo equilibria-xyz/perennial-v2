@@ -1412,6 +1412,7 @@ describe('Happy Path', () => {
       riskFee: (await market.global()).riskFee,
       oracleFee: (await market.global()).oracleFee,
       donation: (await market.global()).donation,
+      latestPrice: PRICE,
       exposure: 0,
     })
     expectOrderEq(await market.pendingOrder(delay + 1), {

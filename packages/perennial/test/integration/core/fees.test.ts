@@ -179,6 +179,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(1), {
@@ -287,6 +288,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -388,6 +390,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(1), {
@@ -524,6 +527,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -716,6 +720,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -876,6 +881,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(1), {
@@ -1012,6 +1018,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -1201,6 +1208,7 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         donation: expectedDonation,
+        latestPrice: PRICE,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
