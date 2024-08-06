@@ -11,7 +11,6 @@ struct Action {
     IMarket market;
     /// @dev Client-supplied order identifier which cannot be reused
     uint256 orderNonce;
-    // TODO: groupNonce
     /// @dev Largest amount to compensate relayer/keeper for the transaction in DSU
     UFixed6 maxFee;
     /// @dev Information shared across all EIP712 collateral account actions;

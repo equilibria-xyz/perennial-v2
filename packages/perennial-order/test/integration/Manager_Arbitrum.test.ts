@@ -424,7 +424,7 @@ describe('Manager_Arbitrum', () => {
 
   it('delegated signer may interact', async () => {
     // userA delegates userB
-    await marketFactory.connect(userA).updateSigner(userB.address, true)
+    await marketFactory.connect(userA).updateSigner(userB.address, true, TX_OVERRIDES)
 
     // userB signs a message to change userA's position
     advanceOrderNonce(userA)
