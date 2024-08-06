@@ -67,7 +67,7 @@ describe('TriggerOrder', () => {
     })
 
     it('handles invalid comparison', async () => {
-      const badOrder = ORDER_SHORT
+      const badOrder = { ...ORDER_SHORT }
       badOrder.comparison = 0
       expect(await orderTester.canExecute(badOrder, createOracleVersion(parse6decimal('1800')))).to.be.false
       expect(await orderTester.canExecute(badOrder, createOracleVersion(parse6decimal('2000')))).to.be.false
@@ -97,6 +97,59 @@ describe('TriggerOrder', () => {
       expect(readOrder.delta).to.equal(ORDER_LONG.delta)
     })
 
-    // TODO: test handling for underflow/overflow conditions
+    it('reverts storing order with invalid side', async () => {
+      const badOrder = { ...ORDER_SHORT }
+      badOrder.side = 5
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderInvalidError',
+      )
+    })
+
+    it('reverts storing order with invalid comparison', async () => {
+      const badOrder = { ...ORDER_SHORT }
+      badOrder.comparison = 4
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderInvalidError',
+      )
+    })
+
+    it('reverts storing order with price overflow or underflow', async () => {
+      const badOrder = { ...ORDER_SHORT }
+      badOrder.price = BigNumber.from(2).pow(64).add(1)
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderStorageInvalidError',
+      )
+      badOrder.price = badOrder.price.mul(-1)
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderStorageInvalidError',
+      )
+    })
+
+    it('reverts storing order with delta overflow or underflow', async () => {
+      const badOrder = { ...ORDER_SHORT }
+      badOrder.delta = BigNumber.from(2).pow(64).add(1)
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderStorageInvalidError',
+      )
+      badOrder.delta = badOrder.delta.mul(-1)
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderStorageInvalidError',
+      )
+    })
+
+    it('reverts storing order with maxFee overflow', async () => {
+      const badOrder = { ...ORDER_SHORT }
+      badOrder.maxFee = BigNumber.from(2).pow(64).add(1)
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderStorageInvalidError',
+      )
+    })
   })
 })

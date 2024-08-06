@@ -5,7 +5,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
-// TODO: would prefer making comparison uint8 for logability, and reserving 0 as invalid/empty,
+// TODO: would prefer making side uint8 for logability, and reserving 0 as invalid/empty,
 // but leaving these same as MultiInvoker for backward compatibility
 struct TriggerOrder {
     /// @dev Determines the desired position type to establish or change
@@ -17,17 +17,19 @@ struct TriggerOrder {
     /// @dev Amount to change position by
     Fixed6 delta;     // <= 9.22t
     /// @dev Limit on keeper compensation for executing the order
-    UFixed6 maxFee;   // < 18.45b
+    UFixed6 maxFee;   // < 18.45t
     /// @dev Passed to market for awarding referral fee
     address referrer;
 }
-// TODO: move message verification stuff here, because it doesn't involve storage
-// TODO: maybe add an isEmpty method which checks price and delta for 0
 using TriggerOrderLib for TriggerOrder global;
 
 /// @notice Logic for interacting with trigger orders
 /// @dev (external-unsafe): this library must be used internally only
 library TriggerOrderLib {
+    // sig: 0x5b8c7e99
+    /// @custom:error side or comparison is not supported
+    error TriggerOrderInvalidError();
+
     /// @notice Determines whether the trigger order is fillable at the latest price
     /// @param self Trigger order
     /// @param latestVersion Latest oracle version
@@ -39,6 +41,10 @@ library TriggerOrderLib {
         return false;
     }
 
+    /// @notice Applies the order to the user's position and updates the market
+    /// @param self Trigger order
+    /// @param market Market for which the trigger order was placed
+    /// @param user Market participant
     function execute(
         TriggerOrder memory self,
         IMarket market,
@@ -82,6 +88,11 @@ library TriggerOrderLib {
     function isEmpty(TriggerOrder memory self) internal pure returns (bool) {
         return self.price.isZero() && self.delta.isZero();
     }
+
+    /// @dev Prevents writing invalid side or comparison to storage
+    function isValid(TriggerOrder memory self) internal pure returns (bool) {
+        return self.side < 3 && (self.comparison == -1 || self.comparison == 1);
+    }
 }
 
 struct StoredTriggerOrder {
@@ -90,7 +101,7 @@ struct StoredTriggerOrder {
     int8 comparison;  // -1 = lte, 1 = gte
     int64 price;      // <= 9.22t
     int64 delta;      // <= 9.22t
-    uint64 maxFee;    // < 18.45b
+    uint64 maxFee;    // < 18.45t
     address referrer;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; /*uint256 slot0;*/ }
@@ -106,6 +117,7 @@ library TriggerOrderStorageLib {
     );
 
     // sig: 0xf3469aa7
+    /// @custom:error price, delta, or maxFee is out-of-bounds
     error TriggerOrderStorageInvalidError();
 
     /// @dev reads a trigger order struct from storage
@@ -123,9 +135,7 @@ library TriggerOrderStorageLib {
 
     /// @dev writes a trigger order struct to storage
     function store(TriggerOrderStorage storage self, TriggerOrder memory newValue) internal {
-        if (newValue.side > type(uint8).max) revert TriggerOrderStorageInvalidError();
-        if (newValue.comparison > type(int8).max) revert TriggerOrderStorageInvalidError();
-        if (newValue.comparison < type(int8).min) revert TriggerOrderStorageInvalidError();
+        if (!newValue.isValid()) revert TriggerOrderLib.TriggerOrderInvalidError();
         if (newValue.price.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
         if (newValue.price.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
