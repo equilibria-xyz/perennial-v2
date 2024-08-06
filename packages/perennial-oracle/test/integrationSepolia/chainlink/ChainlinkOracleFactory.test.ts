@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
-import { utils, BigNumber } from 'ethers'
+import { utils, BigNumber, constants } from 'ethers'
 import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
@@ -151,34 +151,62 @@ const testOracles = [
   },
 ]
 
+export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress): Promise<void> {
+  const dsuMinter = await impersonateWithBalance(RESERVE_ADDRESS, utils.parseEther('10'))
+  const dsuIface = new utils.Interface(['function mint(uint256)'])
+  await dsuMinter.sendTransaction({
+    to: dsu.address,
+    value: 0,
+    data: dsuIface.encodeFunctionData('mint', [utils.parseEther('200000')]),
+  })
+  await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000'))
+}
+
+async function includeAt(func: () => Promise<any>, timestamp: number): Promise<any> {
+  await ethers.provider.send('evm_setAutomine', [false])
+  await ethers.provider.send('evm_setIntervalMining', [0])
+
+  await time.setNextBlockTimestamp(timestamp)
+  const result = await func()
+
+  await ethers.provider.send('evm_mine', [])
+  await ethers.provider.send('evm_setAutomine', [true])
+
+  return result
+}
+
 testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
     let oracle: Oracle
+    let oracleBtc: Oracle
     let keeperOracle: KeeperOracle
     let keeperOracleBtc: KeeperOracle
-    let keeperOraclePayoff: KeeperOracle
     let chainlinkOracleFactory: ChainlinkFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
     let market: IMarket
+    let marketBtc: IMarket
     let dsu: IERC20Metadata
-    let oracleSigner: SignerWithAddress
-    let factorySigner: SignerWithAddress
     let powerTwoPayoff: PowerTwo
 
     const setup = async () => {
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+      await fundWallet(dsu, user)
 
       powerTwoPayoff = await new PowerTwo__factory(owner).deploy()
 
       const oracleImpl = await new Oracle__factory(owner).deploy()
       oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-      await oracleFactory.initialize(DSU_ADDRESS)
-      await oracleFactory.updateMaxClaim(parse6decimal('100'))
+      await oracleFactory.initialize()
+      await oracleFactory.connect(owner).updateParameter({
+        maxGranularity: 10000,
+        maxSettlementFee: parse6decimal('1000'),
+        maxOracleFee: parse6decimal('0.5'),
+      })
 
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
       chainlinkOracleFactory = await new ChainlinkFactory__factory(owner).deploy(
@@ -186,25 +214,9 @@ testOracles.forEach(testOracle => {
         FEE_MANAGER_ADDRESS,
         WETH_ADDRESS,
         keeperOracleImpl.address,
-        4,
-        10,
-        {
-          multiplierBase: 0,
-          bufferBase: 1_000_000,
-          multiplierCalldata: 0,
-          bufferCalldata: 500_000,
-        },
-        {
-          multiplierBase: ethers.utils.parseEther('1.02'),
-          bufferBase: 2_000_000,
-          multiplierCalldata: ethers.utils.parseEther('1.03'),
-          bufferCalldata: 1_500_000,
-        },
-        5_000,
       )
-      await chainlinkOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
+      await chainlinkOracleFactory.initialize(oracleFactory.address)
       await oracleFactory.register(chainlinkOracleFactory.address)
-      await chainlinkOracleFactory.authorize(oracleFactory.address)
       await chainlinkOracleFactory.register(powerTwoPayoff.address)
 
       keeperOracle = testOracle.Oracle.connect(
@@ -229,25 +241,17 @@ testOracles.forEach(testOracle => {
         provider: ethers.constants.AddressZero,
         decimals: 0,
       })
-      keeperOraclePayoff = testOracle.Oracle.connect(
-        await chainlinkOracleFactory.callStatic.create(
-          '0x0000000000000000000000000000000000000000000000000000000000000021',
-          CHAINLINK_ETH_USD_PRICE_FEED,
-          { provider: powerTwoPayoff.address, decimals: -3 },
-        ),
-        owner,
-      )
-      await chainlinkOracleFactory.create(
-        '0x0000000000000000000000000000000000000000000000000000000000000021',
-        CHAINLINK_ETH_USD_PRICE_FEED,
-        { provider: powerTwoPayoff.address, decimals: -3 },
-      )
 
       oracle = Oracle__factory.connect(
         await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address),
         owner,
       )
       await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address)
+      oracleBtc = Oracle__factory.connect(
+        await oracleFactory.callStatic.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address),
+        owner,
+      )
+      await oracleFactory.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address)
 
       const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
 
@@ -335,8 +339,8 @@ testOracles.forEach(testOracle => {
           min: parse6decimal('-1.20'),
           max: parse6decimal('1.20'),
         },
-        minMargin: parse6decimal('500'),
-        minMaintenance: parse6decimal('500'),
+        minMargin: parse6decimal('5'),
+        minMaintenance: parse6decimal('5'),
         staleAfter: 7200,
         makerReceiveOnly: false,
       }
@@ -366,9 +370,24 @@ testOracles.forEach(testOracle => {
       })
       await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
+      marketBtc = Market__factory.connect(
+        await marketFactory.callStatic.create({
+          token: dsu.address,
+          oracle: oracleBtc.address,
+        }),
+        owner,
+      )
+      await marketFactory.create({
+        token: dsu.address,
+        oracle: oracleBtc.address,
+      })
+      await marketBtc.updateParameter(marketParameter)
+      await marketBtc.updateRiskParameter(riskParameter)
 
-      oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
-      factorySigner = await impersonateWithBalance(chainlinkOracleFactory.address, utils.parseEther('10'))
+      await keeperOracle.register(oracle.address)
+      await oracle.register(market.address)
+      await keeperOracleBtc.register(oracleBtc.address)
+      await oracleBtc.register(marketBtc.address)
 
       const dsuMinter = await impersonateWithBalance(RESERVE_ADDRESS, utils.parseEther('10'))
       const mintAbi = ['function mint(uint256 amount) external']
@@ -376,15 +395,32 @@ testOracles.forEach(testOracle => {
       await dsuMinterContract.mint(utils.parseEther('100000'))
       await dsu.connect(dsuMinter).transfer(oracleFactory.address, utils.parseEther('100000'))
 
+      await dsu.connect(user).approve(market.address, constants.MaxUint256)
+
       await testOracle.gasMock()
     }
 
     beforeEach(async () => {
       await time.reset()
       await setup()
+      await time.increaseTo(STARTING_TIME - 2)
 
-      await time.increaseTo(STARTING_TIME - 1)
-      // block.timestamp of the next call will be STARTING_TIME
+      // set the oracle parameters at STARTING_TIME - 1
+      await includeAt(async () => {
+        await chainlinkOracleFactory.updateParameter(
+          1,
+          parse6decimal('1.0'),
+          parse6decimal('0.5'),
+          parse6decimal('0.1'),
+          4,
+          10,
+        )
+        await chainlinkOracleFactory.commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 1, REPORT, {
+          value: getFee(REPORT),
+        })
+      }, STARTING_TIME - 1)
+
+      // run tests at STARTING_TIME
     })
 
     describe('Factory', async () => {
@@ -395,24 +431,9 @@ testOracles.forEach(testOracle => {
             FEE_MANAGER_ADDRESS,
             WETH_ADDRESS,
             await chainlinkOracleFactory.implementation(),
-            4,
-            10,
-            {
-              multiplierBase: 0,
-              bufferBase: 1_000_000,
-              multiplierCalldata: 0,
-              bufferCalldata: 500_000,
-            },
-            {
-              multiplierBase: ethers.utils.parseEther('1.02'),
-              bufferBase: 2_000_000,
-              multiplierCalldata: ethers.utils.parseEther('1.03'),
-              bufferCalldata: 1_500_000,
-            },
-            5_000,
           )
-          await chainlinkOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address)
-          await expect(chainlinkOracleFactory2.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, dsu.address))
+          await chainlinkOracleFactory2.initialize(oracleFactory.address)
+          await expect(chainlinkOracleFactory2.initialize(oracleFactory.address))
             .to.be.revertedWithCustomError(chainlinkOracleFactory2, 'InitializableAlreadyInitializedError')
             .withArgs(1)
         })
@@ -437,97 +458,32 @@ testOracles.forEach(testOracle => {
           ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
         })
       })
-
-      context('#updateGranularity', async () => {
-        it('reverts when not owner', async () => {
-          await expect(chainlinkOracleFactory.connect(user).updateGranularity(10)).to.be.revertedWithCustomError(
-            chainlinkOracleFactory,
-            'OwnableNotOwnerError',
-          )
-        })
-      })
-
-      context('#authorize', async () => {
-        it('reverts when not owner', async () => {
-          await expect(
-            chainlinkOracleFactory.connect(user).authorize(oracleFactory.address),
-          ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
-        })
-      })
-
-      context('#register', async () => {
-        it('reverts when not owner', async () => {
-          await expect(
-            chainlinkOracleFactory.connect(user).register(powerTwoPayoff.address),
-          ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'OwnableNotOwnerError')
-        })
-      })
-    })
-
-    describe('#initialize', async () => {
-      it('only initializes with a valid priceId', async () => {
-        const oracle = await new KeeperOracle__factory(owner).deploy(60)
-        await expect(oracle.initialize()).to.emit(oracle, 'Initialized').withArgs(1)
-      })
-
-      it('reverts if already initialized', async () => {
-        const oracle = await new KeeperOracle__factory(owner).deploy(60)
-        await oracle.initialize()
-        await expect(oracle.initialize())
-          .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
-          .withArgs(1)
-      })
-    })
-
-    describe('constants', async () => {
-      it('#MIN_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await chainlinkOracleFactory.validFrom()).to.equal(4)
-      })
-
-      it('#MAX_VALID_TIME_AFTER_VERSION', async () => {
-        expect(await chainlinkOracleFactory.validTo()).to.equal(10)
-      })
-
-      it('#GRACE_PERIOD', async () => {
-        expect(await keeperOracle.timeout()).to.equal(60)
-      })
-
-      it('#commitKeepConfig', async () => {
-        const keepConfig = await chainlinkOracleFactory.commitKeepConfig(1)
-        expect(keepConfig.multiplierBase).to.equal(0)
-        expect(keepConfig.bufferBase).to.equal(1_000_000)
-        expect(keepConfig.multiplierCalldata).to.equal(0)
-        expect(keepConfig.bufferCalldata).to.equal(505_000)
-      })
-
-      it('#commitKeepConfig with multiple requested', async () => {
-        const keepConfig = await chainlinkOracleFactory.commitKeepConfig(5)
-        expect(keepConfig.multiplierBase).to.equal(0)
-        expect(keepConfig.bufferBase).to.equal(5_000_000)
-        expect(keepConfig.multiplierCalldata).to.equal(0)
-        expect(keepConfig.bufferCalldata).to.equal(525_000)
-      })
-
-      it('#settleKeepConfig', async () => {
-        const keepConfig = await chainlinkOracleFactory.settleKeepConfig()
-        expect(keepConfig.multiplierBase).to.equal(ethers.utils.parseEther('1.02'))
-        expect(keepConfig.bufferBase).to.equal(2_000_000)
-        expect(keepConfig.multiplierCalldata).to.equal(ethers.utils.parseEther('1.03'))
-        expect(keepConfig.bufferCalldata).to.equal(1_500_000)
-      })
     })
 
     describe('#commit', async () => {
       it('commits successfully and incentivizes the keeper', async () => {
-        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.globalCallbacks(STARTING_TIME)).to.deep.eq([market.address])
-        expect(await keeperOracle.localCallbacks(STARTING_TIME, market.address)).to.deep.eq([user.address])
+        await includeAt(
+          async () =>
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                1,
+                0,
+                0,
+                parse6decimal('10'),
+                false,
+              ),
+          STARTING_TIME,
+        )
+        expect(await keeperOracle.localCallbacks(STARTING_TIME)).to.deep.eq([user.address])
 
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
+        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
         await expect(
@@ -539,134 +495,30 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
           .withArgs([STARTING_TIME, getPrices(REPORT)[0], true])
 
-        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-
-        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.30'), utils.parseEther('0.35'))
-        expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
-          utils.parseEther('0.30'),
-          utils.parseEther('0.35'),
-        )
+        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('9')))
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
       })
 
-      it('commits successfully with payoff and incentivizes the keeper', async () => {
-        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-        await keeperOraclePayoff.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOraclePayoff.globalCallbacks(STARTING_TIME)).to.deep.eq([market.address])
-        expect(await keeperOraclePayoff.localCallbacks(STARTING_TIME, market.address)).to.deep.eq([user.address])
-
-        // Base fee isn't working properly in coverage, so we need to set it manually
-        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect(await keeperOraclePayoff.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOraclePayoff.next()).to.be.equal(STARTING_TIME)
-
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .commit(['0x0000000000000000000000000000000000000000000000000000000000000021'], STARTING_TIME, REPORT, {
-              value: getFee(REPORT),
-              maxFeePerGas: 100000000,
-            }),
-        )
-          .to.emit(keeperOraclePayoff, 'OracleProviderVersionFulfilled')
-          .withArgs([STARTING_TIME, getPrices(REPORT)[0].mul(getPrices(REPORT)[0]).div(1e9), true])
-
-        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-
-        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.30'), utils.parseEther('0.35'))
-        expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
-          utils.parseEther('0.30'),
-          utils.parseEther('0.35'),
-        )
-      })
-
-      it('commits successfully if report is barely not too early', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
-
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT_BARELY_NOT_TOO_EARLY, {
-              value: getFee(REPORT_BARELY_NOT_TOO_EARLY),
-              maxFeePerGas: 100000000,
-            }),
-        )
-          .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
-          .withArgs([STARTING_TIME, getPrices(REPORT_BARELY_NOT_TOO_EARLY)[0], true])
-      })
-
-      it('commits successfully if report is barely not too late', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
-
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT_BARELY_NOT_TOO_LATE, {
-              value: getFee(REPORT_BARELY_NOT_TOO_LATE),
-              maxFeePerGas: 100000000,
-            }),
-        )
-          .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
-          .withArgs([STARTING_TIME, getPrices(REPORT_BARELY_NOT_TOO_LATE)[0], true])
-      })
-
-      it('fails to commit if report is outside of time range', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
-
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT_BARELY_TOO_EARLY, {
-              value: getFee(REPORT_BARELY_TOO_EARLY),
-            }),
-        ).to.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
-
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT_BARELY_TOO_LATE, {
-              value: getFee(REPORT_BARELY_TOO_LATE),
-            }),
-        ).to.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
-      })
-
-      it('fails to commit if update fee is not provided', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
-        await expect(
-          chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT),
-        ).to.be.revertedWith('ERC20: transfer amount exceeds balance')
-      })
-
-      it('does not commit a version that has already been committed', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await expect(
-          chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-            value: getFee(REPORT),
-          }),
-        ).to.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
-      })
-
       it('rejects invalid update data', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
+        await includeAt(
+          async () =>
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                1,
+                0,
+                0,
+                parse6decimal('10'),
+                false,
+              ),
+          STARTING_TIME,
+        )
+        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
+        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
+        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
+        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, '0x', {
@@ -675,189 +527,32 @@ testOracles.forEach(testOracle => {
         ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleInvalidPriceError')
       })
 
-      it('cannot skip a version', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.versions(2)).to.be.equal(STARTING_TIME + 1)
-        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
-        await expect(
-          chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 1, REPORT, {
-            value: getFee(REPORT),
-          }),
-        ).to.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
-      })
-
-      it('cannot skip a version if the grace period has expired', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await time.increase(59)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.versions(2)).to.be.equal(STARTING_TIME + 60)
-        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 60, REPORT_AFTER_EXPIRATION, {
-              value: getFee(REPORT_AFTER_EXPIRATION),
-            }),
-        ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
-      })
-
-      it('commits unincentivized if there are no requested or committed versions, does not incentivize keeper, updates latest', async () => {
-        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        await increase(1)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.true
-        expect(version.price).to.equal(getPrices(REPORT)[0])
-
-        // Didn't incentivize keeper
-        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        expect(newDSUBalance.sub(originalDSUBalance)).to.equal(0)
-
-        expect(await keeperOracle.connect(user).latest()).to.deep.equal(version)
-      })
-
-      it('reverts if not called from factory', async () => {
-        await expect(
-          keeperOracle.connect(user).commit({ timestamp: STARTING_TIME, price: parse6decimal('1000'), valid: true }),
-        ).to.be.revertedWithCustomError(keeperOracle, 'InstanceNotFactoryError')
-      })
-
-      it('reverts if version is zero', async () => {
-        await expect(
-          keeperOracle.connect(factorySigner).commit({ timestamp: 0, price: 0, valid: false }),
-        ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
-      })
-
-      it('can commit if there are requested versions but no committed versions', async () => {
-        await time.increase(30)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-      })
-
-      it('can commit if there are committed versions but no requested versions', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        await time.increase(60)
-        await chainlinkOracleFactory
-          .connect(user)
-          .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 60, REPORT_AFTER_EXPIRATION, {
-            value: getFee(REPORT_AFTER_EXPIRATION),
-          })
-      })
-
-      it('can commit if there are committed versions and requested versions', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await time.increase(1)
-        await chainlinkOracleFactory
-          .connect(user)
-          .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, { value: getFee(REPORT) })
-        await time.increaseTo(STARTING_TIME + 160)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        const secondRequestedVersion = await currentBlockTimestamp()
-        const nonRequestedOracleVersion = STARTING_TIME + 60
-        await chainlinkOracleFactory
-          .connect(user)
-          .commit([CHAINLINK_ETH_USD_PRICE_FEED], nonRequestedOracleVersion, REPORT_AFTER_EXPIRATION, {
-            value: getFee(REPORT_AFTER_EXPIRATION),
-          })
-        expect((await keeperOracle.connect(user).latest()).timestamp).to.equal(nonRequestedOracleVersion)
-
-        await chainlinkOracleFactory
-          .connect(user)
-          .commit([CHAINLINK_ETH_USD_PRICE_FEED], secondRequestedVersion, REPORT_WAY_AFTER_EXPIRATION, {
-            value: getFee(REPORT_WAY_AFTER_EXPIRATION),
-          })
-        expect((await keeperOracle.connect(user).latest()).timestamp).to.equal(secondRequestedVersion)
-      })
-
-      it('cannot commit invalid VAAs for the oracle version', async () => {
-        await expect(
-          chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 60, REPORT, {
-            value: getFee(REPORT),
-          }),
-        ).to.reverted
-      })
-
-      it('must be more recent than the most recently committed version', async () => {
-        await time.increase(2)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 2, REPORT, {
-          value: getFee(REPORT),
-        })
-
-        await expect(
-          chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 1, OTHER_REPORT, {
-            value: getFee(OTHER_REPORT),
-          }),
-        ).to.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
-      })
-
-      it('does not commitRequested if oracleVersion is incorrect', async () => {
-        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        // Base fee isn't working properly in coverage, so we need to set it manually
-        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 1, REPORT, {
-          value: getFee(REPORT),
-          gasPrice: 100000000,
-        })
-        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
-
-        // Keeper isn't incentivized because we did not go through commitRequested
-        expect(newDSUBalance).to.equal(originalDSUBalance)
-      })
-
-      it('can commit multiple non-requested versions, as long as they are in order', async () => {
-        await time.increase(1)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        await time.increase(60)
-        await chainlinkOracleFactory
-          .connect(user)
-          .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 60, REPORT_AFTER_EXPIRATION, {
-            value: getFee(REPORT_AFTER_EXPIRATION),
-          })
-      })
-
-      it('cant commit non-requested version until after an invalid has passed grace period', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect((await keeperOracle.global()).latestIndex).to.equal(0)
-
-        await time.increase(59)
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME + 60, REPORT_AFTER_EXPIRATION, {
-              value: getFee(REPORT_AFTER_EXPIRATION),
-            }),
-        ).to.be.reverted
-      })
-
-      it('reverts if committing invalid non-requested version', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        expect((await keeperOracle.global()).latestIndex).to.equal(0)
-
-        await time.increase(60)
-        await expect(
-          chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 1, '0x'),
-        ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleInvalidPriceError')
-      })
-
       it('can update multiple from batched update', async () => {
-        await time.increaseTo(BATCH_STARTING_TIME - 1)
+        await includeAt(
+          async () =>
+            await chainlinkOracleFactory.commit(
+              [CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_BTC_USD_PRICE_FEED],
+              BATCH_STARTING_TIME - 1,
+              REPORT_BATCH,
+              { value: getFee(REPORT_BATCH) },
+            ),
+          BATCH_STARTING_TIME - 1,
+        )
 
-        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+        await includeAt(
+          async () =>
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                1,
+                0,
+                0,
+                parse6decimal('10'),
+                false,
+              ),
+          BATCH_STARTING_TIME,
+        )
 
         await chainlinkOracleFactory
           .connect(user)
@@ -880,363 +575,10 @@ testOracles.forEach(testOracle => {
         expect(latestIndexBtc.price).to.equal(btcPrice)
 
         const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
+
         // Even though there are two updates, only one was requested so we
         // should only receive half of the fee.
-        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.1'), utils.parseEther('0.15'))
-      })
-    })
-
-    describe('#settle', async () => {
-      it('settles successfully and incentivizes the keeper', async () => {
-        const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        const originalFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        // Base fee isn't working properly in coverage, so we need to set it manually
-        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect(await keeperOracle.versions(1)).to.be.equal(STARTING_TIME)
-        expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-          maxFeePerGas: 100000000,
-        })
-        const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
-        const newFactoryDSUBalance = await dsu.callStatic.balanceOf(oracleFactory.address)
-
-        expect((await market.position()).timestamp).to.equal(STARTING_TIME)
-
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .settle([CHAINLINK_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME], [1], {
-              maxFeePerGas: 100000000,
-            }),
-        ).to.emit(keeperOracle, 'CallbackFulfilled')
-        // .withArgs([market.address, user.address, STARTING_TIME]) cannot parse indexed tuples in events
-
-        expect((await market.positions(user.address)).timestamp).to.equal(STARTING_TIME)
-
-        expect(newDSUBalance.sub(originalDSUBalance)).to.be.within(utils.parseEther('0.30'), utils.parseEther('0.35'))
-        expect(originalFactoryDSUBalance.sub(newFactoryDSUBalance)).to.be.within(
-          utils.parseEther('0.30'),
-          utils.parseEther('0.35'),
-        )
-      })
-
-      it('reverts if array lengths mismatch', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .settle([CHAINLINK_ETH_USD_PRICE_FEED], [market.address, market.address], [STARTING_TIME], [1]),
-        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidSettleError')
-
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .settle([CHAINLINK_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME, STARTING_TIME], [1]),
-        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidSettleError')
-
-        await expect(
-          chainlinkOracleFactory
-            .connect(user)
-            .settle([CHAINLINK_ETH_USD_PRICE_FEED], [market.address], [STARTING_TIME], [1, 1]),
-        ).to.be.revertedWithCustomError(chainlinkOracleFactory, 'KeeperFactoryInvalidSettleError')
-      })
-
-      it('reverts if calldata is ids is empty', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-
-        await expect(chainlinkOracleFactory.connect(user).settle([], [], [], [])).to.be.revertedWithCustomError(
-          chainlinkOracleFactory,
-          'KeeperFactoryInvalidSettleError',
-        )
-      })
-    })
-
-    describe('#status', async () => {
-      it('returns the correct versions', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        const [latestIndex, currentIndex] = await keeperOracle.status()
-        expect(latestIndex.valid).to.be.true
-        expect(latestIndex.price).to.equal(getPrices(REPORT)[0])
-        expect(currentIndex).to.equal(await currentBlockTimestamp())
-      })
-
-      it('returns empty versions if no version has ever been committed', async () => {
-        const [latestIndex, currentIndex] = await keeperOracle.status()
-        expect(currentIndex).to.equal(await currentBlockTimestamp())
-        expect(latestIndex.timestamp).to.equal(0)
-        expect(latestIndex.price).to.equal(0)
-        expect(latestIndex.valid).to.be.false
-      })
-    })
-
-    describe('#request', async () => {
-      it('can request a version', async () => {
-        // No requested versions
-        expect((await keeperOracle.global()).currentIndex).to.equal(0)
-        await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address, true))
-          .to.emit(keeperOracle, 'OracleProviderVersionRequested')
-          .withArgs(STARTING_TIME, true)
-        // Now there is exactly one requested version
-        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
-        expect((await keeperOracle.global()).currentIndex).to.equal(1)
-      })
-
-      it('can request a version (no new price)', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await increase(10)
-
-        // One requested version
-        expect((await keeperOracle.global()).currentIndex).to.equal(1)
-        await expect(keeperOracle.connect(oracleSigner).request(market.address, user.address, false))
-          .to.emit(keeperOracle, 'OracleProviderVersionRequested')
-          .withArgs(STARTING_TIME + 11, false)
-
-        // Should link back to requested version
-        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
-        expect(await keeperOracle.links(STARTING_TIME + 11)).to.equal(STARTING_TIME)
-        expect((await keeperOracle.global()).currentIndex).to.equal(1)
-      })
-
-      it('can request a version w/ granularity', async () => {
-        await chainlinkOracleFactory.updateGranularity(10)
-
-        // No requested versions
-        expect((await keeperOracle.global()).currentIndex).to.equal(0)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        const currentTimestamp = await chainlinkOracleFactory.current()
-
-        // Now there is exactly one requested version
-        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp)
-        expect((await keeperOracle.global()).currentIndex).to.equal(1)
-      })
-
-      it('does not allow unauthorized instances to request', async () => {
-        const badInstance = await smock.fake<IInstance>('IInstance')
-        const badFactory = await smock.fake<IFactory>('IFactory')
-        badInstance.factory.returns(badFactory.address)
-        badFactory.instances.returns(true)
-        const badSigner = await impersonateWithBalance(badInstance.address, utils.parseEther('10'))
-
-        await expect(
-          keeperOracle.connect(badSigner).request(market.address, user.address, true),
-        ).to.be.revertedWithCustomError(keeperOracle, 'OracleProviderUnauthorizedError')
-      })
-
-      it('a version can only be requested once (new, new)', async () => {
-        await ethers.provider.send('evm_setAutomine', [false])
-        await ethers.provider.send('evm_setIntervalMining', [0])
-
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-
-        await ethers.provider.send('evm_mine', [])
-
-        const currentTimestamp = await chainlinkOracleFactory.current()
-        expect(await keeperOracle.callStatic.versions(1)).to.equal(currentTimestamp)
-        expect(await keeperOracle.callStatic.versions(2)).to.equal(0)
-      })
-
-      it('a version can only be requested once (no new, no new)', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await increase(10)
-
-        await ethers.provider.send('evm_setAutomine', [false])
-        await ethers.provider.send('evm_setIntervalMining', [0])
-
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
-
-        await ethers.provider.send('evm_mine', [])
-
-        const currentTimestamp = await chainlinkOracleFactory.current()
-        expect(await keeperOracle.versions(1)).to.equal(STARTING_TIME)
-        expect(await keeperOracle.links(currentTimestamp)).to.equal(STARTING_TIME)
-        expect(await keeperOracle.versions(2)).to.equal(0)
-        expect((await keeperOracle.global()).currentIndex).to.equal(1)
-      })
-
-      it('a version can only be requested once (new, no new)', async () => {
-        await ethers.provider.send('evm_setAutomine', [false])
-        await ethers.provider.send('evm_setIntervalMining', [0])
-
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
-
-        await ethers.provider.send('evm_mine', [])
-
-        const currentTimestamp = await chainlinkOracleFactory.current()
-        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp)
-        expect(await keeperOracle.versions(2)).to.equal(0)
-        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
-      })
-
-      it('a new price request will overtake a previous no new price request', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await increase(10)
-
-        await ethers.provider.send('evm_setAutomine', [false])
-        await ethers.provider.send('evm_setIntervalMining', [0])
-
-        // One requested version
-        expect((await keeperOracle.global()).currentIndex).to.equal(1)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-
-        await ethers.provider.send('evm_mine', [])
-
-        const currentTimestamp = await chainlinkOracleFactory.current()
-        expect(await keeperOracle.versions(1)).to.equal(currentTimestamp.sub(11))
-        expect(await keeperOracle.versions(2)).to.equal(currentTimestamp)
-        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
-        expect(await keeperOracle.links(currentTimestamp)).to.equal(0)
-      })
-    })
-
-    describe('#latest', async () => {
-      it('returns the latest version', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        const latestValue = await keeperOracle.connect(user).latest()
-        expect(latestValue.valid).to.be.true
-        expect(latestValue.price).to.equal(getPrices(REPORT)[0])
-      })
-
-      it('returns empty version if no version has ever been committed', async () => {
-        const latestIndex = await keeperOracle.connect(user).latest()
-        expect(latestIndex.timestamp).to.equal(0)
-        expect(latestIndex.price).to.equal(0)
-        expect(latestIndex.valid).to.be.false
-      })
-    })
-
-    describe('#current', async () => {
-      it('returns the current timestamp', async () => {
-        expect(await keeperOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
-      })
-
-      it('returns the current timestamp w/ granularity == 0', async () => {
-        await expect(chainlinkOracleFactory.connect(owner).updateGranularity(0)).to.be.revertedWithCustomError(
-          chainlinkOracleFactory,
-          'KeeperFactoryInvalidGranularityError',
-        )
-      })
-
-      it('returns the current timestamp w/ granularity > MAX', async () => {
-        await expect(chainlinkOracleFactory.connect(owner).updateGranularity(3601)).to.be.revertedWithCustomError(
-          chainlinkOracleFactory,
-          'KeeperFactoryInvalidGranularityError',
-        )
-        await expect(chainlinkOracleFactory.connect(owner).updateGranularity(3600)).to.be.not.reverted
-      })
-
-      it('returns the current timestamp w/ fresh granularity > 1', async () => {
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
-
-        const granularity = await chainlinkOracleFactory.granularity()
-        expect(granularity.latestGranularity).to.equal(1)
-        expect(granularity.currentGranularity).to.equal(10)
-        expect(granularity.effectiveAfter).to.equal(await currentBlockTimestamp())
-
-        expect(await keeperOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
-      })
-
-      it('returns the current timestamp w/ settled granularity > 1', async () => {
-        const granularity = await chainlinkOracleFactory.granularity()
-        expect(granularity.latestGranularity).to.equal(0)
-        expect(granularity.currentGranularity).to.equal(1)
-        expect(granularity.effectiveAfter).to.equal(0)
-
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
-
-        const granularity2 = await chainlinkOracleFactory.granularity()
-        expect(granularity2.latestGranularity).to.equal(1)
-        expect(granularity2.currentGranularity).to.equal(10)
-        expect(granularity2.effectiveAfter).to.equal(await currentBlockTimestamp())
-
-        await time.increase(1)
-
-        expect(await keeperOracle.connect(user).current()).to.equal(
-          Math.ceil((await currentBlockTimestamp()) / 10) * 10,
-        )
-      })
-
-      it('returns the current timestamp w/ fresh + fresh granularity > 1', async () => {
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
-        // hardhat automatically moves 1 second ahead so we have to do this twice
-        await chainlinkOracleFactory.connect(owner).updateGranularity(100)
-        await expect(chainlinkOracleFactory.connect(owner).updateGranularity(1000)).to.be.revertedWithCustomError(
-          chainlinkOracleFactory,
-          'KeeperFactoryInvalidGranularityError',
-        )
-      })
-
-      it('returns the current timestamp w/ settled + fresh granularity > 1', async () => {
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
-        await time.increase(1)
-
-        await chainlinkOracleFactory.connect(owner).updateGranularity(100)
-        const granularity = await chainlinkOracleFactory.granularity()
-        expect(granularity.latestGranularity).to.equal(10)
-        expect(granularity.currentGranularity).to.equal(100)
-        expect(granularity.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
-
-        expect(await keeperOracle.connect(user).current()).to.equal(
-          Math.ceil((await currentBlockTimestamp()) / 10) * 10,
-        )
-      })
-
-      it('returns the current timestamp w/ settled + settled granularity > 1', async () => {
-        await chainlinkOracleFactory.connect(owner).updateGranularity(10)
-        await time.increase(1)
-
-        await chainlinkOracleFactory.connect(owner).updateGranularity(100)
-        const granularity = await chainlinkOracleFactory.granularity()
-        expect(granularity.latestGranularity).to.equal(10)
-        expect(granularity.currentGranularity).to.equal(100)
-        expect(granularity.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
-
-        const previousCurrent = Math.ceil((await currentBlockTimestamp()) / 10) * 10
-        await time.increase(previousCurrent - (await currentBlockTimestamp()) + 1)
-
-        expect(await keeperOracle.connect(user).current()).to.equal(
-          Math.ceil((await currentBlockTimestamp()) / 100) * 100,
-        )
-      })
-    })
-
-    describe('#atVersion', async () => {
-      it('returns the correct version', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        await chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, REPORT, {
-          value: getFee(REPORT),
-        })
-        const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.true
-        expect(version.price).to.equal(getPrices(REPORT)[0])
-      })
-
-      it('returns invalid version if that version was not requested', async () => {
-        const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.false
-      })
-
-      it('returns invalid version if that version was requested but not committed', async () => {
-        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
-        const version = await keeperOracle.connect(user).at(STARTING_TIME)
-        expect(version.valid).to.be.false
+        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('9')))
       })
     })
   })

@@ -519,7 +519,6 @@ describe('Happy Path', () => {
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    console.log(riskParameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -1273,7 +1272,7 @@ describe('Happy Path', () => {
       CHAINLINK_CUSTOM_CURRENCIES.USD,
       { decimals: 0 },
       delay,
-    ).init()
+    ).init(BigNumber.from(0), BigNumber.from(0))
 
     const instanceVars = await deployProtocol(chainlink)
     const { user, userB, dsu, beneficiaryB, payoff } = instanceVars

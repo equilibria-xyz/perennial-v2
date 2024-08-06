@@ -9,6 +9,8 @@ import "../types/RiskParameter.sol";
 import "../types/Global.sol";
 import "../types/Position.sol";
 import "../types/Version.sol";
+import "../types/OracleVersion.sol";
+import "../types/OracleReceipt.sol";
 
 /// @dev The result of the version accumulation
 struct VersionAccumulationResult {
@@ -84,6 +86,7 @@ struct VersionAccumulationContext {
     Guarantee guarantee;
     OracleVersion fromOracleVersion;
     OracleVersion toOracleVersion;
+    OracleReceipt toOracleReceipt;
     MarketParameter marketParameter;
     RiskParameter riskParameter;
 }
@@ -162,7 +165,7 @@ library VersionLib {
         VersionAccumulationContext memory context
     ) private pure returns (UFixed6 settlementFee) {
         uint256 orders = context.order.orders - context.guarantee.orders;
-        settlementFee = orders == 0 ? UFixed6Lib.ZERO : context.marketParameter.settlementFee;
+        settlementFee = orders == 0 ? UFixed6Lib.ZERO : context.toOracleReceipt.settlementFee;
         next.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(orders));
     }
 

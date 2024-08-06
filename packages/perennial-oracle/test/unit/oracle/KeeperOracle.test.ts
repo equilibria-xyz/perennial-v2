@@ -12,6 +12,7 @@ import {
   AggregatorV3Interface,
   IMarket,
   IMarketFactory,
+  Oracle,
 } from '../../../types/generated'
 import { utils, BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -27,53 +28,62 @@ const KEEPER_ORACLE_TIMEOUT = 60
 
 describe('KeeperOracle', () => {
   let owner: SignerWithAddress
+  let receiver: SignerWithAddress
   let user: SignerWithAddress
+  let oracle: Oracle
   let oracleSigner: SignerWithAddress
   let keeperOracle: KeeperOracle
   let keeperOracleFactory: KeeperFactory
   let market: FakeContract<IMarket>
   let marketFactory: FakeContract<IMarketFactory>
+  let dsu: FakeContract<IERC20Metadata>
 
-  const keeperOracleFixture = async () => {
-    ;[owner, user] = await ethers.getSigners()
+  async function commitPrice(timestamp: number, price: BigNumber) {
+    const oracleVersion = {
+      timestamp: timestamp,
+      price: price,
+      valid: true,
+    }
+    const keeperFactorySigner = await impersonateWithBalance(keeperOracleFactory.address, utils.parseEther('10'))
+
+    await expect(
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, {
+        gasLimit: 1_000_000,
+        maxFeePerGas: 100000000,
+      }),
+    ).to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
+  }
+
+  beforeEach(async () => {
+    // snapshot initial chain state for multiple tests
+    ;[owner, user, receiver] = await ethers.getSigners()
 
     // mock external components
     const pyth = await smock.fake<AbstractPyth>('AbstractPyth')
     pyth.priceFeedExists.returns(true)
     const chainlinkFeed = await smock.fake<AggregatorV3Interface>('AggregatorV3Interface')
-    const dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu.transfer.returns(true)
+
+    // mock the market
+    market = await smock.fake<IMarket>('IMarket')
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    market.factory.returns(marketFactory.address)
+    marketFactory.instances.whenCalledWith(market.address).returns(true)
+    market.settle.whenCalledWith(ethers.constants.AddressZero).returns()
+    market.token.returns(dsu.address)
 
     // deploy prerequisites
     const oracleImpl = await new Oracle__factory(owner).deploy()
     const oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address)
-    await oracleFactory.updateMaxClaim(parse6decimal('10'))
+    await oracleFactory.initialize()
 
     // deploy the implementation contract and a factory letting us create an instance
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(KEEPER_ORACLE_TIMEOUT)
-    keeperOracleFactory = await new PythFactory__factory(owner).deploy(
-      pyth.address,
-      keeperOracleImpl.address,
-      4,
-      10,
-      {
-        multiplierBase: 0,
-        bufferBase: 1_000_000,
-        multiplierCalldata: 0,
-        bufferCalldata: 500_000,
-      },
-      {
-        multiplierBase: ethers.utils.parseEther('1.02'),
-        bufferBase: 2_000_000,
-        multiplierCalldata: ethers.utils.parseEther('1.03'),
-        bufferCalldata: 1_500_000,
-      },
-      5_000,
-    )
-    await keeperOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
+    keeperOracleFactory = await new PythFactory__factory(owner).deploy(pyth.address, keeperOracleImpl.address)
+    await keeperOracleFactory.initialize(oracleFactory.address)
+    await keeperOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
     await oracleFactory.register(keeperOracleFactory.address)
-    await keeperOracleFactory.authorize(oracleFactory.address)
 
     // create our KeeperOracle instance
     keeperOracle = KeeperOracle__factory.connect(
@@ -89,38 +99,16 @@ describe('KeeperOracle', () => {
     })
 
     // needed for making oracle requests
-    const oracle = Oracle__factory.connect(
+    oracle = Oracle__factory.connect(
       await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, keeperOracleFactory.address),
       owner,
     )
     await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, keeperOracleFactory.address)
+
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
-  }
 
-  async function commitPrice(timestamp: number, price: BigNumber) {
-    const oracleVersion = {
-      timestamp: timestamp,
-      price: price,
-      valid: true,
-    }
-    const keeperFactorySigner = await impersonateWithBalance(keeperOracleFactory.address, utils.parseEther('10'))
-    await expect(
-      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, {
-        maxFeePerGas: 100000000,
-      }),
-    ).to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
-  }
-
-  beforeEach(async () => {
-    // snapshot initial chain state for multiple tests
-    await loadFixture(keeperOracleFixture)
-
-    // mock the market
-    market = await smock.fake<IMarket>('IMarket')
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    market.factory.returns(marketFactory.address)
-    marketFactory.instances.whenCalledWith(market.address).returns(true)
-    market.settle.whenCalledWith(ethers.constants.AddressZero).returns()
+    await keeperOracle.register(oracle.address)
+    await oracle.register(market.address)
 
     // Base fee isn't working properly in coverage, so we need to set it manually
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
@@ -157,7 +145,7 @@ describe('KeeperOracle', () => {
       valid: false,
     }
     expect(
-      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, { maxFeePerGas: 100000000 }),
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, { maxFeePerGas: 100000000 }),
     ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleInvalidPriceError')
   })
 
@@ -172,11 +160,15 @@ describe('KeeperOracle', () => {
       price: overflowPrice,
       valid: true,
     }
-    expect(keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, { maxFeePerGas: 100000000 })).to.be.reverted
+    expect(
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, { maxFeePerGas: 100000000 }),
+    ).to.be.reverted
 
     const underflowPrice = BigNumber.from(2).pow(STORAGE_SIZE).add(2).mul(-1)
     oracleVersion.price = underflowPrice
-    expect(keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, { maxFeePerGas: 100000000 })).to.be.reverted
+    expect(
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, { maxFeePerGas: 100000000 }),
+    ).to.be.reverted
   })
 
   it('reverts committing 0 timestamp', async () => {
@@ -187,10 +179,16 @@ describe('KeeperOracle', () => {
     }
     const keeperFactorySigner = await impersonateWithBalance(keeperOracleFactory.address, utils.parseEther('10'))
     await expect(
-      keeperOracle.connect(keeperFactorySigner).commit(badOracleVersion, {
+      keeperOracle.connect(keeperFactorySigner).commit(badOracleVersion, receiver.address, {
         maxFeePerGas: 100000000,
       }),
     ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
+  })
+
+  it('reverts requesting no new price before a new price', async () => {
+    await expect(
+      keeperOracle.connect(oracleSigner).request(market.address, user.address, false),
+    ).to.revertedWithCustomError(keeperOracle, 'KeeperOracleNoPriorRequestsError')
   })
 
   it('discards expired prices', async () => {
@@ -217,8 +215,8 @@ describe('KeeperOracle', () => {
 
     // ensure carryover price is received instead of invalid price
     const invalidPrice = await keeperOracle.at(requestedTime)
-    expect(invalidPrice.timestamp).to.equal(requestedTime)
-    expect(invalidPrice.price).to.equal(parse6decimal('3333.777'))
-    expect(invalidPrice.valid).to.be.false
+    expect(invalidPrice[0].timestamp).to.equal(requestedTime)
+    expect(invalidPrice[0].price).to.equal(parse6decimal('3333.777'))
+    expect(invalidPrice[0].valid).to.be.false
   })
 })

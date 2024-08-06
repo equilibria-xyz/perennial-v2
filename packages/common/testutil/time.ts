@@ -22,6 +22,10 @@ export async function increase(duration: number): Promise<void> {
   await time.increase(duration)
 }
 
+export async function setNextBlockTimestamp(timestamp: number): Promise<void> {
+  await time.setNextBlockTimestamp(timestamp)
+}
+
 export async function increaseTo(timestamp: number): Promise<void> {
   const currentTimestamp = await currentBlockTimestamp()
   if (timestamp < currentTimestamp) {

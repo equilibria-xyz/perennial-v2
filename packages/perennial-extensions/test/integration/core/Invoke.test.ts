@@ -27,7 +27,7 @@ import {
 
 import { buildApproveTarget, buildPlaceOrder, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
 
-import { parse6decimal } from '../../../../common/testutil/types'
+import { OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
@@ -48,13 +48,19 @@ describe('Invoke', () => {
   let ethSubOracle: FakeContract<IOracleProvider>
   let btcSubOracle: FakeContract<IOracleProvider>
 
-  async function updateVaultOracle(newEthPrice?: BigNumber, newPriceBtc?: BigNumber) {
-    await _updateVaultOracleEth(newEthPrice)
-    await _updateVaultOracleBtc(newPriceBtc)
+  async function updateVaultOracle(
+    newEthPrice?: BigNumber,
+    newPriceBtc?: BigNumber,
+    newEthReceipt?: OracleReceipt,
+    newBtcReceipt?: OracleReceipt,
+  ) {
+    await _updateVaultOracleEth(newEthPrice, newEthReceipt)
+    await _updateVaultOracleBtc(newPriceBtc, newBtcReceipt)
   }
 
-  async function _updateVaultOracleEth(newPrice?: BigNumber) {
+  async function _updateVaultOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
     const [currentTimestamp, currentPrice] = await ethSubOracle.latest()
+    const [, currentReceipt] = await ethSubOracle.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
@@ -64,11 +70,12 @@ describe('Invoke', () => {
     ethSubOracle.request.returns()
     ethSubOracle.latest.returns(newVersion)
     ethSubOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    ethSubOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+    ethSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
-  async function _updateVaultOracleBtc(newPrice?: BigNumber) {
+  async function _updateVaultOracleBtc(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
     const [currentTimestamp, currentPrice] = await btcSubOracle.latest()
+    const [, currentReceipt] = await btcSubOracle.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
@@ -78,7 +85,7 @@ describe('Invoke', () => {
     btcSubOracle.request.returns()
     btcSubOracle.latest.returns(newVersion)
     btcSubOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+    btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
   beforeEach(async () => {

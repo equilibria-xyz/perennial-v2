@@ -124,7 +124,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ///      - The sender is charged the settlement fee
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
-    function update(Intent calldata intent, bytes memory signature) external {
+    function update(Intent calldata intent, bytes memory signature) external nonReentrant whenNotPaused {
         if (intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
 
         verifier.verifyIntent(intent, signature);
@@ -296,14 +296,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Global memory newGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
-        Fixed6 latestPrice = oracle.at(latestPosition.timestamp).price;
+        (OracleVersion memory latestOracleVersion, ) = oracle.at(latestPosition.timestamp);
 
         // update risk parameter (first to capture truncation)
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         newRiskParameter = _riskParameter.read();
 
         // update global exposure
-        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestPrice);
+        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestOracleVersion.price);
         _global.store(newGlobal);
 
         emit RiskParameterUpdated(newRiskParameter);
@@ -311,19 +311,46 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @notice Claims any available fee that the sender has accrued
     /// @dev Applicable fees include: protocol, oracle, risk, donation, and claimable
-    function claimFee() external {
+    /// @return feeReceived The amount of the fee claimed
+    function claimFee() external returns (UFixed6 feeReceived) {
         Global memory newGlobal = _global.read();
         Local memory newLocal = _locals[msg.sender].read();
 
-        if (_claimFee(factory().owner(), newGlobal.protocolFee)) newGlobal.protocolFee = UFixed6Lib.ZERO;
-        if (_claimFee(address(IMarketFactory(address(factory())).oracleFactory()), newGlobal.oracleFee))
+        // protocol fee
+        if (msg.sender == factory().owner()) {
+            feeReceived = feeReceived.add(newGlobal.protocolFee);
+            newGlobal.protocolFee = UFixed6Lib.ZERO;
+        }
+
+        // oracle fee
+        if (msg.sender == address(oracle)) {
+            feeReceived = feeReceived.add(newGlobal.oracleFee);
             newGlobal.oracleFee = UFixed6Lib.ZERO;
-        if (_claimFee(coordinator, newGlobal.riskFee)) newGlobal.riskFee = UFixed6Lib.ZERO;
-        if (_claimFee(beneficiary, newGlobal.donation)) newGlobal.donation = UFixed6Lib.ZERO;
-        if (_claimFee(msg.sender, newLocal.claimable)) newLocal.claimable = UFixed6Lib.ZERO;
+        }
+
+        // risk fee
+        if (msg.sender == coordinator) {
+            feeReceived = feeReceived.add(newGlobal.riskFee);
+            newGlobal.riskFee = UFixed6Lib.ZERO;
+        }
+
+        // donation
+        if (msg.sender == beneficiary) {
+            feeReceived = feeReceived.add(newGlobal.donation);
+            newGlobal.donation = UFixed6Lib.ZERO;
+        }
+
+        // claimable
+        feeReceived = feeReceived.add(newLocal.claimable);
+        newLocal.claimable = UFixed6Lib.ZERO;
 
         _global.store(newGlobal);
         _locals[msg.sender].store(newLocal);
+
+        if (!feeReceived.isZero()) {
+            token.push(msg.sender, UFixed18Lib.from(feeReceived));
+            emit FeeClaimed(msg.sender, feeReceived);
+        }
     }
 
     /// @notice Settles any exposure that has accrued to the market
@@ -338,17 +365,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         newGlobal.exposure = Fixed6Lib.ZERO;
         _global.store(newGlobal);
-    }
-
-    /// @notice Helper function to handle a singular fee claim.
-    /// @param receiver The address to receive the fee
-    /// @param fee The amount of the fee to claim
-    function _claimFee(address receiver, UFixed6 fee) private returns (bool) {
-        if (msg.sender != receiver || fee.isZero()) return false;
-
-        token.push(receiver, UFixed18Lib.from(fee));
-        emit FeeClaimed(receiver, fee);
-        return true;
     }
 
     /// @notice Returns the payoff provider
@@ -665,7 +681,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // processing accumulators
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
-        settlementContext.orderOracleVersion = oracle.at(context.latestPositionGlobal.timestamp);
+        (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
     }
 
     /// @notice Settles the account position up to the latest version
@@ -749,7 +765,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         uint256 newOrderTimestamp,
         Order memory newOrder
     ) private {
-        OracleVersion memory oracleVersion = oracle.at(newOrderTimestamp);
+        (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) = oracle.at(newOrderTimestamp);
         Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
         // if latest timestamp is more recent than order timestamp, sync the order data
@@ -773,6 +789,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGuarantee,
             settlementContext.orderOracleVersion,
             oracleVersion,
+            oracleReceipt,
             context.marketParameter,
             context.riskParameter
         );
@@ -780,7 +797,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (settlementContext.latestVersion, context.global, accumulationResult) =
             VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
-        context.global.update(newOrderId, accumulationResult, context.marketParameter, context.protocolParameter);
+        context.global.update(
+            newOrderId,
+            accumulationResult,
+            context.marketParameter,
+            context.protocolParameter,
+            oracleReceipt
+        );
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;

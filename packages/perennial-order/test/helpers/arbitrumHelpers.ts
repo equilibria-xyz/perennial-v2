@@ -19,7 +19,6 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { createPythOracle, deployOracleFactory } from './oracleHelpers'
 import { createMarket, deployMarketImplementation } from './marketHelpers'
 
-const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
@@ -44,6 +43,8 @@ export async function createMarketETH(
   )
   // Create the market in which user or collateral account may interact
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  await keeperOracle.register(oracle.address)
+  await oracle.register(market.address)
   return [market, oracle, keeperOracle]
 }
 
@@ -85,7 +86,7 @@ export async function deployProtocol(
 ): Promise<[IMarketFactory, IERC20Metadata, IOracleFactory]> {
   // Deploy the oracle factory, which markets created by the market factory will query
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-  const oracleFactory = await deployOracleFactory(owner, DSU_ADDRESS)
+  const oracleFactory = await deployOracleFactory(owner)
 
   // Deploy the market factory and authorize it with the oracle factory
   const marketVerifier = await new Verifier__factory(owner).deploy()
@@ -108,9 +109,6 @@ async function deployProtocolForOracle(
     verifier.address,
     marketImpl.address,
   )
-
-  // Authorize oracle factory to interact with the newly-deployed market factory
-  await oracleFactory.connect(owner).authorize(marketFactory.address)
   return marketFactory
 }
 
@@ -120,29 +118,10 @@ export async function deployPythOracleFactory(
 ): Promise<PythFactory> {
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-  console.log('about to deploy pythOracleFactory with ABI', PythFactory__factory.abi)
-  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
-    PYTH_ADDRESS,
-    keeperOracleImpl.address,
-    4,
-    10,
-    {
-      multiplierBase: 0,
-      bufferBase: 1_000_000,
-      multiplierCalldata: 0,
-      bufferCalldata: 500_000,
-    },
-    {
-      multiplierBase: utils.parseEther('1.02'),
-      bufferBase: 2_000_000,
-      multiplierCalldata: utils.parseEther('1.03'),
-      bufferCalldata: 1_500_000,
-    },
-    5_000,
-  )
-  await pythOracleFactory.initialize(oracleFactory.address, CHAINLINK_ETH_USD_FEED, DSU_ADDRESS)
+  const pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+  await pythOracleFactory.initialize(oracleFactory.address)
+  await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
-  await pythOracleFactory.authorize(oracleFactory.address)
   return pythOracleFactory
 }
 

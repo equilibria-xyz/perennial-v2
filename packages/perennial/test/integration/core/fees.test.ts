@@ -63,8 +63,7 @@ const RISK_PARAMS = {
 const MARKET_PARAMS = {
   fundingFee: parse6decimal('0.1'),
   interestFee: parse6decimal('0.2'),
-  oracleFee: parse6decimal('0.3'),
-  riskFee: parse6decimal('0.4'),
+  riskFee: parse6decimal('0.571428'),
   makerFee: parse6decimal('0.05'),
   takerFee: parse6decimal('0.025'),
 }
@@ -100,6 +99,7 @@ describe('Fees', () => {
 
   beforeEach(async () => {
     instanceVars = await loadFixture(fixture)
+    instanceVars.chainlink.updateParams(BigNumber.from(0), parse6decimal('0.3'))
     await instanceVars.chainlink.reset()
     market = await createMarket(instanceVars, undefined, RISK_PARAMS, MARKET_PARAMS)
   })
@@ -170,8 +170,8 @@ describe('Fees', () => {
       // Check global post-settlement state
       const expectedProtocolFee = BigNumber.from('125271272') // = 250542544 * 1 * 0.5 (no existing makers so all fees go to protocol/market)
       const expectedOracleFee = BigNumber.from('37581381') // = (250542544 - 125271272) * 0.3
-      const expectedRiskFee = BigNumber.from('50108508') // = (250542544 - 125271272) * 0.4
-      const expectedDonation = BigNumber.from('37581383') // = 250542544 - 125271272 - 37581381 - 50108508
+      const expectedRiskFee = BigNumber.from('50108459') // = (250542544 - 125271272) * 0.4
+      const expectedDonation = BigNumber.from('37581432') // = 250542544 - 125271272 - 37581381 - 50108508
       expectGlobalEq(await market.global(), {
         currentId: 1,
         latestId: 1,
@@ -278,8 +278,8 @@ describe('Fees', () => {
       // Check global post-settlement state. Existing makers so protocol only gets 50% of fees
       const expectedProtocolFee = BigNumber.from('28470743') // = 56941487 * 0.5
       const expectedOracleFee = BigNumber.from('8541223') // = (56941487 - 28470743) * 0.3
-      const expectedRiskFee = BigNumber.from('11388297') // = (56941487 - 28470743) * 0.4
-      const expectedDonation = BigNumber.from('8541224') // = 56941487 - 28470743 - 8541223 - 11388297
+      const expectedRiskFee = BigNumber.from('11388286') // = (56941487 - 28470743) * 0.4
+      const expectedDonation = BigNumber.from('8541235') // = 56941487 - 28470743 - 8541223 - 11388297
       expectGlobalEq(await market.global(), {
         currentId: 2,
         latestId: 2,
@@ -377,8 +377,8 @@ describe('Fees', () => {
 
       const expectedProtocolFee = BigNumber.from('7687100') // = 15374200 / 2
       const expectedOracleFee = BigNumber.from('2306130') // = (15374200 - 7687100) * 0.3
-      const expectedRiskFee = BigNumber.from('3074840') // = (15374200 - 7687100) * 0.4
-      const expectedDonation = BigNumber.from('2306130') // = 15374200 - 7687100 - 2306130 - 3074840
+      const expectedRiskFee = BigNumber.from('3074836') // = (15374200 - 7687100) * 0.4
+      const expectedDonation = BigNumber.from('2306134') // = 15374200 - 7687100 - 2306130 - 3074840
 
       // Global State
       expectGlobalEq(await market.global(), {
@@ -865,8 +865,8 @@ describe('Fees', () => {
 
       const expectedProtocolFee = BigNumber.from('7687100') // = 15374200 / 2
       const expectedOracleFee = BigNumber.from('2306130') // = (15374200 - 7687100) * 0.3
-      const expectedRiskFee = BigNumber.from('3074840') // = (15374200 - 7687100) * 0.4
-      const expectedDonation = BigNumber.from('2306130') // = 15374200 - 7687100 - 2306130 - 3074840
+      const expectedRiskFee = BigNumber.from('3074836') // = (15374200 - 7687100) * 0.4
+      const expectedDonation = BigNumber.from('2306134') // = 15374200 - 7687100 - 2306130 - 3074840
 
       // Global State
       expectGlobalEq(await market.global(), {
@@ -1616,10 +1616,10 @@ describe('Fees', () => {
 
         await market.updateParameter({
           ...marketParams,
-          settlementFee: parse6decimal('1.23'),
           makerFee: 0,
           takerFee: 0,
         })
+        instanceVars.chainlink.updateParams(parse6decimal('1.23'), instanceVars.chainlink.oracleFee)
       })
 
       it('charges settlement fee for maker', async () => {

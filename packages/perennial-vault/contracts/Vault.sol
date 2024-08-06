@@ -49,11 +49,12 @@ contract Vault is IVault, Instance {
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
+    /// @param initialDeposit The initial deposit amount
     /// @param name_ The vault's name
     function initialize(
         Token18 asset_,
         IMarket initialMarket,
-        UFixed6 cap,
+        UFixed6 initialDeposit,
         string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
@@ -61,7 +62,7 @@ contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _register(initialMarket);
-        _updateParameter(VaultParameter(cap));
+        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
     }
 
     /// @notice Returns the vault parameter set
@@ -297,9 +298,9 @@ contract Vault is IVault, Instance {
             revert VaultNotSingleSidedError();
         if (depositAssets.gt(_maxDeposit(context)))
             revert VaultDepositLimitExceededError();
-        if (!depositAssets.isZero() && depositAssets.lt(context.settlementFee))
+        if (!depositAssets.isZero() && depositAssets.lt(context.parameter.minDeposit))
             revert VaultInsufficientMinimumError();
-        if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares, context.settlementFee).isZero())
+        if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares).lt(context.parameter.minDeposit))
             revert VaultInsufficientMinimumError();
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
 
@@ -450,9 +451,7 @@ contract Vault is IVault, Instance {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             // parameter
             Registration memory registration = _registrations[marketId].read();
-            MarketParameter memory marketParameter = registration.market.parameter();
             context.registrations[marketId] = registration;
-            context.settlementFee = context.settlementFee.add(marketParameter.settlementFee);
 
             // version
             (OracleVersion memory oracleVersion, uint256 currentTimestamp) = registration.market.oracle().status();
@@ -486,7 +485,7 @@ contract Vault is IVault, Instance {
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         return context.latestCheckpoint.unhealthy() ?
             UFixed6Lib.ZERO :
-            context.parameter.cap.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
+            context.parameter.maxDeposit.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
     }
 
     /// @notice Returns the aggregate perennial checkpoint for the vault at position

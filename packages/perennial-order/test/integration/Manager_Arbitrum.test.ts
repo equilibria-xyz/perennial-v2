@@ -71,6 +71,7 @@ describe('Manager_Arbitrum', () => {
   let userA: SignerWithAddress
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
+  let oracleFeeReceiver: SignerWithAddress
   let checkKeeperCompensation: boolean
   let currentTime: BigNumber
   let keeperBalanceBefore: BigNumber
@@ -84,7 +85,7 @@ describe('Manager_Arbitrum', () => {
 
   const fixture = async () => {
     // deploy the protocol and create a market
-    ;[owner, userA, userB, keeper] = await ethers.getSigners()
+    ;[owner, userA, userB, keeper, oracleFeeReceiver] = await ethers.getSigners()
     let oracleFactory: IOracleFactory
     ;[marketFactory, dsu, oracleFactory] = await deployProtocol(owner)
     const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory)
@@ -154,7 +155,7 @@ describe('Manager_Arbitrum', () => {
     if (!timestamp) timestamp = await oracle.current()
 
     lastPriceCommitted = price
-    return advanceToPrice(keeperOracle, timestamp!, price, TX_OVERRIDES)
+    return advanceToPrice(keeperOracle, oracleFeeReceiver, timestamp!, price, TX_OVERRIDES)
   }
 
   function createActionMessage(
@@ -261,9 +262,6 @@ describe('Manager_Arbitrum', () => {
     const deletedOrder = await manager.orders(market.address, user.address, orderNonce)
     expect(deletedOrder.price).to.equal(0)
     expect(deletedOrder.delta).to.equal(0)
-
-    // helps diagnose missing oracle versions
-    // console.log('executed order; latest', (await oracle.latest()).timestamp.toString(), 'current', (await oracle.current()).toString())
   }
 
   // running tests serially; can build a few scenario scripts and test multiple things within each script

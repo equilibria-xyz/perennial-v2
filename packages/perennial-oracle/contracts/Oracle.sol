@@ -5,6 +5,7 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "./interfaces/IOracle.sol";
+import "./interfaces/IOracleFactory.sol";
 
 /// @title Oracle
 /// @notice The top-level oracle contract that implements an oracle provider interface.
@@ -15,6 +16,9 @@ contract Oracle is IOracle, Instance {
 
     /// @notice The global state of the oracle
     Global public global;
+
+    /// @notice The market associated with this oracle
+    IMarket public market;
 
     /// @notice Initializes the contract state
     /// @param initialProvider The initial oracle provider
@@ -32,11 +36,15 @@ contract Oracle is IOracle, Instance {
         _updateLatest(newProvider.latest());
     }
 
+    function register(IMarket newMarket) external onlyOwner {
+        market = newMarket;
+        emit MarketUpdated(newMarket);
+    }
+
     /// @notice Requests a new version at the current timestamp
-    /// @param market Original market to optionally use for callbacks
     /// @param account Original sender to optionally use for callbacks
     /// @param newPrice Whether a new price should be requested
-    function request(IMarket market, address account, bool newPrice) external onlyAuthorized {
+    function request(IMarket, address account, bool newPrice) external onlyMarket {
         (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
         oracles[
@@ -68,14 +76,31 @@ contract Oracle is IOracle, Instance {
     /// @notice Returns the oracle version at a given timestamp
     /// @param timestamp The timestamp to query
     /// @return atVersion The oracle version at the given timestamp
-    function at(uint256 timestamp) public view returns (OracleVersion memory atVersion) {
-        if (timestamp == 0) return atVersion;
+    /// @return atReceipt The oracle receipt at the given timestamp
+    function at(uint256 timestamp) public view returns (OracleVersion memory atVersion, OracleReceipt memory atReceipt) {
+        if (timestamp == 0) return (atVersion, atReceipt);
+
         IOracleProvider provider = oracles[global.current].provider;
         for (uint256 i = global.current - 1; i > 0; i--) {
             if (timestamp > uint256(oracles[i].timestamp)) break;
             provider = oracles[i].provider;
         }
-        return provider.at(timestamp);
+
+        (atVersion, atReceipt) = provider.at(timestamp);
+    }
+
+    /// @notice Claims an amount of incentive tokens, to be paid out as a fee to the keeper
+    /// @dev Will claim all outstanding oracle fees in the underlying market and leave unrequested fees for the beneficiary.
+    ///      Can only be called by a registered underlying oracle provider factory.
+    /// @param settlementFeeRequested The fixed settmentment fee requested by the oracle
+    function claimFee(UFixed6 settlementFeeRequested) external onlySubOracle {
+        // claim the fee from the market
+        UFixed6 feeReceived = market.claimFee();
+
+        // return the settlement fee portion to the sub oracle's factory
+        market.token().push(msg.sender, UFixed18Lib.from(settlementFeeRequested));
+
+        emit FeeReceived(settlementFeeRequested, feeReceived.sub(settlementFeeRequested));
     }
 
     /// @notice Handles update the oracle to the new provider
@@ -117,7 +142,7 @@ contract Oracle is IOracle, Instance {
         uint256 latestOracleTimestamp =
             uint256(isLatestStale ? oracles[global.current].timestamp : oracles[global.latest].timestamp);
         if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp)
-            return at(latestOracleTimestamp);
+            (latestVersion, ) = at(latestOracleTimestamp);
     }
 
     /// @notice Returns whether the latest oracle is ready to be updated
@@ -133,10 +158,18 @@ contract Oracle is IOracle, Instance {
         return true;
     }
 
-    /// @dev Only if the caller is authorized by the factory
-    modifier onlyAuthorized {
-        if (!IOracleProviderFactory(address(factory())).authorized(msg.sender))
-            revert OracleProviderUnauthorizedError();
+    /// @dev Only if the caller is the registered market
+    modifier onlyMarket {
+        if (msg.sender != address(market)) revert OracleNotMarketError();
+        _;
+    }
+
+    /// @dev Only if the caller is the registered sub oracle
+    modifier onlySubOracle {
+        if (
+            msg.sender != address(oracles[global.current].provider) &&
+            msg.sender != address(oracles[global.latest].provider)
+        ) revert OracleNotSubOracleError();
         _;
     }
 }
