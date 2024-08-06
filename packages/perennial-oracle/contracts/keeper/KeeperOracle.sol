@@ -108,8 +108,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
         }
 
         PriceRequest memory currentRequest = _requests[_global.currentIndex].read();
-
         if (currentRequest.timestamp == currentTimestamp) return; // already requested new price
+
         if (newPrice) {
             _requests[++_global.currentIndex].store(
                 PriceRequest(
@@ -123,7 +123,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
             emit OracleProviderVersionRequested(currentTimestamp, true);
         } else {
             // take the more recent of the latest requested version and the latest committed version
-            uint256 linkbackTimestamp = Math.max(currentRequest.timestamp, _global.latestVersion);
+            // TODO: this only happens when there are no requested versions
+            // TODO: dont move latestVersion forward until lookback price settles
+            uint256 linkbackTimestamp = currentRequest.timestamp;
 
             if (linkbacks[currentTimestamp] != 0) return; // already requested without new price
             if (linkbackTimestamp == 0) revert KeeperOracleNoPriorRequestsError(); // no prior requests or commits
@@ -236,7 +238,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @return priceResponse The response to the price request
     function _commitUnrequested(OracleVersion memory oracleVersion) private returns (PriceResponse memory priceResponse) {
         if (!oracleVersion.valid) revert KeeperOracleInvalidPriceError();
-        if (oracleVersion.timestamp <= _global.latestVersion || (next() != 0 && oracleVersion.timestamp >= next()))
+        if (oracleVersion.timestamp <= _global.latestVersion || (next() != 0 && oracleVersion.timestamp >= next())) // TODO: this case also happens when there is no pending order
             revert KeeperOracleVersionOutsideRangeError();
 
         priceResponse = PriceResponseLib.fromUnrequested(oracleVersion);

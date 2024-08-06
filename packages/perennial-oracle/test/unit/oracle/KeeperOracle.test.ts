@@ -118,6 +118,7 @@ describe('KeeperOracle', () => {
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
   })
 
+  // @dev - this doesn't fail in CI
   it('can commit new prices', async () => {
     // validate initial (empty) state
     let version = await keeperOracle.latest()

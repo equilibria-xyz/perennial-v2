@@ -1863,6 +1863,28 @@ testOracles.forEach(testOracle => {
         expect(version[1].oracleFee).to.equal(0)
       })
 
+      it.skip('returns the receipt w/ no new price', async () => {
+        console.log('test')
+        await pythOracleFactory.connect(owner).updateParameter(1, parse6decimal('1.5'), parse6decimal('0.1'))
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+
+        increase(1)
+        await keeperOracle.connect(oracleSigner).request(market.address, user.address, false)
+
+        await pythOracleFactory.connect(owner).updateParameter(1, 0, 0)
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, VAA, {
+          value: 1,
+        })
+        await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, OTHER_VAA, {
+          value: 1,
+        })
+        const version = await keeperOracle.connect(user).at(STARTING_TIME + 3)
+        expect(version[0].price).to.equal('1838167031')
+        expect(version[0].valid).to.equal(true)
+        expect(version[1].settlementFee).to.equal(0)
+        expect(version[1].oracleFee).to.equal(0)
+      })
+
       it('returns the receipt w/ new price after no new price', async () => {
         const parameter = await pythOracleFactory.parameter()
         await pythOracleFactory
