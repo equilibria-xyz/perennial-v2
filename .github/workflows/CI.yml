@@ -71,7 +71,7 @@ jobs:
           lcov-file: ./packages/perennial/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
-        if: false # ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   core-integration-test:
     name: '[Core] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -104,7 +104,7 @@ jobs:
           lcov-file: ./packages/perennial/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
-        if: false #${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
   # [ACCOUNT]
   account-unit-test:
