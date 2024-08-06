@@ -43,7 +43,7 @@ describe('Inverse', () => {
     })
 
     it('modifies price per payoff (7)', async () => {
-      await expect(provider.payoff(ethers.utils.parseEther('0'))).to.revertedWithPanic(0x12)
+      expect(await provider.payoff(ethers.utils.parseEther('0'))).to.equal(0)
     })
   })
 })
