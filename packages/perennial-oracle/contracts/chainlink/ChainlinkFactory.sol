@@ -18,19 +18,15 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
 
     /// @notice Initializes the immutable contract state
     /// @param chainlink_ Chainlink verifier contract
+    /// @param feeManager_ Chainlink fee manager contract
     /// @param feeTokenAddress_ Fee token address
     /// @param implementation_ IKeeperOracle implementation contract
-    /// @param commitKeepConfig_ Parameter configuration for commit keeper incentivization
-    /// @param settleKeepConfig_ Parameter configuration for settle keeper incentivization
     constructor(
         IVerifierProxy chainlink_,
         IFeeManager feeManager_,
         address feeTokenAddress_,
-        address implementation_,
-        KeepConfig memory commitKeepConfig_,
-        KeepConfig memory settleKeepConfig_,
-        uint256 keepCommitIncrementalBufferData_
-    ) KeeperFactory(implementation_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) {
+        address implementation_
+    ) KeeperFactory(implementation_) {
         chainlink = chainlink_;
         feeManager = feeManager_;
         feeTokenAddress = feeTokenAddress_;
@@ -59,20 +55,6 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
 
             prices[i] = PriceRecord(observationsTimestamp, Fixed18Lib.from(UFixed18.wrap(price)));
         }
-    }
-
-    /// @notice Returns the applicable value for the keeper fee
-    /// @param data The update data to validate
-    /// @return The applicable value for the keeper fee
-    function _applicableValue(uint256 numRequested, bytes memory data) internal view override returns (uint256) {
-        bytes[] memory payloads = abi.decode(data, (bytes[]));
-        uint256 totalFeeAmount = 0;
-        for (uint256 i = 0; i < payloads.length; i++) {
-            (, bytes memory report) = abi.decode(payloads[i], (bytes32[3], bytes));
-            (Asset memory fee, ,) = feeManager.getFeeAndReward(address(this), report, feeTokenAddress);
-            totalFeeAmount += fee.amount;
-        }
-        return totalFeeAmount * numRequested / payloads.length;
     }
 }
 

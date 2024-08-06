@@ -3,6 +3,7 @@ import { expect } from 'chai'
 import HRE from 'hardhat'
 
 import {
+  IERC20Metadata,
   IMarket,
   IMarketFactory,
   IOracleFactory,
@@ -34,29 +35,35 @@ function mockVersion(
 describe('Oracle', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
-  let caller: SignerWithAddress
 
   let oracle: Oracle
   let underlying0: FakeContract<IOracleProvider>
   let underlying1: FakeContract<IOracleProvider>
+  let underlying0Signer: SignerWithAddress
+  let underlying1Signer: SignerWithAddress
   let oracleFactory: FakeContract<IOracleFactory>
   let oracleFactorySigner: SignerWithAddress
   let market: FakeContract<IMarket>
+  let marketSigner: SignerWithAddress
   let marketFactory: FakeContract<IMarketFactory>
+  let dsu: FakeContract<IERC20Metadata>
 
   beforeEach(async () => {
-    ;[owner, user, caller] = await ethers.getSigners()
+    ;[owner, user] = await ethers.getSigners()
     market = await smock.fake<IMarket>('IMarket')
+    marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market.factory.returns(marketFactory.address)
     marketFactory.instances.whenCalledWith(market.address).returns(true)
     oracle = await new Oracle__factory(owner).deploy()
     underlying0 = await smock.fake<IOracleProvider>('IOracleProvider')
     underlying1 = await smock.fake<IOracleProvider>('IOracleProvider')
+    underlying0Signer = await impersonate.impersonateWithBalance(underlying0.address, ethers.utils.parseEther('1000'))
+    underlying1Signer = await impersonate.impersonateWithBalance(underlying1.address, ethers.utils.parseEther('1000'))
     oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     oracleFactorySigner = await impersonate.impersonateWithBalance(oracleFactory.address, utils.parseEther('10'))
     oracleFactory.owner.returns(owner.address)
-    oracleFactory.authorized.whenCalledWith(caller.address).returns(true)
+    dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
   })
 
   describe('#initializer', async () => {
@@ -137,6 +144,7 @@ describe('Oracle', () => {
         1687229905,
       )
       await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.register(market.address)
     })
 
     context('updates the oracle w/o sync', async () => {
@@ -154,7 +162,7 @@ describe('Oracle', () => {
         expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
         expect((await oracle.oracles(2)).timestamp).to.equal(0)
 
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
+        const [latestVersion, currentTimestamp] = await oracle.status()
         expect(latestVersion.timestamp).to.equal(1687229000)
         expect(latestVersion.price).to.equal(parse6decimal('999'))
         expect(latestVersion.valid).to.equal(true)
@@ -199,12 +207,9 @@ describe('Oracle', () => {
         // Latest should not be updated until we call request
         expect((await oracle.global()).latest).to.equal(1)
 
-        const [latestVersionDirect, currentTimestampDirect] = [
-          await oracle.connect(caller).latest(),
-          await oracle.connect(caller).current(),
-        ]
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address, true)
+        const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
+        const [latestVersion, currentTimestamp] = await oracle.status()
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230000)
         expect(latestVersion.price).to.equal(parse6decimal('1000'))
@@ -261,7 +266,7 @@ describe('Oracle', () => {
           },
           1687230905,
         )
-        await oracle.connect(caller).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
         await expect(oracle.connect(oracleFactorySigner).update(underlying1.address))
           .to.emit(oracle, 'OracleUpdated')
           .withArgs(underlying1.address)
@@ -306,12 +311,9 @@ describe('Oracle', () => {
         underlying0.request.reset()
         underlying1.request.reset()
 
-        const [latestVersionDirect, currentTimestampDirect] = [
-          await oracle.connect(caller).latest(),
-          await oracle.connect(caller).current(),
-        ]
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address, true)
+        const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
+        const [latestVersion, currentTimestamp] = await oracle.status()
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230005)
         expect(latestVersion.price).to.equal(parse6decimal('1001'))
@@ -361,12 +363,9 @@ describe('Oracle', () => {
         underlying0.request.reset()
         underlying1.request.reset()
 
-        const [latestVersionDirect, currentTimestampDirect] = [
-          await oracle.connect(caller).latest(),
-          await oracle.connect(caller).current(),
-        ]
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address, true)
+        const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
+        const [latestVersion, currentTimestamp] = await oracle.status()
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230605)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -416,12 +415,9 @@ describe('Oracle', () => {
         underlying0.request.reset()
         underlying1.request.reset()
 
-        const [latestVersionDirect, currentTimestampDirect] = [
-          await oracle.connect(caller).latest(),
-          await oracle.connect(caller).current(),
-        ]
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address, true)
+        const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
+        const [latestVersion, currentTimestamp] = await oracle.status()
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230905)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -482,12 +478,9 @@ describe('Oracle', () => {
         underlying0.request.reset()
         underlying1.request.reset()
 
-        const [latestVersionDirect, currentTimestampDirect] = [
-          await oracle.connect(caller).latest(),
-          await oracle.connect(caller).current(),
-        ]
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address, true)
+        const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
+        const [latestVersion, currentTimestamp] = await oracle.status()
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230905)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -537,12 +530,9 @@ describe('Oracle', () => {
         underlying0.request.reset()
         underlying1.request.reset()
 
-        const [latestVersionDirect, currentTimestampDirect] = [
-          await oracle.connect(caller).latest(),
-          await oracle.connect(caller).current(),
-        ]
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address, true)
+        const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
+        const [latestVersion, currentTimestamp] = await oracle.status()
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687230955)
         expect(latestVersion.price).to.equal(parse6decimal('1007'))
@@ -588,7 +578,7 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        await oracle.connect(caller).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         mockVersion(
           underlying1,
@@ -607,12 +597,9 @@ describe('Oracle', () => {
         underlying0.request.reset()
         underlying1.request.reset()
 
-        const [latestVersionDirect, currentTimestampDirect] = [
-          await oracle.connect(caller).latest(),
-          await oracle.connect(caller).current(),
-        ]
-        const [latestVersion, currentTimestamp] = await oracle.connect(caller).status()
-        await oracle.connect(caller).request(market.address, user.address, true)
+        const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
+        const [latestVersion, currentTimestamp] = await oracle.status()
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect(latestVersion.timestamp).to.equal(1687235000)
         expect(latestVersion.price).to.equal(parse6decimal('1015'))
@@ -662,7 +649,7 @@ describe('Oracle', () => {
         underlying0.request.reset()
         underlying1.request.reset()
 
-        await oracle.connect(caller).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect((await oracle.at(0))[0].timestamp).to.equal(0)
         expect((await oracle.at(0))[0].price).to.equal(parse6decimal('0'))
@@ -730,7 +717,7 @@ describe('Oracle', () => {
           },
           1687230905,
         )
-        await oracle.connect(caller).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         mockVersion(
           underlying0,
@@ -803,6 +790,7 @@ describe('Oracle', () => {
       beforeEach(async () => {
         oracle = await new Oracle__factory(owner).deploy()
         await oracle.connect(oracleFactorySigner).initialize(underlying1.address)
+        await oracle.register(market.address)
       })
 
       it('updates the oracle', async () => {
@@ -828,7 +816,7 @@ describe('Oracle', () => {
         )
         underlying1.request.reset()
         underlying2.request.reset()
-        await oracle.connect(caller).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address, true)
 
         expect((await oracle.global()).latest).to.equal(2)
         expect((await oracle.oracles(1)).timestamp).to.equal(0)
@@ -856,7 +844,47 @@ describe('Oracle', () => {
     })
   })
 
-  describe('#request', async () => {
+  describe('#claimFee', async () => {
+    beforeEach(async () => {
+      mockVersion(
+        underlying0,
+        {
+          timestamp: 1687229000,
+          price: parse6decimal('999'),
+          valid: true,
+        },
+        {
+          settlementFee: 1234,
+          oracleFee: 5678,
+        },
+        1687229905,
+      )
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.connect(owner).register(market.address)
+    })
+
+    it('claims the assets', async () => {
+      market.claimFee.returns(parse6decimal('15'))
+      market.token.returns(dsu.address)
+
+      dsu.transfer.whenCalledWith(underlying0.address, parse6decimal('10').mul(1e12)).returns(true)
+
+      await expect(oracle.connect(underlying0Signer).claimFee(parse6decimal('10')))
+        .to.emit(oracle, 'FeeReceived')
+        .withArgs(parse6decimal('10'), parse6decimal('5'))
+
+      expect(dsu.transfer).to.have.been.calledWith(underlying0.address, parse6decimal('10').mul(1e12))
+    })
+
+    it('reverts if not instance', async () => {
+      await expect(oracle.connect(user).claimFee(parse6decimal('10'))).to.be.revertedWithCustomError(
+        oracle,
+        'OracleNotSubOracleError',
+      )
+    })
+  })
+
+  describe('#register', async () => {
     beforeEach(async () => {
       mockVersion(
         underlying0,
@@ -875,11 +903,9 @@ describe('Oracle', () => {
     })
 
     it('reverts when not the authorized', async () => {
-      oracleFactory.authorized.whenCalledWith(user.address).returns(false)
-
       await expect(oracle.connect(user).request(market.address, user.address, true)).to.revertedWithCustomError(
         oracle,
-        'OracleProviderUnauthorizedError',
+        'OracleNotMarketError',
       )
     })
   })

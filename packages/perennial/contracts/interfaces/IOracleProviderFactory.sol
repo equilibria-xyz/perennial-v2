@@ -9,5 +9,4 @@ interface IOracleProviderFactory {
 
     function oracles(bytes32 id) external view returns (IOracleProvider);
     function ids(IOracleProvider oracleProvider) external view returns (bytes32 id);
-    function authorized(address caller) external view returns (bool);
 }

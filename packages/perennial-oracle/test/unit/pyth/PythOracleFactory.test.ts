@@ -92,34 +92,18 @@ describe('PythOracleFactory', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market.factory.returns(marketFactory.address)
     marketFactory.instances.whenCalledWith(market.address).returns(true)
+    market.settle.returns()
+    market.token.returns(dsu.address)
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address)
-    await oracleFactory.updateMaxClaim(parse6decimal('10'))
+    await oracleFactory.initialize()
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(
-      pyth.address,
-      keeperOracleImpl.address,
-      {
-        multiplierBase: 0,
-        bufferBase: 1_000_000,
-        multiplierCalldata: 0,
-        bufferCalldata: 500_000,
-      },
-      {
-        multiplierBase: ethers.utils.parseEther('1.02'),
-        bufferBase: 2_000_000,
-        multiplierCalldata: ethers.utils.parseEther('1.03'),
-        bufferCalldata: 1_500_000,
-      },
-      5_000,
-    )
-    await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
-    await pythOracleFactory.updateParameter(1, 0, 0, 4, 10)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(pyth.address, keeperOracleImpl.address)
+    await pythOracleFactory.initialize(oracleFactory.address)
+    await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
-    await pythOracleFactory.authorize(oracleFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(
       await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
@@ -138,6 +122,9 @@ describe('PythOracleFactory', () => {
       owner,
     )
     await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
+
+    await keeperOracle.register(oracle.address)
+    await oracle.register(market.address)
 
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
   })

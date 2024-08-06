@@ -167,7 +167,6 @@ describe('Vault', () => {
 
     vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     await oracleFactory.connect(owner).register(vaultOracleFactory.address)
-    await oracleFactory.connect(owner).authorize(factory.address)
 
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     const realVersion = {
@@ -269,6 +268,9 @@ describe('Vault', () => {
         scale: parse6decimal('10'),
       },
     })
+
+    await rootOracle.register(market.address)
+    await btcRootOracle.register(btcMarket.address)
 
     const vaultImpl = await new Vault__factory(owner).deploy()
     const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
