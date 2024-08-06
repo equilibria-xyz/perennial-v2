@@ -93,7 +93,11 @@ describe('Manager_Arbitrum', () => {
     // deploy the order manager
     verifier = await new OrderVerifier__factory(owner).deploy()
     manager = await new Manager_Arbitrum__factory(owner).deploy(dsu.address, marketFactory.address, verifier.address)
-    await manager.connect(owner).initialize(CHAINLINK_ETH_USD_FEED, KEEP_CONFIG, TX_OVERRIDES)
+    // FIXME: CI interpreting KEEP_CONFIG as transaction overrides rather than second param to the method
+    console.log('about to init manager with functions', manager.functions)
+    await manager
+      .connect(owner)
+      ['initialize(address,(uint256,uint256,uint256,uint256))'](CHAINLINK_ETH_USD_FEED, KEEP_CONFIG)
 
     // commit a start price
     await commitPrice(parse6decimal('4444'))
