@@ -42,10 +42,9 @@ contract Oracle is IOracle, Instance {
     }
 
     /// @notice Requests a new version at the current timestamp
-    /// @param market Original market to optionally use for callbacks
     /// @param account Original sender to optionally use for callbacks
     /// @param newPrice Whether a new price should be requested
-    function request(IMarket market, address account, bool newPrice) external onlyMarket {
+    function request(IMarket, address account, bool newPrice) external onlyMarket {
         (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
         oracles[
