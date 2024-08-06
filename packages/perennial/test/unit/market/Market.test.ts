@@ -1496,6 +1496,16 @@ describe('Market', () => {
           liquidationFee: { _value: -riskParameter.liquidationFee },
         })
       })
+
+      it('reverts when paused', async () => {
+        factory.paused.returns(true)
+
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        ).to.revertedWithCustomError(market, 'InstancePausedError')
+      })
     })
 
     describe('#update', async () => {
@@ -14333,12 +14343,39 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
-        it('reverts if paused', async () => {
+        it('reverts if paused (market)', async () => {
           factory.paused.returns(true)
           await expect(
             market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+          ).to.be.revertedWithCustomError(market, 'InstancePausedError')
+        })
+
+        it('reverts if paused (intent)', async () => {
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          factory.paused.returns(true)
+          await expect(
+            market
+              .connect(user)
+              [
+                'update((int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](intent, '0x'),
           ).to.be.revertedWithCustomError(market, 'InstancePausedError')
         })
 
