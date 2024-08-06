@@ -23,7 +23,7 @@ interface IOracleFactory is IOracleProviderFactory, IFactory {
 
     function factories(IOracleProviderFactory factory) external view returns (bool);
     function initialize() external;
-    function parameter() external returns (OracleParameter memory);
+    function parameter() external view returns (OracleParameter memory);
     function updateParameter(OracleParameter memory newParameter) external;
     function updateId(IOracleProvider oracleProvider, bytes32 id) external;
     function register(IOracleProviderFactory factory) external;

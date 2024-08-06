@@ -1875,23 +1875,34 @@ testOracles.forEach(testOracle => {
             parameter.validFrom,
             parameter.validTo,
           )
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
+        await includeAt(
+          async () =>
+            await market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                1,
+                0,
+                0,
+                parse6decimal('10'),
+                false,
+              ), // make request to oracle (new price)
+          STARTING_TIME + 3,
+        )
 
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, OTHER_VAA, {
           value: 1,
         })
 
-        await increaseTo(STARTING_TIME + 53) // make VAA_AFTER_EXPIRATION valid
-
         // get both requests in the same version
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (no new price)
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false) // make request to oracle (new price)
+        await includeAt(async () => {
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (no new price)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false) // make request to oracle (new price)
+        }, STARTING_TIME + 57)
 
         await pythOracleFactory.connect(owner).updateParameter(1, 0, 0, 0, parameter.validFrom, parameter.validTo)
         await pythOracleFactory
