@@ -83,7 +83,6 @@ describe('Controller_Arbitrum', () => {
   let userC: SignerWithAddress
   let keeper: SignerWithAddress
   let lastNonce = 0
-  let lastEthPrice: BigNumber
   let currentTime: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
@@ -174,7 +173,6 @@ describe('Controller_Arbitrum', () => {
       dsu,
     )
     await advanceToPrice(ethKeeperOracle, currentTime, parse6decimal('3113.7128'), TX_OVERRIDES)
-    lastEthPrice = (await oracle.status())[0].price
 
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 

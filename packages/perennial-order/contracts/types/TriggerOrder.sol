@@ -17,7 +17,7 @@ struct TriggerOrder {
     /// @dev Amount to change position by
     Fixed6 delta;     // <= 9.22t
     /// @dev Limit on keeper compensation for executing the order
-    UFixed6 maxFee;   // < 18.45qt
+    UFixed6 maxFee;   // < 18.45b
     /// @dev Passed to market for awarding referral fee
     address referrer;
 }
@@ -90,7 +90,7 @@ struct StoredTriggerOrder {
     int8 comparison;  // -1 = lte, 1 = gte
     int64 price;      // <= 9.22t
     int64 delta;      // <= 9.22t
-    uint64 maxFee;    // < 18.45qt
+    uint64 maxFee;    // < 18.45b
     address referrer;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; /*uint256 slot0;*/ }

@@ -93,7 +93,7 @@ describe('Manager_Arbitrum', () => {
     // deploy the order manager
     verifier = await new OrderVerifier__factory(owner).deploy()
     manager = await new Manager_Arbitrum__factory(owner).deploy(dsu.address, marketFactory.address, verifier.address)
-    await manager.initialize(CHAINLINK_ETH_USD_FEED, KEEP_CONFIG)
+    await manager.connect(owner).initialize(CHAINLINK_ETH_USD_FEED, KEEP_CONFIG, TX_OVERRIDES)
 
     // commit a start price
     await commitPrice(parse6decimal('4444'))
