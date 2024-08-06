@@ -10,8 +10,11 @@ struct PriceRequest {
     /// @dev The version that is being requested
     uint256 timestamp;
 
-    /// @dev the fixed settlement fee of the request
-    UFixed6 settlementFee;
+    /// @dev the synchronous portion of the fixed settlement fee of the request delivered on commit
+    UFixed6 syncFee;
+
+    /// @dev the asynchronous portion of the fixed settlement fee of the request delivered on settlement callback
+    UFixed6 asyncFee;
 
     /// @dev The relative oracle fee percentage of the request
     UFixed6 oracleFee;
@@ -20,7 +23,8 @@ using PriceRequestLib for PriceRequest global;
 struct StoredPriceRequest {
     /* slot 0 */
     uint32 timestamp;       // <= 2038
-    uint48 settlementFee;   // <= 281m
+    uint48 syncFee;         // <= 281m
+    uint48 asyncFee;        // <= 281m
     uint24 oracleFee;       // <= 100%
 }
 struct PriceRequestStorage { StoredPriceRequest value; }
@@ -38,7 +42,7 @@ library PriceRequestLib {
         PriceRequest memory self,
         OracleVersion memory oracleVersion
     ) internal pure returns (PriceResponse memory) {
-        return PriceResponse(oracleVersion.price, self.settlementFee, self.oracleFee, oracleVersion.valid);
+        return PriceResponse(oracleVersion.price, self.syncFee, self.asyncFee, self.oracleFee, oracleVersion.valid);
     }
 
     /// @notice Constructs a price response from a request and the latest price response for invalid versions
@@ -49,7 +53,7 @@ library PriceRequestLib {
         PriceRequest memory self,
         PriceResponse memory latestPriceResponse
     ) internal pure returns (PriceResponse memory) {
-        return PriceResponse(latestPriceResponse.price, self.settlementFee, self.oracleFee, false);
+        return PriceResponse(latestPriceResponse.price, self.syncFee, self.asyncFee, self.oracleFee, false);
     }
 }
 
@@ -62,19 +66,22 @@ library PriceRequestStorageLib {
         StoredPriceRequest memory storedValue = self.value;
         return PriceRequest(
             uint256(storedValue.timestamp),
-            UFixed6.wrap(uint256(storedValue.settlementFee)),
+            UFixed6.wrap(uint256(storedValue.syncFee)),
+            UFixed6.wrap(uint256(storedValue.asyncFee)),
             UFixed6.wrap(uint256(storedValue.oracleFee))
         );
     }
 
     function store(PriceRequestStorage storage self, PriceRequest memory newValue) internal {
         if (newValue.timestamp > type(uint32).max) revert PriceRequestStorageInvalidError();
-        if (newValue.settlementFee.gt(UFixed6.wrap(type(uint48).max))) revert PriceRequestStorageInvalidError();
+        if (newValue.syncFee.gt(UFixed6.wrap(type(uint48).max))) revert PriceRequestStorageInvalidError();
+        if (newValue.asyncFee.gt(UFixed6.wrap(type(uint48).max))) revert PriceRequestStorageInvalidError();
         if (newValue.oracleFee.gt(UFixed6.wrap(type(uint24).max))) revert PriceRequestStorageInvalidError();
 
         self.value = StoredPriceRequest(
             uint32(newValue.timestamp),
-            uint48(UFixed6.unwrap(newValue.settlementFee)),
+            uint48(UFixed6.unwrap(newValue.syncFee)),
+            uint48(UFixed6.unwrap(newValue.asyncFee)),
             uint24(UFixed6.unwrap(newValue.oracleFee))
         );
     }
