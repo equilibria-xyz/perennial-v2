@@ -59,6 +59,12 @@ library GlobalLib {
     }
 
     /// @notice Increments the fees by `amount` using current parameters
+    /// @dev Computes the fees based on the current market parameters
+    ///      market fee -> trade fee + market's trade offset + funding fee + interest fee
+    ///        1. protocol fee taken out of market fee
+    ///        2. oracle fee taken out as a percentage of what's left of market fee
+    ///        3. risk fee taken out as a percentage of what's left of market fee
+    ///        4. donation is what's left of market fee
     /// @param self The Global object to update
     /// @param newLatestId The new latest position id
     /// @param accumulation The accumulation result
@@ -82,7 +88,7 @@ library GlobalLib {
         UFixed6 marketFeeAmount = marketFee.sub(protocolFeeAmount);
 
         UFixed6 oracleFeeAmount = marketFeeAmount.mul(oracleReceipt.oracleFee);
-        UFixed6 riskFeeAmount = marketFeeAmount.mul(marketParameter.riskFee);
+        UFixed6 riskFeeAmount = marketFeeAmount.sub(oracleFeeAmount).mul(marketParameter.riskFee);
         UFixed6 donationAmount = marketFeeAmount.sub(oracleFeeAmount).sub(riskFeeAmount);
 
         self.latestId = newLatestId;

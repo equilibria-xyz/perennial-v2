@@ -70,7 +70,7 @@ function generateAccumulationResult(
   }
 }
 
-function generateOracleRecipt(oracleFee: BigNumberish): OracleReceiptStruct {
+function generateOracleReceipt(oracleFee: BigNumberish): OracleReceiptStruct {
   return {
     settlementFee: 0,
     oracleFee,
@@ -407,7 +407,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0),
           generateProtocolParameter(0),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -421,7 +421,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.1')),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -435,7 +435,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(0),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -449,7 +449,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0),
           generateProtocolParameter(0),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -463,13 +463,13 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(0),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
         expect(value.oracleFee).to.equal(12)
-        expect(value.riskFee).to.equal(36)
-        expect(value.donation).to.equal(75)
+        expect(value.riskFee).to.equal(33)
+        expect(value.donation).to.equal(78)
       })
 
       it('oracle / risk fee zero donation', async () => {
@@ -478,25 +478,28 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.9')),
           generateProtocolParameter(0),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
         expect(value.oracleFee).to.equal(12)
-        expect(value.riskFee).to.equal(110)
-        expect(value.donation).to.equal(1) // due to rounding
+        expect(value.riskFee).to.equal(99)
+        expect(value.donation).to.equal(12)
       })
 
-      it('oracle / risk fee over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('1.0')),
-            generateProtocolParameter(0),
-            generateOracleRecipt(parse6decimal('0.1')),
-          ),
-        ).revertedWithPanic(0x11)
+      it('oracle / risk fee total over 1.00 (legacy)', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 0, 0),
+          generateMarketParameter(parse6decimal('1.0')),
+          generateProtocolParameter(0),
+          generateOracleReceipt(parse6decimal('0.1')),
+        )
+
+        const value = await global.read()
+        expect(value.oracleFee).to.equal(12)
+        expect(value.riskFee).to.equal(111)
+        expect(value.donation).to.equal(0)
       })
 
       it('protocol / risk fee', async () => {
@@ -505,7 +508,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -520,7 +523,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -535,7 +538,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('1.0')),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -551,7 +554,7 @@ describe('Global', () => {
             generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('0.1')),
             generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleRecipt(0),
+            generateOracleReceipt(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -563,7 +566,7 @@ describe('Global', () => {
             generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('1.1')),
             generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleRecipt(0),
+            generateOracleReceipt(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -574,7 +577,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -589,7 +592,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -604,7 +607,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('1.0')),
+          generateOracleReceipt(parse6decimal('1.0')),
         )
 
         const value = await global.read()
@@ -620,19 +623,35 @@ describe('Global', () => {
             generateAccumulationResult(123, 0, 0),
             generateMarketParameter(0),
             generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleRecipt(parse6decimal('0.1')),
+            generateOracleReceipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
 
-      it('protocol / oracle fee oracle over', async () => {
+      it('protocol / oracle fee zero donation', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 0, 0),
+          generateMarketParameter(0),
+          generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleReceipt(parse6decimal('1.0')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.oracleFee).to.equal(99)
+        expect(value.riskFee).to.equal(0)
+        expect(value.donation).to.equal(0)
+      })
+
+      it('protocol / oracle fee oracle over 1.00 (legacy)', async () => {
         await expect(
           global.update(
             1,
             generateAccumulationResult(123, 0, 0),
             generateMarketParameter(0),
             generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleRecipt(parse6decimal('1.1')),
+            generateOracleReceipt(parse6decimal('1.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -643,14 +662,14 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
         expect(value.protocolFee).to.equal(24)
         expect(value.oracleFee).to.equal(9)
-        expect(value.riskFee).to.equal(29)
-        expect(value.donation).to.equal(61)
+        expect(value.riskFee).to.equal(27)
+        expect(value.donation).to.equal(63)
       })
 
       it('protocol / oracle / risk fee zero marketFee', async () => {
@@ -659,7 +678,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -669,29 +688,13 @@ describe('Global', () => {
         expect(value.donation).to.equal(0)
       })
 
-      it('protocol / oracle / risk fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.9')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(9)
-        expect(value.riskFee).to.equal(89)
-        expect(value.donation).to.equal(1) // due to rounding
-      })
-
       it('exposure', async () => {
         await global.update(
           1,
           generateAccumulationResult(0, 0, 123),
           generateMarketParameter(parse6decimal('0.9')),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -705,21 +708,25 @@ describe('Global', () => {
             generateAccumulationResult(123, 0, 0),
             generateMarketParameter(parse6decimal('0.3')),
             generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleRecipt(parse6decimal('0.1')),
+            generateOracleReceipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
 
-      it('protocol / oracle / risk fee oracle over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('1.0')),
-            generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleRecipt(parse6decimal('0.1')),
-          ),
-        ).revertedWithPanic(0x11)
+      it('protocol / oracle / risk total fee oracle over (legacy)', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 0, 0),
+          generateMarketParameter(parse6decimal('1.0')),
+          generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleReceipt(parse6decimal('0.1')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.oracleFee).to.equal(9)
+        expect(value.riskFee).to.equal(90)
+        expect(value.donation).to.equal(0)
       })
     })
 
@@ -730,7 +737,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0),
           generateProtocolParameter(0),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -743,7 +750,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.1')),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -757,7 +764,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(0),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -771,7 +778,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0),
           generateProtocolParameter(0),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -785,40 +792,28 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(0),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
         expect(value.oracleFee).to.equal(468)
-        expect(value.riskFee).to.equal(36)
-        expect(value.donation).to.equal(75)
+        expect(value.riskFee).to.equal(33)
+        expect(value.donation).to.equal(78)
       })
 
-      it('oracle / risk fee zero donation', async () => {
+      it('oracle / risk total fee over (legacy)', async () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.9')),
+          generateMarketParameter(parse6decimal('1.0')),
           generateProtocolParameter(0),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
         expect(value.oracleFee).to.equal(468)
-        expect(value.riskFee).to.equal(110)
-        expect(value.donation).to.equal(1) // due to rounding
-      })
-
-      it('oracle / risk fee over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('1.0')),
-            generateProtocolParameter(0),
-            generateOracleRecipt(parse6decimal('0.1')),
-          ),
-        ).revertedWithPanic(0x11)
+        expect(value.riskFee).to.equal(111)
+        expect(value.donation).to.equal(0)
       })
 
       it('protocol / risk fee', async () => {
@@ -827,7 +822,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -843,7 +838,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1')),
           generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -859,7 +854,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('1.0')),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(0),
+          generateOracleReceipt(0),
         )
 
         const value = await global.read()
@@ -876,7 +871,7 @@ describe('Global', () => {
             generateAccumulationResult(123, 456, 0),
             generateMarketParameter(parse6decimal('0.1')),
             generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleRecipt(0),
+            generateOracleReceipt(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -888,7 +883,7 @@ describe('Global', () => {
             generateAccumulationResult(123, 456, 0),
             generateMarketParameter(parse6decimal('1.1')),
             generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleRecipt(0),
+            generateOracleReceipt(0),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -899,7 +894,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -914,7 +909,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -929,7 +924,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('1.0')),
+          generateOracleReceipt(parse6decimal('1.0')),
         )
 
         const value = await global.read()
@@ -945,9 +940,24 @@ describe('Global', () => {
             generateAccumulationResult(123, 0, 0),
             generateMarketParameter(0),
             generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleRecipt(parse6decimal('0.1')),
+            generateOracleReceipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
+      })
+
+      it('protocol / oracle fee zero donation', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 456, 0),
+          generateMarketParameter(0),
+          generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleReceipt(parse6decimal('1.0')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.oracleFee).to.equal(555)
+        expect(value.donation).to.equal(0)
       })
 
       it('protocol / oracle fee oracle over', async () => {
@@ -957,7 +967,7 @@ describe('Global', () => {
             generateAccumulationResult(123, 456, 0),
             generateMarketParameter(0),
             generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleRecipt(parse6decimal('1.1')),
+            generateOracleReceipt(parse6decimal('1.1')),
           ),
         ).revertedWithPanic(0x11)
       })
@@ -968,14 +978,14 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
         expect(value.protocolFee).to.equal(24)
         expect(value.oracleFee).to.equal(465)
-        expect(value.riskFee).to.equal(29)
-        expect(value.donation).to.equal(61)
+        expect(value.riskFee).to.equal(27)
+        expect(value.donation).to.equal(63)
       })
 
       it('protocol / oracle / risk fee zero marketFee', async () => {
@@ -984,7 +994,7 @@ describe('Global', () => {
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.3')),
           generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleRecipt(parse6decimal('0.1')),
+          generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
@@ -994,22 +1004,6 @@ describe('Global', () => {
         expect(value.donation).to.equal(0)
       })
 
-      it('protocol / oracle / risk fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.9')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleRecipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(465)
-        expect(value.riskFee).to.equal(89)
-        expect(value.donation).to.equal(1) // due to rounding
-      })
-
       it('protocol / oracle / risk fee protocol over', async () => {
         await expect(
           global.update(
@@ -1017,21 +1011,25 @@ describe('Global', () => {
             generateAccumulationResult(123, 456, 0),
             generateMarketParameter(parse6decimal('0.3')),
             generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleRecipt(parse6decimal('0.1')),
+            generateOracleReceipt(parse6decimal('0.1')),
           ),
         ).revertedWithPanic(0x11)
       })
 
-      it('protocol / oracle / risk fee oracle over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('1.0')),
-            generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleRecipt(parse6decimal('0.1')),
-          ),
-        ).revertedWithPanic(0x11)
+      it('protocol / oracle / risk fee zero donation', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 456, 0),
+          generateMarketParameter(parse6decimal('1.0')),
+          generateProtocolParameter(parse6decimal('0.2')),
+          generateOracleReceipt(parse6decimal('0.1')),
+        )
+
+        const value = await global.read()
+        expect(value.protocolFee).to.equal(24)
+        expect(value.oracleFee).to.equal(465)
+        expect(value.riskFee).to.equal(90)
+        expect(value.donation).to.equal(0) // due to rounding
       })
     })
   })
