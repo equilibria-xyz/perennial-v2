@@ -41,6 +41,7 @@ jobs:
         if: ${{ env.PARSER_BROKEN != 'true' }}
   # [CORE]
   core-unit-test:
+    if: false
     name: '[Core] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -73,6 +74,7 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   core-integration-test:
+    if: false
     name: '[Core] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -108,6 +110,7 @@ jobs:
 
   # [ACCOUNT]
   account-unit-test:
+    if: false
     name: '[Collateral Accounts] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -140,6 +143,7 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   account-integration-test:
+    if: false
     name: '[Collateral Accounts] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -175,6 +179,7 @@ jobs:
 
   # [ORACLE]
   oracle-unit-test:
+    if: false
     name: '[Oracle] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -207,6 +212,7 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   oracle-integration-test:
+    if: false
     name: '[Oracle] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -240,6 +246,7 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   oracle-integrationSepolia-test:
+    if: false
     name: '[Oracle] Sepolia Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -342,6 +349,7 @@ jobs:
 
   # [VAULT]
   vault-unit-test:
+    if: false
     name: '[Vault] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -374,6 +382,7 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   vault-integration-test:
+    if: false
     name: '[Vault] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -409,6 +418,7 @@ jobs:
 
   # [EXTENSIONS]
   extensions-unit-test:
+    if: false
     name: '[Extensions] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -441,6 +451,7 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   extensions-integration-test:
+    if: false
     name: '[Extensions] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:

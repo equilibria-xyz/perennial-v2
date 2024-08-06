@@ -120,6 +120,7 @@ export async function deployPythOracleFactory(
 ): Promise<PythFactory> {
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
+  console.log('about to deploy pythOracleFactory with ABI', PythFactory__factory.abi)
   const pythOracleFactory = await new PythFactory__factory(owner).deploy(
     PYTH_ADDRESS,
     keeperOracleImpl.address,
