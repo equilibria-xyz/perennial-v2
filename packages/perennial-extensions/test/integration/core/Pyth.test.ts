@@ -85,9 +85,6 @@ describe('PythOracleFactory', () => {
     instanceVars = await deployProtocol()
     ;({ dsu, oracleFactory, owner, user, marketFactory } = instanceVars)
 
-    // const oracleImpl = await new Oracle__factory(owner).deploy()
-    // oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    // await oracleFactory.initialize()
     await oracleFactory.updateParameter({
       maxGranularity: 1,
       maxSettlementFee: parse6decimal('1.5'),
