@@ -400,4 +400,52 @@ describe('Manager_Arbitrum', () => {
 
     checkKeeperCompensation = true
   })
+
+  it('non-delegated signer cannot interact', async () => {
+    // userB signs a message to change userA's position
+    advanceOrderNonce(userA)
+    const message: PlaceOrderActionStruct = {
+      order: {
+        side: Side.MAKER,
+        comparison: Compare.GTE,
+        price: parse6decimal('1003'),
+        delta: parse6decimal('2'),
+        maxFee: MAX_FEE,
+        referrer: constants.AddressZero,
+      },
+      ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
+    }
+    const signature = await signPlaceOrderAction(userB, verifier, message)
+
+    await expect(
+      manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES),
+    ).to.be.revertedWithCustomError(manager, 'ManagerInvalidSignerError')
+  })
+
+  it('delegated signer may interact', async () => {
+    // userA delegates userB
+    await marketFactory.connect(userA).updateSigner(userB.address, true)
+
+    // userB signs a message to change userA's position
+    advanceOrderNonce(userA)
+    const message: PlaceOrderActionStruct = {
+      order: {
+        side: Side.MAKER,
+        comparison: Compare.GTE,
+        price: parse6decimal('1004'),
+        delta: parse6decimal('3'),
+        maxFee: MAX_FEE,
+        referrer: constants.AddressZero,
+      },
+      ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
+    }
+    const signature = await signPlaceOrderAction(userB, verifier, message)
+
+    await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
+      .to.emit(manager, 'OrderPlaced')
+      .withArgs(market.address, userA.address, message.order, message.action.orderNonce)
+
+    const storedOrder = await manager.orders(market.address, userA.address, message.action.orderNonce)
+    compareOrders(storedOrder, message.order)
+  })
 })

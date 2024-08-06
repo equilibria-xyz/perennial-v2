@@ -52,12 +52,7 @@ import {
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
 import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
-import {
-  IKeeperOracle,
-  IOracleFactory,
-  IOracleProvider,
-  PythFactory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+import { IKeeperOracle, IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
