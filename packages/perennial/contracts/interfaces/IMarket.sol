@@ -102,7 +102,7 @@ interface IMarket is IInstance {
     // sig: 0xb602d086
     error MarketNotBeneficiaryError();
     // sig: 0x3222db45
-    /// @custom:error Transaction sender is not authorized to operate the account
+    /// @custom:error Sender is not authorized to interact with markets on behalf of the account
     error MarketNotOperatorError();
     // sig: 0x534f7fe6
     error MarketInvalidProtectionError();
