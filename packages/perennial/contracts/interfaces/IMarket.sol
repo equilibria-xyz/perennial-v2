@@ -66,7 +66,11 @@ interface IMarket is IInstance {
     event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
     event BeneficiaryUpdated(address newBeneficiary);
     event CoordinatorUpdated(address newCoordinator);
-    event FeeClaimed(address indexed account, UFixed6 amount);
+    /// @notice Fee earned by an account was transferred from market to a receiver
+    /// @param account User who earned the fee
+    /// @param receiver Delegated operator of the account, or the account itself
+    /// @param amount Collateral transferred from market to receiver
+    event FeeClaimed(address indexed account, address indexed receiver, UFixed6 amount);
     event ExposureClaimed(address indexed account, Fixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
     event RiskParameterUpdated(RiskParameter newRiskParameter);

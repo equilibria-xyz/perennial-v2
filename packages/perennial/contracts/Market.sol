@@ -349,7 +349,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         if (!feeReceived.isZero()) {
             token.push(msg.sender, UFixed18Lib.from(feeReceived));
-            emit FeeClaimed(msg.sender, feeReceived);
+            emit FeeClaimed(account, msg.sender, feeReceived);
         }
     }
 
@@ -889,7 +889,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @notice Only the account or an operator can call
     modifier onlyOperator(address account) {
-        if (msg.sender != account || IMarketFactory(address(factory())).operators(account, msg.sender))
+        if (msg.sender != account && !IMarketFactory(address(factory())).operators(account, msg.sender))
             revert MarketNotOperatorError();
         _;
     }
