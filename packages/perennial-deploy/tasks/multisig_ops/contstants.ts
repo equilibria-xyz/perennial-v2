@@ -516,6 +516,40 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     staleAfter: '40',
     makerReceiveOnly: false,
   },
+  JPY: {
+    margin: '9500',
+    maintenance: '8000',
+    takerFee: {
+      linearFee: '200',
+      proportionalFee: '100',
+      adiabaticFee: '600',
+      scale: '1500000000000',
+    },
+    makerFee: {
+      linearFee: '100',
+      proportionalFee: '0',
+      adiabaticFee: '0',
+      scale: '1500000000000',
+    },
+    makerLimit: '150000000000',
+    efficiencyLimit: '1000000',
+    liquidationFee: '5000000',
+    utilizationCurve: {
+      minRate: '0',
+      maxRate: '85000',
+      targetRate: '85000',
+      targetUtilization: '500000',
+    },
+    pController: {
+      k: '200000000000',
+      min: '-300000',
+      max: '300000',
+    },
+    minMargin: '50000000',
+    minMaintenance: '40000000',
+    staleAfter: '40',
+    makerReceiveOnly: false,
+  },
 }
 
 export const NewMarketParameter: MarketParameterStruct = {
