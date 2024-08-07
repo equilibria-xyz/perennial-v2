@@ -11560,13 +11560,12 @@ describe('Market', () => {
               })
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
               expectGlobalEq(await market.global(), {
+                ...DEFAULT_GLOBAL,
                 currentId: 2,
                 latestId: 1,
-                protocolFee: totalFee.div(2).sub(3), // loss of precision
-                oracleFee: totalFee.div(2).div(10),
-                riskFee: totalFee.div(2).div(10),
-                donation: totalFee.div(2).mul(8).div(10),
-                exposure: 0,
+                protocolFee: totalFee.mul(8).div(10).sub(4), // loss of precision
+                oracleFee: totalFee.div(10),
+                riskFee: totalFee.div(10),
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
