@@ -15776,7 +15776,7 @@ describe('Market', () => {
           })
 
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          await expect(market.connect(liquidator).claimFee())
+          await expect(market.connect(liquidator).claimFee(liquidator.address))
             .to.emit(market, 'FeeClaimed')
             .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
 
@@ -16051,7 +16051,7 @@ describe('Market', () => {
           })
 
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          await expect(market.connect(liquidator).claimFee())
+          await expect(market.connect(liquidator).claimFee(liquidator.address))
             .to.emit(market, 'FeeClaimed')
             .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
 
@@ -22968,7 +22968,7 @@ describe('Market', () => {
       it('claims fee (protocol)', async () => {
         dsu.transfer.whenCalledWith(owner.address, PROTOCOL_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(owner).claimFee())
+        await expect(market.connect(owner).claimFee(owner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(owner.address, PROTOCOL_FEE)
 
@@ -22981,7 +22981,7 @@ describe('Market', () => {
       it('claims fee (oracle)', async () => {
         dsu.transfer.whenCalledWith(oracleSigner.address, ORACLE_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(oracleSigner).claimFee())
+        await expect(market.connect(oracleSigner).claimFee(oracleSigner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(oracleSigner.address, ORACLE_FEE)
 
@@ -22994,7 +22994,7 @@ describe('Market', () => {
       it('claims fee (risk)', async () => {
         dsu.transfer.whenCalledWith(coordinator.address, RISK_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(coordinator).claimFee())
+        await expect(market.connect(coordinator).claimFee(coordinator.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(coordinator.address, RISK_FEE)
 
@@ -23007,7 +23007,7 @@ describe('Market', () => {
       it('claims fee (donation)', async () => {
         dsu.transfer.whenCalledWith(beneficiary.address, DONATION.mul(1e12)).returns(true)
 
-        await expect(market.connect(beneficiary).claimFee())
+        await expect(market.connect(beneficiary).claimFee(beneficiary.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(beneficiary.address, DONATION)
 
@@ -23018,13 +23018,15 @@ describe('Market', () => {
       })
 
       it('claims fee (none)', async () => {
-        await market.connect(user).claimFee()
+        await market.connect(user).claimFee(user.address)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
         expect((await market.global()).riskFee).to.equal(RISK_FEE)
         expect((await market.global()).donation).to.equal(DONATION)
       })
+
+      // TODO: claimFee as operator, negative test for claiming fee as non-operator
     })
   })
 })

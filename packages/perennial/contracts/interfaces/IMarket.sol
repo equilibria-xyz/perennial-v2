@@ -97,6 +97,9 @@ interface IMarket is IInstance {
     error MarketNotCoordinatorError();
     // sig: 0xb602d086
     error MarketNotBeneficiaryError();
+    // sig: 0x3222db45
+    /// @custom:error Transaction sender is not authorized to operate the account
+    error MarketNotOperatorError();
     // sig: 0x534f7fe6
     error MarketInvalidProtectionError();
     // sig: 0xab1e3a00
@@ -158,5 +161,5 @@ interface IMarket is IInstance {
     function updateCoordinator(address newCoordinator) external;
     function updateParameter(MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
-    function claimFee() external returns (UFixed6);
+    function claimFee(address account) external returns (UFixed6);
 }

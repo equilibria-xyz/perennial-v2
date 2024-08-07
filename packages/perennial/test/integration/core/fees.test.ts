@@ -1995,7 +1995,7 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimable,
       })
-      await expect(market.connect(user).claimFee())
+      await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, expectedClaimable)
     })
@@ -2052,7 +2052,7 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimable,
       })
-      await expect(market.connect(userB).claimFee())
+      await expect(market.connect(userB).claimFee(userB.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(userB.address, expectedClaimable)
     })
@@ -2100,7 +2100,7 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimable,
       })
-      await expect(market.connect(user).claimFee())
+      await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, expectedClaimable)
     })
@@ -2159,7 +2159,7 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimableMakerReferral,
       })
-      await expect(market.connect(userB).claimFee())
+      await expect(market.connect(userB).claimFee(userB.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(userB.address, expectedClaimableMakerReferral)
 
@@ -2205,7 +2205,7 @@ describe('Fees', () => {
       // takerFee = position * takerFee * price = 2 * 0.025 * 113.882975 = 5.694148
       // referralFee = takerFee * referral / takerPos =  5.694148 * 0.30 / 2 = 0.854122
       expectedClaimableTakerReferral = expectedClaimableTakerReferral.add(parse6decimal('0.854122'))
-      await expect(market.connect(user).claimFee())
+      await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, expectedClaimableTakerReferral)
     })
@@ -2265,7 +2265,7 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimable,
       })
-      await expect(market.connect(userB).claimFee())
+      await expect(market.connect(userB).claimFee(userB.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(userB.address, expectedClaimable)
 
@@ -2290,7 +2290,7 @@ describe('Fees', () => {
         collateral: '1150119246',
         claimable: expectedCloseClaimable,
       })
-      await expect(market.connect(user).claimFee())
+      await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, expectedCloseClaimable)
       expect(await market.orderReferrers(userC.address, currentId.add(1))).to.equal(user.address)

@@ -312,30 +312,30 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Claims any available fee that the sender has accrued
     /// @dev Applicable fees include: protocol, oracle, risk, donation, and claimable
     /// @return feeReceived The amount of the fee claimed
-    function claimFee() external returns (UFixed6 feeReceived) {
+    function claimFee(address account) external onlyOperator(account) returns (UFixed6 feeReceived) {
         Global memory newGlobal = _global.read();
-        Local memory newLocal = _locals[msg.sender].read();
+        Local memory newLocal = _locals[account].read();
 
         // protocol fee
-        if (msg.sender == factory().owner()) {
+        if (account == factory().owner()) {
             feeReceived = feeReceived.add(newGlobal.protocolFee);
             newGlobal.protocolFee = UFixed6Lib.ZERO;
         }
 
         // oracle fee
-        if (msg.sender == address(oracle)) {
+        if (account == address(oracle)) {
             feeReceived = feeReceived.add(newGlobal.oracleFee);
             newGlobal.oracleFee = UFixed6Lib.ZERO;
         }
 
         // risk fee
-        if (msg.sender == coordinator) {
+        if (account == coordinator) {
             feeReceived = feeReceived.add(newGlobal.riskFee);
             newGlobal.riskFee = UFixed6Lib.ZERO;
         }
 
         // donation
-        if (msg.sender == beneficiary) {
+        if (account == beneficiary) {
             feeReceived = feeReceived.add(newGlobal.donation);
             newGlobal.donation = UFixed6Lib.ZERO;
         }
@@ -345,7 +345,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newLocal.claimable = UFixed6Lib.ZERO;
 
         _global.store(newGlobal);
-        _locals[msg.sender].store(newLocal);
+        _locals[account].store(newLocal);
 
         if (!feeReceived.isZero()) {
             token.push(msg.sender, UFixed18Lib.from(feeReceived));
@@ -884,6 +884,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Only the coordinator or the owner can call
     modifier onlyCoordinator {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
+        _;
+    }
+
+    /// @notice Only the account or an operator can call
+    modifier onlyOperator(address account) {
+        if (msg.sender != account || IMarketFactory(address(factory())).operators(account, msg.sender))
+            revert MarketNotOperatorError();
         _;
     }
 

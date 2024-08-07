@@ -53,7 +53,7 @@ describe('Liquidate', () => {
     await chainlink.next()
     await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false) // settle
     expect((await market.locals(userB.address)).claimable).to.equal(parse6decimal('10'))
-    await market.connect(userB).claimFee() // liquidator withdrawal
+    await market.connect(userB).claimFee(userB.address) // liquidator withdrawal
 
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200010')) // Original 200000 + fee
     expect((await market.locals(user.address)).collateral).to.equal(parse6decimal('1000').sub(parse6decimal('10')))
@@ -312,7 +312,7 @@ describe('Liquidate', () => {
 
     // userC claims their fee
     expect((await market.locals(userC.address)).claimable).to.equal(parse6decimal('10'))
-    await market.connect(userC).claimFee() // liquidator withdrawal
+    await market.connect(userC).claimFee(userC.address) // liquidator withdrawal
     expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1500').sub(utils.parseEther('10')))
   })
 
@@ -380,7 +380,7 @@ describe('Liquidate', () => {
     await chainlink.next()
     await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false) // settle
     expect((await market.locals(userB.address)).claimable).to.equal(parse6decimal('10'))
-    await market.connect(userB).claimFee() // liquidator withdrawal
+    await market.connect(userB).claimFee(userB.address) // liquidator withdrawal
 
     const expectedClaimable = parse6decimal('6.902775')
     await settle(market, userC)
