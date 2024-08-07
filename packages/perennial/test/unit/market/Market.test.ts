@@ -535,6 +535,9 @@ describe('Market', () => {
     factory.authorization
       .whenCalledWith(userC.address, userC.address, constants.AddressZero, constants.AddressZero)
       .returns([true, false, BigNumber.from(0)])
+    factory.authorization
+      .whenCalledWith(userD.address, userD.address, constants.AddressZero, constants.AddressZero)
+      .returns([true, false, BigNumber.from(0)])
   })
 
   describe('#initialize', async () => {
@@ -19554,6 +19557,10 @@ describe('Market', () => {
           const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
           await expect(
             market
               .connect(user)
@@ -19675,6 +19682,10 @@ describe('Market', () => {
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
 
           await expect(
             market
@@ -19834,6 +19845,10 @@ describe('Market', () => {
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, user.address)
+            .returns([false, true, parse6decimal('0.20')])
 
           await expect(
             market
