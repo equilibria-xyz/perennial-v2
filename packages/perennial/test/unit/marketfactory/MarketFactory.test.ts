@@ -40,6 +40,8 @@ describe('MarketFactory', () => {
   let operator: SignerWithAddress
   let signer2: SignerWithAddress
   let operator2: SignerWithAddress
+  let extension: SignerWithAddress
+  let referrer: SignerWithAddress
   let oracleFactory: FakeContract<IFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
@@ -49,7 +51,7 @@ describe('MarketFactory', () => {
   let marketImpl: Market
 
   beforeEach(async () => {
-    ;[user, owner, signer, signer2, operator, operator2] = await ethers.getSigners()
+    ;[user, owner, signer, signer2, operator, operator2, extension, referrer] = await ethers.getSigners()
     oracleFactory = await smock.fake<IFactory>('IFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
@@ -196,6 +198,96 @@ describe('MarketFactory', () => {
         factory,
         'OwnableNotOwnerError',
       )
+    })
+  })
+
+  describe('#authorization', async () => {
+    it('sender is account', async () => {
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        user.address,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+      expect(isOperator).to.be.equal(true)
+      expect(isSigner).to.be.equal(false)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
+    })
+
+    it('sender is extension', async () => {
+      await factory.updateExtension(extension.address, true)
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        extension.address,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+      expect(isOperator).to.be.equal(true)
+      expect(isSigner).to.be.equal(false)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
+    })
+
+    it('sender is signer', async () => {
+      await factory.connect(user).updateSigner(signer.address, true)
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        constants.AddressZero,
+        signer.address,
+        constants.AddressZero,
+      )
+
+      expect(isOperator).to.be.equal(false)
+      expect(isSigner).to.be.equal(true)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
+    })
+
+    it('sender is none', async () => {
+      await factory.connect(user).updateSigner(signer.address, true)
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+      expect(isOperator).to.be.equal(false)
+      expect(isSigner).to.be.equal(false)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
+    })
+
+    it('referrerFee is zero', async () => {
+      await factory.updateReferralFee(referrer.address, parse6decimal('0'))
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        user.address,
+        constants.AddressZero,
+        referrer.address,
+      )
+
+      expect(isOperator).to.be.equal(true)
+      expect(isSigner).to.be.equal(false)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
+    })
+
+    it('referrerFee is non-zero', async () => {
+      await factory.updateReferralFee(referrer.address, parse6decimal('0.35'))
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        user.address,
+        constants.AddressZero,
+        referrer.address,
+      )
+
+      expect(isOperator).to.be.equal(true)
+      expect(isSigner).to.be.equal(false)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0.35'))
     })
   })
 
@@ -549,7 +641,7 @@ describe('MarketFactory', () => {
     })
   })
 
-  describe('#updateSignerWithSignature', async () => {
+  describe('#updateAccessBatchSignature', async () => {
     const DEFAULT_ACCESS_UPDATE_BATCH = {
       operators: [{ accessor: constants.AddressZero, approved: false }],
       signers: [{ accessor: constants.AddressZero, approved: false }],
