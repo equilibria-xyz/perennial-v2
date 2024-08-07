@@ -167,18 +167,17 @@ describe('Fees', () => {
         maker: POSITION,
       })
 
-      // Check global post-settlement state
-      const expectedProtocolFee = BigNumber.from('125271272') // = 250542544 * 1 * 0.5 (no existing makers so all fees go to protocol/market)
-      const expectedOracleFee = BigNumber.from('37581381') // = (250542544 - 125271272) * 0.3
-      const expectedRiskFee = BigNumber.from('50108459') // = (250542544 - 125271272) * 0.4
-      const expectedDonation = BigNumber.from('37581432') // = 250542544 - 125271272 - 37581381 - 50108508
+      // Check global post-settlement state (no existing makers so all fees go to protocol/market)
+      const expectedOracleFee = BigNumber.from('75162763') // = (250542544) * 0.3
+      const expectedRiskFee = BigNumber.from('100216917') // = (250542544) * 0.4
+      const expectedProtocolFee = BigNumber.from('75162864') // = 250542544 - 75162763 - 100217017
       expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
         currentId: 1,
         latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
-        donation: expectedDonation,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(1), {
@@ -276,17 +275,16 @@ describe('Fees', () => {
       })
 
       // Check global post-settlement state. Existing makers so protocol only gets 50% of fees
-      const expectedProtocolFee = BigNumber.from('28470743') // = 56941487 * 0.5
-      const expectedOracleFee = BigNumber.from('8541223') // = (56941487 - 28470743) * 0.3
-      const expectedRiskFee = BigNumber.from('11388286') // = (56941487 - 28470743) * 0.4
-      const expectedDonation = BigNumber.from('8541235') // = 56941487 - 28470743 - 8541223 - 11388297
+      const expectedOracleFee = BigNumber.from('17082446') // = (56941487) * 0.3
+      const expectedRiskFee = BigNumber.from('22776572') // = (56941487) * 0.4
+      const expectedProtocolFee = BigNumber.from('17082469') // = 56941487 - 17082446 - 22776594
       expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
         currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
-        donation: expectedDonation,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -375,19 +373,18 @@ describe('Fees', () => {
         expectedTakerLinear.add(expectedTakerProportional),
       )
 
-      const expectedProtocolFee = BigNumber.from('7687100') // = 15374200 / 2
-      const expectedOracleFee = BigNumber.from('2306130') // = (15374200 - 7687100) * 0.3
-      const expectedRiskFee = BigNumber.from('3074836') // = (15374200 - 7687100) * 0.4
-      const expectedDonation = BigNumber.from('2306134') // = 15374200 - 7687100 - 2306130 - 3074840
+      const expectedOracleFee = BigNumber.from('4612260') // = (15374200) * 0.3
+      const expectedRiskFee = BigNumber.from('6149673') // = (15374200) * 0.4
+      const expectedProtocolFee = BigNumber.from('4612267') // = 15374200 - 4612260 - 6149680
 
       // Global State
       expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
         currentId: 1,
         latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
-        donation: expectedDonation,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(1), {
@@ -511,19 +508,18 @@ describe('Fees', () => {
       expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(expectedTakerLinear.add(expectedTakerProportional))
       expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(0)
 
-      const expectedProtocolFee = BigNumber.from('1423537') // = 2847074 / 2
-      const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
-      const expectedRiskFee = BigNumber.from('569414') // = (2847074 - 1423537) * 0.4
-      const expectedDonation = BigNumber.from('427062') // = 2847074 - 1423537 - 427061 - 569414
+      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
+      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
+      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
 
       // Global State
       expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
         currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
-        donation: expectedDonation,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -703,19 +699,18 @@ describe('Fees', () => {
         expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
       )
 
-      const expectedProtocolFee = BigNumber.from('1423537') // = 2847074 / 2
-      const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
-      const expectedRiskFee = BigNumber.from('569414') // = (2847074 - 1423537) * 0.4
-      const expectedDonation = BigNumber.from('427062') // = 2847074 - 1423537 - 427061 - 569414
+      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
+      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
+      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
 
       // Global State
       expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
         currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
-        donation: expectedDonation,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -863,19 +858,18 @@ describe('Fees', () => {
         expectedTakerLinear.add(expectedTakerProportional),
       )
 
-      const expectedProtocolFee = BigNumber.from('7687100') // = 15374200 / 2
-      const expectedOracleFee = BigNumber.from('2306130') // = (15374200 - 7687100) * 0.3
-      const expectedRiskFee = BigNumber.from('3074836') // = (15374200 - 7687100) * 0.4
-      const expectedDonation = BigNumber.from('2306134') // = 15374200 - 7687100 - 2306130 - 3074840
+      const expectedOracleFee = BigNumber.from('4612260') // = (15374200) * 0.3
+      const expectedRiskFee = BigNumber.from('6149673') // = (15374200) * 0.4
+      const expectedProtocolFee = BigNumber.from('4612267') // = 15374200 - 4612260 - 6149680
 
       // Global State
       expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
         currentId: 1,
         latestId: 1,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
-        donation: expectedDonation,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(1), {
@@ -999,19 +993,18 @@ describe('Fees', () => {
       expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(expectedTakerLinear.add(expectedTakerProportional))
       expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(0)
 
-      const expectedProtocolFee = BigNumber.from('1423537') // = 2847074 / 2
-      const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
-      const expectedRiskFee = BigNumber.from('569414') // = (2847074 - 1423537) * 0.4
-      const expectedDonation = BigNumber.from('427062') // = 2847074 - 1423537 - 427061 - 569414
+      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
+      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
+      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
 
       // Global State
       expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
         currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
-        donation: expectedDonation,
         exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
@@ -1188,20 +1181,18 @@ describe('Fees', () => {
         expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
       )
 
-      const expectedProtocolFee = BigNumber.from('1423537') // = 2847074 / 2
-      const expectedOracleFee = BigNumber.from('427061') // = (2847074 - 1423537) * 0.3
-      const expectedRiskFee = BigNumber.from('569414') // = (2847074 - 1423537) * 0.4
-      const expectedDonation = BigNumber.from('427062') // = 2847074 - 1423537 - 427061 - 569414
+      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
+      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
+      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
 
       // Global State
       expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
         currentId: 2,
         latestId: 2,
         protocolFee: expectedProtocolFee,
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
-        donation: expectedDonation,
-        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,

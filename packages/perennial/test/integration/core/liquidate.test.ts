@@ -165,7 +165,6 @@ describe('Liquidate', () => {
     totalFees = (await market.global()).protocolFee
       .add((await market.global()).oracleFee)
       .add((await market.global()).riskFee)
-      .add((await market.global()).donation)
     expect(totalCollateral.add(totalFees)).to.equal(parse6decimal('22000'))
 
     // Settle the market with a new oracle version
@@ -199,7 +198,6 @@ describe('Liquidate', () => {
     const feesCurr = (await market.global()).protocolFee
       .add((await market.global()).oracleFee)
       .add((await market.global()).riskFee)
-      .add((await market.global()).donation)
 
     await chainlink.next()
     await settle(market, user)
@@ -215,7 +213,6 @@ describe('Liquidate', () => {
     const feesNew = (await market.global()).protocolFee
       .add((await market.global()).oracleFee)
       .add((await market.global()).riskFee)
-      .add((await market.global()).donation)
 
     // Expect the loss from B to be socialized equally to C and D
     expect(currA).to.equal(newA)
@@ -234,7 +231,6 @@ describe('Liquidate', () => {
     totalFees = (await market.global()).protocolFee
       .add((await market.global()).oracleFee)
       .add((await market.global()).riskFee)
-      .add((await market.global()).donation)
     expect(totalCollateral.add(totalFees)).to.be.lte(parse6decimal('22000'))
   })
 

@@ -334,12 +334,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGlobal.riskFee = UFixed6Lib.ZERO;
         }
 
-        // donation
-        if (account == beneficiary) {
-            feeReceived = feeReceived.add(newGlobal.donation);
-            newGlobal.donation = UFixed6Lib.ZERO;
-        }
-
         // claimable
         feeReceived = feeReceived.add(newLocal.claimable);
         newLocal.claimable = UFixed6Lib.ZERO;
@@ -529,12 +523,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeReferrer = guaranteeReferrers[context.account][context.local.currentId];
 
         // load factory metadata
-        updateContext.operator = context.account == msg.sender
-            || IMarketFactory(address(factory())).extensions(msg.sender)
-            || IMarketFactory(address(factory())).operators(context.account, msg.sender);
-        updateContext.signer = context.account == signer
-            || IMarketFactory(address(factory())).signers(context.account, signer);
-        updateContext.orderReferralFee = IMarketFactory(address(factory())).referralFees(orderReferrer);
+        (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =
+            IMarketFactory(address(factory())).authorization(context.account, msg.sender, signer, orderReferrer);
         updateContext.guaranteeReferralFee = guaranteeReferralFee;
     }
 
@@ -797,13 +787,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (settlementContext.latestVersion, context.global, accumulationResult) =
             VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
-        context.global.update(
-            newOrderId,
-            accumulationResult,
-            context.marketParameter,
-            context.protocolParameter,
-            oracleReceipt
-        );
+        context.global.update(newOrderId, accumulationResult, context.marketParameter, oracleReceipt);
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
