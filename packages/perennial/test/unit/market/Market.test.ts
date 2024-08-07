@@ -523,6 +523,20 @@ describe('Market', () => {
       },
       owner,
     ).deploy(verifier.address)
+
+    // allow users to update their own accounts w/o signer or referrer
+    factory.authorization
+      .whenCalledWith(user.address, user.address, constants.AddressZero, constants.AddressZero)
+      .returns([true, false, BigNumber.from(0)])
+    factory.authorization
+      .whenCalledWith(userB.address, userB.address, constants.AddressZero, constants.AddressZero)
+      .returns([true, false, BigNumber.from(0)])
+    factory.authorization
+      .whenCalledWith(userC.address, userC.address, constants.AddressZero, constants.AddressZero)
+      .returns([true, false, BigNumber.from(0)])
+    factory.authorization
+      .whenCalledWith(userD.address, userD.address, constants.AddressZero, constants.AddressZero)
+      .returns([true, false, BigNumber.from(0)])
   })
 
   describe('#initialize', async () => {
@@ -5937,7 +5951,7 @@ describe('Market', () => {
                 .sub(EXPECTED_LIQUIDATION_FEE)
                 .sub(EXPECTED_PNL)
                 .sub(24) // loss of precision
-              factory.operators.whenCalledWith(userB.address, liquidator.address).returns(false)
+
               dsu.transferFrom
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
@@ -6383,7 +6397,7 @@ describe('Market', () => {
               dsu.transferFrom
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
-              factory.operators.whenCalledWith(user.address, liquidator.address).returns(false)
+
               await expect(
                 market
                   .connect(liquidator)
@@ -9429,7 +9443,7 @@ describe('Market', () => {
               dsu.transferFrom
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
-              factory.operators.whenCalledWith(userB.address, liquidator.address).returns(false)
+
               await expect(
                 market
                   .connect(liquidator)
@@ -9880,7 +9894,7 @@ describe('Market', () => {
               dsu.transferFrom
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
-              factory.operators.whenCalledWith(user.address, liquidator.address).returns(false)
+
               await expect(
                 market
                   .connect(liquidator)
@@ -13839,7 +13853,7 @@ describe('Market', () => {
                 .sub(EXPECTED_LIQUIDATION_FEE)
                 .sub(EXPECTED_PNL)
                 .sub(27) // loss of precision
-              factory.operators.whenCalledWith(userB.address, liquidator.address).returns(false)
+
               dsu.transferFrom
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
@@ -14383,7 +14397,7 @@ describe('Market', () => {
               dsu.transferFrom
                 .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
                 .returns(true)
-              factory.operators.whenCalledWith(user.address, liquidator.address).returns(false)
+
               await expect(
                 market
                   .connect(liquidator)
@@ -17767,94 +17781,16 @@ describe('Market', () => {
         })
       })
 
-      context('extension', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(operator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
-        it('opens the position when extension', async () => {
-          factory.extensions.whenCalledWith(operator.address).returns(true)
-          await expect(
-            market
-              .connect(operator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
-          )
-            .to.emit(market, 'OrderCreated')
-            .withArgs(
-              user.address,
-              {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_2.timestamp,
-                orders: 1,
-                makerPos: POSITION,
-                collateral: COLLATERAL,
-              },
-              { ...DEFAULT_GUARANTEE },
-              constants.AddressZero,
-              constants.AddressZero,
-              constants.AddressZero,
-            )
-
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 1,
-            latestId: 0,
-            collateral: COLLATERAL,
-          })
-          expectPositionEq(await market.positions(user.address), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_1.timestamp,
-          })
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectGlobalEq(await market.global(), {
-            ...DEFAULT_GLOBAL,
-            currentId: 1,
-          })
-          expectPositionEq(await market.position(), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_1.timestamp,
-          })
-          expectOrderEq(await market.pendingOrder(1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
-            ...DEFAULT_VERSION,
-            price: PRICE,
-            liquidationFee: { _value: -riskParameter.liquidationFee },
-          })
-        })
-
-        it('reverts when not extension', async () => {
-          factory.extensions.whenCalledWith(operator.address).returns(false)
-          factory.operators.whenCalledWith(user.address, operator.address).returns(false)
-          await expect(
-            market
-              .connect(operator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
-          ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
-        })
-      })
-
       context('operator', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(operator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
 
         it('opens the position when operator', async () => {
-          factory.operators.whenCalledWith(user.address, operator.address).returns(true)
+          factory.authorization
+            .whenCalledWith(user.address, operator.address, constants.AddressZero, constants.AddressZero)
+            .returns([true, false, BigNumber.from(0)])
+
           await expect(
             market
               .connect(operator)
@@ -17919,7 +17855,10 @@ describe('Market', () => {
         })
 
         it('reverts when not operator', async () => {
-          factory.operators.whenCalledWith(user.address, operator.address).returns(false)
+          factory.authorization
+            .whenCalledWith(user.address, operator.address, constants.AddressZero, constants.AddressZero)
+            .returns([false, false, BigNumber.from(0)])
+
           await expect(
             market
               .connect(operator)
@@ -17996,7 +17935,15 @@ describe('Market', () => {
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
           verifier.verifyIntent.returns()
-          factory.signers.whenCalledWith(user.address, liquidator.address).returns(true)
+
+          // maker
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+            .returns([true, false, parse6decimal('0.20')])
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, liquidator.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
 
           await expect(
             market
@@ -18206,7 +18153,15 @@ describe('Market', () => {
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
           verifier.verifyIntent.returns()
-          factory.signers.whenCalledWith(user.address, liquidator.address).returns(false)
+
+          // maker
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+            .returns([true, false, parse6decimal('0.20')])
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, liquidator.address, liquidator.address)
+            .returns([false, false, parse6decimal('0.20')])
 
           await expect(
             market
@@ -19881,6 +19836,10 @@ describe('Market', () => {
           const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
           await expect(
             market
               .connect(user)
@@ -20002,6 +19961,10 @@ describe('Market', () => {
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
 
           await expect(
             market
@@ -20161,6 +20124,10 @@ describe('Market', () => {
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, user.address)
+            .returns([false, true, parse6decimal('0.20')])
 
           await expect(
             market
@@ -20363,6 +20330,15 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
             verifier.verifyIntent.returns()
+
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
 
             await expect(
               market
@@ -20603,6 +20579,15 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
             verifier.verifyIntent.returns()
+
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
 
             await expect(
               market
@@ -20845,6 +20830,15 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+
             await expect(
               market
                 .connect(userC)
@@ -21085,6 +21079,15 @@ describe('Market', () => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
             verifier.verifyIntent.returns()
+
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
 
             await expect(
               market
@@ -21343,6 +21346,15 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+
             await expect(
               market
                 .connect(userC)
@@ -21596,6 +21608,15 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+
             await expect(
               market
                 .connect(userC)
@@ -21848,6 +21869,15 @@ describe('Market', () => {
             })
 
             verifier.verifyIntent.returns()
+
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
 
             await expect(
               market
@@ -22103,6 +22133,15 @@ describe('Market', () => {
             })
 
             verifier.verifyIntent.returns()
+
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
 
             await expect(
               market
@@ -22365,6 +22404,15 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+
             await expect(
               market
                 .connect(userC)
@@ -22625,6 +22673,15 @@ describe('Market', () => {
             })
 
             verifier.verifyIntent.returns()
+
+            // maker
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
 
             await expect(
               market

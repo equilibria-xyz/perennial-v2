@@ -57,6 +57,27 @@ contract MarketFactory is IMarketFactory, Factory {
         return _markets[oracle][address(0)];
     }
 
+    /// @notice Returns authorizaton information for a market order
+    /// @param account The account the order is operating on
+    /// @param sender The sender of the order
+    /// @param signer The signer of the order
+    /// @param orderReferrer The referrer of the order
+    /// @return isOperator True if the sender is a valid operator for the account
+    /// @return isSigner True if the signer is a valid signer for the account
+    /// @return orderReferralFee The referral fee for the order
+    function authorization(
+        address account,
+        address sender,
+        address signer,
+        address orderReferrer
+    ) external view returns (bool isOperator, bool isSigner, UFixed6 orderReferralFee) {
+        return (
+            account == sender || extensions[sender] || operators[account][sender],
+            account == signer || signers[account][signer],
+            referralFees[orderReferrer]
+        );
+    }
+
     /// @notice Updates the global protocol parameters
     /// @param newParameter The new protocol parameters
     function updateParameter(ProtocolParameter memory newParameter) public onlyOwner {
