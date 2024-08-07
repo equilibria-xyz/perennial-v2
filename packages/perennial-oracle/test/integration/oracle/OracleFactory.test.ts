@@ -24,13 +24,14 @@ const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
 
 describe('OracleFactory', () => {
+  let user: SignerWithAddress
   let owner: SignerWithAddress
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: IERC20Metadata
 
   beforeEach(async () => {
-    ;[owner] = await ethers.getSigners()
+    ;[owner, user] = await ethers.getSigners()
 
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
@@ -54,6 +55,20 @@ describe('OracleFactory', () => {
 
     const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('10000'))
+  })
+
+  describe('#withdraw', async () => {
+    it('can withdraw balance', async () => {
+      await oracleFactory.withdraw(DSU_ADDRESS)
+      expect(await dsu.balanceOf(owner.address)).to.eq(utils.parseEther('10000'))
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(oracleFactory.connect(user).withdraw(dsu.address)).to.be.revertedWithCustomError(
+        oracleFactory,
+        'OwnableNotOwnerError',
+      )
+    })
   })
 
   describe('#update', async () => {

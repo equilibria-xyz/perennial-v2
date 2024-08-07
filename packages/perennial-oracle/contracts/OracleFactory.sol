@@ -43,6 +43,13 @@ contract OracleFactory is IOracleFactory, Factory {
         _parameter.store(OracleParameter(1, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
     }
 
+    /// @notice Withdraws the accrued oracle fees to the owner
+    /// @dev Part of the v2.3 migration
+    /// @param token The token to withdraw
+    function withdraw(Token18 token) external onlyOwner {
+        token.push(owner());
+    }
+
     /// @notice Returns the global oracle parameter
     /// @return The global oracle parameter
     function parameter() external view returns (OracleParameter memory) {
