@@ -141,7 +141,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address)
+  await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
 
   // Params
@@ -158,7 +158,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     minScale: parse6decimal('0.001'),
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
-  await oracleFactory.connect(owner).authorize(marketFactory.address)
   await oracleFactory.connect(owner).updateParameter({
     maxGranularity: 10000,
     maxSettlementFee: parse6decimal('1000'),
@@ -276,6 +275,8 @@ export async function createMarket(
   await market.updateRiskParameter(riskParameter)
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateParameter(marketParameter)
+
+  await oracle.register(market.address)
 
   return market
 }

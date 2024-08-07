@@ -21,4 +21,8 @@ contract PriceResponseTester {
     function toOracleVersion(PriceResponse memory self, uint256 timestamp) external pure returns (OracleVersion memory) {
         return PriceResponseLib.toOracleVersion(self, timestamp);
     }
+
+    function toOracleReceipt(PriceResponse memory self, uint256 callbacks) external pure returns (OracleReceipt memory) {
+        return PriceResponseLib.toOracleReceipt(self, callbacks);
+    }
 }

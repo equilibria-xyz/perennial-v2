@@ -48,6 +48,7 @@ describe('ControllerBase', () => {
   let userA: SignerWithAddress
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
+  let receiver: SignerWithAddress
   let lastNonce = 0
   let lastPrice: BigNumber
   let currentTime: BigNumber
@@ -77,11 +78,12 @@ describe('ControllerBase', () => {
   // updates the oracle (optionally changing price) and settles the market
   async function advanceAndSettle(
     user: SignerWithAddress,
+    receiver: SignerWithAddress,
     timestamp = currentTime,
     price = lastPrice,
     keeperOracle = ethKeeperOracle,
   ) {
-    await advanceToPrice(keeperOracle, timestamp, price, TX_OVERRIDES)
+    await advanceToPrice(keeperOracle, receiver, timestamp, price, TX_OVERRIDES)
     await ethMarket.settle(user.address, TX_OVERRIDES)
   }
 
@@ -168,7 +170,7 @@ describe('ControllerBase', () => {
 
   const fixture = async () => {
     // set up users
-    ;[owner, userA, userB, keeper] = await ethers.getSigners()
+    ;[owner, userA, userB, keeper, receiver] = await ethers.getSigners()
 
     // deploy controller
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
@@ -185,7 +187,7 @@ describe('ControllerBase', () => {
       dsu,
       TX_OVERRIDES,
     )
-    await advanceToPrice(ethKeeperOracle, currentTime, parse6decimal('3116.734999'), TX_OVERRIDES)
+    await advanceToPrice(ethKeeperOracle, receiver, currentTime, parse6decimal('3116.734999'), TX_OVERRIDES)
     lastPrice = (await oracle.status())[0].price
 
     // create a collateral account for userA with 15k collateral in it
@@ -221,7 +223,7 @@ describe('ControllerBase', () => {
         marketFactory,
         dsu,
       )
-      await advanceToPrice(btcKeeperOracle, currentTime, parse6decimal('60606.369'), TX_OVERRIDES)
+      await advanceToPrice(btcKeeperOracle, receiver, currentTime, parse6decimal('60606.369'), TX_OVERRIDES)
 
       // configure a group with both markets
       const message = {
@@ -363,7 +365,7 @@ describe('ControllerBase', () => {
     it('can make multiple deposits to same market', async () => {
       for (let i = 0; i < 8; ++i) {
         currentTime = await transfer(parse6decimal('100'), userA)
-        await advanceAndSettle(userA, currentTime)
+        await advanceAndSettle(userA, receiver, currentTime)
       }
       await expectMarketCollateralBalance(userA, parse6decimal('800'))
     })
@@ -401,7 +403,7 @@ describe('ControllerBase', () => {
 
       // create a maker position
       currentTime = await changePosition(userA, parse6decimal('1.5'))
-      await advanceAndSettle(userA)
+      await advanceAndSettle(userA, receiver)
       expect((await ethMarket.positions(userA.address)).maker).to.equal(parse6decimal('1.5'))
 
       // sign a message to fully withdraw from the market

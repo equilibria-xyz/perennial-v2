@@ -519,7 +519,6 @@ describe('Happy Path', () => {
     const riskParameterTakerFee = { ...riskParameter.takerFee }
     riskParameterTakerFee.scale = parse6decimal('1')
     riskParameter.takerFee = riskParameterTakerFee
-    console.log(riskParameter)
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
