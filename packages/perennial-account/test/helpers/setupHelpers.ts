@@ -281,7 +281,6 @@ async function deployMarketFactory(
   // Set protocol parameters
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
-    protocolFee: parse6decimal('0.50'),
     maxFee: parse6decimal('0.01'),
     maxFeeAbsolute: parse6decimal('1000'),
     maxCut: parse6decimal('0.50'),

@@ -334,12 +334,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGlobal.riskFee = UFixed6Lib.ZERO;
         }
 
-        // donation
-        if (msg.sender == beneficiary) {
-            feeReceived = feeReceived.add(newGlobal.donation);
-            newGlobal.donation = UFixed6Lib.ZERO;
-        }
-
         // claimable
         feeReceived = feeReceived.add(newLocal.claimable);
         newLocal.claimable = UFixed6Lib.ZERO;
@@ -793,13 +787,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (settlementContext.latestVersion, context.global, accumulationResult) =
             VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
-        context.global.update(
-            newOrderId,
-            accumulationResult,
-            context.marketParameter,
-            context.protocolParameter,
-            oracleReceipt
-        );
+        context.global.update(newOrderId, accumulationResult, context.marketParameter, oracleReceipt);
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
