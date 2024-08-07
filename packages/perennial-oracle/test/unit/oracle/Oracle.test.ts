@@ -16,6 +16,7 @@ import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testut
 import { impersonate } from '../../../../common/testutil'
 import { utils } from 'ethers'
 import { OracleReceiptStruct, OracleVersionStruct } from '../../../types/generated/contracts/Oracle'
+import exp from 'constants'
 
 const { ethers } = HRE
 
@@ -35,6 +36,7 @@ function mockVersion(
 describe('Oracle', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
+  let beneficiary: SignerWithAddress
 
   let oracle: Oracle
   let underlying0: FakeContract<IOracleProvider>
@@ -49,7 +51,7 @@ describe('Oracle', () => {
   let dsu: FakeContract<IERC20Metadata>
 
   beforeEach(async () => {
-    ;[owner, user] = await ethers.getSigners()
+    ;[owner, user, beneficiary] = await ethers.getSigners()
     market = await smock.fake<IMarket>('IMarket')
     marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
@@ -125,6 +127,35 @@ describe('Oracle', () => {
       await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
         .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
         .withArgs(1)
+    })
+  })
+
+  describe('#withdraw', async () => {
+    beforeEach(async () => {
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.register(market.address)
+    })
+
+    it('can withdraw balance', async () => {
+      await expect(oracle.connect(owner).updateBeneficiary(beneficiary.address))
+        .to.emit(oracle, 'BeneficiaryUpdated')
+        .withArgs(beneficiary.address)
+
+      dsu.balanceOf.whenCalledWith(oracle.address).returns(ethers.utils.parseEther('10000'))
+      dsu.transfer.whenCalledWith(beneficiary.address, ethers.utils.parseEther('10000')).returns(true)
+
+      await oracle.connect(beneficiary).withdraw(dsu.address)
+
+      expect(dsu.transfer).to.have.been.calledWith(beneficiary.address, ethers.utils.parseEther('10000'))
+    })
+
+    it('reverts if not owner', async () => {
+      dsu.transfer.whenCalledWith(owner.address, ethers.utils.parseEther('10000')).returns(true)
+
+      await expect(oracle.connect(user).withdraw(dsu.address)).to.be.revertedWithCustomError(
+        oracle,
+        'OracleNotBeneficiaryError',
+      )
     })
   })
 
