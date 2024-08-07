@@ -131,7 +131,7 @@ describe('PythOracleFactory', () => {
 
   it('parses Pyth exponents correctly', async () => {
     const minDelay = (await pythOracleFactory.parameter()).validFrom
-    await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
       .connect(user)
       .commit(
@@ -144,7 +144,7 @@ describe('PythOracleFactory', () => {
       )
     expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('1000', 6))
 
-    await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
       .connect(user)
       .commit(

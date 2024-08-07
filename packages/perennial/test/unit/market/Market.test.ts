@@ -1014,7 +1014,7 @@ describe('Market', () => {
           riskFee: totalFee.div(2).div(10).sub(1),
           donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
           exposure: EXPOSURE_BEFORE_2.add(EXPOSURE_AFTER_2),
-          latestPrice: PRICE,
+          latestPrice: parse6decimal('45'),
         })
 
         // settle after another oracle price update to ensure exposure changes as expected
@@ -1046,7 +1046,7 @@ describe('Market', () => {
           riskFee: totalFee.div(2).div(10).sub(2), // loss of precision
           donation: totalFee.div(2).mul(8).div(10).add(5), // loss of precision
           exposure: EXPOSURE_BEFORE_3.add(EXPOSURE_AFTER_3),
-          latestPrice: PRICE,
+          latestPrice: parse6decimal('62'),
         })
       })
 
@@ -1215,7 +1215,7 @@ describe('Market', () => {
           riskFee: totalFee.div(2).div(10).sub(1),
           donation: totalFee.div(2).mul(8).div(10).add(4), // loss of precision
           exposure: EXPOSURE_BEFORE_2.add(EXPOSURE_AFTER_2),
-          latestPrice: PRICE,
+          latestPrice: parse6decimal('45'),
         })
 
         // settle after another oracle price update to ensure exposure changes as expected
@@ -1247,7 +1247,7 @@ describe('Market', () => {
           riskFee: totalFee.div(2).div(10).sub(2), // loss of precision
           donation: totalFee.div(2).mul(8).div(10).add(5), // loss of precision
           exposure: EXPOSURE_BEFORE_3.add(EXPOSURE_AFTER_3),
-          latestPrice: PRICE,
+          latestPrice: parse6decimal('62'),
         })
       })
 
@@ -11661,6 +11661,7 @@ describe('Market', () => {
                 riskFee: totalFee.div(2).div(10),
                 donation: totalFee.div(2).mul(8).div(10),
                 exposure: 0,
+                latestPrice: PRICE,
               })
               expectPositionEq(await market.position(), {
                 ...DEFAULT_POSITION,
@@ -16294,7 +16295,7 @@ describe('Market', () => {
             riskFee: totalFee.div(2).div(10).sub(1), // loss of precision
             donation: totalFee.div(2).mul(8).div(10),
             exposure: 0,
-            latestPrice: parse6decimal('121'),
+            latestPrice: parse6decimal('96'),
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,

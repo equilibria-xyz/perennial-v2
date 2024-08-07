@@ -240,7 +240,7 @@ describe('Oracle', () => {
 
         const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
         const [latestVersion, currentTimestamp] = await oracle.status()
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect(latestVersion.timestamp).to.equal(1687230000)
         expect(latestVersion.price).to.equal(parse6decimal('1000'))
@@ -297,7 +297,7 @@ describe('Oracle', () => {
           },
           1687230905,
         )
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
         await expect(oracle.connect(oracleFactorySigner).update(underlying1.address))
           .to.emit(oracle, 'OracleUpdated')
           .withArgs(underlying1.address)
@@ -344,7 +344,7 @@ describe('Oracle', () => {
 
         const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
         const [latestVersion, currentTimestamp] = await oracle.status()
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect(latestVersion.timestamp).to.equal(1687230005)
         expect(latestVersion.price).to.equal(parse6decimal('1001'))
@@ -396,7 +396,7 @@ describe('Oracle', () => {
 
         const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
         const [latestVersion, currentTimestamp] = await oracle.status()
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect(latestVersion.timestamp).to.equal(1687230605)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -448,7 +448,7 @@ describe('Oracle', () => {
 
         const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
         const [latestVersion, currentTimestamp] = await oracle.status()
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect(latestVersion.timestamp).to.equal(1687230905)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -511,7 +511,7 @@ describe('Oracle', () => {
 
         const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
         const [latestVersion, currentTimestamp] = await oracle.status()
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect(latestVersion.timestamp).to.equal(1687230905)
         expect(latestVersion.price).to.equal(parse6decimal('1006'))
@@ -563,7 +563,7 @@ describe('Oracle', () => {
 
         const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
         const [latestVersion, currentTimestamp] = await oracle.status()
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect(latestVersion.timestamp).to.equal(1687230955)
         expect(latestVersion.price).to.equal(parse6decimal('1007'))
@@ -609,7 +609,7 @@ describe('Oracle', () => {
           },
           1687231005,
         )
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         mockVersion(
           underlying1,
@@ -630,7 +630,7 @@ describe('Oracle', () => {
 
         const [latestVersionDirect, currentTimestampDirect] = [await oracle.latest(), await oracle.current()]
         const [latestVersion, currentTimestamp] = await oracle.status()
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect(latestVersion.timestamp).to.equal(1687235000)
         expect(latestVersion.price).to.equal(parse6decimal('1015'))
@@ -680,7 +680,7 @@ describe('Oracle', () => {
         underlying0.request.reset()
         underlying1.request.reset()
 
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect((await oracle.at(0))[0].timestamp).to.equal(0)
         expect((await oracle.at(0))[0].price).to.equal(parse6decimal('0'))
@@ -748,7 +748,7 @@ describe('Oracle', () => {
           },
           1687230905,
         )
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         mockVersion(
           underlying0,
@@ -847,7 +847,7 @@ describe('Oracle', () => {
         )
         underlying1.request.reset()
         underlying2.request.reset()
-        await oracle.connect(marketSigner).request(market.address, user.address, true)
+        await oracle.connect(marketSigner).request(market.address, user.address)
 
         expect((await oracle.global()).latest).to.equal(2)
         expect((await oracle.oracles(1)).timestamp).to.equal(0)
@@ -934,7 +934,7 @@ describe('Oracle', () => {
     })
 
     it('reverts when not the authorized', async () => {
-      await expect(oracle.connect(user).request(market.address, user.address, true)).to.revertedWithCustomError(
+      await expect(oracle.connect(user).request(market.address, user.address)).to.revertedWithCustomError(
         oracle,
         'OracleNotMarketError',
       )

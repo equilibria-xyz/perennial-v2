@@ -1657,6 +1657,7 @@ describe('Fees', () => {
           currentId: 2,
           latestId: 2,
           oracleFee: expectedSettlementFee,
+          latestPrice: PRICE,
         })
       })
 
@@ -1696,6 +1697,7 @@ describe('Fees', () => {
           currentId: 2,
           latestId: 2,
           oracleFee: expectedSettlementFee,
+          latestPrice: PRICE,
         })
       })
     })
