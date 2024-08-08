@@ -2,9 +2,9 @@ import { expect } from 'chai'
 import { TriggerOrderStruct } from '../../types/generated/contracts/Manager'
 
 export enum Side {
-  MAKER = 0,
-  LONG = 1,
-  SHORT = 2,
+  MAKER = 3,
+  LONG = 4,
+  SHORT = 5,
 }
 
 export enum Compare {

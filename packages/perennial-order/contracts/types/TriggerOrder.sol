@@ -9,7 +9,7 @@ import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v
 // but leaving these same as MultiInvoker for backward compatibility
 struct TriggerOrder {
     /// @dev Determines the desired position type to establish or change
-    uint8 side;       // 0 = maker, 1 = long, 2 = short
+    uint8 side;       // 3 = maker, 4 = long, 5 = short
     /// @dev Trigger condition; market price to be less/greater than trigger price
     int8 comparison;  // -1 = lte, 1 = gte
     /// @dev Trigger price used on right hand side of comparison
@@ -57,9 +57,9 @@ library TriggerOrderLib {
         position.update(pending);
 
         // apply order to position
-        if (self.side == 0) position.maker = _add(position.maker, self.delta);
-        if (self.side == 1) position.long = _add(position.long, self.delta);
-        if (self.side == 2) position.short = _add(position.short, self.delta);
+        if (self.side == 3) position.maker = _add(position.maker, self.delta);
+        if (self.side == 4) position.long = _add(position.long, self.delta);
+        if (self.side == 5) position.short = _add(position.short, self.delta);
 
         // apply position to market
         market.update(
@@ -77,12 +77,12 @@ library TriggerOrderLib {
     /// @param self Trigger order
     /// @return True if order has no function, otherwise false
     function isEmpty(TriggerOrder memory self) internal pure returns (bool) {
-        return self.price.isZero() && self.delta.isZero();
+        return self.side == 0 && self.comparison == 0 && self.price.isZero() && self.delta.isZero();
     }
 
     /// @dev Prevents writing invalid side or comparison to storage
     function isValid(TriggerOrder memory self) internal pure returns (bool) {
-        return self.side < 3 && (self.comparison == -1 || self.comparison == 1);
+        return self.side > 2 && self.side < 6 && (self.comparison == -1 || self.comparison == 1);
     }
 
     /// @dev Helper function to improve readability of TriggerOrderLib.execute
@@ -95,7 +95,7 @@ library TriggerOrderLib {
 
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;             // 0 = maker, 1 = long, 2 = short
+    uint8 side;             // 3 = maker, 4 = long, 5 = short
     int8 comparison;        // -1 = lte, 1 = gte
     int64 price;            // <= 9.22t
     int64 delta;            // <= 9.22t

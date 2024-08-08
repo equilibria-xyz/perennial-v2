@@ -98,11 +98,14 @@ describe('TriggerOrder', () => {
 
     it('reverts storing order with invalid side', async () => {
       const badOrder = { ...ORDER_SHORT }
-      badOrder.side = 5
-      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
-        orderTester,
-        'TriggerOrderInvalidError',
-      )
+      const badSides = [0, 1, 2, 6]
+      for (const badSide of badSides) {
+        badOrder.side = badSide
+        await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+          orderTester,
+          'TriggerOrderInvalidError',
+        )
+      }
     })
 
     it('reverts storing order with invalid comparison', async () => {
