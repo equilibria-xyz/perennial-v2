@@ -206,6 +206,7 @@ describe('Manager', () => {
 
     it('cannot reuse an order nonce from a cancelled order', async () => {
       // place and cancel an order, invalidating the order nonce
+      advanceOrderNonce()
       await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
       await manager.connect(userA).cancelOrder(market.address, nextOrderNonce)
 
@@ -216,6 +217,7 @@ describe('Manager', () => {
 
     it('cannot reuse an order nonce from an executed order', async () => {
       // place and execute an order, invalidating the order nonce
+      advanceOrderNonce()
       await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
       await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderNonce)
 
@@ -224,20 +226,80 @@ describe('Manager', () => {
       ).to.revertedWithCustomError(manager, 'ManagerInvalidOrderNonceError')
     })
 
-    it('checks whether an order is executable', async () => {
-      // check an executable order
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
-      let canExecute: boolean
-      ;[, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderNonce)
-      expect(canExecute).to.be.true
-      advanceOrderNonce()
+    interface TestScenario {
+      comparison: Compare
+      oraclePrice: BigNumber
+      orderPrice: BigNumber
+      expectedResult: boolean
+    }
 
-      // check an unexecutable order
-      const unexecutableOrder = { ...MAKER_ORDER }
-      unexecutableOrder.comparison = Compare.GTE
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, unexecutableOrder)
-      ;[, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderNonce)
-      expect(canExecute).to.be.false
+    async function testCheckOrder(scenario: TestScenario) {
+      for (const side of [Side.MAKER, Side.LONG, Side.SHORT]) {
+        marketOracle.latest.returns(createOracleVersion(scenario.oraclePrice))
+        const order = {
+          side: side,
+          comparison: scenario.comparison,
+          price: scenario.orderPrice,
+          delta: parse6decimal('9'),
+          maxFee: MAX_FEE,
+          referrer: constants.AddressZero,
+        }
+        advanceOrderNonce()
+        await expect(manager.connect(userA).placeOrder(market.address, nextOrderNonce, order))
+          .to.emit(manager, 'OrderPlaced')
+          .withArgs(market.address, userA.address, order, nextOrderNonce)
+
+        const [, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderNonce)
+        expect(canExecute).to.equal(scenario.expectedResult)
+      }
+    }
+
+    it('checks whether orders are executable when oracle price exceeds order price', async () => {
+      // oracle price exceeds order price
+      await testCheckOrder({
+        comparison: Compare.LTE,
+        oraclePrice: parse6decimal('2000'),
+        orderPrice: parse6decimal('1999'),
+        expectedResult: false,
+      })
+      await testCheckOrder({
+        comparison: Compare.GTE,
+        oraclePrice: parse6decimal('2000'),
+        orderPrice: parse6decimal('1999'),
+        expectedResult: true,
+      })
+    })
+
+    it('checks whether orders are executable when order price exceeds oracle price', async () => {
+      // oracle price exceeds order price
+      await testCheckOrder({
+        comparison: Compare.LTE,
+        oraclePrice: parse6decimal('2001.332'),
+        orderPrice: parse6decimal('2001.333'),
+        expectedResult: true,
+      })
+      await testCheckOrder({
+        comparison: Compare.GTE,
+        oraclePrice: parse6decimal('2001.332'),
+        orderPrice: parse6decimal('2001.333'),
+        expectedResult: false,
+      })
+    })
+
+    it('checks whether orders are executable when oracle price equals order price', async () => {
+      // oracle price exceeds order price
+      await testCheckOrder({
+        comparison: Compare.LTE,
+        oraclePrice: parse6decimal('2002.052'),
+        orderPrice: parse6decimal('2002.052'),
+        expectedResult: true,
+      })
+      await testCheckOrder({
+        comparison: Compare.GTE,
+        oraclePrice: parse6decimal('2002.052'),
+        orderPrice: parse6decimal('2002.052'),
+        expectedResult: true,
+      })
     })
   })
 
