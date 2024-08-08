@@ -160,8 +160,7 @@ abstract contract Manager is IManager, Kept {
         return UFixed18Lib.from(raisedKeeperFee);
     }
 
-    function _cancelOrder(IMarket market, address user, uint256 orderNonce) private
-    {
+    function _cancelOrder(IMarket market, address user, uint256 orderNonce) private {
         // ensure this order wasn't already executed/cancelled
         TriggerOrder memory order = _orders[market][user][orderNonce].read();
         if (order.isEmpty()) revert ManagerCannotCancelError();
@@ -172,8 +171,7 @@ abstract contract Manager is IManager, Kept {
         emit OrderCancelled(market, user, orderNonce);
     }
 
-    function _placeOrder(IMarket market, address user, uint256 orderNonce, TriggerOrder calldata order) private
-    {
+    function _placeOrder(IMarket market, address user, uint256 orderNonce, TriggerOrder calldata order) private {
         // prevent user from reusing an order identifier
         if (_spentOrderIds[user][orderNonce]) revert ManagerInvalidOrderNonceError();
 

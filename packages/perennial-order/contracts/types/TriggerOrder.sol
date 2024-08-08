@@ -14,7 +14,7 @@ struct TriggerOrder {
     int8 comparison;  // -1 = lte, 1 = gte
     /// @dev Trigger price used on right hand side of comparison
     Fixed6 price;     // <= 9.22t
-    /// @dev Amount to change position by
+    /// @dev Amount to change position by, or 0 to close position
     Fixed6 delta;     // <= 9.22t
     /// @dev Limit on keeper compensation for executing the order
     UFixed6 maxFee;   // < 18.45t
@@ -57,18 +57,9 @@ library TriggerOrderLib {
         position.update(pending);
 
         // apply order to position
-        if (self.side == 0)
-            position.maker = self.delta.isZero() ?
-                UFixed6Lib.ZERO :
-                UFixed6Lib.from(Fixed6Lib.from(position.maker).add(self.delta));
-        if (self.side == 1)
-            position.long = self.delta.isZero() ?
-                UFixed6Lib.ZERO :
-                UFixed6Lib.from(Fixed6Lib.from(position.long).add(self.delta));
-        if (self.side == 2)
-            position.short = self.delta.isZero() ?
-                UFixed6Lib.ZERO :
-                UFixed6Lib.from(Fixed6Lib.from(position.short).add(self.delta));
+        if (self.side == 0) position.maker = _add(position.maker, self.delta);
+        if (self.side == 1) position.long = _add(position.long, self.delta);
+        if (self.side == 2) position.short = _add(position.short, self.delta);
 
         // apply position to market
         market.update(
@@ -93,15 +84,24 @@ library TriggerOrderLib {
     function isValid(TriggerOrder memory self) internal pure returns (bool) {
         return self.side < 3 && (self.comparison == -1 || self.comparison == 1);
     }
+
+    /// @dev Helper function to improve readability of TriggerOrderLib.execute
+    function _add(UFixed6 lhs, Fixed6 rhs) private returns (UFixed6) {
+        return rhs.isZero() ?
+            UFixed6Lib.ZERO :
+            UFixed6Lib.from(Fixed6Lib.from(lhs).add(rhs));
+    }
 }
 
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;       // 0 = maker, 1 = long, 2 = short
-    int8 comparison;  // -1 = lte, 1 = gte
-    int64 price;      // <= 9.22t
-    int64 delta;      // <= 9.22t
-    uint64 maxFee;    // < 18.45t
+    uint8 side;             // 0 = maker, 1 = long, 2 = short
+    int8 comparison;        // -1 = lte, 1 = gte
+    int64 price;            // <= 9.22t
+    int64 delta;            // <= 9.22t
+    uint64 maxFee;          // < 18.45t
+    bytes6 __unallocated__; // padding
+    /* slot 1 */
     address referrer;
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; /*uint256 slot0;*/ }
@@ -148,6 +148,7 @@ library TriggerOrderStorageLib {
             int64(Fixed6.unwrap(newValue.price)),
             int64(Fixed6.unwrap(newValue.delta)),
             uint64(UFixed6.unwrap(newValue.maxFee)),
+            0,
             newValue.referrer
         );
     }
