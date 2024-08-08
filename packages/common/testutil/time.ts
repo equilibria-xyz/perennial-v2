@@ -35,8 +35,9 @@ export async function increaseTo(timestamp: number): Promise<void> {
     await time.increaseTo(timestamp)
   }
   const newTimestamp = await currentBlockTimestamp()
-  if (timestamp != newTimestamp)
-    console.log('[WARNING] increaseTo failed to reach timestamp (%s vs %s)', timestamp, newTimestamp)
+  if (timestamp != newTimestamp) {
+    await setNextBlockTimestamp(timestamp)
+  }
 }
 
 export async function reset(blockNumber?: number): Promise<void> {
