@@ -10,7 +10,7 @@ import {
   GlobalTester__factory,
 } from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
-import { OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
+import { OracleReceipt, parse6decimal, DEFAULT_GLOBAL } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
   MarketParameterStruct,
@@ -21,21 +21,6 @@ import { OracleReceiptStruct } from '../../../types/generated/contracts/interfac
 
 const { ethers } = HRE
 use(smock.matchers)
-
-const DEFAULT_GLOBAL: GlobalStruct = {
-  currentId: 0,
-  latestId: 0,
-  protocolFee: 0,
-  oracleFee: 0,
-  riskFee: 0,
-  donation: 0,
-  pAccumulator: {
-    _value: 0,
-    _skew: 0,
-  },
-  latestPrice: 0,
-  exposure: 0,
-}
 
 function generateAccumulationResult(
   marketFee: BigNumberish,
@@ -94,7 +79,6 @@ function generateMarketParameter(riskFee: BigNumberish): MarketParameterStruct {
 
 function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameterStruct {
   return {
-    protocolFee,
     maxFee: 0,
     maxFeeAbsolute: 0,
     maxCut: 0,
@@ -130,7 +114,6 @@ describe('Global', () => {
         protocolFee: 2,
         oracleFee: 3,
         riskFee: 4,
-        donation: 5,
         pAccumulator: {
           _value: 6,
           _skew: 7,
@@ -145,7 +128,6 @@ describe('Global', () => {
       expect(value.protocolFee).to.equal(2)
       expect(value.oracleFee).to.equal(3)
       expect(value.riskFee).to.equal(4)
-      expect(value.donation).to.equal(5)
       expect(value.pAccumulator._value).to.equal(6)
       expect(value.pAccumulator._skew).to.equal(7)
       expect(value.latestPrice).to.equal(9)
@@ -252,27 +234,6 @@ describe('Global', () => {
           global.store({
             ...DEFAULT_GLOBAL,
             riskFee: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
-      })
-    })
-
-    context('.donation', async () => {
-      const STORAGE_SIZE = 48
-      it('saves if in range', async () => {
-        await global.store({
-          ...DEFAULT_GLOBAL,
-          donation: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await global.read()
-        expect(value.donation).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if currentId out of range', async () => {
-        await expect(
-          global.store({
-            ...DEFAULT_GLOBAL,
-            donation: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
       })
@@ -430,27 +391,11 @@ describe('Global', () => {
           1,
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0),
-          generateProtocolParameter(0),
           generateOracleReceipt(0),
         )
 
         const value = await global.read()
         expect(value.latestId).to.equal(1)
-        expect(value.donation).to.equal(123)
-      })
-
-      it('protocol fee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('0.1')),
-          generateOracleReceipt(0),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(12)
-        expect(value.donation).to.equal(111)
       })
 
       it('risk fee', async () => {
@@ -458,13 +403,35 @@ describe('Global', () => {
           1,
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.1')),
-          generateProtocolParameter(0),
           generateOracleReceipt(0),
         )
 
         const value = await global.read()
+        expect(value.protocolFee).to.equal(111)
         expect(value.riskFee).to.equal(12)
-        expect(value.donation).to.equal(111)
+      })
+
+      it('risk fee 100%', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 0, 0),
+          generateMarketParameter(parse6decimal('1.0')),
+          generateOracleReceipt(0),
+        )
+
+        const value = await global.read()
+        expect(value.riskFee).to.equal(123)
+      })
+
+      it('risk fee >100%', async () => {
+        await expect(
+          global.update(
+            1,
+            generateAccumulationResult(123, 0, 0),
+            generateMarketParameter(parse6decimal('1.1')),
+            generateOracleReceipt(0),
+          ),
+        ).revertedWithPanic(0x11)
       })
 
       it('oracle fee', async () => {
@@ -472,13 +439,35 @@ describe('Global', () => {
           1,
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(0),
-          generateProtocolParameter(0),
           generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
+        expect(value.protocolFee).to.equal(111)
         expect(value.oracleFee).to.equal(12)
-        expect(value.donation).to.equal(111)
+      })
+
+      it('oracle fee 100%', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 0, 0),
+          generateMarketParameter(0),
+          generateOracleReceipt(parse6decimal('1.0')),
+        )
+
+        const value = await global.read()
+        expect(value.oracleFee).to.equal(123)
+      })
+
+      it('oracle fee >100%', async () => {
+        await expect(
+          global.update(
+            1,
+            generateAccumulationResult(123, 0, 0),
+            generateMarketParameter(0),
+            generateOracleReceipt(parse6decimal('1.1')),
+          ),
+        ).revertedWithPanic(0x11)
       })
 
       it('oracle / risk fee', async () => {
@@ -486,230 +475,26 @@ describe('Global', () => {
           1,
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('0.3')),
-          generateProtocolParameter(0),
           generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
+        expect(value.protocolFee).to.equal(78)
         expect(value.oracleFee).to.equal(12)
         expect(value.riskFee).to.equal(33)
-        expect(value.donation).to.equal(78)
       })
 
-      it('oracle / risk fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.9')),
-          generateProtocolParameter(0),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.oracleFee).to.equal(12)
-        expect(value.riskFee).to.equal(99)
-        expect(value.donation).to.equal(12)
-      })
-
-      it('oracle / risk fee total over 1.00 (legacy)', async () => {
+      it('oracle / risk fee 100%', async () => {
         await global.update(
           1,
           generateAccumulationResult(123, 0, 0),
           generateMarketParameter(parse6decimal('1.0')),
-          generateProtocolParameter(0),
           generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
         expect(value.oracleFee).to.equal(12)
         expect(value.riskFee).to.equal(111)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / risk fee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(0),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.riskFee).to.equal(9)
-        expect(value.donation).to.equal(90)
-      })
-
-      it('protocol / risk fee zero marketFee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.1')),
-          generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleReceipt(0),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(123)
-        expect(value.riskFee).to.equal(0)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / risk fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('1.0')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(0),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.riskFee).to.equal(99)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / risk fee protocol over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('0.1')),
-            generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleReceipt(0),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / risk fee oracle over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('1.1')),
-            generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleReceipt(0),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / oracle fee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(9)
-        expect(value.donation).to.equal(90)
-      })
-
-      it('protocol / oracle fee zero marketFee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(123)
-        expect(value.oracleFee).to.equal(0)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / oracle fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('1.0')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(99)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / oracle fee protocol over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(0),
-            generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleReceipt(parse6decimal('0.1')),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / oracle fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('1.0')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(99)
-        expect(value.riskFee).to.equal(0)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / oracle fee oracle over 1.00 (legacy)', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(0),
-            generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleReceipt(parse6decimal('1.1')),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / oracle / risk fee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.3')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(9)
-        expect(value.riskFee).to.equal(27)
-        expect(value.donation).to.equal(63)
-      })
-
-      it('protocol / oracle / risk fee zero marketFee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('0.3')),
-          generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(123)
-        expect(value.oracleFee).to.equal(0)
-        expect(value.riskFee).to.equal(0)
-        expect(value.donation).to.equal(0)
       })
 
       it('exposure', async () => {
@@ -717,40 +502,11 @@ describe('Global', () => {
           1,
           generateAccumulationResult(0, 0, 123),
           generateMarketParameter(parse6decimal('0.9')),
-          generateProtocolParameter(parse6decimal('0.2')),
           generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
         expect(value.exposure).to.equal(123)
-      })
-
-      it('protocol / oracle / risk fee protocol over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(parse6decimal('0.3')),
-            generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleReceipt(parse6decimal('0.1')),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / oracle / risk total fee oracle over (legacy)', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(parse6decimal('1.0')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(9)
-        expect(value.riskFee).to.equal(90)
-        expect(value.donation).to.equal(0)
       })
     })
 
@@ -760,26 +516,12 @@ describe('Global', () => {
           1,
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0),
-          generateProtocolParameter(0),
           generateOracleReceipt(0),
         )
 
         const value = await global.read()
-        expect(value.donation).to.equal(123)
-      })
-
-      it('protocol fee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('0.1')),
-          generateOracleReceipt(0),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(12)
-        expect(value.donation).to.equal(111)
+        expect(value.protocolFee).to.equal(123)
+        expect(value.oracleFee).to.equal(456)
       })
 
       it('risk fee', async () => {
@@ -787,13 +529,37 @@ describe('Global', () => {
           1,
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.1')),
-          generateProtocolParameter(0),
           generateOracleReceipt(0),
         )
 
         const value = await global.read()
+        expect(value.protocolFee).to.equal(111)
+        expect(value.oracleFee).to.equal(456)
         expect(value.riskFee).to.equal(12)
-        expect(value.donation).to.equal(111)
+      })
+
+      it('risk fee 100%', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 456, 0),
+          generateMarketParameter(parse6decimal('1.0')),
+          generateOracleReceipt(0),
+        )
+
+        const value = await global.read()
+        expect(value.riskFee).to.equal(123)
+        expect(value.oracleFee).to.equal(456)
+      })
+
+      it('risk fee >100%', async () => {
+        await expect(
+          global.update(
+            1,
+            generateAccumulationResult(123, 456, 0),
+            generateMarketParameter(parse6decimal('1.1')),
+            generateOracleReceipt(0),
+          ),
+        ).revertedWithPanic(0x11)
       })
 
       it('oracle fee', async () => {
@@ -801,13 +567,35 @@ describe('Global', () => {
           1,
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(0),
-          generateProtocolParameter(0),
           generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
+        expect(value.protocolFee).to.equal(111)
         expect(value.oracleFee).to.equal(468)
-        expect(value.donation).to.equal(111)
+      })
+
+      it('oracle fee 100%', async () => {
+        await global.update(
+          1,
+          generateAccumulationResult(123, 456, 0),
+          generateMarketParameter(0),
+          generateOracleReceipt(parse6decimal('1.0')),
+        )
+
+        const value = await global.read()
+        expect(value.oracleFee).to.equal(579)
+      })
+
+      it('oracle fee >100%', async () => {
+        await expect(
+          global.update(
+            1,
+            generateAccumulationResult(123, 456, 0),
+            generateMarketParameter(0),
+            generateOracleReceipt(parse6decimal('1.1')),
+          ),
+        ).revertedWithPanic(0x11)
       })
 
       it('oracle / risk fee', async () => {
@@ -815,245 +603,27 @@ describe('Global', () => {
           1,
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('0.3')),
-          generateProtocolParameter(0),
           generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
+        expect(value.protocolFee).to.equal(78)
         expect(value.oracleFee).to.equal(468)
         expect(value.riskFee).to.equal(33)
-        expect(value.donation).to.equal(78)
       })
 
-      it('oracle / risk total fee over (legacy)', async () => {
+      it('oracle / risk fee 100%', async () => {
         await global.update(
           1,
           generateAccumulationResult(123, 456, 0),
           generateMarketParameter(parse6decimal('1.0')),
-          generateProtocolParameter(0),
           generateOracleReceipt(parse6decimal('0.1')),
         )
 
         const value = await global.read()
+        expect(value.protocolFee).to.equal(0)
         expect(value.oracleFee).to.equal(468)
         expect(value.riskFee).to.equal(111)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / risk fee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(0),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.riskFee).to.equal(9)
-        expect(value.donation).to.equal(90)
-        expect(value.oracleFee).to.equal(456)
-      })
-
-      it('protocol / risk fee zero marketFee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.1')),
-          generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleReceipt(0),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(123)
-        expect(value.riskFee).to.equal(0)
-        expect(value.donation).to.equal(0)
-        expect(value.oracleFee).to.equal(456)
-      })
-
-      it('protocol / risk fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('1.0')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(0),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.riskFee).to.equal(99)
-        expect(value.donation).to.equal(0)
-        expect(value.oracleFee).to.equal(456)
-      })
-
-      it('protocol / risk fee protocol over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('0.1')),
-            generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleReceipt(0),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / risk fee oracle over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('1.1')),
-            generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleReceipt(0),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / oracle fee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(465)
-        expect(value.donation).to.equal(90)
-      })
-
-      it('protocol / oracle fee zero marketFee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(123)
-        expect(value.oracleFee).to.equal(456)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / oracle fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('1.0')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(555)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / oracle fee protocol over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 0, 0),
-            generateMarketParameter(0),
-            generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleReceipt(parse6decimal('0.1')),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / oracle fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(0),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('1.0')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(555)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / oracle fee oracle over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(0),
-            generateProtocolParameter(parse6decimal('0.2')),
-            generateOracleReceipt(parse6decimal('1.1')),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / oracle / risk fee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.3')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(465)
-        expect(value.riskFee).to.equal(27)
-        expect(value.donation).to.equal(63)
-      })
-
-      it('protocol / oracle / risk fee zero marketFee', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('0.3')),
-          generateProtocolParameter(parse6decimal('1.0')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(123)
-        expect(value.oracleFee).to.equal(456)
-        expect(value.riskFee).to.equal(0)
-        expect(value.donation).to.equal(0)
-      })
-
-      it('protocol / oracle / risk fee protocol over', async () => {
-        await expect(
-          global.update(
-            1,
-            generateAccumulationResult(123, 456, 0),
-            generateMarketParameter(parse6decimal('0.3')),
-            generateProtocolParameter(parse6decimal('1.1')),
-            generateOracleReceipt(parse6decimal('0.1')),
-          ),
-        ).revertedWithPanic(0x11)
-      })
-
-      it('protocol / oracle / risk fee zero donation', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 456, 0),
-          generateMarketParameter(parse6decimal('1.0')),
-          generateProtocolParameter(parse6decimal('0.2')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.protocolFee).to.equal(24)
-        expect(value.oracleFee).to.equal(465)
-        expect(value.riskFee).to.equal(90)
-        expect(value.donation).to.equal(0) // due to rounding
       })
     })
   })

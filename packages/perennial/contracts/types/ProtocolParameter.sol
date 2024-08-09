@@ -5,9 +5,6 @@ import "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev ProtocolParameter type
 struct ProtocolParameter {
-    /// @dev The share of the market fees that are retained by the protocol before being distributed
-    UFixed6 protocolFee;
-
     /// @dev The maximum for market fee parameters
     UFixed6 maxFee;
 
@@ -33,8 +30,7 @@ struct ProtocolParameter {
     UFixed6 minScale;
 }
 struct StoredProtocolParameter {
-    /* slot 0 (31) */
-    uint24 protocolFee;             // <= 1677%
+    /* slot 0 (28) */
     uint24 maxFee;                  // <= 1677%
     uint48 maxFeeAbsolute;          // <= 281m
     uint24 maxCut;                  // <= 1677%
@@ -55,7 +51,6 @@ library ProtocolParameterStorageLib {
     function read(ProtocolParameterStorage storage self) internal view returns (ProtocolParameter memory) {
         StoredProtocolParameter memory value = self.value;
         return ProtocolParameter(
-            UFixed6.wrap(uint256(value.protocolFee)),
             UFixed6.wrap(uint256(value.maxFee)),
             UFixed6.wrap(uint256(value.maxFeeAbsolute)),
             UFixed6.wrap(uint256(value.maxCut)),
@@ -68,7 +63,6 @@ library ProtocolParameterStorageLib {
     }
 
     function validate(ProtocolParameter memory self) internal pure {
-        if (self.protocolFee.gt(self.maxCut)) revert ProtocolParameterStorageInvalidError();
         if (self.maxCut.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
         if (self.referralFee.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
         if (self.minScale.gt(UFixed6Lib.ONE)) revert ProtocolParameterStorageInvalidError();
@@ -84,7 +78,6 @@ library ProtocolParameterStorageLib {
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
-            uint24(UFixed6.unwrap(newValue.protocolFee)),
             uint24(UFixed6.unwrap(newValue.maxFee)),
             uint48(UFixed6.unwrap(newValue.maxFeeAbsolute)),
             uint24(UFixed6.unwrap(newValue.maxCut)),
