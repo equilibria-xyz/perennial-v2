@@ -640,10 +640,10 @@ describe('Manager_Arbitrum', () => {
         advanceBlock()
 
         // userA settled each time
-        await market.settle(userA.address)
+        await market.settle(userA.address, TX_OVERRIDES)
       }
       // userC settled after considerable time
-      await market.settle(userC.address)
+      await market.settle(userC.address, TX_OVERRIDES)
 
       // confirm order is now executable
       const [, canExecuteAfter] = await manager.checkOrder(market.address, userD.address, nonce)
@@ -655,7 +655,7 @@ describe('Manager_Arbitrum', () => {
 
       // fulfill oracle version and settle
       await commitPrice(parse6decimal('2000.1'), orderTimestamp)
-      await market.settle(userD.address)
+      await market.settle(userD.address, TX_OVERRIDES)
       expect((await market.positions(userD.address)).long).to.equal(parse6decimal('3'))
     })
   })
