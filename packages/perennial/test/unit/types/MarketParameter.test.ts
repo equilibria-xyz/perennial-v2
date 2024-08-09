@@ -26,7 +26,7 @@ export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
   maxPendingGlobal: 10,
   maxPendingLocal: 11,
   closed: false,
-  settle: false,
+  syncOnly: false,
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
@@ -72,7 +72,7 @@ describe('MarketParameter', () => {
       expect(value.maxPendingGlobal).to.equal(10)
       expect(value.maxPendingLocal).to.equal(11)
       expect(value.closed).to.equal(false)
-      expect(value.settle).to.equal(false)
+      expect(value.syncOnly).to.equal(false)
     })
 
     context('.fundingFee', async () => {
@@ -282,16 +282,16 @@ describe('MarketParameter', () => {
         expect(value.closed).to.equal(true)
       })
 
-      it('saves settle', async () => {
+      it('saves syncOnly', async () => {
         await marketParameter.validateAndStore(
           {
             ...VALID_MARKET_PARAMETER,
-            settle: true,
+            syncOnly: true,
           },
           PROTOCOL_PARAMETER,
         )
         const value = await marketParameter.read()
-        expect(value.settle).to.equal(true)
+        expect(value.syncOnly).to.equal(true)
       })
     })
   })
