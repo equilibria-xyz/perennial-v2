@@ -6,7 +6,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
-import { advanceBlock, currentBlockTimestamp } from '../../../common/testutil/time'
+import { advanceBlock, currentBlockTimestamp, increase } from '../../../common/testutil/time'
 import { getEventArguments } from '../../../common/testutil/transaction'
 import { parse6decimal } from '../../../common/testutil/types'
 
@@ -599,6 +599,58 @@ describe('Manager_Arbitrum', () => {
       // after settling userC, they should be short 2.5
       await market.settle(userC.address, TX_OVERRIDES)
       expect((await market.positions(userC.address)).short).to.equal(parse6decimal('2.5'))
+    })
+
+    it('can execute an order once market conditions allow', async () => {
+      // userD places an order to go long 3 once price dips below 2000
+      const triggerPrice = parse6decimal('2000')
+      const nonce = await placeOrder(userD, Side.LONG, Compare.LTE, triggerPrice, parse6decimal('3'))
+      expect(nonce).to.equal(BigNumber.from(601))
+      advanceBlock()
+
+      // the order is not yet executable
+      const [, canExecuteBefore] = await manager.checkOrder(market.address, userD.address, nonce)
+      expect(canExecuteBefore).to.be.false
+
+      // time passes, other users interact with market
+      let positionA = (await market.positions(userA.address)).maker
+      let positionC = (await market.positions(userC.address)).short
+      let marketPrice = (await oracle.latest()).price
+
+      while (marketPrice.gt(triggerPrice)) {
+        // two users change their position
+        positionA = positionA.add(parse6decimal('0.05'))
+        const timestampA = await changePosition(userA, positionA, 0, 0)
+        positionC = positionC.sub(parse6decimal('0.04'))
+        const timestampC = await changePosition(userC, 0, 0, positionC)
+
+        // oracle versions fulfilled
+        marketPrice = marketPrice.sub(parse6decimal('0.35'))
+        await commitPrice(marketPrice, timestampA)
+        await commitPrice(marketPrice, timestampC)
+
+        // advance 5 minutes
+        await increase(60 * 5)
+        advanceBlock()
+
+        // userA settled each time
+        await market.settle(userA.address)
+      }
+      // userC settled after considerable time
+      await market.settle(userC.address)
+
+      // confirm order is now executable
+      const [, canExecuteAfter] = await manager.checkOrder(market.address, userD.address, nonce)
+      expect(canExecuteAfter).to.be.true
+
+      // execute order
+      const orderTimestamp = await executeOrder(userD, 601)
+      expect(await getPendingPosition(userD, Side.LONG)).to.equal(parse6decimal('3'))
+
+      // fulfill oracle version and settle
+      await commitPrice(parse6decimal('2000.1'), orderTimestamp)
+      await market.settle(userD.address)
+      expect((await market.positions(userD.address)).long).to.equal(parse6decimal('3'))
     })
   })
 })

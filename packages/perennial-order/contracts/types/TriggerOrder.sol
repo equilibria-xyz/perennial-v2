@@ -8,11 +8,13 @@ import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v
 /// @notice Changes a user's position in a market when price reaches a trigger threshold
 struct TriggerOrder {
     /// @dev Determines the desired position type to establish or change
+    // TODO: change values to 4,5,6
     uint8 side;       // 3 = maker, 4 = long, 5 = short
     /// @dev Trigger condition; market price to be less/greater than trigger price
     int8 comparison;  // -1 = lte, 1 = gte
     /// @dev Trigger price used on right hand side of comparison
     Fixed6 price;     // <= 9.22t
+    // TODO: use type(int64).minValue as magic number instead of 0
     /// @dev Amount to change position by, or 0 to close position
     Fixed6 delta;     // <= 9.22t
     /// @dev Limit on keeper compensation for executing the order
