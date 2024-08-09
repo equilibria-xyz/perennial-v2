@@ -572,7 +572,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Guarantee memory newGuarantee,
         address orderReferrer,
         address guaranteeReferrer
-    ) private notSettleOnly(context) {
+    ) private notSyncOnly(context) {
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
             updateContext.orderLocal.next(context.currentTimestamp);
@@ -714,7 +714,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ///      - Latest versions are guaranteed to have present prices in the oracle, but could be stale
     /// @param context The context to use
     /// @param settlementContext The settlement context to use
-    function _settle(Context memory context, SettlementContext memory settlementContext) private notSettleOnly(context) {
+    function _settle(Context memory context, SettlementContext memory settlementContext) private notSyncOnly(context) {
         if (context.latestOracleVersion.timestamp > context.latestPositionGlobal.timestamp)
             _processOrderGlobal(
                 context,
@@ -890,9 +890,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _;
     }
 
-    /// @notice Only when the market is not in settle-only mode
-    modifier notSettleOnly(Context memory context) {
-        if (context.marketParameter.settle) revert MarketSettleOnlyError();
+    /// @notice Only when the market is not in sync-only mode
+    modifier notSyncOnly(Context memory context) {
+        if (context.marketParameter.syncOnly) revert MarketSettleOnlyError();
         _;
     }
 }

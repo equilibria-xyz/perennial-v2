@@ -104,7 +104,7 @@ describe('Happy Path', () => {
       maxPendingLocal: 8,
       settlementFee: 0,
       closed: false,
-      settle: false,
+      syncOnly: false,
     }
     const marketAddress = await marketFactory.callStatic.create(definition)
     await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
@@ -1156,7 +1156,7 @@ describe('Happy Path', () => {
       makerFee: positionFeesOn ? parse6decimal('0.2') : 0,
       takerFee: positionFeesOn ? parse6decimal('0.1') : 0,
       closed: false,
-      settle: false,
+      syncOnly: false,
     }
 
     const market = await createMarket(instanceVars)
@@ -1319,7 +1319,7 @@ describe('Happy Path', () => {
       makerFee: positionFeesOn ? parse6decimal('0.2') : 0,
       takerFee: positionFeesOn ? parse6decimal('0.1') : 0,
       closed: false,
-      settle: false,
+      syncOnly: false,
     }
 
     const market = await createMarket(instanceVars)

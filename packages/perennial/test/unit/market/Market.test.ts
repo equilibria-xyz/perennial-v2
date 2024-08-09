@@ -496,7 +496,7 @@ describe('Market', () => {
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
       closed: false,
-      settle: false,
+      syncOnly: false,
     }
     market = await new Market__factory(
       {
@@ -657,7 +657,7 @@ describe('Market', () => {
         maxPendingGlobal: 5,
         maxPendingLocal: 3,
         closed: true,
-        settle: true,
+        syncOnly: true,
       }
 
       it('updates the parameters', async () => {
@@ -673,7 +673,7 @@ describe('Market', () => {
         expect(marketParameter.maxPendingGlobal).to.equal(defaultMarketParameter.maxPendingGlobal)
         expect(marketParameter.maxPendingLocal).to.equal(defaultMarketParameter.maxPendingLocal)
         expect(marketParameter.closed).to.equal(defaultMarketParameter.closed)
-        expect(marketParameter.settle).to.equal(defaultMarketParameter.settle)
+        expect(marketParameter.syncOnly).to.equal(defaultMarketParameter.syncOnly)
       })
 
       it('reverts if not owner (user)', async () => {
@@ -1431,7 +1431,7 @@ describe('Market', () => {
         oracle.request.whenCalledWith(user.address).returns()
 
         const marketParameter = { ...(await market.parameter()) }
-        marketParameter.settle = true
+        marketParameter.syncOnly = true
         await market.connect(owner).updateParameter(marketParameter)
 
         await expect(await market.sync(user.address))
@@ -15643,7 +15643,7 @@ describe('Market', () => {
       context('settle only', async () => {
         it('reverts if update during settle-only', async () => {
           const marketParameter = { ...(await market.parameter()) }
-          marketParameter.settle = true
+          marketParameter.syncOnly = true
           await market.updateParameter(marketParameter)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
