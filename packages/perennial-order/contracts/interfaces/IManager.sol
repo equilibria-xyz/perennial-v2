@@ -8,6 +8,8 @@ import { PlaceOrderAction, TriggerOrder} from "../types/PlaceOrderAction.sol";
 
 /// @notice Stores and executes trigger orders
 interface IManager {
+    // TODO: consider renaming these events TriggerOrder* to disambiguate with core protocol's "Market"
+
     /// @notice Emitted when a trigger order is written to storage, whether as a new order or a replacement
     /// @param market Perennial market for which the order is intended
     /// @param user Actor who wants to change their position in the market

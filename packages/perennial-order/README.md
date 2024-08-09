@@ -49,6 +49,11 @@ The _group_ nonce may be used to atomically cancel multiple actions. Let's explo
 Keepers should:
 - Monitor their own relayers looking for EIP712 user messages to handle.
 - Watch _Manager_ events and market price changes for opportunities to execute orders. _Manager_ exposes a `checkOrder` facility which may be called offchain prior to executing. Alternatively, keeper can use a transaction simulation API to confirm the execution will be successful and ensure they will be paid appropriately for transacting.
+- Handle requests in a meaningful order:
+    - Cancel order requests
+    - Execute orders which add liquidity/reduce skew
+    - Execute orders which remove liquidity/increase skew
+    - Place order requests
 
 ## Deployment
 `Manager_Arbitrum` and `Verifier` will be deployed to the target chain.

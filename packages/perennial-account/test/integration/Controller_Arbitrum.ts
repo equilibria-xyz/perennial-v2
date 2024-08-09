@@ -7,6 +7,7 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { smock } from '@defi-wonderland/smock'
 import { advanceBlock, currentBlockTimestamp } from '../../../common/testutil/time'
+import { getEventArguments } from '../../../common/testutil/transaction'
 
 import { parse6decimal } from '../../../common/testutil/types'
 import {
@@ -42,7 +43,7 @@ import {
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
-import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
+import { advanceToPrice } from '../helpers/setupHelpers'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,

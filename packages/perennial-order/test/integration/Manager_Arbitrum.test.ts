@@ -1,11 +1,15 @@
 import { expect } from 'chai'
 import { BigNumber, BigNumberish, constants, utils } from 'ethers'
 import HRE from 'hardhat'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
-import { currentBlockTimestamp } from '../../../common/testutil/time'
+import { advanceBlock, currentBlockTimestamp } from '../../../common/testutil/time'
+import { getEventArguments } from '../../../common/testutil/transaction'
 import { parse6decimal } from '../../../common/testutil/types'
+
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@equilibria/perennial-v2/types/generated'
 import { IKeeperOracle, IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 import {
@@ -16,7 +20,7 @@ import {
   OrderVerifier__factory,
 } from '../../types/generated'
 
-import { signCancelOrderAction, signPlaceOrderAction } from '../helpers/eip712'
+import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../helpers/eip712'
 import { createMarketETH, deployProtocol, deployPythOracleFactory, fundWalletDSU } from '../helpers/arbitrumHelpers'
 import { Compare, compareOrders, Side } from '../helpers/order'
 import { transferCollateral } from '../helpers/marketHelpers'
@@ -24,6 +28,7 @@ import { advanceToPrice } from '../helpers/oracleHelpers'
 import { PlaceOrderActionStruct } from '../../types/generated/contracts/Manager'
 import { Address } from 'hardhat-deploy/dist/types'
 import { smock } from '@defi-wonderland/smock'
+import { impersonate } from '../../../common/testutil'
 
 const { ethers } = HRE
 
@@ -70,6 +75,8 @@ describe('Manager_Arbitrum', () => {
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
+  let userC: SignerWithAddress
+  let userD: SignerWithAddress
   let keeper: SignerWithAddress
   let oracleFeeReceiver: SignerWithAddress
   let checkKeeperCompensation: boolean
@@ -85,7 +92,7 @@ describe('Manager_Arbitrum', () => {
 
   const fixture = async () => {
     // deploy the protocol and create a market
-    ;[owner, userA, userB, keeper, oracleFeeReceiver] = await ethers.getSigners()
+    ;[owner, userA, userB, userC, userD, keeper, oracleFeeReceiver] = await ethers.getSigners()
     let oracleFactory: IOracleFactory
     ;[marketFactory, dsu, oracleFactory] = await deployProtocol(owner)
     const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory)
@@ -103,6 +110,8 @@ describe('Manager_Arbitrum', () => {
     const amount = parse6decimal('100000')
     await setupUser(userA, amount)
     await setupUser(userB, amount)
+    await setupUser(userC, amount)
+    await setupUser(userD, amount)
   }
 
   // prepares an account for use with the market and manager
@@ -114,33 +123,6 @@ describe('Manager_Arbitrum', () => {
 
     // allows manager to interact with markets on the user's behalf
     await marketFactory.connect(user).updateOperator(manager.address, true)
-  }
-
-  // checks that the sum of the users current position and unsettled orders represents the expected change in position
-  async function checkPendingPosition(user: SignerWithAddress, side: Side, expectedPosition: BigNumber) {
-    const position = await market.positions(user.address)
-    const pending = await market.pendings(user.address)
-
-    let actualPos: BigNumber
-    let pendingPos: BigNumber
-    switch (side) {
-      case Side.MAKER:
-        actualPos = position.maker
-        pendingPos = pending.makerPos.sub(pending.makerNeg)
-        break
-      case Side.LONG:
-        actualPos = position.long
-        pendingPos = pending.longPos.sub(pending.longNeg)
-        break
-      case Side.SHORT:
-        actualPos = position.short
-        pendingPos = pending.shortPos.sub(pending.shortNeg)
-        break
-      default:
-        throw new Error('Unexpected side')
-    }
-
-    expect(actualPos.add(pendingPos)).to.equal(expectedPosition)
   }
 
   // commits an oracle version and advances time 10 seconds
@@ -175,6 +157,66 @@ describe('Manager_Arbitrum', () => {
         },
       },
     }
+  }
+
+  async function ensureNoPosition(user: SignerWithAddress) {
+    const position = await market.positions(user.address)
+    expect(position.maker).to.equal(0)
+    expect(position.long).to.equal(0)
+    expect(position.short).to.equal(0)
+    const pending = await market.pendings(user.address)
+    expect(pending.makerPos.sub(pending.makerNeg)).to.equal(0)
+    expect(pending.longPos.sub(pending.longNeg)).to.equal(0)
+    expect(pending.shortPos.sub(pending.shortNeg)).to.equal(0)
+  }
+
+  // executes an order as keeper
+  async function executeOrder(user: SignerWithAddress, orderNonce: BigNumberish): Promise<BigNumber> {
+    // ensure order is executable
+    const [order, canExecute] = await manager.checkOrder(market.address, user.address, orderNonce)
+    expect(canExecute).to.be.true
+
+    // validate event
+    const tx = await manager.connect(keeper).executeOrder(market.address, user.address, orderNonce, TX_OVERRIDES)
+    await expect(tx)
+      .to.emit(manager, 'OrderExecuted')
+      .withArgs(market.address, user.address, order, orderNonce)
+      .to.emit(market, 'OrderCreated')
+      .withArgs(user.address, anyValue, anyValue, constants.AddressZero, order.referrer, constants.AddressZero)
+    const timestamp = (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
+
+    // ensure trigger order was deleted from storage
+    const deletedOrder = await manager.orders(market.address, user.address, orderNonce)
+    expect(deletedOrder.price).to.equal(0)
+    expect(deletedOrder.delta).to.equal(0)
+
+    return BigNumber.from(timestamp)
+  }
+
+  async function getPendingPosition(user: SignerWithAddress, side: Side) {
+    const position = await market.positions(user.address)
+    const pending = await market.pendings(user.address)
+
+    let actualPos: BigNumber
+    let pendingPos: BigNumber
+    switch (side) {
+      case Side.MAKER:
+        actualPos = position.maker
+        pendingPos = pending.makerPos.sub(pending.makerNeg)
+        break
+      case Side.LONG:
+        actualPos = position.long
+        pendingPos = pending.longPos.sub(pending.longNeg)
+        break
+      case Side.SHORT:
+        actualPos = position.short
+        pendingPos = pending.shortPos.sub(pending.shortNeg)
+        break
+      default:
+        throw new Error('Unexpected side')
+    }
+
+    return actualPos.add(pendingPos)
   }
 
   function nextMessageNonce(): BigNumber {
@@ -231,7 +273,7 @@ describe('Manager_Arbitrum', () => {
       },
       ...createActionMessage(user.address),
     }
-    const signature = await signPlaceOrderAction(userA, verifier, message)
+    const signature = await signPlaceOrderAction(user, verifier, message)
 
     await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
       .to.emit(manager, 'OrderPlaced')
@@ -241,23 +283,6 @@ describe('Manager_Arbitrum', () => {
     compareOrders(storedOrder, message.order)
 
     return BigNumber.from(message.action.orderNonce)
-  }
-
-  // executes an order as keeper
-  async function executeOrder(user: SignerWithAddress, orderNonce: BigNumberish) {
-    // ensure order is executable
-    const [order, canExecute] = await manager.checkOrder(market.address, user.address, orderNonce)
-    expect(canExecute).to.be.true
-
-    // validate event
-    await expect(manager.connect(keeper).executeOrder(market.address, user.address, orderNonce, TX_OVERRIDES))
-      .to.emit(manager, 'OrderExecuted')
-      .withArgs(market.address, user.address, order, orderNonce)
-
-    // ensure it was deleted from storage
-    const deletedOrder = await manager.orders(market.address, user.address, orderNonce)
-    expect(deletedOrder.price).to.equal(0)
-    expect(deletedOrder.delta).to.equal(0)
   }
 
   // running tests serially; can build a few scenario scripts and test multiple things within each script
@@ -297,155 +322,283 @@ describe('Manager_Arbitrum', () => {
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
   })
 
-  it('constructs and initializes', async () => {
-    expect(await manager.DSU()).to.equal(dsu.address)
-    expect(await manager.marketFactory()).to.equal(marketFactory.address)
-    expect(await manager.verifier()).to.equal(verifier.address)
+  // covers extension functionality; userA adds maker liquidity funding userB's long position
+  describe('empty market', () => {
+    it('constructs and initializes', async () => {
+      expect(await manager.DSU()).to.equal(dsu.address)
+      expect(await manager.marketFactory()).to.equal(marketFactory.address)
+      expect(await manager.verifier()).to.equal(verifier.address)
+    })
+
+    it('manager can verify a no-op action message', async () => {
+      // ensures any problems with message encoding are not caused by a common data type
+      const message = createActionMessage(userB.address).action
+      const signature = await signAction(userB, verifier, message)
+
+      const managerSigner = await impersonate.impersonateWithBalance(manager.address, utils.parseEther('10'))
+      await expect(verifier.connect(managerSigner).verifyAction(message, signature, TX_OVERRIDES))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(userB.address, message.common.nonce)
+
+      expect(await verifier.nonces(userB.address, message.common.nonce)).to.eq(true)
+    })
+
+    it('single user can place order', async () => {
+      // userA places a 5k maker order
+      const nonce = await placeOrder(userA, Side.MAKER, Compare.LTE, parse6decimal('3993.6'), parse6decimal('55'))
+      expect(nonce).to.equal(BigNumber.from(501))
+    })
+
+    it('multiple users can place orders', async () => {
+      // if price drops below 3636.99, userA would have 10k maker position after both orders executed
+      let nonce = await placeOrder(userA, Side.MAKER, Compare.LTE, parse6decimal('3636.99'), parse6decimal('45'))
+      expect(nonce).to.equal(BigNumber.from(502))
+
+      // userB queues up a 2.5k long position; same order nonce as userA's first order
+      nonce = await placeOrder(userB, Side.LONG, Compare.GTE, parse6decimal('2222.22'), parse6decimal('2.5'))
+      expect(nonce).to.equal(BigNumber.from(501))
+    })
+
+    it('keeper cannot execute order when conditions not met', async () => {
+      const [, canExecute] = await manager.checkOrder(market.address, userA.address, 501)
+      expect(canExecute).to.be.false
+
+      await expect(
+        manager.connect(keeper).executeOrder(market.address, userA.address, 501),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotExecuteError')
+    })
+
+    it('keeper can execute orders', async () => {
+      // commit a price which should make all orders executable
+      await commitPrice(parse6decimal('2800'))
+
+      // execute two maker orders and the long order
+      await executeOrder(userA, 501)
+      await commitPrice()
+      await executeOrder(userA, 502)
+      await commitPrice()
+      await executeOrder(userB, 501)
+      await commitPrice()
+
+      // validate positions
+      expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('100'))
+      expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('2.5'))
+      await market.connect(userA).settle(userA.address, TX_OVERRIDES)
+
+      checkKeeperCompensation = true
+    })
+
+    it('user can place an order using a signed message', async () => {
+      const nonce = await placeOrderWithSignature(
+        userA,
+        Side.MAKER,
+        Compare.GTE,
+        parse6decimal('1000'),
+        parse6decimal('-10'),
+      )
+      expect(nonce).to.equal(BigNumber.from(503))
+      await executeOrder(userA, 503)
+
+      expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('90'))
+      await commitPrice(parse6decimal('2801'))
+
+      checkKeeperCompensation = true
+    })
+
+    it('user can cancel an order', async () => {
+      // user places an order
+      const nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, parse6decimal('1001'), parse6decimal('-7'))
+      expect(nonce).to.equal(BigNumber.from(504))
+
+      // user cancels the order nonce
+      await expect(manager.connect(userA).cancelOrder(market.address, nonce, TX_OVERRIDES))
+        .to.emit(manager, 'OrderCancelled')
+        .withArgs(market.address, userA.address, nonce)
+
+      const storedOrder = await manager.orders(market.address, userA.address, nonce)
+      compareOrders(storedOrder, EMPTY_ORDER)
+    })
+
+    it('user can cancel an order using a signed message', async () => {
+      // user places an order
+      const nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, parse6decimal('1002'), parse6decimal('-6'))
+      expect(nonce).to.equal(BigNumber.from(505))
+
+      // user creates and signs a message to cancel the order nonce
+      const message = {
+        ...createActionMessage(userA.address, nonce),
+      }
+      const signature = await signCancelOrderAction(userA, verifier, message)
+
+      // keeper handles the request
+      await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature, TX_OVERRIDES))
+        .to.emit(manager, 'OrderCancelled')
+        .withArgs(market.address, userA.address, nonce)
+
+      const storedOrder = await manager.orders(market.address, userA.address, nonce)
+      compareOrders(storedOrder, EMPTY_ORDER)
+
+      checkKeeperCompensation = true
+    })
+
+    it('non-delegated signer cannot interact', async () => {
+      // userB signs a message to change userA's position
+      advanceOrderNonce(userA)
+      const message: PlaceOrderActionStruct = {
+        order: {
+          side: Side.MAKER,
+          comparison: Compare.GTE,
+          price: parse6decimal('1003'),
+          delta: parse6decimal('2'),
+          maxFee: MAX_FEE,
+          referrer: constants.AddressZero,
+        },
+        ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
+      }
+      const signature = await signPlaceOrderAction(userB, verifier, message)
+
+      await expect(
+        manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES),
+      ).to.be.revertedWithCustomError(manager, 'ManagerInvalidSignerError')
+    })
+
+    it('delegated signer may interact', async () => {
+      // userA delegates userB
+      await marketFactory.connect(userA).updateSigner(userB.address, true, TX_OVERRIDES)
+
+      // userB signs a message to change userA's position
+      advanceOrderNonce(userA)
+      const message: PlaceOrderActionStruct = {
+        order: {
+          side: Side.MAKER,
+          comparison: Compare.GTE,
+          price: parse6decimal('1004'),
+          delta: parse6decimal('3'),
+          maxFee: MAX_FEE,
+          referrer: constants.AddressZero,
+        },
+        ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
+      }
+      const signature = await signPlaceOrderAction(userB, verifier, message)
+
+      await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
+        .to.emit(manager, 'OrderPlaced')
+        .withArgs(market.address, userA.address, message.order, message.action.orderNonce)
+
+      const storedOrder = await manager.orders(market.address, userA.address, message.action.orderNonce)
+      compareOrders(storedOrder, message.order)
+    })
+
+    it('users can close positions', async () => {
+      // can close directly
+      let nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, constants.Zero)
+      expect(nonce).to.equal(BigNumber.from(508))
+
+      // can close using a signed message
+      nonce = await placeOrderWithSignature(userB, Side.LONG, Compare.LTE, parse6decimal('4000'), constants.Zero)
+      expect(nonce).to.equal(BigNumber.from(502))
+
+      // keeper closes the taker position before removing liquidity
+      await executeOrder(userB, 502)
+      await commitPrice()
+      await executeOrder(userA, 508)
+      await commitPrice()
+
+      // settle and confirm positions are closed
+      await market.settle(userA.address, TX_OVERRIDES)
+      await ensureNoPosition(userA)
+      await market.settle(userB.address, TX_OVERRIDES)
+      await ensureNoPosition(userB)
+    })
   })
 
-  it('single user can place order', async () => {
-    // userA places a 5k maker order
-    const nonce = await placeOrder(userA, Side.MAKER, Compare.LTE, parse6decimal('3993.6'), parse6decimal('55'))
-    expect(nonce).to.equal(BigNumber.from(501))
-  })
-
-  it('multiple users can place orders', async () => {
-    // if price drops below 3636.99, userA would have 10k maker position after both orders executed
-    let nonce = await placeOrder(userA, Side.MAKER, Compare.LTE, parse6decimal('3636.99'), parse6decimal('45'))
-    expect(nonce).to.equal(BigNumber.from(502))
-
-    // userB queues up a 2.5k long position; same order nonce as userA's first order
-    nonce = await placeOrder(userB, Side.LONG, Compare.GTE, parse6decimal('2222.22'), parse6decimal('2.5'))
-    expect(nonce).to.equal(BigNumber.from(501))
-  })
-
-  it('keeper cannot execute order when conditions not met', async () => {
-    const [, canExecute] = await manager.checkOrder(market.address, userA.address, 501)
-    expect(canExecute).to.be.false
-
-    await expect(
-      manager.connect(keeper).executeOrder(market.address, userA.address, 501),
-    ).to.be.revertedWithCustomError(manager, 'ManagerCannotExecuteError')
-  })
-
-  it('keeper can execute orders', async () => {
-    // commit a price which should make all orders executable
-    await commitPrice(parse6decimal('2800'))
-
-    // execute two maker orders and the long order
-    await executeOrder(userA, 501)
-    await commitPrice()
-    await executeOrder(userA, 502)
-    await commitPrice()
-    await executeOrder(userB, 501)
-    await commitPrice()
-
-    // validate positions
-    await checkPendingPosition(userA, Side.MAKER, parse6decimal('100'))
-    await checkPendingPosition(userB, Side.LONG, parse6decimal('2.5'))
-    await market.connect(userA).settle(userA.address, TX_OVERRIDES)
-
-    checkKeeperCompensation = true
-  })
-
-  it('user can place an order using a signed message', async () => {
-    const nonce = await placeOrderWithSignature(
-      userA,
-      Side.MAKER,
-      Compare.GTE,
-      parse6decimal('1000'),
-      parse6decimal('-10'),
-    )
-    expect(nonce).to.equal(BigNumber.from(503))
-    await executeOrder(userA, 503)
-
-    await checkPendingPosition(userA, Side.MAKER, parse6decimal('90'))
-    await commitPrice(parse6decimal('2801'))
-
-    checkKeeperCompensation = true
-  })
-
-  it('user can cancel an order', async () => {
-    // user places an order
-    const nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, parse6decimal('1001'), parse6decimal('-7'))
-    expect(nonce).to.equal(BigNumber.from(504))
-
-    // user cancels the order nonce
-    await expect(manager.connect(userA).cancelOrder(market.address, nonce, TX_OVERRIDES))
-      .to.emit(manager, 'OrderCancelled')
-      .withArgs(market.address, userA.address, nonce)
-
-    const storedOrder = await manager.orders(market.address, userA.address, nonce)
-    compareOrders(storedOrder, EMPTY_ORDER)
-  })
-
-  it('user can cancel an order using a signed message', async () => {
-    // user places an order
-    const nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, parse6decimal('1002'), parse6decimal('-6'))
-    expect(nonce).to.equal(BigNumber.from(505))
-
-    // user creates and signs a message to cancel the order nonce
-    const message = {
-      ...createActionMessage(userA.address, nonce),
+  // tests interaction with markets; again userA has a maker position, userB has a long position,
+  // userC and userD interact only with trigger orders
+  describe('funded market', () => {
+    async function changePosition(
+      user: SignerWithAddress,
+      newMaker: BigNumberish = constants.MaxUint256,
+      newLong: BigNumberish = constants.MaxUint256,
+      newShort: BigNumberish = constants.MaxUint256,
+    ): Promise<BigNumber> {
+      const tx = await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](
+          user.address,
+          newMaker,
+          newLong,
+          newShort,
+          0,
+          false,
+          TX_OVERRIDES,
+        )
+      return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
     }
-    const signature = await signCancelOrderAction(userA, verifier, message)
 
-    // keeper handles the request
-    await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature, TX_OVERRIDES))
-      .to.emit(manager, 'OrderCancelled')
-      .withArgs(market.address, userA.address, nonce)
+    before(async () => {
+      // ensure no positions were carried over from previous test suite
+      await ensureNoPosition(userA)
+      await ensureNoPosition(userB)
 
-    const storedOrder = await manager.orders(market.address, userA.address, nonce)
-    compareOrders(storedOrder, EMPTY_ORDER)
+      await changePosition(userA, parse6decimal('10'), 0, 0)
+      await commitPrice(parse6decimal('2000'))
+      await market.settle(userA.address, TX_OVERRIDES)
 
-    checkKeeperCompensation = true
-  })
+      nextOrderNonce[userA.address] = BigNumber.from(600)
+      nextOrderNonce[userB.address] = BigNumber.from(600)
+      nextOrderNonce[userC.address] = BigNumber.from(600)
+      nextOrderNonce[userD.address] = BigNumber.from(600)
+    })
 
-  it('non-delegated signer cannot interact', async () => {
-    // userB signs a message to change userA's position
-    advanceOrderNonce(userA)
-    const message: PlaceOrderActionStruct = {
-      order: {
-        side: Side.MAKER,
-        comparison: Compare.GTE,
-        price: parse6decimal('1003'),
-        delta: parse6decimal('2'),
-        maxFee: MAX_FEE,
-        referrer: constants.AddressZero,
-      },
-      ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
-    }
-    const signature = await signPlaceOrderAction(userB, verifier, message)
+    it('can execute an order with pending position before oracle request fulfilled', async () => {
+      // userB has an unsettled long 1.2 position
+      await changePosition(userB, 0, parse6decimal('1.2'), 0)
+      expect((await market.positions(userB.address)).long).to.equal(0)
+      expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('1.2'))
 
-    await expect(
-      manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES),
-    ).to.be.revertedWithCustomError(manager, 'ManagerInvalidSignerError')
-  })
+      // userB places an order to go long 0.8 more, and keeper executes it
+      const nonce = await placeOrder(userB, Side.LONG, Compare.LTE, parse6decimal('2013'), parse6decimal('0.8'))
+      expect(nonce).to.equal(BigNumber.from(601))
+      advanceBlock()
+      const orderTimestamp = await executeOrder(userB, 601)
 
-  it('delegated signer may interact', async () => {
-    // userA delegates userB
-    await marketFactory.connect(userA).updateSigner(userB.address, true, TX_OVERRIDES)
+      // userB still has no settled position
+      expect((await market.positions(userB.address)).long).to.equal(0)
+      // but the order should increase their pending position to 2
+      expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('2.0'))
 
-    // userB signs a message to change userA's position
-    advanceOrderNonce(userA)
-    const message: PlaceOrderActionStruct = {
-      order: {
-        side: Side.MAKER,
-        comparison: Compare.GTE,
-        price: parse6decimal('1004'),
-        delta: parse6decimal('3'),
-        maxFee: MAX_FEE,
-        referrer: constants.AddressZero,
-      },
-      ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
-    }
-    const signature = await signPlaceOrderAction(userB, verifier, message)
+      // commit price for both their 1.2 position and the 0.8 added through trigger order
+      await commitPrice(parse6decimal('2001.01'), await keeperOracle.next())
+      await commitPrice(parse6decimal('2001.02'), orderTimestamp)
+      // settle userB and check position
+      await market.settle(userB.address, TX_OVERRIDES)
+      expect((await market.positions(userB.address)).long).to.equal(parse6decimal('2.0'))
+    })
 
-    await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
-      .to.emit(manager, 'OrderPlaced')
-      .withArgs(market.address, userA.address, message.order, message.action.orderNonce)
+    it('can execute an order with pending position after oracle request fulfilled', async () => {
+      // userC has an unsettled short 0.3 position
+      await changePosition(userC, 0, 0, parse6decimal('1.3'))
+      expect((await market.positions(userC.address)).short).to.equal(0)
+      expect(await getPendingPosition(userC, Side.SHORT)).to.equal(parse6decimal('1.3'))
 
-    const storedOrder = await manager.orders(market.address, userA.address, message.action.orderNonce)
-    compareOrders(storedOrder, message.order)
+      // userC places an order to go short 1.2 more, and keeper executes it
+      const nonce = await placeOrder(userC, Side.SHORT, Compare.GTE, parse6decimal('1999.97'), parse6decimal('1.2'))
+      expect(nonce).to.equal(BigNumber.from(601))
+      advanceBlock()
+      const orderTimestamp = await executeOrder(userC, 601)
+
+      // prices are committed for both versions
+      await commitPrice(parse6decimal('2002.03'), await keeperOracle.next())
+      await commitPrice(parse6decimal('2002.04'), orderTimestamp)
+
+      // userC still has no settled position
+      expect((await market.positions(userC.address)).long).to.equal(0)
+      // but the order should increase their short position to 2.5
+      expect(await getPendingPosition(userC, Side.SHORT)).to.equal(parse6decimal('2.5'))
+
+      // after settling userC, they should be short 2.5
+      await market.settle(userC.address, TX_OVERRIDES)
+      expect((await market.positions(userC.address)).short).to.equal(parse6decimal('2.5'))
+    })
   })
 })

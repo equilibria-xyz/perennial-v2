@@ -18,8 +18,9 @@ import {
 
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
+import { getEventArguments } from '../../../common/testutil/transaction'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { deployController, getEventArguments, mockMarket } from '../helpers/setupHelpers'
+import { deployController, mockMarket } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { IMarket } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'

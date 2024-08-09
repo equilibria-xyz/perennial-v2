@@ -5,8 +5,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
-// TODO: would prefer making side uint8 for logability, and reserving 0 as invalid/empty,
-// but leaving these same as MultiInvoker for backward compatibility
+/// @notice Changes a user's position in a market when price reaches a trigger threshold
 struct TriggerOrder {
     /// @dev Determines the desired position type to establish or change
     uint8 side;       // 3 = maker, 4 = long, 5 = short
