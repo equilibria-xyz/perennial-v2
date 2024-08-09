@@ -1786,6 +1786,7 @@ describe('Market', () => {
           expectGlobalEq(await market.global(), {
             ...DEFAULT_GLOBAL,
             currentId: 1,
+            latestPrice: PRICE,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
@@ -1842,6 +1843,7 @@ describe('Market', () => {
             ...DEFAULT_GLOBAL,
             currentId: 2,
             latestId: 1,
+            latestPrice: PRICE,
           })
           expectPositionEq(await market.position(), {
             ...DEFAULT_POSITION,
