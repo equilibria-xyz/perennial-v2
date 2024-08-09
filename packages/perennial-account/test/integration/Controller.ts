@@ -6,6 +6,7 @@ import { BigNumber, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
+import { getEventArguments } from '../../../common/testutil/transaction'
 import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, Controller, IERC20Metadata } from '../../types/generated'
 import { IAccountVerifier } from '../../types/generated/contracts/interfaces'
@@ -18,7 +19,7 @@ import {
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
-import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
+import { advanceToPrice } from '../helpers/setupHelpers'
 import {
   createFactories,
   createMarketBTC,
