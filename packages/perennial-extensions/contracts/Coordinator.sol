@@ -36,7 +36,7 @@ contract Coordinator is ICoordinator, Ownable {
     /// @param market The market to claim the fee for
     function claimFee(IMarket market) external {
         if (msg.sender != comptroller) revert NotComptroller();
-        market.claimFee(comptroller);
+        market.claimFee(msg.sender);
         market.token().push(comptroller);
     }
 
