@@ -31,8 +31,8 @@ struct MarketParameter {
     /// @dev Whether the market is in close-only mode
     bool closed;
 
-     /// @dev Whether the market is in settle-only mode
-    bool settle;
+     /// @dev Whether the market is in sync-only mode
+    bool syncOnly;
 }
 struct MarketParameterStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using MarketParameterStorageLib for MarketParameterStorage global;
@@ -101,7 +101,7 @@ library MarketParameterStorageLib {
 
     function _store(MarketParameterStorage storage self, MarketParameter memory newValue) private {
         uint256 flags = (newValue.closed ? 0x04 : 0x00) |
-            (newValue.settle ? 0x08 : 0x00);
+            (newValue.syncOnly ? 0x08 : 0x00);
 
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.fundingFee) << (256 - 24)) >> (256 - 24) |

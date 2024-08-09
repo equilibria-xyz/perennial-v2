@@ -376,7 +376,7 @@ testOracles.forEach(testOracle => {
         maxPendingLocal: 8,
         settlementFee: 0,
         closed: false,
-        settle: false,
+        syncOnly: false,
       }
       market = Market__factory.connect(
         await marketFactory.callStatic.create({

@@ -73,7 +73,7 @@ function generateMarketParameter(riskFee: BigNumberish): MarketParameterStruct {
     maxPendingLocal: 0,
     riskFee,
     closed: false,
-    settle: false,
+    syncOnly: false,
   }
 }
 

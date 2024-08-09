@@ -85,7 +85,7 @@ export async function deployProductOnMainnetFork({
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
     closed: false,
-    settle: false,
+    syncOnly: false,
   }
   const marketDefinition: IMarket.MarketDefinitionStruct = {
     token: token.address,

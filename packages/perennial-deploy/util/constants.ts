@@ -26,7 +26,7 @@ export const DEFAULT_MARKET_PARAMETER = {
   makerCloseAlways: false,
   takerCloseAlways: true,
   closed: false,
-  settle: false,
+  syncOnly: false,
 }
 
 export const DEFAULT_RISK_PARAMETERS = {

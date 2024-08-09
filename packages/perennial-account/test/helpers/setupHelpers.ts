@@ -140,7 +140,7 @@ export async function createMarket(
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
     closed: false,
-    settle: false,
+    syncOnly: false,
     ...marketParamOverrides,
   }
   const marketAddress = await marketFactory.callStatic.create(definition)

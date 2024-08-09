@@ -21,7 +21,7 @@ export default task('change-markets-mode', 'Opens or closes all markets; must be
     const owner = await marketFactory.owner()
     const signer = await ethers.getSigner(owner)
 
-    if (args.open && args.settle) {
+    if (args.open && args.syncOnly) {
       console.error('Markets may either be opened or closed; not both')
       return 1
     }
@@ -42,12 +42,12 @@ export default task('change-markets-mode', 'Opens or closes all markets; must be
 
       let parameter = await market.parameter()
       console.log(
-        `[Change Markets Mode]    Found market ${marketAddress} beneficiary ${beneficiary} coordinator ${coordinator}. Current state: closed: ${parameter.closed}, settle: ${parameter.settle}`,
+        `[Change Markets Mode]    Found market ${marketAddress} beneficiary ${beneficiary} coordinator ${coordinator}. Current state: closed: ${parameter.closed}, syncOnly: ${parameter.syncOnly}`,
       )
 
       console.log('[Change Markets Mode]    Updating market parameter')
 
-      parameter = { ...parameter, closed: false, settle: args.settle }
+      parameter = { ...parameter, closed: false, syncOnly: args.syncOnly }
       if (args.dry || args.timelock) {
         await market.connect(owner).callStatic.updateParameter(beneficiary, coordinator, parameter)
         console.log('[Change Markets Mode]  Dry run successful')
