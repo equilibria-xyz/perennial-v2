@@ -575,7 +575,11 @@ testOracles.forEach(testOracle => {
         await expect(
           metaquantsOracleFactory
             .connect(user)
-            .commit([METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD)),
+            .commit(
+              [METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_MILADY_ETH_PRICE_FEED],
+              STARTING_TIME,
+              listify(PAYLOAD),
+            ),
         ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryInputLengthMismatchError')
 
         // Don't allow too few IDs.
@@ -587,7 +591,7 @@ testOracles.forEach(testOracle => {
         await expect(
           metaquantsOracleFactory
             .connect(user)
-            .commit([METAQUANTS_BAYC_ETH_PRICE_FEED.replace('1', '2')], STARTING_TIME, listify(PAYLOAD)),
+            .commit([METAQUANTS_MILADY_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD)),
         ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryInvalidIdError')
       })
 

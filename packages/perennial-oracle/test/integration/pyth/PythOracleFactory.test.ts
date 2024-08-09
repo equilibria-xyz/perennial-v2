@@ -1099,6 +1099,44 @@ testOracles.forEach(testOracle => {
         expect((await keeperOracleBtc.latest()).valid).to.equal(true)
       })
 
+      it('can update multiple payoffs from single update', async () => {
+        await includeAt(async () => {
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false)
+          await market2
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false)
+        }, STARTING_TIME)
+
+        expect(await keeperOracle.localCallbacks(STARTING_TIME)).to.deep.eq([user.address])
+        expect(await keeperOracle2.localCallbacks(STARTING_TIME)).to.deep.eq([user.address])
+
+        await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+        await expect(
+          pythOracleFactory
+            .connect(user)
+            .commit(
+              [PYTH_ETH_USD_PRICE_FEED, '0x0000000000000000000000000000000000000000000000000000000000000021'],
+              STARTING_TIME,
+              VAA,
+              {
+                value: 1,
+                maxFeePerGas: 100000000,
+              },
+            ),
+        )
+          .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
+          .withArgs({ timestamp: STARTING_TIME, price: '1838167031', valid: true })
+          .to.emit(keeperOracle2, 'OracleProviderVersionFulfilled')
+          .withArgs({ timestamp: STARTING_TIME, price: '3378858036', valid: true })
+
+        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('18')))
+
+        expect((await market.position()).timestamp).to.equal(STARTING_TIME)
+        expect((await market2.position()).timestamp).to.equal(STARTING_TIME)
+      })
+
       it('reverts if feed not included in batched update', async () => {
         await time.reset(18028156)
         await setup()
@@ -1177,10 +1215,7 @@ testOracles.forEach(testOracle => {
               VAA_WITH_MULTIPLE_UPDATES_2,
               { value: 2 },
             ),
-        ).to.be.revertedWithCustomError(
-          { interface: new ethers.utils.Interface(['error PriceFeedNotFoundWithinRange()']) },
-          'PriceFeedNotFoundWithinRange',
-        )
+        ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryVersionOutsideRangeError') // already committed
       })
     })
 
