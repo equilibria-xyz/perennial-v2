@@ -40,6 +40,7 @@ const MAKER_ORDER = {
   price: parse6decimal('2222.33'),
   delta: parse6decimal('100'),
   maxFee: MAX_FEE,
+  isSpent: false,
   referrer: constants.AddressZero,
 }
 
@@ -242,6 +243,7 @@ describe('Manager', () => {
           price: scenario.orderPrice,
           delta: parse6decimal('9'),
           maxFee: MAX_FEE,
+          isSpent: false,
           referrer: constants.AddressZero,
         }
         advanceOrderNonce()
@@ -342,6 +344,7 @@ describe('Manager', () => {
           price: parse6decimal('1888.99'),
           delta: parse6decimal('200'),
           maxFee: MAX_FEE,
+          isSpent: false,
           referrer: constants.AddressZero,
         },
         ...createActionMessage(),
@@ -366,6 +369,7 @@ describe('Manager', () => {
           price: parse6decimal('1777.88'),
           delta: parse6decimal('100'),
           maxFee: MAX_FEE,
+          isSpent: false,
           referrer: constants.AddressZero,
         },
         ...createActionMessage(),
@@ -427,6 +431,7 @@ describe('Manager', () => {
           price: parse6decimal('1888.99'),
           delta: parse6decimal('30'),
           maxFee: MAX_FEE,
+          isSpent: false,
           referrer: userA.address,
         },
         ...createActionMessage(userB.address),

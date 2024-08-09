@@ -17,6 +17,8 @@ struct TriggerOrder {
     Fixed6 delta;     // <= 9.22t
     /// @dev Limit on keeper compensation for executing the order
     UFixed6 maxFee;   // < 18.45t
+    /// @dev Always leave this false; set true after execution/cancellation
+    bool isSpent;
     /// @dev Passed to market for awarding referral fee
     address referrer;
 }
@@ -101,7 +103,8 @@ struct StoredTriggerOrder {
     int64 price;            // <= 9.22t
     int64 delta;            // <= 9.22t
     uint64 maxFee;          // < 18.45t
-    bytes6 __unallocated__; // padding
+    bool isSpent;
+    bytes5 __unallocated__; // padding
     /* slot 1 */
     address referrer;
 }
@@ -114,7 +117,7 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,address referrer)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer)"
     );
 
     // sig: 0xf3469aa7
@@ -130,6 +133,7 @@ library TriggerOrderStorageLib {
             Fixed6.wrap(int256(storedValue.price)),
             Fixed6.wrap(int256(storedValue.delta)),
             UFixed6.wrap(uint256(storedValue.maxFee)),
+            storedValue.isSpent,
             storedValue.referrer
         );
     }
@@ -149,6 +153,7 @@ library TriggerOrderStorageLib {
             int64(Fixed6.unwrap(newValue.price)),
             int64(Fixed6.unwrap(newValue.delta)),
             uint64(UFixed6.unwrap(newValue.maxFee)),
+            newValue.isSpent,
             0,
             newValue.referrer
         );
@@ -156,6 +161,15 @@ library TriggerOrderStorageLib {
 
     /// @dev Used to create a signed message
     function hash(TriggerOrder memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.side, self.comparison, self.price, self.delta, self.maxFee, self.referrer));
+        return keccak256(abi.encode(
+            STRUCT_HASH,
+            self.side,
+            self.comparison,
+            self.price,
+            self.delta,
+            self.maxFee,
+            self.isSpent,
+            self.referrer
+        ));
     }
 }

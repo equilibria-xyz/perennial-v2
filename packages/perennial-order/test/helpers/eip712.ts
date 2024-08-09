@@ -49,6 +49,7 @@ const triggerOrderType = {
     { name: 'price', type: 'int64' },
     { name: 'delta', type: 'int64' },
     { name: 'maxFee', type: 'uint64' },
+    { name: 'isSpent', type: 'bool' },
     { name: 'referrer', type: 'address' },
   ],
 }

@@ -33,10 +33,6 @@ abstract contract Manager is IManager, Kept {
     /// Market => User => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
-    /// @dev Prevents user from reusing orderIds
-    /// User => Nonce => true if spent
-    mapping(address => mapping(uint256 => bool)) private _spentOrderIds;
-
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
     /// @param marketFactory_ Contract used to validate delegated signers
@@ -99,8 +95,8 @@ abstract contract Manager is IManager, Kept {
         uint256 orderNonce
     ) public view returns (TriggerOrder memory order, bool canExecute) {
         order = _orders[market][user][orderNonce].read();
-        // prevent calling canExecute on a deleted order
-        if (order.isEmpty()) revert ManagerInvalidOrderNonceError();
+        // prevent calling canExecute on a spent or empty order
+        if (order.isSpent || order.isEmpty()) revert ManagerInvalidOrderNonceError();
         canExecute = order.canExecute(market.oracle().latest());
     }
 
@@ -113,9 +109,9 @@ abstract contract Manager is IManager, Kept {
         _compensateKeeper(market, user, order.maxFee);
         order.execute(market, user);
 
-        delete _orders[market][user][orderNonce];
-        _spentOrderIds[user][orderNonce] = true;
-
+        // invalidate the order nonce
+        order.isSpent = true;
+        _orders[market][user][orderNonce].store(order);
 
         emit OrderExecuted(market, user, order, orderNonce);
     }
@@ -163,17 +159,19 @@ abstract contract Manager is IManager, Kept {
     function _cancelOrder(IMarket market, address user, uint256 orderNonce) private {
         // ensure this order wasn't already executed/cancelled
         TriggerOrder memory order = _orders[market][user][orderNonce].read();
-        if (order.isEmpty()) revert ManagerCannotCancelError();
+        if (order.isEmpty() || order.isSpent) revert ManagerCannotCancelError();
 
-        // free storage and invalidate the order nonce
-        delete _orders[market][user][orderNonce];
-        _spentOrderIds[user][orderNonce] = true;
+        // invalidate the order nonce
+        order.isSpent = true;
+        _orders[market][user][orderNonce].store(order);
+
         emit OrderCancelled(market, user, orderNonce);
     }
 
     function _placeOrder(IMarket market, address user, uint256 orderNonce, TriggerOrder calldata order) private {
         // prevent user from reusing an order identifier
-        if (_spentOrderIds[user][orderNonce]) revert ManagerInvalidOrderNonceError();
+        TriggerOrder memory old = _orders[market][user][orderNonce].read();
+        if (old.isSpent) revert ManagerInvalidOrderNonceError();
 
         _orders[market][user][orderNonce].store(order);
         emit OrderPlaced(market, user, order, orderNonce);

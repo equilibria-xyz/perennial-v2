@@ -1,6 +1,7 @@
 import { expect } from 'chai'
 import { BigNumber } from 'ethers'
 import { TriggerOrderStruct } from '../../types/generated/contracts/Manager'
+import { TriggerOrderStructOutput } from '../../types/generated/contracts/Manager'
 
 export enum Side {
   MAKER = 4,
@@ -21,5 +22,18 @@ export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrder
   expect(actual.price).to.equal(expected.price)
   expect(actual.delta).to.equal(expected.delta)
   expect(actual.maxFee).to.equal(expected.maxFee)
+  expect(actual.isSpent).to.equal(expected.isSpent)
   expect(actual.referrer).to.equal(expected.referrer)
+}
+
+export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): TriggerOrderStruct {
+  return {
+    side: structOutput.side,
+    comparison: structOutput.comparison,
+    price: structOutput.price,
+    delta: structOutput.delta,
+    maxFee: structOutput.maxFee,
+    isSpent: structOutput.isSpent,
+    referrer: structOutput.referrer,
+  }
 }

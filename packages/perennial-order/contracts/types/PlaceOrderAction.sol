@@ -7,7 +7,7 @@ import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.s
 import { Action, ActionLib } from "./Action.sol";
 import { TriggerOrder, TriggerOrderStorageLib } from "./TriggerOrder.sol";
 
-/// @notice Request to persist a new trigger order
+/// @notice Request to persist a new trigger order or replace an open trigger order
 struct PlaceOrderAction {
     /// @dev Conveys the desired change in position and conditions to make the change
     TriggerOrder order;
@@ -15,9 +15,9 @@ struct PlaceOrderAction {
     ///      action.market         - market in which user's position should be changed
     ///      action.orderNonce     - per-user unique order identifier
     ///      action.maxFee         - maximum amount to compensate keeper
-    ///      action.common.account - the user participating in the market
-    ///      action.common.signer  - the user or delegate signing the transaction
-    ///      action.common.domain  - the Manager contract verifying the request
+    ///      action.common.account - user participating in the market
+    ///      action.common.signer  - user or delegate signing the transaction
+    ///      action.common.domain  - Manager contract verifying the request
     ///      action.common.nonce   - per-user unique message identifier
     ///      action.common.group   - may be used to cancel multiple pending orders which have not been persisted
     ///      action.common.expiry  - order will be implictly cancelled if not persisted after this time
@@ -32,7 +32,7 @@ library PlaceOrderActionLib {
         "PlaceOrderAction(TriggerOrder order,Action action)"
         "Action(address market,uint256 orderNonce,uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,address referrer)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer)"
     );
 
     /// @dev Used to create a signed message

@@ -22,7 +22,7 @@ import {
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../helpers/eip712'
 import { createMarketETH, deployProtocol, deployPythOracleFactory, fundWalletDSU } from '../helpers/arbitrumHelpers'
-import { Compare, compareOrders, MAGIC_VALUE_CLOSE_POSITION, Side } from '../helpers/order'
+import { Compare, compareOrders, MAGIC_VALUE_CLOSE_POSITION, orderFromStructOutput, Side } from '../helpers/order'
 import { transferCollateral } from '../helpers/marketHelpers'
 import { advanceToPrice } from '../helpers/oracleHelpers'
 import { PlaceOrderActionStruct } from '../../types/generated/contracts/Manager'
@@ -42,6 +42,7 @@ const EMPTY_ORDER = {
   price: 0,
   delta: 0,
   maxFee: 0,
+  isSpent: false,
   referrer: constants.AddressZero,
 }
 
@@ -58,6 +59,7 @@ const MAKER_ORDER = {
   price: parse6decimal('2222.33'),
   delta: parse6decimal('100'),
   maxFee: MAX_FEE,
+  isSpent: false,
   referrer: constants.AddressZero,
 }
 
@@ -178,17 +180,18 @@ describe('Manager_Arbitrum', () => {
 
     // validate event
     const tx = await manager.connect(keeper).executeOrder(market.address, user.address, orderNonce, TX_OVERRIDES)
+    // set the order's spent flag true to validate event
+    const spentOrder = { ...orderFromStructOutput(order), isSpent: true }
     await expect(tx)
       .to.emit(manager, 'OrderExecuted')
-      .withArgs(market.address, user.address, order, orderNonce)
+      .withArgs(market.address, user.address, spentOrder, orderNonce)
       .to.emit(market, 'OrderCreated')
       .withArgs(user.address, anyValue, anyValue, constants.AddressZero, order.referrer, constants.AddressZero)
     const timestamp = (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
 
-    // ensure trigger order was deleted from storage
+    // ensure trigger order was marked as spent
     const deletedOrder = await manager.orders(market.address, user.address, orderNonce)
-    expect(deletedOrder.price).to.equal(0)
-    expect(deletedOrder.delta).to.equal(0)
+    expect(deletedOrder.isSpent).to.be.true
 
     return BigNumber.from(timestamp)
   }
@@ -239,6 +242,7 @@ describe('Manager_Arbitrum', () => {
       price: price,
       delta: delta,
       maxFee: maxFee,
+      isSpent: false,
       referrer: referrer,
     }
     advanceOrderNonce(user)
@@ -269,6 +273,7 @@ describe('Manager_Arbitrum', () => {
         price: price,
         delta: delta,
         maxFee: maxFee,
+        isSpent: false,
         referrer: referrer,
       },
       ...createActionMessage(user.address),
@@ -416,7 +421,7 @@ describe('Manager_Arbitrum', () => {
         .withArgs(market.address, userA.address, nonce)
 
       const storedOrder = await manager.orders(market.address, userA.address, nonce)
-      compareOrders(storedOrder, EMPTY_ORDER)
+      expect(storedOrder.isSpent).to.be.true
     })
 
     it('user can cancel an order using a signed message', async () => {
@@ -436,7 +441,7 @@ describe('Manager_Arbitrum', () => {
         .withArgs(market.address, userA.address, nonce)
 
       const storedOrder = await manager.orders(market.address, userA.address, nonce)
-      compareOrders(storedOrder, EMPTY_ORDER)
+      expect(storedOrder.isSpent).to.be.true
 
       checkKeeperCompensation = true
     })
@@ -451,6 +456,7 @@ describe('Manager_Arbitrum', () => {
           price: parse6decimal('1003'),
           delta: parse6decimal('2'),
           maxFee: MAX_FEE,
+          isSpent: false,
           referrer: constants.AddressZero,
         },
         ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
@@ -475,6 +481,7 @@ describe('Manager_Arbitrum', () => {
           price: parse6decimal('1004'),
           delta: parse6decimal('3'),
           maxFee: MAX_FEE,
+          isSpent: false,
           referrer: constants.AddressZero,
         },
         ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
