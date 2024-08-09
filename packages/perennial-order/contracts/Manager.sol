@@ -54,8 +54,8 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function placeOrder(IMarket market, uint256 orderNonce, TriggerOrder calldata order) external {
-        _placeOrder(market, msg.sender, orderNonce, order);
+    function placeOrder(IMarket market, uint256 orderId, TriggerOrder calldata order) external {
+        _placeOrder(market, msg.sender, orderId, order);
     }
 
     /// @inheritdoc IManager
@@ -65,12 +65,12 @@ abstract contract Manager is IManager, Kept {
         _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
         _compensateKeeperAction(request.action);
-        _placeOrder(request.action.market, request.action.common.account, request.action.orderNonce, request.order);
+        _placeOrder(request.action.market, request.action.common.account, request.action.orderId, request.order);
     }
 
     /// @inheritdoc IManager
-    function cancelOrder(IMarket market, uint256 orderNonce) external {
-        _cancelOrder(market, msg.sender, orderNonce);
+    function cancelOrder(IMarket market, uint256 orderId) external {
+        _cancelOrder(market, msg.sender, orderId);
     }
 
     /// @inheritdoc IManager
@@ -80,30 +80,30 @@ abstract contract Manager is IManager, Kept {
         _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
         _compensateKeeperAction(request.action);
-        _cancelOrder(request.action.market, request.action.common.account, request.action.orderNonce);
+        _cancelOrder(request.action.market, request.action.common.account, request.action.orderId);
     }
 
     /// @inheritdoc IManager
-    function orders(IMarket market, address user, uint256 orderNonce) external view returns (TriggerOrder memory) {
-        return _orders[market][user][orderNonce].read();
+    function orders(IMarket market, address user, uint256 orderId) external view returns (TriggerOrder memory) {
+        return _orders[market][user][orderId].read();
     }
 
     /// @inheritdoc IManager
     function checkOrder(
         IMarket market,
         address user,
-        uint256 orderNonce
+        uint256 orderId
     ) public view returns (TriggerOrder memory order, bool canExecute) {
-        order = _orders[market][user][orderNonce].read();
+        order = _orders[market][user][orderId].read();
         // prevent calling canExecute on a spent or empty order
         if (order.isSpent || order.isEmpty()) revert ManagerInvalidOrderNonceError();
         canExecute = order.canExecute(market.oracle().latest());
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address user, uint256 orderNonce) external {
+    function executeOrder(IMarket market, address user, uint256 orderId) external {
         // check conditions to ensure order is executable
-        (TriggerOrder memory order, bool canExecute) = checkOrder(market, user, orderNonce);
+        (TriggerOrder memory order, bool canExecute) = checkOrder(market, user, orderId);
         if (!canExecute) revert ManagerCannotExecuteError();
 
         _compensateKeeper(market, user, order.maxFee);
@@ -111,9 +111,9 @@ abstract contract Manager is IManager, Kept {
 
         // invalidate the order nonce
         order.isSpent = true;
-        _orders[market][user][orderNonce].store(order);
+        _orders[market][user][orderId].store(order);
 
-        emit TriggerOrderExecuted(market, user, order, orderNonce);
+        emit TriggerOrderExecuted(market, user, order, orderId);
     }
 
     /// @dev reads keeper compensation parameters from an action message
@@ -156,24 +156,24 @@ abstract contract Manager is IManager, Kept {
         return UFixed18Lib.from(raisedKeeperFee);
     }
 
-    function _cancelOrder(IMarket market, address user, uint256 orderNonce) private {
+    function _cancelOrder(IMarket market, address user, uint256 orderId) private {
         // ensure this order wasn't already executed/cancelled
-        TriggerOrder memory order = _orders[market][user][orderNonce].read();
+        TriggerOrder memory order = _orders[market][user][orderId].read();
         if (order.isEmpty() || order.isSpent) revert ManagerCannotCancelError();
 
         // invalidate the order nonce
         order.isSpent = true;
-        _orders[market][user][orderNonce].store(order);
+        _orders[market][user][orderId].store(order);
 
-        emit TriggerOrderCancelled(market, user, orderNonce);
+        emit TriggerOrderCancelled(market, user, orderId);
     }
 
-    function _placeOrder(IMarket market, address user, uint256 orderNonce, TriggerOrder calldata order) private {
+    function _placeOrder(IMarket market, address user, uint256 orderId, TriggerOrder calldata order) private {
         // prevent user from reusing an order identifier
-        TriggerOrder memory old = _orders[market][user][orderNonce].read();
+        TriggerOrder memory old = _orders[market][user][orderId].read();
         if (old.isSpent) revert ManagerInvalidOrderNonceError();
 
-        _orders[market][user][orderNonce].store(order);
-        emit TriggerOrderPlaced(market, user, order, orderNonce);
+        _orders[market][user][orderId].store(order);
+        emit TriggerOrderPlaced(market, user, order, orderId);
     }
 }

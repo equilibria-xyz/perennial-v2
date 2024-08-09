@@ -27,7 +27,7 @@ describe('Verifier', () => {
   let managerSigner: SignerWithAddress
   let orderVerifierSigner: SignerWithAddress
   let lastNonce = 0
-  let lastOrderNonce = 30
+  let lastOrderId = 30
   let currentTime: BigNumber
 
   function createCommonMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 18) {
@@ -48,7 +48,7 @@ describe('Verifier', () => {
     return {
       action: {
         market: market.address,
-        orderNonce: nextOrderNonce(),
+        orderId: nextOrderId(),
         maxFee: MAX_FEE,
         ...createCommonMessage(userAddress, signerAddress, expiresInSeconds),
       },
@@ -88,8 +88,8 @@ describe('Verifier', () => {
     return BigNumber.from(++lastNonce)
   }
 
-  function nextOrderNonce(): BigNumber {
-    return BigNumber.from(++lastOrderNonce)
+  function nextOrderId(): BigNumber {
+    return BigNumber.from(++lastOrderId)
   }
 
   const fixture = async () => {

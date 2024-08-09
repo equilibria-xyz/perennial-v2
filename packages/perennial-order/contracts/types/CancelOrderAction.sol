@@ -9,7 +9,7 @@ import { Action, ActionLib } from "./Action.sol";
 struct CancelOrderAction {
     /// @dev Identifies the order to cancel
     ///      action.market         - market for which order was placed
-    ///      action.orderNonce     - order identifier assigned by the user
+    ///      action.orderId     - order identifier assigned by the user
     ///      action.maxFee         - maximum amount to compensate keeper
     ///      action.common.account - the user who submitted the order
     Action action;
@@ -21,7 +21,7 @@ library CancelOrderActionLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
         "CancelOrderAction(Action action)"
-        "Action(address market,uint256 orderNonce,uint256 maxFee,Common common)"
+        "Action(address market,uint256 orderId,uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 

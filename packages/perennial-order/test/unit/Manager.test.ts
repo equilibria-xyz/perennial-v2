@@ -23,7 +23,7 @@ import { Compare, compareOrders, Side } from '../helpers/order'
 
 const { ethers } = HRE
 
-const FIRST_ORDER_NONCE = BigNumber.from(300)
+const FIRST_ORDER_ID = BigNumber.from(300)
 
 const MAX_FEE = utils.parseEther('7')
 
@@ -56,10 +56,10 @@ describe('Manager', () => {
   let userA: SignerWithAddress
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
-  let nextOrderNonce = FIRST_ORDER_NONCE
+  let nextOrderId = FIRST_ORDER_ID
 
-  function advanceOrderNonce(): BigNumber {
-    return (nextOrderNonce = nextOrderNonce.add(BigNumber.from(1)))
+  function advanceOrderId(): BigNumber {
+    return (nextOrderId = nextOrderId.add(BigNumber.from(1)))
   }
 
   function createOracleVersion(price: BigNumber, valid = true): OracleVersionStruct {
@@ -123,45 +123,45 @@ describe('Manager', () => {
     })
 
     it('places an order', async () => {
-      advanceOrderNonce()
-      await expect(manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER))
+      advanceOrderId()
+      await expect(manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER))
         .to.emit(manager, 'TriggerOrderPlaced')
-        .withArgs(market.address, userA.address, MAKER_ORDER, nextOrderNonce)
+        .withArgs(market.address, userA.address, MAKER_ORDER, nextOrderId)
 
-      const order = await manager.orders(market.address, userA.address, nextOrderNonce)
+      const order = await manager.orders(market.address, userA.address, nextOrderId)
       compareOrders(order, MAKER_ORDER)
     })
 
     it('cancels an order', async () => {
-      advanceOrderNonce()
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
 
-      await expect(manager.connect(userA).cancelOrder(market.address, nextOrderNonce))
+      await expect(manager.connect(userA).cancelOrder(market.address, nextOrderId))
         .to.emit(manager, 'TriggerOrderCancelled')
-        .withArgs(market.address, userA.address, nextOrderNonce)
+        .withArgs(market.address, userA.address, nextOrderId)
     })
 
     it('replaces an order', async () => {
       // submit the original order
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
 
       const replacement = { ...MAKER_ORDER }
       replacement.price = parse6decimal('2333.44')
 
       // submit a replacement with the same order nonce
-      await expect(manager.connect(userA).placeOrder(market.address, nextOrderNonce, replacement))
+      await expect(manager.connect(userA).placeOrder(market.address, nextOrderId, replacement))
         .to.emit(manager, 'TriggerOrderPlaced')
-        .withArgs(market.address, userA.address, replacement, nextOrderNonce)
+        .withArgs(market.address, userA.address, replacement, nextOrderId)
 
-      const order = await manager.orders(market.address, userA.address, nextOrderNonce)
+      const order = await manager.orders(market.address, userA.address, nextOrderId)
       compareOrders(order, replacement)
     })
 
     it('keeper can execute orders', async () => {
       // place a maker and long order
-      const nonce1 = advanceOrderNonce()
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
-      const nonce2 = advanceOrderNonce()
+      const nonce1 = advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+      const nonce2 = advanceOrderId()
       const longOrder = {
         side: Side.LONG,
         comparison: Compare.GTE,
@@ -170,7 +170,7 @@ describe('Manager', () => {
         maxFee: MAX_FEE,
         referrer: userA.address,
       }
-      await manager.connect(userB).placeOrder(market.address, nextOrderNonce, longOrder)
+      await manager.connect(userB).placeOrder(market.address, nextOrderId, longOrder)
 
       // execute the orders
       await manager.connect(keeper).executeOrder(market.address, userA.address, nonce1)
@@ -179,13 +179,13 @@ describe('Manager', () => {
 
     it('cannot cancel an executed maker order', async () => {
       // place an order
-      advanceOrderNonce()
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
 
       // execute the order
-      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderNonce)
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId)
 
-      await expect(manager.connect(userA).cancelOrder(market.address, nextOrderNonce)).to.be.revertedWithCustomError(
+      await expect(manager.connect(userA).cancelOrder(market.address, nextOrderId)).to.be.revertedWithCustomError(
         manager,
         'ManagerCannotCancelError',
       )
@@ -193,13 +193,13 @@ describe('Manager', () => {
 
     it('cannot cancel an already-cancelled order', async () => {
       // place an order
-      advanceOrderNonce()
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
 
       // cancel the order
-      await manager.connect(userA).cancelOrder(market.address, nextOrderNonce)
+      await manager.connect(userA).cancelOrder(market.address, nextOrderId)
 
-      await expect(manager.connect(userA).cancelOrder(market.address, nextOrderNonce)).to.be.revertedWithCustomError(
+      await expect(manager.connect(userA).cancelOrder(market.address, nextOrderId)).to.be.revertedWithCustomError(
         manager,
         'ManagerCannotCancelError',
       )
@@ -207,23 +207,23 @@ describe('Manager', () => {
 
     it('cannot reuse an order nonce from a cancelled order', async () => {
       // place and cancel an order, invalidating the order nonce
-      advanceOrderNonce()
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
-      await manager.connect(userA).cancelOrder(market.address, nextOrderNonce)
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+      await manager.connect(userA).cancelOrder(market.address, nextOrderId)
 
       await expect(
-        manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER),
+        manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER),
       ).to.revertedWithCustomError(manager, 'ManagerInvalidOrderNonceError')
     })
 
     it('cannot reuse an order nonce from an executed order', async () => {
       // place and execute an order, invalidating the order nonce
-      advanceOrderNonce()
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
-      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderNonce)
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId)
 
       await expect(
-        manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER),
+        manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER),
       ).to.revertedWithCustomError(manager, 'ManagerInvalidOrderNonceError')
     })
 
@@ -246,12 +246,12 @@ describe('Manager', () => {
           isSpent: false,
           referrer: constants.AddressZero,
         }
-        advanceOrderNonce()
-        await expect(manager.connect(userA).placeOrder(market.address, nextOrderNonce, order))
+        advanceOrderId()
+        await expect(manager.connect(userA).placeOrder(market.address, nextOrderId, order))
           .to.emit(manager, 'TriggerOrderPlaced')
-          .withArgs(market.address, userA.address, order, nextOrderNonce)
+          .withArgs(market.address, userA.address, order, nextOrderId)
 
-        const [, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderNonce)
+        const [, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderId)
         expect(canExecute).to.equal(scenario.expectedResult)
       }
     }
@@ -317,7 +317,7 @@ describe('Manager', () => {
       return {
         action: {
           market: market.address,
-          orderNonce: nextOrderNonce,
+          orderId: nextOrderId,
           maxFee: MAX_FEE,
           common: {
             account: userAddress,
@@ -336,7 +336,7 @@ describe('Manager', () => {
     }
 
     it('places an order using a signed message', async () => {
-      advanceOrderNonce()
+      advanceOrderId()
       const message = {
         order: {
           side: Side.MAKER,
@@ -353,15 +353,15 @@ describe('Manager', () => {
 
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
         .to.emit(manager, 'TriggerOrderPlaced')
-        .withArgs(market.address, userA.address, message.order, nextOrderNonce)
+        .withArgs(market.address, userA.address, message.order, nextOrderId)
 
-      const order = await manager.orders(market.address, userA.address, nextOrderNonce)
+      const order = await manager.orders(market.address, userA.address, nextOrderId)
       compareOrders(order, message.order)
     })
 
     it('cancels a request to place an order', async () => {
       // send the relayer a request to place an order
-      advanceOrderNonce()
+      advanceOrderId()
       const message = {
         order: {
           side: Side.MAKER,
@@ -401,8 +401,8 @@ describe('Manager', () => {
 
     it('cancels a placed order', async () => {
       // place an order
-      advanceOrderNonce()
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
 
       // create and sign a message requesting cancellation of the order
       const message = {
@@ -413,14 +413,14 @@ describe('Manager', () => {
       // keeper processes the request
       await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature))
         .to.emit(manager, 'TriggerOrderCancelled')
-        .withArgs(market.address, userA.address, message.action.orderNonce)
+        .withArgs(market.address, userA.address, message.action.orderId)
     })
 
     it('keeper can execute short order placed from a signed message', async () => {
       // directly place and execute a maker order
-      advanceOrderNonce()
-      await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
-      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderNonce)
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId)
 
       // place a short order using a signed message
       // different user can use the same order nonce
@@ -441,10 +441,10 @@ describe('Manager', () => {
       // keeper places the order
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
         .to.emit(manager, 'TriggerOrderPlaced')
-        .withArgs(market.address, userB.address, message.order, nextOrderNonce)
+        .withArgs(market.address, userB.address, message.order, nextOrderId)
 
       // keeper executes the short order
-      await manager.connect(keeper).executeOrder(market.address, userB.address, nextOrderNonce)
+      await manager.connect(keeper).executeOrder(market.address, userB.address, nextOrderId)
     })
   })
 })

@@ -10,7 +10,7 @@ struct Action {
     /// @dev Identifies the market in which user wants to interact
     IMarket market;
     /// @dev Client-supplied order identifier which cannot be reused
-    uint256 orderNonce;
+    uint256 orderId;
     /// @dev Largest amount to compensate relayer/keeper for the transaction in DSU
     UFixed6 maxFee;
     /// @dev Information shared across all EIP712 collateral account actions;
@@ -24,12 +24,12 @@ using ActionLib for Action global;
 library ActionLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "Action(address market,uint256 orderNonce,uint256 maxFee,Common common)"
+        "Action(address market,uint256 orderId,uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     /// @dev Used to create a signed message
     function hash(Action memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.market, self.orderNonce, self.maxFee, CommonLib.hash(self.common)));
+        return keccak256(abi.encode(STRUCT_HASH, self.market, self.orderId, self.maxFee, CommonLib.hash(self.common)));
     }
 }
