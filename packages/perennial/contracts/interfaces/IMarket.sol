@@ -148,6 +148,7 @@ interface IMarket is IInstance {
     function liquidators(address account, uint256 id) external view returns (address);
     function orderReferrers(address account, uint256 id) external view returns (address);
     function guaranteeReferrers(address account, uint256 id) external view returns (address);
+    function sync(address account) external;
     function settle(address account) external;
     function update(Intent calldata intent, bytes memory signature) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;

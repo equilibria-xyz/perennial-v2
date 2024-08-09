@@ -1266,6 +1266,264 @@ describe('Market', () => {
       })
     })
 
+    describe('#sync', async () => {
+      beforeEach(async () => {
+        await market.connect(owner).updateCoordinator(coordinator.address)
+        await market.connect(owner).updateBeneficiary(beneficiary.address)
+        await market.connect(owner).updateParameter(marketParameter)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
+
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+      })
+
+      it('opens the position and syncs', async () => {
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        )
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            0,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            user.address,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              makerPos: POSITION,
+              collateral: COLLATERAL,
+            },
+            { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await expect(await market.sync(user.address))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(
+            1,
+            {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_VERSION_ACCUMULATION_RESULT,
+          )
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            1,
+            {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 1,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
+          ...DEFAULT_GLOBAL,
+          currentId: 1,
+          latestId: 1,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrder(1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          ...DEFAULT_VERSION,
+          price: PRICE,
+          liquidationFee: { _value: -riskParameter.liquidationFee },
+        })
+      })
+
+      it('syncs when market is in settle-only mode', async () => {
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        )
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            0,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            user.address,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              makerPos: POSITION,
+              collateral: COLLATERAL,
+            },
+            { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        const marketParameter = { ...(await market.parameter()) }
+        marketParameter.settle = true
+        await market.connect(owner).updateParameter(marketParameter)
+
+        await expect(await market.sync(user.address))
+          .to.emit(market, 'PositionProcessed')
+          .withArgs(
+            1,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_VERSION_ACCUMULATION_RESULT,
+          )
+          .to.emit(market, 'AccountPositionProcessed')
+          .withArgs(
+            user.address,
+            1,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            },
+            DEFAULT_LOCAL_ACCUMULATION_RESULT,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 1,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
+          ...DEFAULT_GLOBAL,
+          currentId: 1,
+          latestId: 1,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrder(1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          ...DEFAULT_VERSION,
+          price: PRICE,
+          liquidationFee: { _value: -riskParameter.liquidationFee },
+        })
+      })
+
+      it('reverts when paused', async () => {
+        factory.paused.returns(true)
+
+        await expect(
+          market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        ).to.revertedWithCustomError(market, 'InstancePausedError')
+      })
+    })
+
     describe('#settle', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateCoordinator(coordinator.address)
@@ -1369,7 +1627,6 @@ describe('Market', () => {
         })
         expectGlobalEq(await market.global(), {
           ...DEFAULT_GLOBAL,
-          ...DEFAULT_GLOBAL,
           currentId: 1,
           latestId: 1,
         })
@@ -1395,7 +1652,7 @@ describe('Market', () => {
         })
       })
 
-      it('settles when market is in settle-only mode', async () => {
+      it('doesnt settle when market is in sync-only mode', async () => {
         await expect(
           market
             .connect(user)
@@ -1434,93 +1691,7 @@ describe('Market', () => {
         marketParameter.settle = true
         await market.connect(owner).updateParameter(marketParameter)
 
-        await expect(await market.settle(user.address))
-          .to.emit(market, 'PositionProcessed')
-          .withArgs(
-            1,
-            {
-              ...DEFAULT_ORDER,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              orders: 1,
-              collateral: COLLATERAL,
-              makerPos: POSITION,
-            },
-            DEFAULT_VERSION_ACCUMULATION_RESULT,
-          )
-          .to.emit(market, 'AccountPositionProcessed')
-          .withArgs(
-            user.address,
-            1,
-            {
-              ...DEFAULT_ORDER,
-              timestamp: ORACLE_VERSION_2.timestamp,
-              orders: 1,
-              collateral: COLLATERAL,
-              makerPos: POSITION,
-            },
-            DEFAULT_LOCAL_ACCUMULATION_RESULT,
-          )
-
-        expectLocalEq(await market.locals(user.address), {
-          ...DEFAULT_LOCAL,
-          currentId: 1,
-          latestId: 1,
-          collateral: COLLATERAL,
-        })
-        expectPositionEq(await market.positions(user.address), {
-          ...DEFAULT_POSITION,
-          timestamp: ORACLE_VERSION_2.timestamp,
-          maker: POSITION,
-        })
-        expectOrderEq(await market.pendingOrders(user.address, 1), {
-          ...DEFAULT_ORDER,
-          timestamp: ORACLE_VERSION_2.timestamp,
-          orders: 1,
-          makerPos: POSITION,
-          collateral: COLLATERAL,
-        })
-        expectOrderEq(await market.pendingOrders(user.address, 2), {
-          ...DEFAULT_ORDER,
-        })
-        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
-          ...DEFAULT_CHECKPOINT,
-        })
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          ...DEFAULT_GLOBAL,
-          currentId: 1,
-          latestId: 1,
-        })
-        expectPositionEq(await market.position(), {
-          ...DEFAULT_POSITION,
-          timestamp: ORACLE_VERSION_2.timestamp,
-          maker: POSITION,
-        })
-        expectOrderEq(await market.pendingOrder(1), {
-          ...DEFAULT_ORDER,
-          timestamp: ORACLE_VERSION_2.timestamp,
-          orders: 1,
-          makerPos: POSITION,
-          collateral: COLLATERAL,
-        })
-        expectOrderEq(await market.pendingOrder(2), {
-          ...DEFAULT_ORDER,
-        })
-        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
-          ...DEFAULT_VERSION,
-          price: PRICE,
-          liquidationFee: { _value: -riskParameter.liquidationFee },
-        })
-      })
-
-      it('reverts when paused', async () => {
-        factory.paused.returns(true)
-
-        await expect(
-          market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
-        ).to.revertedWithCustomError(market, 'InstancePausedError')
+        await expect(market.settle(user.address)).to.revertedWithCustomError(market, 'MarketSettleOnlyError')
       })
     })
 
