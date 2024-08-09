@@ -8,14 +8,12 @@ import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v
 /// @notice Changes a user's position in a market when price reaches a trigger threshold
 struct TriggerOrder {
     /// @dev Determines the desired position type to establish or change
-    // TODO: change values to 4,5,6
-    uint8 side;       // 3 = maker, 4 = long, 5 = short
+    uint8 side;       // 4 = maker, 5 = long, 6 = short
     /// @dev Trigger condition; market price to be less/greater than trigger price
     int8 comparison;  // -1 = lte, 1 = gte
     /// @dev Trigger price used on right hand side of comparison
     Fixed6 price;     // <= 9.22t
-    // TODO: use type(int64).minValue as magic number instead of 0
-    /// @dev Amount to change position by, or 0 to close position
+    /// @dev Amount to change position by, or type(int64).min to close position
     Fixed6 delta;     // <= 9.22t
     /// @dev Limit on keeper compensation for executing the order
     UFixed6 maxFee;   // < 18.45t
@@ -27,6 +25,8 @@ using TriggerOrderLib for TriggerOrder global;
 /// @notice Logic for interacting with trigger orders
 /// @dev (external-unsafe): this library must be used internally only
 library TriggerOrderLib {
+    Fixed6 private constant MAGIC_VALUE_CLOSE_POSITION = Fixed6.wrap(type(int64).min);
+
     // sig: 0x5b8c7e99
     /// @custom:error side or comparison is not supported
     error TriggerOrderInvalidError();
@@ -58,9 +58,9 @@ library TriggerOrderLib {
         position.update(pending);
 
         // apply order to position
-        if (self.side == 3) position.maker = _add(position.maker, self.delta);
-        if (self.side == 4) position.long = _add(position.long, self.delta);
-        if (self.side == 5) position.short = _add(position.short, self.delta);
+        if (self.side == 4) position.maker = _add(position.maker, self.delta);
+        if (self.side == 5) position.long = _add(position.long, self.delta);
+        if (self.side == 6) position.short = _add(position.short, self.delta);
 
         // apply position to market
         market.update(
@@ -83,12 +83,12 @@ library TriggerOrderLib {
 
     /// @dev Prevents writing invalid side or comparison to storage
     function isValid(TriggerOrder memory self) internal pure returns (bool) {
-        return self.side > 2 && self.side < 6 && (self.comparison == -1 || self.comparison == 1);
+        return self.side > 3 && self.side < 7 && (self.comparison == -1 || self.comparison == 1);
     }
 
     /// @dev Helper function to improve readability of TriggerOrderLib.execute
     function _add(UFixed6 lhs, Fixed6 rhs) private returns (UFixed6) {
-        return rhs.isZero() ?
+        return rhs.eq(MAGIC_VALUE_CLOSE_POSITION) ?
             UFixed6Lib.ZERO :
             UFixed6Lib.from(Fixed6Lib.from(lhs).add(rhs));
     }
@@ -96,7 +96,7 @@ library TriggerOrderLib {
 
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;             // 3 = maker, 4 = long, 5 = short
+    uint8 side;             // 4 = maker, 5 = long, 6 = short
     int8 comparison;        // -1 = lte, 1 = gte
     int64 price;            // <= 9.22t
     int64 delta;            // <= 9.22t

@@ -22,7 +22,7 @@ import {
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../helpers/eip712'
 import { createMarketETH, deployProtocol, deployPythOracleFactory, fundWalletDSU } from '../helpers/arbitrumHelpers'
-import { Compare, compareOrders, Side } from '../helpers/order'
+import { Compare, compareOrders, MAGIC_VALUE_CLOSE_POSITION, Side } from '../helpers/order'
 import { transferCollateral } from '../helpers/marketHelpers'
 import { advanceToPrice } from '../helpers/oracleHelpers'
 import { PlaceOrderActionStruct } from '../../types/generated/contracts/Manager'
@@ -491,11 +491,17 @@ describe('Manager_Arbitrum', () => {
 
     it('users can close positions', async () => {
       // can close directly
-      let nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, constants.Zero)
+      let nonce = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, MAGIC_VALUE_CLOSE_POSITION)
       expect(nonce).to.equal(BigNumber.from(508))
 
       // can close using a signed message
-      nonce = await placeOrderWithSignature(userB, Side.LONG, Compare.LTE, parse6decimal('4000'), constants.Zero)
+      nonce = await placeOrderWithSignature(
+        userB,
+        Side.LONG,
+        Compare.LTE,
+        parse6decimal('4000'),
+        MAGIC_VALUE_CLOSE_POSITION,
+      )
       expect(nonce).to.equal(BigNumber.from(502))
 
       // keeper closes the taker position before removing liquidity

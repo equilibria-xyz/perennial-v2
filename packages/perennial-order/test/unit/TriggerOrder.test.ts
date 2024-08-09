@@ -98,7 +98,7 @@ describe('TriggerOrder', () => {
 
     it('reverts storing order with invalid side', async () => {
       const badOrder = { ...ORDER_SHORT }
-      const badSides = [0, 1, 2, 6]
+      const badSides = [0, 1, 2, 3, 7]
       for (const badSide of badSides) {
         badOrder.side = badSide
         await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
