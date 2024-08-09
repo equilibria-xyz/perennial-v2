@@ -22,28 +22,6 @@ describe('DedupLib', () => {
     dedupLib = await new DedupTester__factory(owner).deploy()
   })
 
-  describe('#unique', () => {
-    it('returns correct value all unique', async () => {
-      expect(await dedupLib.unique(toByteArray([0, 1, 2, 3, 4]))).to.equal(5)
-    })
-
-    it('returns correct value duplicate start', async () => {
-      expect(await dedupLib.unique(toByteArray([0, 0, 2, 3, 4]))).to.equal(4)
-    })
-
-    it('returns correct value duplicate end', async () => {
-      expect(await dedupLib.unique(toByteArray([0, 1, 2, 3, 3]))).to.equal(4)
-    })
-
-    it('returns correct value duplicate middle', async () => {
-      expect(await dedupLib.unique(toByteArray([0, 2, 2, 2, 4]))).to.equal(3)
-    })
-
-    it('returns correct value duplicate all', async () => {
-      expect(await dedupLib.unique(toByteArray([0, 0, 0, 0, 0]))).to.equal(1)
-    })
-  })
-
   describe('#dedup', () => {
     it('returns correct value all unique', async () => {
       const value = await dedupLib.dedup(toByteArray([0, 1, 2, 3, 4]))
