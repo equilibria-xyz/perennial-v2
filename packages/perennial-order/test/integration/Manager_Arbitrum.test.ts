@@ -183,7 +183,7 @@ describe('Manager_Arbitrum', () => {
     // set the order's spent flag true to validate event
     const spentOrder = { ...orderFromStructOutput(order), isSpent: true }
     await expect(tx)
-      .to.emit(manager, 'OrderExecuted')
+      .to.emit(manager, 'TriggerOrderExecuted')
       .withArgs(market.address, user.address, spentOrder, orderNonce)
       .to.emit(market, 'OrderCreated')
       .withArgs(user.address, anyValue, anyValue, constants.AddressZero, order.referrer, constants.AddressZero)
@@ -248,7 +248,7 @@ describe('Manager_Arbitrum', () => {
     advanceOrderNonce(user)
     const nonce = nextOrderNonce[user.address]
     await expect(manager.connect(user).placeOrder(market.address, nonce, order, TX_OVERRIDES))
-      .to.emit(manager, 'OrderPlaced')
+      .to.emit(manager, 'TriggerOrderPlaced')
       .withArgs(market.address, user.address, order, nonce)
 
     const storedOrder = await manager.orders(market.address, user.address, nonce)
@@ -281,7 +281,7 @@ describe('Manager_Arbitrum', () => {
     const signature = await signPlaceOrderAction(user, verifier, message)
 
     await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
-      .to.emit(manager, 'OrderPlaced')
+      .to.emit(manager, 'TriggerOrderPlaced')
       .withArgs(market.address, user.address, message.order, message.action.orderNonce)
 
     const storedOrder = await manager.orders(market.address, user.address, message.action.orderNonce)
@@ -417,7 +417,7 @@ describe('Manager_Arbitrum', () => {
 
       // user cancels the order nonce
       await expect(manager.connect(userA).cancelOrder(market.address, nonce, TX_OVERRIDES))
-        .to.emit(manager, 'OrderCancelled')
+        .to.emit(manager, 'TriggerOrderCancelled')
         .withArgs(market.address, userA.address, nonce)
 
       const storedOrder = await manager.orders(market.address, userA.address, nonce)
@@ -437,7 +437,7 @@ describe('Manager_Arbitrum', () => {
 
       // keeper handles the request
       await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature, TX_OVERRIDES))
-        .to.emit(manager, 'OrderCancelled')
+        .to.emit(manager, 'TriggerOrderCancelled')
         .withArgs(market.address, userA.address, nonce)
 
       const storedOrder = await manager.orders(market.address, userA.address, nonce)
@@ -489,7 +489,7 @@ describe('Manager_Arbitrum', () => {
       const signature = await signPlaceOrderAction(userB, verifier, message)
 
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
-        .to.emit(manager, 'OrderPlaced')
+        .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, userA.address, message.order, message.action.orderNonce)
 
       const storedOrder = await manager.orders(market.address, userA.address, message.action.orderNonce)

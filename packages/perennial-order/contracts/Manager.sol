@@ -113,7 +113,7 @@ abstract contract Manager is IManager, Kept {
         order.isSpent = true;
         _orders[market][user][orderNonce].store(order);
 
-        emit OrderExecuted(market, user, order, orderNonce);
+        emit TriggerOrderExecuted(market, user, order, orderNonce);
     }
 
     /// @dev reads keeper compensation parameters from an action message
@@ -165,7 +165,7 @@ abstract contract Manager is IManager, Kept {
         order.isSpent = true;
         _orders[market][user][orderNonce].store(order);
 
-        emit OrderCancelled(market, user, orderNonce);
+        emit TriggerOrderCancelled(market, user, orderNonce);
     }
 
     function _placeOrder(IMarket market, address user, uint256 orderNonce, TriggerOrder calldata order) private {
@@ -174,6 +174,6 @@ abstract contract Manager is IManager, Kept {
         if (old.isSpent) revert ManagerInvalidOrderNonceError();
 
         _orders[market][user][orderNonce].store(order);
-        emit OrderPlaced(market, user, order, orderNonce);
+        emit TriggerOrderPlaced(market, user, order, orderNonce);
     }
 }

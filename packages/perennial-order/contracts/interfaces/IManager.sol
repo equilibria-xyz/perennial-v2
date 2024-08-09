@@ -8,14 +8,12 @@ import { PlaceOrderAction, TriggerOrder} from "../types/PlaceOrderAction.sol";
 
 /// @notice Stores and executes trigger orders
 interface IManager {
-    // TODO: consider renaming these events TriggerOrder* to disambiguate with core protocol's "Market"
-
     /// @notice Emitted when a trigger order is written to storage, whether as a new order or a replacement
     /// @param market Perennial market for which the order is intended
     /// @param user Actor who wants to change their position in the market
     /// @param order Desired change in position and conditions upon which change may be made
     /// @param orderNonce Client-supplied order identifier, unique to client
-    event OrderPlaced(
+    event TriggerOrderPlaced(
         IMarket indexed market,
         address indexed user,
         TriggerOrder order,
@@ -26,14 +24,14 @@ interface IManager {
     /// @param market Perennial market for which the order was intended
     /// @param user Actor whose order was cancelled
     /// @param orderNonce Uniquely identifies the cancelled order
-    event OrderCancelled(IMarket indexed market, address indexed user, uint256 orderNonce);
+    event TriggerOrderCancelled(IMarket indexed market, address indexed user, uint256 orderNonce);
 
     /// @notice Emitted when a trigger orders conditions have been met and the user's position has been updated
     /// @param market Perennial market which the order affected
     /// @param user Actor whose position was changed
     /// @param order Change in position and conditions which were satisfied
     /// @param orderNonce Uniquely identifies the executed order
-    event OrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderNonce);
+    event TriggerOrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderNonce);
 
     // sig: 0x955cc4b9
     /// @custom:error Order does not exist or was already cancelled or executed

@@ -125,7 +125,7 @@ describe('Manager', () => {
     it('places an order', async () => {
       advanceOrderNonce()
       await expect(manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER))
-        .to.emit(manager, 'OrderPlaced')
+        .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, userA.address, MAKER_ORDER, nextOrderNonce)
 
       const order = await manager.orders(market.address, userA.address, nextOrderNonce)
@@ -137,7 +137,7 @@ describe('Manager', () => {
       await manager.connect(userA).placeOrder(market.address, nextOrderNonce, MAKER_ORDER)
 
       await expect(manager.connect(userA).cancelOrder(market.address, nextOrderNonce))
-        .to.emit(manager, 'OrderCancelled')
+        .to.emit(manager, 'TriggerOrderCancelled')
         .withArgs(market.address, userA.address, nextOrderNonce)
     })
 
@@ -150,7 +150,7 @@ describe('Manager', () => {
 
       // submit a replacement with the same order nonce
       await expect(manager.connect(userA).placeOrder(market.address, nextOrderNonce, replacement))
-        .to.emit(manager, 'OrderPlaced')
+        .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, userA.address, replacement, nextOrderNonce)
 
       const order = await manager.orders(market.address, userA.address, nextOrderNonce)
@@ -248,7 +248,7 @@ describe('Manager', () => {
         }
         advanceOrderNonce()
         await expect(manager.connect(userA).placeOrder(market.address, nextOrderNonce, order))
-          .to.emit(manager, 'OrderPlaced')
+          .to.emit(manager, 'TriggerOrderPlaced')
           .withArgs(market.address, userA.address, order, nextOrderNonce)
 
         const [, canExecute] = await manager.checkOrder(market.address, userA.address, nextOrderNonce)
@@ -352,7 +352,7 @@ describe('Manager', () => {
       const signature = await signPlaceOrderAction(userA, verifier, message)
 
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
-        .to.emit(manager, 'OrderPlaced')
+        .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, userA.address, message.order, nextOrderNonce)
 
       const order = await manager.orders(market.address, userA.address, nextOrderNonce)
@@ -412,7 +412,7 @@ describe('Manager', () => {
 
       // keeper processes the request
       await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature))
-        .to.emit(manager, 'OrderCancelled')
+        .to.emit(manager, 'TriggerOrderCancelled')
         .withArgs(market.address, userA.address, message.action.orderNonce)
     })
 
@@ -440,7 +440,7 @@ describe('Manager', () => {
 
       // keeper places the order
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
-        .to.emit(manager, 'OrderPlaced')
+        .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, userB.address, message.order, nextOrderNonce)
 
       // keeper executes the short order
