@@ -44,7 +44,7 @@ contract Controller is Factory, IController {
 
     /// @dev Mapping of rebalance configuration
     /// owner => group => market => config
-    mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) public config;
+    mapping(address => mapping(uint256 => mapping(address => RebalanceConfig))) private _rebalanceConfigs;
 
     /// @dev Prevents markets from being added to multiple rebalance groups
     /// owner => market => group
@@ -102,8 +102,9 @@ contract Controller is Factory, IController {
         // determine if anything is outside the rebalance threshold
         for (uint256 i; i < actualCollateral.length; i++) {
             IMarket market = groupToMarkets[owner][group][i];
-            RebalanceConfig memory marketConfig = config[owner][group][address(market)];
-            (bool canMarketRebalance, Fixed6 imbalance) = RebalanceLib.checkMarket(marketConfig, groupCollateral, actualCollateral[i]);
+            RebalanceConfig memory marketRebalanceConfig = _rebalanceConfigs[owner][group][address(market)];
+            (bool canMarketRebalance, Fixed6 imbalance) =
+                RebalanceLib.checkMarket(marketRebalanceConfig, groupCollateral, actualCollateral[i]);
             imbalances[i] = imbalance;
             canRebalance = canRebalance || canMarketRebalance;
         }
@@ -116,25 +117,28 @@ contract Controller is Factory, IController {
 
     /// @inheritdoc IController
     function deployAccountWithSignature(
-        DeployAccount calldata deployAccount_,
+        DeployAccount calldata deployAccountAction,
         bytes calldata signature
     ) virtual external {
-        _deployAccountWithSignature(deployAccount_, signature);
+        _deployAccountWithSignature(deployAccountAction, signature);
     }
 
     /// @inheritdoc IController
-    function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature) virtual external {
+    function marketTransferWithSignature(
+        MarketTransfer calldata marketTransfer,
+        bytes calldata signature
+    ) virtual external {
         IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
         _marketTransferWithSignature(account, marketTransfer, signature);
     }
 
     /// @inheritdoc IController
-    function rebalanceConfig(
+    function rebalanceConfigs(
         address owner,
         uint256 group,
         address market
-    ) external view returns (RebalanceConfig memory config_) {
-        config_ = config[owner][group][market];
+    ) external view returns (RebalanceConfig memory) {
+        return _rebalanceConfigs[owner][group][market];
     }
 
     /// @inheritdoc IController
@@ -228,17 +232,13 @@ contract Controller is Factory, IController {
         // pull collateral from markets with surplus collateral
         for (uint256 i; i < imbalances.length; i++) {
             IMarket market = groupToMarkets[owner][group][i];
-            if (Fixed6.unwrap(imbalances[i]) < 0) {
-                account.marketTransfer(market, imbalances[i]);
-            }
+            if (Fixed6.unwrap(imbalances[i]) < 0) account.marketTransfer(market, imbalances[i]);
         }
 
         // push collateral to markets with insufficient collateral
         for (uint256 i; i < imbalances.length; i++) {
             IMarket market = groupToMarkets[owner][group][i];
-            if (Fixed6.unwrap(imbalances[i]) > 0) {
-                account.marketTransfer(market, imbalances[i]);
-            }
+            if (Fixed6.unwrap(imbalances[i]) > 0) account.marketTransfer(market, imbalances[i]);
         }
 
         emit GroupRebalanced(owner, group);
@@ -259,9 +259,8 @@ contract Controller is Factory, IController {
 
     /// @dev settles each market in a rebalancing group
     function _settleMarkets(address owner, uint256 group) private {
-        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++)
             groupToMarkets[owner][group][i].settle(owner);
-        }
     }
 
     /// @dev overwrites rebalance configuration of all markets for a particular owner and group
@@ -281,7 +280,7 @@ contract Controller is Factory, IController {
         // delete the existing group
         for (uint256 i; i < groupToMarkets[owner][message.group].length; i++) {
             address market = address(groupToMarkets[owner][message.group][i]);
-            delete config[owner][message.group][market];
+            delete _rebalanceConfigs[owner][message.group][market];
             delete marketToGroup[owner][market];
         }
         delete groupToMarkets[owner][message.group];
@@ -295,7 +294,7 @@ contract Controller is Factory, IController {
 
             // rewrite over all the old configuration
             marketToGroup[owner][message.markets[i]] = message.group;
-            config[owner][message.group][message.markets[i]] = message.configs[i];
+            _rebalanceConfigs[owner][message.group][message.markets[i]] = message.configs[i];
             groupToMarkets[owner][message.group].push(IMarket(message.markets[i]));
             groupToMaxRebalanceFee[owner][message.group] = message.maxFee;
 
@@ -303,12 +302,7 @@ contract Controller is Factory, IController {
             // read from storage to trap duplicate markets in the message
             totalAllocation = totalAllocation.add(message.configs[i].target);
 
-            emit RebalanceMarketConfigured(
-                owner,
-                message.group,
-                message.markets[i],
-                message.configs[i]
-            );
+            emit RebalanceMarketConfigured(owner, message.group, message.markets[i], message.configs[i]);
         }
 
         // if not deleting the group, ensure rebalance targets add to 100%
