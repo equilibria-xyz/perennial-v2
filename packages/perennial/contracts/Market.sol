@@ -134,10 +134,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             address(0),
             intent.amount.mul(Fixed6Lib.NEG_ONE),
             intent.price,
-            intent.originator,
-            intent.solver,
-            intent.fee,
-            true
+            address(0),
+            address(0),
+            UFixed6Lib.ZERO,
+            true,
+            false
         ); // sender
         _updateIntent(
             intent.common.account,
@@ -147,7 +148,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             intent.originator,
             intent.solver,
             intent.fee,
-            false
+            false,
+            true
         ); // signer
     }
 
@@ -159,7 +161,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param orderReferrer The referrer of the order
     /// @param guaranteeReferrer The referrer of the guarantee
     /// @param guaranteeReferralFee The referral fee for the guarantee
-    /// @param chargeFee Whether to charge the fee
+    /// @param chargeSettlementFee Whether to charge the settlement fee
+    /// @param chargeTradeFee Whether to charge the trade fee
     function _updateIntent(
         address account,
         address signer,
@@ -168,7 +171,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address orderReferrer,
         address guaranteeReferrer,
         UFixed6 guaranteeReferralFee,
-        bool chargeFee
+        bool chargeSettlementFee,
+        bool chargeTradeFee
     ) private {
         // settle market & account
         Context memory context = _loadContext(account);
@@ -177,7 +181,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load update context
         UpdateContext memory updateContext = _loadUpdateContext(context, signer, orderReferrer, guaranteeReferralFee);
 
-        (UFixed6 processedOrderReferralFee, UFixed6 processedGuaranteeReferralFee) = chargeFee
+        (UFixed6 processedOrderReferralFee, UFixed6 processedGuaranteeReferralFee) = chargeTradeFee
             ? _processReferralFee(context, updateContext, orderReferrer, guaranteeReferrer)
             : (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
@@ -188,7 +192,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             amount,
             processedOrderReferralFee
         );
-        Guarantee memory newGuarantee = GuaranteeLib.from(newOrder, price, processedGuaranteeReferralFee, chargeFee);
+        Guarantee memory newGuarantee = GuaranteeLib.from(
+            newOrder,
+            price,
+            processedGuaranteeReferralFee,
+            chargeSettlementFee,
+            chargeTradeFee
+        );
 
         // process update
         _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
