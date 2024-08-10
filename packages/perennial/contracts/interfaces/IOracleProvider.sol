@@ -22,7 +22,7 @@ interface IOracleProvider {
     event OracleProviderVersionRequested(uint256 indexed version, bool newPrice);
     event OracleProviderVersionFulfilled(OracleVersion version);
 
-    function request(IMarket market, address account, bool newPrice) external;
+    function request(IMarket market, address account) external;
     function status() external view returns (OracleVersion memory, uint256);
     function latest() external view returns (OracleVersion memory);
     function current() external view returns (uint256);

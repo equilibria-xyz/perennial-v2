@@ -34,9 +34,6 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev Mapping from version and market to a set of registered accounts for settlement callback
     mapping(uint256 => EnumerableSet.AddressSet) private _localCallbacks;
 
-    /// @dev Mapping of lookback links for versions requested with out a new price
-    mapping(uint256 => uint256) public linkbacks;
-
     /// @notice Constructs the contract
     /// @param timeout_ The timeout for a version to be committed
     constructor(uint256 timeout_)  {
@@ -89,48 +86,29 @@ contract KeeperOracle is IKeeperOracle, Instance {
     }
 
     /// @notice Records a request for a new oracle version
-    /// @dev If no new price is requested:
-    ///       - If no request has been made this version, a linkback will be created to the most recently requested new price
-    ///       - If a request has been made with or without a new price this version, no action will be taken
-    ///      If a new price is requested:
-    ///       - If no request has been made this version, a new price request will be created
-    ///       - If a request has been made without a new price this version, its linkback will be removed, and a new price request will be created
-    ///       - If a request has been made with a new price this version, no action will be taken
+    /// @dev  - If no request has been made this version, a price request will be created
+    ///       - If a request has been made this version, no action will be taken
     /// @param account The account to callback to
-    /// @param newPrice Whether a new price should be requested
-    function request(IMarket, address account, bool newPrice) external onlyOracle {
+    function request(IMarket, address account) external onlyOracle {
         KeeperOracleParameter memory keeperOracleParameter = IKeeperFactory(address(factory())).parameter();
         uint256 currentTimestamp = current();
 
-        if (newPrice) {
-            _localCallbacks[currentTimestamp].add(account);
-            emit CallbackRequested(SettlementCallback(oracle.market(), account, currentTimestamp));
-        }
+        _localCallbacks[currentTimestamp].add(account);
+        emit CallbackRequested(SettlementCallback(oracle.market(), account, currentTimestamp));
 
         PriceRequest memory currentRequest = _requests[_global.currentIndex].read();
 
         if (currentRequest.timestamp == currentTimestamp) return; // already requested new price
-        if (newPrice) {
-            _requests[++_global.currentIndex].store(
-                PriceRequest(
-                    currentTimestamp,
-                    keeperOracleParameter.syncFee,
-                    keeperOracleParameter.asyncFee,
-                    keeperOracleParameter.oracleFee
-                )
-            );
-            delete linkbacks[currentTimestamp];
-            emit OracleProviderVersionRequested(currentTimestamp, true);
-        } else {
-            // take the more recent of the latest requested version and the latest committed version
-            uint256 linkbackTimestamp = Math.max(currentRequest.timestamp, _global.latestVersion);
 
-            if (linkbacks[currentTimestamp] != 0) return; // already requested without new price
-            if (linkbackTimestamp == 0) revert KeeperOracleNoPriorRequestsError(); // no prior requests or commits
-
-            linkbacks[currentTimestamp] = linkbackTimestamp;
-            emit OracleProviderVersionRequested(currentTimestamp, false);
-        }
+        _requests[++_global.currentIndex].store(
+            PriceRequest(
+                currentTimestamp,
+                keeperOracleParameter.syncFee,
+                keeperOracleParameter.asyncFee,
+                keeperOracleParameter.oracleFee
+            )
+        );
+        emit OracleProviderVersionRequested(currentTimestamp, true);
     }
 
     /// @notice Returns the latest synced oracle version and the current oracle version
@@ -154,18 +132,13 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
     /// @notice Returns the oracle version at version `version`
     /// @param timestamp The timestamp of which to lookup
-    /// @return oracleVersion Oracle version at version `version`
-    /// @return oracleReceipt Oracle version at version `version`
-    function at(
-        uint256 timestamp
-    ) public view returns (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) {
-        if (linkbacks[timestamp] != 0)
-            (oracleVersion, ) = at(linkbacks[timestamp]);
-        else
-            (oracleVersion, oracleReceipt) = (
-                _responses[timestamp].read().toOracleVersion(timestamp),
-                _responses[timestamp].read().toOracleReceipt(_localCallbacks[timestamp].length())
-            );
+    /// @return Oracle version at version `version`
+    /// @return Oracle receipt at version `version`
+    function at(uint256 timestamp) public view returns (OracleVersion memory, OracleReceipt memory) {
+        return (
+            _responses[timestamp].read().toOracleVersion(timestamp),
+            _responses[timestamp].read().toOracleReceipt(_localCallbacks[timestamp].length())
+        );
     }
 
     /// @notice Commits the price to specified version

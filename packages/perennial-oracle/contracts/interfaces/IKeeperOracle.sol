@@ -57,6 +57,5 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     function oracle() external view returns (IOracle);
     function requests(uint256 index) external view returns (PriceRequest memory);
     function responses(uint256 timestamp) external view returns (PriceResponse memory);
-    function linkbacks(uint256 timestamp) external view returns (uint256);
     function global() external view returns (Global memory);
 }

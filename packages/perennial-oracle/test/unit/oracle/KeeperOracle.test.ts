@@ -185,12 +185,6 @@ describe('KeeperOracle', () => {
     ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
   })
 
-  it('reverts requesting no new price before a new price', async () => {
-    await expect(
-      keeperOracle.connect(oracleSigner).request(market.address, user.address, false),
-    ).to.revertedWithCustomError(keeperOracle, 'KeeperOracleNoPriorRequestsError')
-  })
-
   it('discards expired prices', async () => {
     // establish an initial valid version
     const startTime = await currentBlockTimestamp()
@@ -199,7 +193,7 @@ describe('KeeperOracle', () => {
 
     // request a version
     await increase(10)
-    const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address, true, {
+    const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address, {
       maxFeePerGas: 100000000,
     })
     // TODO: weaponize this transaction-to-blocktime facility into a utility function

@@ -23,6 +23,9 @@ struct Global {
     /// @dev The accrued risk fee
     UFixed6 riskFee;
 
+    /// @dev The latest valid price in the market
+    Fixed6 latestPrice;
+
     /// @dev The accumulated market exposure
     Fixed6 exposure;
 
@@ -42,16 +45,14 @@ library GlobalLib {
     /// @param latestRiskParameter The latest risk parameter configuration
     /// @param newRiskParameter The new risk parameter configuration
     /// @param latestPosition The latest position
-    /// @param latestPrice The latest price
     function update(
         Global memory self,
         RiskParameter memory latestRiskParameter,
         RiskParameter memory newRiskParameter,
-        Position memory latestPosition,
-        Fixed6 latestPrice
+        Position memory latestPosition
     ) internal pure {
         Fixed6 exposureChange = latestRiskParameter.takerFee
-            .exposure(newRiskParameter.takerFee, latestPosition.skew(), latestPrice.abs());
+            .exposure(newRiskParameter.takerFee, latestPosition.skew(), self.latestPrice.abs());
         self.exposure = self.exposure.sub(exposureChange);
     }
 
@@ -90,6 +91,13 @@ library GlobalLib {
         self.riskFee = self.riskFee.add(riskFee);
         self.exposure = self.exposure.add(accumulation.adiabaticExposureMarket);
     }
+
+    /// @notice Overrides the price of the oracle with the latest global version if it is empty
+    /// @param self The Global object to read from
+    /// @param oracleVersion The oracle version to update
+    function overrideIfZero(Global memory self, OracleVersion memory oracleVersion) internal pure {
+        if (oracleVersion.price.isZero()) oracleVersion.price = self.latestPrice;
+    }
 }
 
 /// @dev Manually encodes and decodes the Global struct into storage.
@@ -106,7 +114,7 @@ library GlobalLib {
 ///         /* slot 1 */
 ///         int32 pAccumulator.value;   // <= 214000%
 ///         int24 pAccumulator.skew;    // <= 838%
-///         int64 __UNSAFE___;          // <= 9.22t (deprecated in v2.3, unsafe to reuse until reset)
+///         int64 latestPrice;          // <= 9.22t
 ///         int64 exposure;             // <= 9.22t
 ///     }
 ///
@@ -122,6 +130,7 @@ library GlobalStorageLib {
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48 - 48)) >> (256 - 48)),
+            Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64)) >> (256 - 64)),
             Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64 - 64)) >> (256 - 64)),
             PAccumulator6(
                 Fixed6.wrap(int256(slot1 << (256 - 32)) >> (256 - 32)),
@@ -136,6 +145,8 @@ library GlobalStorageLib {
         if (newValue.protocolFee.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();
         if (newValue.oracleFee.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();
         if (newValue.riskFee.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();
+        if (newValue.latestPrice.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
+        if (newValue.latestPrice.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
         if (newValue.exposure.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
         if (newValue.exposure.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._value.gt(Fixed6.wrap(type(int32).max))) revert GlobalStorageInvalidError();
@@ -153,6 +164,7 @@ library GlobalStorageLib {
         uint256 encoded1 =
             uint256(Fixed6.unwrap(newValue.pAccumulator._value) << (256 - 32)) >> (256 - 32) |
             uint256(Fixed6.unwrap(newValue.pAccumulator._skew) << (256 - 24)) >> (256 - 32 - 24) |
+            uint256(Fixed6.unwrap(newValue.latestPrice) << (256 - 64)) >> (256 - 32 - 24 - 64) |
             uint256(Fixed6.unwrap(newValue.exposure) << (256 - 64)) >> (256 - 32 - 24 - 64 - 64);
 
         assembly {
