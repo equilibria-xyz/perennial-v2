@@ -693,6 +693,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             (nextOrder = _pendingOrders[context.account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
 
+        // don't sync in settle-only mode
+        if (context.marketParameter.settle) return;
+
         // sync - advance position timestamps to the latest oracle version
         //      - latest versions are guaranteed to have present prices in the oracle, but could be stale
         if (context.latestOracleVersion.timestamp > context.latestPositionGlobal.timestamp)

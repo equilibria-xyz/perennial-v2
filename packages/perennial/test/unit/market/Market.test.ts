@@ -1403,7 +1403,7 @@ describe('Market', () => {
         })
       })
 
-      it('settles when market is in settle-only mode', async () => {
+      it('settles when market is in settle-only mode, but doesnt sync', async () => {
         await expect(
           market
             .connect(user)
@@ -1435,7 +1435,8 @@ describe('Market', () => {
           )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
         const marketParameter = { ...(await market.parameter()) }
