@@ -89,7 +89,6 @@ contract KeeperOracle is IKeeperOracle, Instance {
     ///       - If a request has been made this version, no action will be taken
     /// @param account The account to callback to
     function request(IMarket, address account) external onlyOracle {
-        KeeperOracleParameter memory keeperOracleParameter = IKeeperFactory(address(factory())).parameter();
         uint256 currentTimestamp = current();
 
         _localCallbacks[currentTimestamp].add(account);
