@@ -3,10 +3,10 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@equilibria/root/attribute/Factory.sol";
+import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
 import "../interfaces/IKeeperFactory.sol";
 import "../interfaces/IOracleFactory.sol";
 import { KeeperOracleParameter, KeeperOracleParameterStorage } from "./types/KeeperOracleParameter.sol";
-import { PriceRequest } from "./types/PriceRequest.sol";
 import { DedupLib } from "./libs/DedupLib.sol";
 
 /// @title KeeperFactory
@@ -14,6 +14,12 @@ import { DedupLib } from "./libs/DedupLib.sol";
 abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @dev The root oracle factory
     IOracleFactory public oracleFactory;
+
+    /// @dev The gas oracles for pricing a commit keeper reward
+    IGasOracle public immutable commitmentGasOracle;
+
+    /// @dev The gas oracles for pricing a settle keeper reward
+    IGasOracle public immutable settlementGasOracle;
 
     /// @dev Registered payoff providers
     mapping(IPayoffProvider => bool) public payoffs;
@@ -38,7 +44,16 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
     /// @notice Initializes the immutable contract state
     /// @param implementation_ IKeeperOracle implementation contract
-    constructor(address implementation_) Factory(implementation_) { }
+    /// @param commitmentGasOracle_ The gas oracle for pricing a commit keeper reward
+    /// @param settlementGasOracle_ The gas oracle for pricing a settle keeper reward
+    constructor(
+        IGasOracle commitmentGasOracle_,
+        IGasOracle settlementGasOracle_,
+        address implementation_
+    ) Factory(implementation_) {
+        commitmentGasOracle = commitmentGasOracle_;
+        settlementGasOracle = settlementGasOracle_;
+    }
 
     /// @notice Initializes the contract state
     /// @param oracleFactory_ The root oracle factory
@@ -135,7 +150,8 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
         Fixed6[] memory prices = _transformPrices(oracleIds, indices, dedupedPrices, valid);
 
         for (uint256 i; i < oracleIds.length; i++)
-            IKeeperOracle(address(oracles[oracleIds[i]])).commit(OracleVersion(version, prices[i], valid), msg.sender);
+            IKeeperOracle(address(oracles[oracleIds[i]]))
+                .commit(OracleVersion(version, prices[i], valid), msg.sender, dedupedPrices[indices[i]].cost);
     }
 
     /// @notice Performs a list of local settlement callbacks

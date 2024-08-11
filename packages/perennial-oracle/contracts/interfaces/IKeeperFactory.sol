@@ -4,11 +4,11 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/token/types/Token18.sol";
 import "@equilibria/root/attribute/interfaces/IFactory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
+import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
 import "./IKeeperOracle.sol";
 import "./IOracleFactory.sol";
 import "./IPayoffProvider.sol";
 import { KeeperOracleParameter } from "../keeper/types/KeeperOracleParameter.sol";
-import { PriceRequest } from "../keeper/types/PriceRequest.sol";
 
 interface IKeeperFactory is IOracleProviderFactory, IFactory {
     struct PayoffDefinition {
@@ -19,6 +19,7 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory {
     struct PriceRecord {
         uint256 timestamp;
         Fixed18 price;
+        uint256 cost;
     }
 
     event OracleAssociated(bytes32 indexed id, bytes32 indexed underlyingId);
@@ -43,6 +44,8 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory {
     error KeeperFactoryVersionOutsideRangeError();
 
     function initialize(IOracleFactory oracleFactory) external;
+    function commitmentGasOracle() external view returns (IGasOracle);
+    function settlementGasOracle() external view returns (IGasOracle);
     function updateId(IOracleProvider oracleProvider, bytes32 oracleId) external;
     function register(IPayoffProvider payoff) external;
     function toUnderlyingId(bytes32 oracleId) external view returns (bytes32);

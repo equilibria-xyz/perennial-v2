@@ -4,9 +4,9 @@ pragma solidity 0.8.24;
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@equilibria/root/attribute/Instance.sol";
+import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
 import "../interfaces/IKeeperFactory.sol";
 import { PriceResponse, PriceResponseStorage, PriceResponseLib } from "./types/PriceResponse.sol";
-import { PriceRequest, PriceRequestStorage } from "./types/PriceRequest.sol";
 
 /// @title KeeperOracle
 /// @notice Generic implementation of the IOracle interface for keeper-based oracles.
@@ -19,11 +19,17 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev The oracle provider authorized to call this sub oracle
     IOracle public oracle;
 
+    /// @dev The gas oracles for pricing a commit keeper reward
+    IGasOracle public immutable commitmentGasOracle;
+
+    /// @dev The gas oracles for pricing a settle keeper reward
+    IGasOracle public immutable settlementGasOracle;
+
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 public immutable timeout;
 
     /// @dev List of all requested new price oracle versions by index
-    mapping(uint256 => PriceRequestStorage) public _requests;
+    mapping(uint256 => uint256) public requests;
 
     /// @dev The global state of the oracle
     Global private _global;
@@ -36,7 +42,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
     /// @notice Constructs the contract
     /// @param timeout_ The timeout for a version to be committed
-    constructor(uint256 timeout_)  {
+    constructor(uint256 timeout_) {
         timeout = timeout_;
     }
 
@@ -68,14 +74,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev Returns 0 if no next version is requested
     /// @return The next requested oracle version
     function next() public view returns (uint256) {
-        return _requests[_global.latestIndex + 1].read().timestamp;
-    }
-
-    /// @notice Returns the requested oracle version at index `index`
-    /// @param index The index of the requested oracle version
-    /// @return The requested oracle version at index `index`
-    function requests(uint256 index) external view returns (PriceRequest memory) {
-        return _requests[index].read();
+        return requests[_global.latestIndex + 1];
     }
 
     /// @notice Returns the response for a given oracle version
@@ -96,18 +95,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
         _localCallbacks[currentTimestamp].add(account);
         emit CallbackRequested(SettlementCallback(oracle.market(), account, currentTimestamp));
 
-        PriceRequest memory currentRequest = _requests[_global.currentIndex].read();
+        if (requests[_global.currentIndex] == currentTimestamp) return; // already requested new price
 
-        if (currentRequest.timestamp == currentTimestamp) return; // already requested new price
-
-        _requests[++_global.currentIndex].store(
-            PriceRequest(
-                currentTimestamp,
-                keeperOracleParameter.syncFee,
-                keeperOracleParameter.asyncFee,
-                keeperOracleParameter.oracleFee
-            )
-        );
+        requests[++_global.currentIndex] = currentTimestamp;
         emit OracleProviderVersionRequested(currentTimestamp, true);
     }
 
@@ -145,10 +135,11 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev Verification of price happens in the oracle's factory
     /// @param version The oracle version to commit
     /// @param receiver The receiver of the settlement fee
-    function commit(OracleVersion memory version, address receiver) external onlyFactory {
+    /// @param value The value charged to commit the price in ether
+    function commit(OracleVersion memory version, address receiver, uint256 value) external onlyFactory {
         if (version.timestamp == 0) revert KeeperOracleVersionOutsideRangeError();
         PriceResponse memory priceResponse = (version.timestamp == next()) ?
-            _commitRequested(version) :
+            _commitRequested(version, value) :
             _commitUnrequested(version);
         _global.latestVersion = uint64(version.timestamp);
 
@@ -188,17 +179,28 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Commits the price to a requested version
     /// @dev This commit function will pay out a keeper fee for providing a valid price or carrying over latest price
     /// @param oracleVersion The oracle version to commit
+    /// @param value The value charged to commit the price in ether
     /// @return priceResponse The response to the price request
-    function _commitRequested(OracleVersion memory oracleVersion) private returns (PriceResponse memory priceResponse) {
-        PriceRequest memory priceRequest = _requests[_global.latestIndex + 1].read();
+    function _commitRequested(
+        OracleVersion memory oracleVersion,
+        uint256 value
+    ) private returns (PriceResponse memory priceResponse) {
+        IKeeperFactory factory = IKeeperFactory(address(factory()));
+        KeeperOracleParameter memory keeperOracleParameter = factory.parameter();
 
         if (block.timestamp <= (next() + timeout)) {
             if (!oracleVersion.valid) revert KeeperOracleInvalidPriceError();
-            priceResponse = priceRequest.toPriceResponse(oracleVersion);
+            priceResponse.price = oracleVersion.price;
+            priceResponse.valid = true;
         } else {
             PriceResponse memory latestPrice = _responses[_global.latestVersion].read();
-            priceResponse = priceRequest.toPriceResponseInvalid(latestPrice);
+            priceResponse.price = latestPrice.price;
+            priceResponse.valid = false;
         }
+
+        priceResponse.syncFee = UFixed6Lib.from(factory.commitmentGasOracle().cost(value), true);
+        priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true);
+        priceResponse.oracleFee = keeperOracleParameter.oracleFee;
 
         _responses[oracleVersion.timestamp].store(priceResponse);
         _global.latestIndex++;
