@@ -147,11 +147,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
         }
 
         // create array of prices
-        Fixed6[] memory prices = _transformPrices(oracleIds, indices, dedupedPrices, valid);
+        (Fixed6[] memory prices, uint256[] memory costs) = _transformPrices(oracleIds, indices, dedupedPrices, valid);
 
         for (uint256 i; i < oracleIds.length; i++)
             IKeeperOracle(address(oracles[oracleIds[i]]))
-                .commit(OracleVersion(version, prices[i], valid), msg.sender, dedupedPrices[indices[i]].cost);
+                .commit(OracleVersion(version, prices[i], valid), msg.sender, costs[i]);
     }
 
     /// @notice Performs a list of local settlement callbacks
@@ -224,14 +224,16 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param dedupedPrices The list of deduped price records to transform
     /// @param valid Whether the prices we are committing are valid
     /// @return prices The transformed prices
+    /// @return costs The keeper costs associated with the prices
     function _transformPrices(
         bytes32[] memory oracleIds,
         uint256[] memory indices,
         PriceRecord[] memory dedupedPrices,
         bool valid
-    ) private view returns (Fixed6[] memory prices) {
+    ) private view returns (Fixed6[] memory prices, uint256[] memory costs) {
         prices = new Fixed6[](oracleIds.length);
-        if (!valid) return prices;
+        costs = new uint256[](oracleIds.length);
+        if (!valid) return (prices, costs);
 
         for (uint256 i; i < oracleIds.length; i++) {
             // remap the price to the original index
@@ -248,6 +250,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
             // trucate to 6-decimal
             prices[i] = Fixed6Lib.from(price);
+            costs[i] = dedupedPrices[indices[i]].cost;
         }
     }
 

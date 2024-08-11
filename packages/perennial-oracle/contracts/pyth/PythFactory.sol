@@ -61,6 +61,8 @@ contract PythFactory is IPythFactory, KeeperFactory {
             type(uint64).max
         );
 
+        uint256 updateFee = IPythStaticFee(address(pyth)).singleUpdateFeeInWei();
+
         for (uint256 i; i < parsedPrices.length; i++) {
             (Fixed18 significand, int256 exponent) =
                 (Fixed18.wrap(parsedPrices[i].price.price), parsedPrices[i].price.expo + PARSE_DECIMALS);
@@ -68,7 +70,7 @@ contract PythFactory is IPythFactory, KeeperFactory {
             prices[i] = PriceRecord(
                 parsedPrices[i].price.publishTime,
                 exponent < 0 ? significand.div(base) : significand.mul(base),
-                IPythStaticFee(address(pyth)).singleUpdateFeeInWei()
+                updateFee
             );
         }
     }
