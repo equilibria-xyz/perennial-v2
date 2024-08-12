@@ -17952,18 +17952,19 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 1,
                 longPos: POSITION.div(2),
+                takerReferral: POSITION.div(2).mul(2).div(10),
               },
               {
                 ...DEFAULT_GUARANTEE,
                 orders: 1,
                 takerPos: POSITION.div(2),
                 notional: POSITION.div(2).mul(125),
-                takerFee: POSITION.div(2),
-                referral: 0,
+                takerFee: 0,
+                referral: POSITION.div(2).div(10),
               },
               constants.AddressZero,
-              constants.AddressZero,
-              constants.AddressZero,
+              liquidator.address, // originator
+              owner.address, // solver
             )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -17973,19 +17974,18 @@ describe('Market', () => {
                 timestamp: ORACLE_VERSION_2.timestamp,
                 orders: 1,
                 shortPos: POSITION.div(2),
-                takerReferral: POSITION.div(2).mul(2).div(10),
               },
               {
                 ...DEFAULT_GUARANTEE,
                 orders: 0,
                 takerNeg: POSITION.div(2),
                 notional: -POSITION.div(2).mul(125),
-                takerFee: 0,
-                referral: POSITION.div(2).div(10),
+                takerFee: POSITION.div(2),
+                referral: 0,
               },
               constants.AddressZero,
-              liquidator.address, // originator
-              owner.address, // solver
+              constants.AddressZero,
+              constants.AddressZero,
             )
 
           oracle.at
@@ -18006,7 +18006,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL),
+            collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL).sub(TAKER_FEE),
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -18019,6 +18019,7 @@ describe('Market', () => {
             orders: 1,
             longPos: POSITION.div(2),
             collateral: COLLATERAL,
+            takerReferral: POSITION.div(2).mul(2).div(10),
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
@@ -18049,7 +18050,6 @@ describe('Market', () => {
             currentId: 1,
             latestId: 1,
             collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
-              .sub(TAKER_FEE)
               .add(EXPECTED_PNL)
               .sub(SETTLEMENT_FEE.div(2)),
           })
@@ -18063,7 +18063,6 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_2.timestamp,
             orders: 1,
             shortPos: POSITION.div(2),
-            takerReferral: POSITION.div(2).mul(2).div(10),
             collateral: COLLATERAL,
           })
           expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
