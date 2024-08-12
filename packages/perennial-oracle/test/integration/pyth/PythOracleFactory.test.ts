@@ -5,7 +5,7 @@ import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { time as hhTime } from '@nomicfoundation/hardhat-network-helpers'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { currentBlockTimestamp, increase, increaseTo } from '../../../../common/testutil/time'
+import { advanceBlock, currentBlockTimestamp, increase, increaseTo } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,
@@ -1669,6 +1669,7 @@ testOracles.forEach(testOracle => {
             parameter.validFrom,
             parameter.validTo,
           )
+        console.log('calling includeAt')
         await includeAt(
           async () =>
             await market
@@ -1684,6 +1685,7 @@ testOracles.forEach(testOracle => {
           STARTING_TIME + 1,
         )
 
+        console.log('updateParameter and commit')
         await pythOracleFactory.connect(owner).updateParameter(1, 0, 0, 0, parameter.validFrom, parameter.validTo)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, VAA, {
           value: 1,

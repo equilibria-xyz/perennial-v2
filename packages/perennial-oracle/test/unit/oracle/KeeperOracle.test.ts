@@ -1,3 +1,4 @@
+import { expect } from 'chai'
 import HRE, { ethers } from 'hardhat'
 
 import {
@@ -18,10 +19,10 @@ import { utils, BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { expect } from 'chai'
-import { currentBlockTimestamp, increase } from '../../../../common/testutil/time'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
+import { currentBlockTimestamp, increase } from '../../../../common/testutil/time'
+import { getTimestamp } from '../../../../common/testutil/transaction'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const KEEPER_ORACLE_TIMEOUT = 60
@@ -203,8 +204,7 @@ describe('KeeperOracle', () => {
     const tx = await keeperOracle.connect(oracleSigner).request(market.address, user.address, {
       maxFeePerGas: 100000000,
     })
-    // TODO: weaponize this transaction-to-blocktime facility into a utility function
-    const requestedTime = (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
+    const requestedTime = await getTimestamp(tx)
 
     // attempt to commit a requested price older than the timeout
     await increase(KEEPER_ORACLE_TIMEOUT + 3)
