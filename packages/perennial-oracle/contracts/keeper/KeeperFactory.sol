@@ -7,6 +7,7 @@ import "../interfaces/IKeeperFactory.sol";
 import "../interfaces/IOracleFactory.sol";
 import { KeeperOracleParameter, KeeperOracleParameterStorage } from "./types/KeeperOracleParameter.sol";
 import { PriceRequest } from "./types/PriceRequest.sol";
+import { DedupLib } from "./libs/DedupLib.sol";
 
 /// @title KeeperFactory
 /// @notice Factory contract for creating and managing keeper-based oracles
@@ -55,9 +56,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @notice Retroactively sets the mapping of the oracle id to the oracle instance
     /// @dev Part of the v2.3 migration
     /// @param oracleProvider The oracle instance
-    /// @param id The id of the oracle
-    function updateId(IOracleProvider oracleProvider, bytes32 id) external onlyOwner {
-        ids[oracleProvider] = id;
+    /// @param oracleId The id of the oracle
+    function updateId(IOracleProvider oracleProvider, bytes32 oracleId) external onlyOwner {
+        ids[oracleProvider] = oracleId;
     }
 
     /// @notice Authorizes a factory's instances to request from this factory's instances
@@ -68,27 +69,27 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     }
 
     /// @notice Creates a new oracle instance
-    /// @param id The id of the oracle to create
+    /// @param oracleId The id of the oracle to create
     /// @param underlyingId The underlying id of the oracle to create
     /// @param payoff The payoff provider for the oracle
     /// @return newOracle The newly created oracle instance
     function create(
-        bytes32 id,
+        bytes32 oracleId,
         bytes32 underlyingId,
         PayoffDefinition memory payoff
      ) public virtual onlyOwner returns (IKeeperOracle newOracle) {
-        if (oracles[id] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
+        if (oracles[oracleId] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
         if (!payoffs[payoff.provider]) revert KeeperFactoryInvalidPayoffError();
         if (fromUnderlying[underlyingId][payoff.provider] != bytes32(0)) revert KeeperFactoryAlreadyCreatedError();
 
         newOracle = IKeeperOracle(address(_create(abi.encodeCall(IKeeperOracle.initialize, ()))));
-        oracles[id] = newOracle;
-        ids[newOracle] = id;
-        toUnderlyingId[id] = underlyingId;
-        _toUnderlyingPayoff[id] = payoff;
-        fromUnderlying[underlyingId][payoff.provider] = id;
+        oracles[oracleId] = newOracle;
+        ids[newOracle] = oracleId;
+        toUnderlyingId[oracleId] = underlyingId;
+        _toUnderlyingPayoff[oracleId] = payoff;
+        fromUnderlying[underlyingId][payoff.provider] = oracleId;
 
-        emit OracleCreated(newOracle, id);
+        emit OracleCreated(newOracle, oracleId);
     }
 
     /// @notice Returns the current timestamp
@@ -110,34 +111,45 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     ///      Accepts any publish time in the underlying price message, as long as it is within the validity window,
     ///      which means its possible for publish times to be slightly out of order with respect to versions.
     ///      Batched updates are supported by passing in a list of price feed ids along with a valid batch update data.
-    /// @param ids The list of price feed ids to commit
+    /// @param oracleIds The list of price feed ids to commit
     /// @param version The oracle version to commit
     /// @param data The update data to commit
-    function commit(bytes32[] memory ids, uint256 version, bytes calldata data) external payable {
+    function commit(bytes32[] memory oracleIds, uint256 version, bytes calldata data) external payable {
+        // commit invalid version if no data
         bool valid = data.length != 0;
-        PriceRecord[] memory prices = valid ? _parsePrices(ids, data) : new PriceRecord[](ids.length);
-        if (valid) _validatePrices(version, prices);
-        _transformPrices(ids, prices);
 
-        for (uint256 i; i < ids.length; i++)
-            IKeeperOracle(address(oracles[ids[i]])).commit(
-                OracleVersion(version, Fixed6Lib.from(prices[i].price), valid),
-                msg.sender
-            );
+        // create array of underlying ids
+        bytes32[] memory underlyingIds = _toUnderlyingIds(oracleIds);
+
+        // dedup underlying ids
+        (bytes32[] memory dedupedIds, uint256[] memory indices) = DedupLib.dedup(underlyingIds);
+
+        // parse prices
+        PriceRecord[] memory dedupedPrices;
+        if (valid) {
+            dedupedPrices = _parsePrices(dedupedIds, data);
+            _validatePrices(version, dedupedPrices);
+        }
+
+        // create array of prices
+        Fixed6[] memory prices = _transformPrices(oracleIds, indices, dedupedPrices, valid);
+
+        for (uint256 i; i < oracleIds.length; i++)
+            IKeeperOracle(address(oracles[oracleIds[i]])).commit(OracleVersion(version, prices[i], valid), msg.sender);
     }
 
     /// @notice Performs a list of local settlement callbacks
     /// @dev Pays out a keeper incentive if all supplied local settlement callbacks succeed
     ///      Each array must be the same length, each index is a separate corresponding callback entry
-    /// @param ids The list of price feed ids to settle
+    /// @param oracleIds The list of price feed ids to settle
     /// @param versions The list of versions to settle
     /// @param maxCounts The list of maximum number of settlement callbacks to perform before exiting
-    function settle(bytes32[] memory ids, uint256[] memory versions, uint256[] memory maxCounts) external {
-        if (ids.length == 0 || ids.length != versions.length || ids.length != maxCounts.length)
+    function settle(bytes32[] memory oracleIds, uint256[] memory versions, uint256[] memory maxCounts) external {
+        if (oracleIds.length == 0 || oracleIds.length != versions.length || oracleIds.length != maxCounts.length)
             revert KeeperFactoryInvalidSettleError();
 
-        for (uint256 i; i < ids.length; i++)
-            IKeeperOracle(address(oracles[ids[i]])).settle(versions[i], maxCounts[i]);
+        for (uint256 i; i < oracleIds.length; i++)
+            IKeeperOracle(address(oracles[oracleIds[i]])).settle(versions[i], maxCounts[i]);
     }
 
     /// @notice Returns the oracle parameter set
@@ -191,19 +203,35 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     }
 
     /// @notice Transforms the price records by the payoff and decimal offset
-    /// @param ids The list of price feed ids to transform
-    /// @param prices The list of price records to transform
-    function _transformPrices(bytes32[] memory ids, PriceRecord[] memory prices) private view {
-        for (uint256 i; i < prices.length; i++) {
-            PayoffDefinition memory payoff = _toUnderlyingPayoff[ids[i]];
+    /// @param oracleIds The list of price feed ids to transform
+    /// @param indices The mapping of indecies from oracle ids to deduped ids
+    /// @param dedupedPrices The list of deduped price records to transform
+    /// @param valid Whether the prices we are committing are valid
+    /// @return prices The transformed prices
+    function _transformPrices(
+        bytes32[] memory oracleIds,
+        uint256[] memory indices,
+        PriceRecord[] memory dedupedPrices,
+        bool valid
+    ) private view returns (Fixed6[] memory prices) {
+        prices = new Fixed6[](oracleIds.length);
+        if (!valid) return prices;
+
+        for (uint256 i; i < oracleIds.length; i++) {
+            // remap the price to the original index
+            Fixed18 price = dedupedPrices[indices[i]].price;
 
             // apply payoff if it exists
+            PayoffDefinition memory payoff = _toUnderlyingPayoff[oracleIds[i]];
             if (payoff.provider != IPayoffProvider(address(0)))
-                prices[i].price = payoff.provider.payoff(prices[i].price);
+                price = payoff.provider.payoff(price);
 
             // apply decimal offset
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(payoff.decimals)));
-            prices[i].price = payoff.decimals < 0 ? prices[i].price.div(base) : prices[i].price.mul(base);
+            price = payoff.decimals < 0 ? price.div(base) : price.mul(base);
+
+            // trucate to 6-decimal
+            prices[i] = Fixed6Lib.from(price);
         }
     }
 
@@ -217,6 +245,18 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
                 prices[i].timestamp < version + keeperOracleParameter.validFrom ||
                 prices[i].timestamp > version + keeperOracleParameter.validTo
             ) revert KeeperFactoryVersionOutsideRangeError();
+    }
+
+    /// @notice Converts a list of oracle ids to a list of underlying ids
+    /// @dev Reverts if any of the ids are not associated
+    /// @param oraderIds The list of oracle ids to convert
+    /// @return underlyingIds The list of underlying ids
+    function _toUnderlyingIds(bytes32[] memory oraderIds) private view returns (bytes32[] memory underlyingIds) {
+        underlyingIds = new bytes32[](oraderIds.length);
+        for (uint256 i; i < oraderIds.length; i++) {
+            underlyingIds[i] = toUnderlyingId[oraderIds[i]];
+            if (underlyingIds[i] == bytes32(0)) revert KeeperFactoryNotCreatedError();
+        }
     }
 
     /// @notice Validates and parses the update data payload against the specified version

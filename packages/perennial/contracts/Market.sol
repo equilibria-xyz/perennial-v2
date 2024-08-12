@@ -306,14 +306,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Global memory newGlobal = _global.read();
         Position memory latestPosition = _position.read();
         RiskParameter memory latestRiskParameter = _riskParameter.read();
-        (OracleVersion memory latestOracleVersion, ) = oracle.at(latestPosition.timestamp);
 
         // update risk parameter (first to capture truncation)
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
         newRiskParameter = _riskParameter.read();
 
         // update global exposure
-        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition, latestOracleVersion.price);
+        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition);
         _global.store(newGlobal);
 
         emit RiskParameterUpdated(newRiskParameter);
@@ -322,24 +321,24 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Claims any available fee that the sender has accrued
     /// @dev Applicable fees include: protocol, oracle, risk, donation, and claimable
     /// @return feeReceived The amount of the fee claimed
-    function claimFee() external returns (UFixed6 feeReceived) {
+    function claimFee(address account) external onlyOperator(account) returns (UFixed6 feeReceived) {
         Global memory newGlobal = _global.read();
-        Local memory newLocal = _locals[msg.sender].read();
+        Local memory newLocal = _locals[account].read();
 
         // protocol fee
-        if (msg.sender == factory().owner()) {
+        if (account == factory().owner()) {
             feeReceived = feeReceived.add(newGlobal.protocolFee);
             newGlobal.protocolFee = UFixed6Lib.ZERO;
         }
 
         // oracle fee
-        if (msg.sender == address(oracle)) {
+        if (account == address(oracle)) {
             feeReceived = feeReceived.add(newGlobal.oracleFee);
             newGlobal.oracleFee = UFixed6Lib.ZERO;
         }
 
         // risk fee
-        if (msg.sender == coordinator) {
+        if (account == coordinator) {
             feeReceived = feeReceived.add(newGlobal.riskFee);
             newGlobal.riskFee = UFixed6Lib.ZERO;
         }
@@ -349,11 +348,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         newLocal.claimable = UFixed6Lib.ZERO;
 
         _global.store(newGlobal);
-        _locals[msg.sender].store(newLocal);
+        _locals[account].store(newLocal);
 
         if (!feeReceived.isZero()) {
             token.push(msg.sender, UFixed18Lib.from(feeReceived));
-            emit FeeClaimed(msg.sender, feeReceived);
+            emit FeeClaimed(account, msg.sender, feeReceived);
         }
     }
 
@@ -606,7 +605,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _processReferrer(updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
 
         // request version, only request new price on position change
-        oracle.request(IMarket(this), context.account, !newOrder.isEmpty());
+        if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
 
         // after
         InvariantLib.validate(context, updateContext, newOrder);
@@ -678,10 +677,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function _loadSettlementContext(
         Context memory context
     ) private view returns (SettlementContext memory settlementContext) {
-        // processing accumulators
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
         settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
+
         (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
+        context.global.overrideIfZero(settlementContext.orderOracleVersion);
     }
 
     /// @notice Settles the account position up to the latest version
@@ -702,6 +702,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.local.currentId != context.local.latestId &&
             (nextOrder = _pendingOrders[context.account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
+
+        // don't sync in settle-only mode
+        if (context.marketParameter.settle) return;
 
         // sync - advance position timestamps to the latest oracle version
         //      - latest versions are guaranteed to have present prices in the oracle, but could be stale
@@ -766,6 +769,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder
     ) private {
         (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) = oracle.at(newOrderTimestamp);
+        context.global.overrideIfZero(oracleVersion);
         Guarantee memory newGuarantee = _guarantee[newOrderId].read();
 
         // if latest timestamp is more recent than order timestamp, sync the order data
@@ -878,6 +882,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Only the coordinator or the owner can call
     modifier onlyCoordinator {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
+        _;
+    }
+
+    /// @notice Only the account or an operator can call
+    modifier onlyOperator(address account) {
+        if (msg.sender != account && !IMarketFactory(address(factory())).operators(account, msg.sender))
+            revert MarketNotOperatorError();
         _;
     }
 

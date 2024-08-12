@@ -65,6 +65,7 @@ export interface Global {
   protocolFee: BigNumberish
   oracleFee: BigNumberish
   riskFee: BigNumberish
+  latestPrice: BigNumberish
   pAccumulator: PAccumulator
   exposure: BigNumberish
 }
@@ -140,6 +141,7 @@ export function expectGlobalEq(a: Global, b: Global): void {
   expect(a.protocolFee).to.equal(b.protocolFee, 'Global:ProtocolFee')
   expect(a.oracleFee).to.equal(b.oracleFee, 'Global:OracleFee')
   expect(a.riskFee).to.equal(b.riskFee, 'Global:RiskFee')
+  expect(a.latestPrice).to.equal(b.latestPrice, 'Global:LatestPrice')
   expect(a.exposure).to.equal(b.exposure, 'Global:Exposure')
 }
 
@@ -213,6 +215,7 @@ export const DEFAULT_GLOBAL: Global = {
   protocolFee: 0,
   oracleFee: 0,
   riskFee: 0,
+  latestPrice: 0,
   pAccumulator: {
     _value: 0,
     _skew: 0,

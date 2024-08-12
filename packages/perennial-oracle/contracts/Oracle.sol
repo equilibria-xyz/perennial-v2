@@ -55,13 +55,12 @@ contract Oracle is IOracle, Instance {
 
     /// @notice Requests a new version at the current timestamp
     /// @param account Original sender to optionally use for callbacks
-    /// @param newPrice Whether a new price should be requested
-    function request(IMarket, address account, bool newPrice) external onlyMarket {
+    function request(IMarket, address account) external onlyMarket {
         (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
         oracles[
             (currentTimestamp > oracles[global.latest].timestamp) ? global.current : global.latest
-        ].provider.request(market, account, newPrice);
+        ].provider.request(market, account);
 
         oracles[global.current].timestamp = uint96(currentTimestamp);
         _updateLatest(latestVersion);
@@ -113,7 +112,7 @@ contract Oracle is IOracle, Instance {
     /// @param settlementFeeRequested The fixed settmentment fee requested by the oracle
     function claimFee(UFixed6 settlementFeeRequested) external onlySubOracle {
         // claim the fee from the market
-        UFixed6 feeReceived = market.claimFee();
+        UFixed6 feeReceived = market.claimFee(address(this));
 
         // return the settlement fee portion to the sub oracle's factory
         market.token().push(msg.sender, UFixed18Lib.from(settlementFeeRequested));

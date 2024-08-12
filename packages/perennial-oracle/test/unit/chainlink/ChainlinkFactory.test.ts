@@ -154,7 +154,7 @@ describe('ChainlinkFactory', () => {
   })
 
   it('parses Chainlink report correctly', async () => {
-    await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
 
     const report = listify(
       overwriteTimestamp(
@@ -176,7 +176,7 @@ describe('ChainlinkFactory', () => {
   })
 
   it('commit reverts if msg.value is too low', async () => {
-    await keeperOracle.connect(oracleSigner).request(market.address, user.address, true)
+    await keeperOracle.connect(oracleSigner).request(market.address, user.address)
 
     const report = listify(
       overwriteTimestamp(

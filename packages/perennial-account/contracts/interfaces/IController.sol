@@ -104,9 +104,9 @@ interface IController {
     function deployAccount() external returns (IAccount);
 
     /// @notice Deploys a collateral account via a signed message
-    /// @param deployAccount Message requesting creation of a collateral account
+    /// @param deployAccountAction Message requesting creation of a collateral account
     /// @param signature ERC712 message signature
-    function deployAccountWithSignature(DeployAccount calldata deployAccount, bytes calldata signature) external;
+    function deployAccountWithSignature(DeployAccount calldata deployAccountAction, bytes calldata signature) external;
 
     /// @notice Transfers tokens between a collateral account and a specified Perennial Market
     /// @param marketTransfer Message requesting a deposit to or withdrawal from the Market
@@ -140,11 +140,11 @@ interface IController {
     /// @param owner User for whom the collateral account was created
     /// @param group Identifies a collection of markets, each with their own configuration
     /// @param market Identifies which Perennial market for which the configuration is desired
-    function rebalanceConfig(
+    function rebalanceConfigs(
         address owner,
         uint256 group,
         address market
-    ) external view returns (RebalanceConfig memory config);
+    ) external view returns (RebalanceConfig memory);
 
     /// @notice Retrieves array of markets in an owner's rebalance group
     /// @param owner User for whom the collateral account was created
