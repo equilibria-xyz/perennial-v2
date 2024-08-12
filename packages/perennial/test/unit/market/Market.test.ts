@@ -21676,6 +21676,7 @@ describe('Market', () => {
               protocolFee: totalFee.mul(8).div(10).add(2), // loss of precision
               oracleFee: totalFee.div(10).add(SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(1), // loss of precision
+              latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
