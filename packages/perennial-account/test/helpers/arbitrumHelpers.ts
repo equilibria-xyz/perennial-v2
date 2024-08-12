@@ -24,6 +24,7 @@ import {
   IMarketFactory,
   IOracleProvider,
   RebalanceLib__factory,
+  GasOracle__factory,
 } from '../../types/generated'
 import { IKept } from '../../types/generated/contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
@@ -51,8 +52,34 @@ export async function createFactories(
   const marketFactory = await deployProtocolForOracle(owner, oracleFactory)
 
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
+
+  const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    1_000_000,
+    utils.parseEther('1.02'),
+    1_000_000,
+    0,
+    0,
+    0,
+  )
+  const settlementGasOracle = await new GasOracle__factory(owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    200_000,
+    utils.parseEther('1.02'),
+    500_000,
+    0,
+    0,
+    0,
+  )
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-  const pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
+    PYTH_ADDRESS,
+    commitmentGasOracle.address,
+    settlementGasOracle.address,
+    keeperOracleImpl.address,
+  )
   await pythOracleFactory.initialize(oracleFactory.address)
   await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)

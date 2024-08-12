@@ -16,6 +16,7 @@ import {
   Oracle__factory,
   PythFactory,
   PythFactory__factory,
+  GasOracle__factory,
 } from '../../../types/generated'
 
 import { InstanceVars, createInvoker, createMarket, deployProtocol } from '../helpers/setupHelpers'
@@ -91,8 +92,33 @@ describe('PythOracleFactory', () => {
       maxOracleFee: parse6decimal('0.5'),
     })
 
+    const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+      CHAINLINK_ETH_USD_FEED,
+      8,
+      1_000_000,
+      utils.parseEther('1.02'),
+      1_000_000,
+      0,
+      0,
+      0,
+    )
+    const settlementGasOracle = await new GasOracle__factory(owner).deploy(
+      CHAINLINK_ETH_USD_FEED,
+      8,
+      200_000,
+      utils.parseEther('1.02'),
+      500_000,
+      0,
+      0,
+      0,
+    )
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(
+      PYTH_ADDRESS,
+      commitmentGasOracle.address,
+      settlementGasOracle.address,
+      keeperOracleImpl.address,
+    )
     await pythOracleFactory.initialize(oracleFactory.address)
     await pythOracleFactory.updateParameter(1, parse6decimal('1'), parse6decimal('0.5'), 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
@@ -168,8 +194,11 @@ describe('PythOracleFactory', () => {
         },
       )
 
+      const reward = utils.parseEther('0.000016')
       expect((await keeperOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
-      expect(await dsu.balanceOf(user.address)).to.be.eq(utils.parseEther('2000000').sub(utils.parseEther('999')))
+      expect(await dsu.balanceOf(user.address)).to.be.eq(
+        utils.parseEther('2000000').sub(utils.parseEther('1000')).add(reward),
+      )
     })
 
     it('commits a non-requested pyth version', async () => {

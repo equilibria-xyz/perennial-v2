@@ -419,7 +419,11 @@ describe('ControllerBase', () => {
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       ).to.be.revertedWithCustomError(ethMarket, 'MarketInsufficientMarginError')
 
-      await expectMarketCollateralBalance(userA, parse6decimal('7000'))
+      // 7000 - one settlement fee
+      expect((await ethMarket.locals(userA.address)).collateral).to.be.within(
+        parse6decimal('7000').sub(parse6decimal('1')),
+        parse6decimal('7000'),
+      )
     })
 
     it('rejects withdrawal from unauthorized signer', async () => {
