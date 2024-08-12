@@ -1996,9 +1996,9 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimable,
       })
-      await expect(market.connect(user).claimFee())
+      await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
-        .withArgs(user.address, expectedClaimable)
+        .withArgs(user.address, user.address, expectedClaimable)
     })
 
     it('charges default referral fee for taker position', async () => {
@@ -2053,9 +2053,9 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimable,
       })
-      await expect(market.connect(userB).claimFee())
+      await expect(market.connect(userB).claimFee(userB.address))
         .to.emit(market, 'FeeClaimed')
-        .withArgs(userB.address, expectedClaimable)
+        .withArgs(userB.address, userB.address, expectedClaimable)
     })
 
     it('handles a change in user referral fee', async () => {
@@ -2101,9 +2101,9 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimable,
       })
-      await expect(market.connect(user).claimFee())
+      await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
-        .withArgs(user.address, expectedClaimable)
+        .withArgs(user.address, user.address, expectedClaimable)
     })
 
     it('handles referral fee for multiple orders', async () => {
@@ -2160,9 +2160,9 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimableMakerReferral,
       })
-      await expect(market.connect(userB).claimFee())
+      await expect(market.connect(userB).claimFee(userB.address))
         .to.emit(market, 'FeeClaimed')
-        .withArgs(userB.address, expectedClaimableMakerReferral)
+        .withArgs(userB.address, userB.address, expectedClaimableMakerReferral)
 
       // user should be able to claim the taker referral fee at the user rate
       // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223
@@ -2206,9 +2206,9 @@ describe('Fees', () => {
       // takerFee = position * takerFee * price = 2 * 0.025 * 113.882975 = 5.694148
       // referralFee = takerFee * referral / takerPos =  5.694148 * 0.30 / 2 = 0.854122
       expectedClaimableTakerReferral = expectedClaimableTakerReferral.add(parse6decimal('0.854122'))
-      await expect(market.connect(user).claimFee())
+      await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
-        .withArgs(user.address, expectedClaimableTakerReferral)
+        .withArgs(user.address, user.address, expectedClaimableTakerReferral)
     })
 
     it('allows for a new referrer on new orders', async () => {
@@ -2266,9 +2266,9 @@ describe('Fees', () => {
         latestId: 0,
         claimable: expectedClaimable,
       })
-      await expect(market.connect(userB).claimFee())
+      await expect(market.connect(userB).claimFee(userB.address))
         .to.emit(market, 'FeeClaimed')
-        .withArgs(userB.address, expectedClaimable)
+        .withArgs(userB.address, userB.address, expectedClaimable)
 
       // userC closes a short position referred by user
       await market
@@ -2291,9 +2291,9 @@ describe('Fees', () => {
         collateral: '1150119246',
         claimable: expectedCloseClaimable,
       })
-      await expect(market.connect(user).claimFee())
+      await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
-        .withArgs(user.address, expectedCloseClaimable)
+        .withArgs(user.address, user.address, expectedCloseClaimable)
       expect(await market.orderReferrers(userC.address, currentId.add(1))).to.equal(user.address)
 
       await nextWithConstantPrice()

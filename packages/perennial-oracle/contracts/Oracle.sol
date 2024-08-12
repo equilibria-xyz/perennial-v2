@@ -112,7 +112,7 @@ contract Oracle is IOracle, Instance {
     /// @param settlementFeeRequested The fixed settmentment fee requested by the oracle
     function claimFee(UFixed6 settlementFeeRequested) external onlySubOracle {
         // claim the fee from the market
-        UFixed6 feeReceived = market.claimFee();
+        UFixed6 feeReceived = market.claimFee(address(this));
 
         // return the settlement fee portion to the sub oracle's factory
         market.token().push(msg.sender, UFixed18Lib.from(settlementFeeRequested));
