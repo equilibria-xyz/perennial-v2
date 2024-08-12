@@ -1669,7 +1669,6 @@ testOracles.forEach(testOracle => {
             parameter.validFrom,
             parameter.validTo,
           )
-        console.log('calling includeAt')
         await includeAt(
           async () =>
             await market
@@ -1685,7 +1684,6 @@ testOracles.forEach(testOracle => {
           STARTING_TIME + 1,
         )
 
-        console.log('updateParameter and commit')
         await pythOracleFactory.connect(owner).updateParameter(1, 0, 0, 0, parameter.validFrom, parameter.validTo)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, VAA, {
           value: 1,

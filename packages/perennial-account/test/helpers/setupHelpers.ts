@@ -1,4 +1,4 @@
-import HRE, { ethers } from 'hardhat'
+import { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, CallOverrides, constants, ContractTransaction, utils } from 'ethers'
