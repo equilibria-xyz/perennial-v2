@@ -15889,9 +15889,9 @@ describe('Market', () => {
           })
 
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          await expect(market.connect(liquidator).claimFee())
+          await expect(market.connect(liquidator).claimFee(liquidator.address))
             .to.emit(market, 'FeeClaimed')
-            .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
+            .withArgs(liquidator.address, liquidator.address, EXPECTED_LIQUIDATION_FEE)
 
           expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
         })
@@ -16164,9 +16164,9 @@ describe('Market', () => {
           })
 
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          await expect(market.connect(liquidator).claimFee())
+          await expect(market.connect(liquidator).claimFee(liquidator.address))
             .to.emit(market, 'FeeClaimed')
-            .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
+            .withArgs(liquidator.address, liquidator.address, EXPECTED_LIQUIDATION_FEE)
 
           expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
         })
@@ -23138,9 +23138,9 @@ describe('Market', () => {
       it('claims fee (protocol)', async () => {
         dsu.transfer.whenCalledWith(owner.address, PROTOCOL_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(owner).claimFee())
+        await expect(market.connect(owner).claimFee(owner.address))
           .to.emit(market, 'FeeClaimed')
-          .withArgs(owner.address, PROTOCOL_FEE)
+          .withArgs(owner.address, owner.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
@@ -23150,9 +23150,9 @@ describe('Market', () => {
       it('claims fee (oracle)', async () => {
         dsu.transfer.whenCalledWith(oracleSigner.address, ORACLE_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(oracleSigner).claimFee())
+        await expect(market.connect(oracleSigner).claimFee(oracleSigner.address))
           .to.emit(market, 'FeeClaimed')
-          .withArgs(oracleSigner.address, ORACLE_FEE)
+          .withArgs(oracleSigner.address, oracleSigner.address, ORACLE_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
         expect((await market.global()).oracleFee).to.equal(0)
@@ -23162,9 +23162,9 @@ describe('Market', () => {
       it('claims fee (risk)', async () => {
         dsu.transfer.whenCalledWith(coordinator.address, RISK_FEE.mul(1e12)).returns(true)
 
-        await expect(market.connect(coordinator).claimFee())
+        await expect(market.connect(coordinator).claimFee(coordinator.address))
           .to.emit(market, 'FeeClaimed')
-          .withArgs(coordinator.address, RISK_FEE)
+          .withArgs(coordinator.address, coordinator.address, RISK_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
@@ -23172,11 +23172,32 @@ describe('Market', () => {
       })
 
       it('claims fee (none)', async () => {
-        await market.connect(user).claimFee()
+        await market.connect(user).claimFee(user.address)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
         expect((await market.global()).riskFee).to.equal(RISK_FEE)
+      })
+
+      it('claims fee as operator', async () => {
+        dsu.transfer.whenCalledWith(userB.address, PROTOCOL_FEE.mul(1e12)).returns(true)
+        factory.operators.whenCalledWith(owner.address, userB.address).returns(true)
+        expect(await dsu.balanceOf(userB.address)).to.equal(0)
+
+        await expect(market.connect(userB).claimFee(owner.address))
+          .to.emit(market, 'FeeClaimed')
+          .withArgs(owner.address, userB.address, PROTOCOL_FEE)
+
+        expect((await market.global()).protocolFee).to.equal(0)
+      })
+
+      it('reverts when non-operator attempts to claim fee', async () => {
+        factory.operators.whenCalledWith(owner.address, userB.address).returns(false)
+
+        await expect(market.connect(userB).claimFee(oracleSigner.address)).to.be.revertedWithCustomError(
+          market,
+          'MarketNotOperatorError',
+        )
       })
     })
   })

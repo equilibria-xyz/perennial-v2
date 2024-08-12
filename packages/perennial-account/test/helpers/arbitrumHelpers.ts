@@ -33,7 +33,6 @@ import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
-const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
@@ -47,7 +46,7 @@ export async function createFactories(
   owner: SignerWithAddress,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory]> {
   // Deploy the oracle factory, which markets created by the market factory will query
-  const oracleFactory = await deployOracleFactory(owner, DSU_ADDRESS)
+  const oracleFactory = await deployOracleFactory(owner)
   // Deploy the market factory and authorize it with the oracle factory
   const marketFactory = await deployProtocolForOracle(owner, oracleFactory)
 

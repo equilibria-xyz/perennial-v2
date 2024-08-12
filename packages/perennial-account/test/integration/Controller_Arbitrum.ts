@@ -7,6 +7,7 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { smock } from '@defi-wonderland/smock'
 import { advanceBlock, currentBlockTimestamp } from '../../../common/testutil/time'
+import { getEventArguments } from '../../../common/testutil/transaction'
 
 import { parse6decimal } from '../../../common/testutil/types'
 import {
@@ -42,7 +43,7 @@ import {
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
-import { advanceToPrice, getEventArguments } from '../helpers/setupHelpers'
+import { advanceToPrice } from '../helpers/setupHelpers'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,
@@ -52,12 +53,7 @@ import {
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
 import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
-import {
-  IKeeperOracle,
-  IOracleFactory,
-  IOracleProvider,
-  PythFactory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+import { IKeeperOracle, IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -167,16 +163,8 @@ describe('Controller_Arbitrum', () => {
     ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
     ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
     ;[dsu, usdc] = await getStablecoins(owner)
-    let oracle: IOracleProvider
-    ;[market, oracle, ethKeeperOracle] = await createMarketETH(
-      owner,
-      oracleFactory,
-      pythOracleFactory,
-      marketFactory,
-      dsu,
-    )
-    let btcOoracle: IOracleProvider
-    ;[btcMarket, btcOoracle, btcKeeperOracle] = await createMarketBTC(
+    ;[market, , ethKeeperOracle] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+    ;[btcMarket, , btcKeeperOracle] = await createMarketBTC(
       owner,
       oracleFactory,
       pythOracleFactory,

@@ -29,8 +29,8 @@ interface IAccount {
 
     /// @notice Transfer USDC collateral from this account to the owner
     /// @param amount Quantity of tokens to transfer in 6-decimal precision; set to UFixed6.MAX for full withdrawal
-    /// @param unwrap If amount exceeds USDC balance and this is true, DSU will be unwrapped as necessary to facilitate withdrawal
-    function withdraw(UFixed6 amount, bool unwrap) external;
+    /// @param shouldUnwrap If amount exceeds USDC balance and this is true, DSU will be unwrapped as necessary to facilitate withdrawal
+    function withdraw(UFixed6 amount, bool shouldUnwrap) external;
 
     /// @notice Converts a specified amount of USDC to DSU
     /// @param amount Quantity of DSU to mint, in 18-decimal precision
@@ -39,7 +39,7 @@ interface IAccount {
     /// @notice Wraps if DSU balance is under a specified amount
     /// @param amount Desired quantity of DSU
     /// @param wrapAll True to wrap full USDC balance, false to wrap specified amount
-    function wrapIfNecessary(UFixed18 amount, bool wrapAll) external; 
+    function wrapIfNecessary(UFixed18 amount, bool wrapAll) external;
 
     /// @notice Converts a specified amount of DSU to USDC
     /// @param amount Quantity of DSU to burn, in 18-decimal precision
