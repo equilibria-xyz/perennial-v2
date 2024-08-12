@@ -16,20 +16,20 @@ import {
 } from '../../../types/generated'
 import { utils, BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { expect } from 'chai'
 import { currentBlockTimestamp, increase } from '../../../../common/testutil/time'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const KEEPER_ORACLE_TIMEOUT = 60
 
 describe('KeeperOracle', () => {
   let owner: SignerWithAddress
-  let receiver: SignerWithAddress
   let user: SignerWithAddress
+  let receiver: SignerWithAddress
   let oracle: Oracle
   let oracleSigner: SignerWithAddress
   let keeperOracle: KeeperOracle
@@ -54,7 +54,7 @@ describe('KeeperOracle', () => {
     ).to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
   }
 
-  beforeEach(async () => {
+  const fixture = async () => {
     // snapshot initial chain state for multiple tests
     ;[owner, user, receiver] = await ethers.getSigners()
 
@@ -112,6 +112,10 @@ describe('KeeperOracle', () => {
 
     // Base fee isn't working properly in coverage, so we need to set it manually
     await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
   })
 
   afterEach(async () => {
@@ -186,6 +190,9 @@ describe('KeeperOracle', () => {
   })
 
   it('discards expired prices', async () => {
+    // enable market settlement callback
+    market.settle.whenCalledWith(ethers.constants.AddressZero).returns()
+
     // establish an initial valid version
     const startTime = await currentBlockTimestamp()
     const initialTimestamp = startTime - 4
@@ -200,11 +207,7 @@ describe('KeeperOracle', () => {
     const requestedTime = (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
 
     // attempt to commit a requested price older than the timeout
-    await increase(KEEPER_ORACLE_TIMEOUT + 1)
-
-    // enable market settlement callback
-    market.settle.whenCalledWith(ethers.constants.AddressZero).returns()
-
+    await increase(KEEPER_ORACLE_TIMEOUT + 3)
     await commitPrice(requestedTime, parse6decimal('3333.444'))
 
     // ensure carryover price is received instead of invalid price
