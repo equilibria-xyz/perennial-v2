@@ -177,7 +177,9 @@ library VersionLib {
         Version memory next,
         VersionAccumulationContext memory context
     ) private pure returns (UFixed6 liquidationFee) {
-        liquidationFee = context.toOracleVersion.valid ? context.riskParameter.liquidationFee : UFixed6Lib.ZERO;
+        liquidationFee = context.toOracleVersion.valid ?
+            context.toOracleReceipt.settlementFee.mul(context.riskParameter.liquidationFee) :
+            UFixed6Lib.ZERO;
         next.liquidationFee.decrement(Fixed6Lib.from(liquidationFee), UFixed6Lib.ONE);
     }
 
