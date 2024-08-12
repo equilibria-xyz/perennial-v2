@@ -34,6 +34,8 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
+  GasOracle,
+  GasOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -201,6 +203,8 @@ testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
+    let commitmentGasOracle: GasOracle
+    let settlementGasOracle: GasOracle
     let oracle: Oracle
     let oracleMilady: Oracle
     let keeperOracle: KeeperOracle
@@ -232,8 +236,34 @@ testOracles.forEach(testOracle => {
         maxOracleFee: parse6decimal('0.5'),
       })
 
+      commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+        CHAINLINK_ETH_USD_FEED,
+        8,
+        1_000_000,
+        ethers.utils.parseEther('1.02'),
+        1_000_000,
+        0,
+        0,
+        0,
+      )
+      settlementGasOracle = await new GasOracle__factory(owner).deploy(
+        CHAINLINK_ETH_USD_FEED,
+        8,
+        200_000,
+        ethers.utils.parseEther('1.02'),
+        500_000,
+        0,
+        0,
+        0,
+      )
+
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
-      metaquantsOracleFactory = await new MetaQuantsFactory__factory(owner).deploy(SIGNER, keeperOracleImpl.address)
+      metaquantsOracleFactory = await new MetaQuantsFactory__factory(owner).deploy(
+        SIGNER,
+        commitmentGasOracle.address,
+        settlementGasOracle.address,
+        keeperOracleImpl.address,
+      )
       await metaquantsOracleFactory.initialize(oracleFactory.address)
       await oracleFactory.register(metaquantsOracleFactory.address)
       await metaquantsOracleFactory.register(powerTwoPayoff.address)
@@ -318,7 +348,6 @@ testOracles.forEach(testOracle => {
       )
       await marketFactory.initialize()
       await marketFactory.updateParameter({
-        protocolFee: parse6decimal('0.50'),
         maxFee: parse6decimal('0.01'),
         maxFeeAbsolute: parse6decimal('1000'),
         maxCut: parse6decimal('0.50'),
@@ -453,6 +482,8 @@ testOracles.forEach(testOracle => {
         it('reverts if already initialized', async () => {
           const metaquantsOracleFactory2 = await new MetaQuantsFactory__factory(owner).deploy(
             SIGNER,
+            commitmentGasOracle.address,
+            settlementGasOracle.address,
             await metaquantsOracleFactory.implementation(),
           )
           await metaquantsOracleFactory2.initialize(oracleFactory.address)
@@ -515,10 +546,7 @@ testOracles.forEach(testOracle => {
 
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
         await expect(
@@ -529,7 +557,10 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
           .withArgs([STARTING_TIME, getPrices(listify(PAYLOAD))[0], true])
 
-        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('9')))
+        const reward = utils.parseEther('0.370586')
+        expect(await dsu.balanceOf(user.address)).to.be.equal(
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
+        )
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
       })
@@ -552,10 +583,7 @@ testOracles.forEach(testOracle => {
 
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
         await expect(
