@@ -15,7 +15,7 @@ contract Oracle is IOracle, Instance {
     mapping(uint256 => Epoch) public oracles;
 
     /// @notice The global state of the oracle
-    Global public global;
+    OracleGlobal public global;
 
     /// @notice The market associated with this oracle
     IMarket public market;
