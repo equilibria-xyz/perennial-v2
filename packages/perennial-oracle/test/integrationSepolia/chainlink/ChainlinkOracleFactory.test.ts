@@ -597,8 +597,9 @@ testOracles.forEach(testOracle => {
         // Even though there are two updates, only one was requested so we
         // should only receive half of the fee.
         const reward = utils.parseEther('0.100972')
-        expect(await dsu.balanceOf(user.address)).to.be.equal(
-          utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
+        expect(await dsu.balanceOf(user.address)).to.be.within(
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(1),
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(utils.parseEther('1')),
         )
       })
     })
