@@ -92,7 +92,7 @@ describe('KeeperOracle', () => {
       keeperOracleImpl.address,
     )
     await keeperOracleFactory.initialize(oracleFactory.address)
-    await keeperOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
+    await keeperOracleFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(keeperOracleFactory.address)
 
     // create our KeeperOracle instance

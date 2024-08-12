@@ -459,14 +459,7 @@ testOracles.forEach(testOracle => {
 
       // set the oracle parameters at STARTING_TIME - 1
       await includeAt(async () => {
-        await metaquantsOracleFactory.updateParameter(
-          1,
-          parse6decimal('1.0'),
-          parse6decimal('0.5'),
-          parse6decimal('0.1'),
-          4,
-          10,
-        )
+        await metaquantsOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
         await metaquantsOracleFactory.commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME - 1, listify(PAYLOAD))
       }, STARTING_TIME - 1)
 

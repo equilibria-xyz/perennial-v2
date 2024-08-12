@@ -81,7 +81,7 @@ export async function createFactories(
     keeperOracleImpl.address,
   )
   await pythOracleFactory.initialize(oracleFactory.address)
-  await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
+  await pythOracleFactory.updateParameter(1, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
 
   return [oracleFactory, marketFactory, pythOracleFactory]

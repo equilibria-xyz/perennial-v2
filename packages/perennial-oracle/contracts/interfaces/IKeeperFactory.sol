@@ -54,7 +54,7 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory {
     function create(bytes32 oracleId, bytes32 underlyingId, PayoffDefinition memory payoff) external returns (IKeeperOracle oracle);
     function current() external view returns (uint256);
     function parameter() external view returns (KeeperOracleParameter memory);
-    function updateParameter(uint256 newGranularity, UFixed6 newSyncFee, UFixed6 newAsyncFee, UFixed6 newOracleFee, uint256 newValidFrom, uint256 newValidTo) external;
+    function updateParameter(uint256 newGranularity, UFixed6 newOracleFee, uint256 newValidFrom, uint256 newValidTo) external;
     function commit(bytes32[] memory oracleIds, uint256 version, bytes calldata data) external payable;
     function settle(bytes32[] memory oracleIds, uint256[] memory versions, uint256[] memory maxCounts) external;
 }

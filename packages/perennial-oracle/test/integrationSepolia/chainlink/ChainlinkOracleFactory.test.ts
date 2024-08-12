@@ -433,14 +433,7 @@ testOracles.forEach(testOracle => {
 
       // set the oracle parameters at STARTING_TIME - 1
       await includeAt(async () => {
-        await chainlinkOracleFactory.updateParameter(
-          1,
-          parse6decimal('1.0'),
-          parse6decimal('0.5'),
-          parse6decimal('0.1'),
-          4,
-          10,
-        )
+        await chainlinkOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
         await chainlinkOracleFactory.commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 1, REPORT, {
           value: getFee(REPORT),
         })

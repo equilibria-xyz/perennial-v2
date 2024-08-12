@@ -120,7 +120,7 @@ describe('PythOracleFactory', () => {
       keeperOracleImpl.address,
     )
     await pythOracleFactory.initialize(oracleFactory.address)
-    await pythOracleFactory.updateParameter(1, parse6decimal('1'), parse6decimal('0.5'), 0, 4, 10)
+    await pythOracleFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(

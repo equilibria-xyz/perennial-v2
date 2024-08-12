@@ -135,7 +135,7 @@ describe('ChainlinkFactory', () => {
       keeperOracleImpl.address,
     )
     await chainlinkFactory.initialize(oracleFactory.address)
-    await chainlinkFactory.updateParameter(1, 0, 0, 0, 4, 10)
+    await chainlinkFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(chainlinkFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(

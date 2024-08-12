@@ -176,15 +176,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
     /// @notice Updates the oracle parameter set
     /// @param newGranularity The new granularity value in seconds
-    /// @param newSyncFee The new synchronous portion of the settlement fee
-    /// @param newAsyncFee The new asynchronous portion of the settlement fee
     /// @param newOraclefee The new relative oracle fee percentage
     /// @param newValidFrom The new valid from value in seconds
     /// @param newValidTo The new valid to value in seconds
     function updateParameter(
         uint256 newGranularity,
-        UFixed6 newSyncFee,
-        UFixed6 newAsyncFee,
         UFixed6 newOraclefee,
         uint256 newValidFrom,
         uint256 newValidTo
@@ -195,14 +191,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
         if (currentTimestamp <= keeperOracleParameter.effectiveAfter) revert KeeperFactoryInvalidParameterError();
         if (newGranularity > oracleParameter.maxGranularity) revert KeeperFactoryInvalidParameterError();
-        if (newSyncFee.add(newAsyncFee).gt(oracleParameter.maxSettlementFee)) revert KeeperFactoryInvalidParameterError();
         if (newOraclefee.gt(oracleParameter.maxOracleFee)) revert KeeperFactoryInvalidParameterError();
 
         keeperOracleParameter.latestGranularity = keeperOracleParameter.currentGranularity;
         keeperOracleParameter.currentGranularity = newGranularity;
         keeperOracleParameter.effectiveAfter = currentTimestamp;
-        keeperOracleParameter.syncFee = newSyncFee;
-        keeperOracleParameter.asyncFee = newAsyncFee;
         keeperOracleParameter.oracleFee = newOraclefee;
         keeperOracleParameter.validFrom = newValidFrom;
         keeperOracleParameter.validTo = newValidTo;

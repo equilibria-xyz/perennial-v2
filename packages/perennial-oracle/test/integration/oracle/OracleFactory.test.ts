@@ -73,7 +73,7 @@ describe('OracleFactory', () => {
       keeperOracleImpl.address,
     )
     await pythOracleFactory.initialize(oracleFactory.address)
-    await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
+    await pythOracleFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
 
     await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
@@ -111,7 +111,7 @@ describe('OracleFactory', () => {
         keeperOracleImpl2.address,
       )
       await pythOracleFactory2.initialize(oracleFactory.address)
-      await pythOracleFactory2.updateParameter(1, 0, 0, 0, 4, 10)
+      await pythOracleFactory2.updateParameter(1, 0, 4, 10)
       await oracleFactory.register(pythOracleFactory2.address)
 
       await pythOracleFactory2.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
