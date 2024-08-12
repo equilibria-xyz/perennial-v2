@@ -72,9 +72,9 @@ contract Account is IAccount, Instance {
     }
 
     /// @inheritdoc IAccount
-    function withdraw(UFixed6 amount, bool unwrap_) external ownerOrController {
+    function withdraw(UFixed6 amount, bool shouldUnwrap) external ownerOrController {
         UFixed6 usdcBalance = USDC.balanceOf();
-        if (unwrap_ && usdcBalance.lt(amount)) {
+        if (shouldUnwrap && usdcBalance.lt(amount)) {
             UFixed18 unwrapAmount = amount.eq(UFixed6Lib.MAX) ?
                 DSU.balanceOf() :
                 UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());

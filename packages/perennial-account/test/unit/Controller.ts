@@ -226,7 +226,7 @@ describe('Controller', () => {
     ) {
       for (let i = 0; i < message.markets.length; ++i) {
         const marketAddress = message.markets[i]
-        const config = await controller.rebalanceConfig(user.address, group, marketAddress)
+        const config = await controller.rebalanceConfigs(user.address, group, marketAddress)
         verifyConfig(config, message.configs[i])
       }
     }
@@ -439,14 +439,14 @@ describe('Controller', () => {
         await createGroup(group, [solMarket.address, ethMarket.address], configGroupUserB, userB)
 
         // confirm userA's settings are correct
-        const ethConfigA = await controller.rebalanceConfig(userA.address, group, ethMarket.address)
-        const btcConfigA = await controller.rebalanceConfig(userA.address, group, btcMarket.address)
+        const ethConfigA = await controller.rebalanceConfigs(userA.address, group, ethMarket.address)
+        const btcConfigA = await controller.rebalanceConfigs(userA.address, group, btcMarket.address)
         verifyConfig(ethConfigA, configGroupUserA[0])
         verifyConfig(btcConfigA, configGroupUserA[1])
 
         // confirm userB's settings are correct
-        const solConfigB = await controller.rebalanceConfig(userB.address, group, solMarket.address)
-        const ethConfigB = await controller.rebalanceConfig(userB.address, group, ethMarket.address)
+        const solConfigB = await controller.rebalanceConfigs(userB.address, group, solMarket.address)
+        const ethConfigB = await controller.rebalanceConfigs(userB.address, group, ethMarket.address)
         verifyConfig(solConfigB, configGroupUserB[0])
         verifyConfig(ethConfigB, configGroupUserB[1])
 
