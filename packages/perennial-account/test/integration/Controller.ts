@@ -16,6 +16,7 @@ import {
   IOracleFactory,
   IOracleProvider,
   PythFactory,
+  Oracle__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
@@ -404,6 +405,7 @@ describe('ControllerBase', () => {
 
       // create a maker position
       currentTime = await changePosition(userA, parse6decimal('1.5'))
+
       await advanceAndSettle(userA, receiver)
       expect((await ethMarket.positions(userA.address)).maker).to.equal(parse6decimal('1.5'))
 
