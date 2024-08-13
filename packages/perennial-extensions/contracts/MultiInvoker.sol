@@ -184,6 +184,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address target) = abi.decode(invocation.args, (address));
 
                 _approve(target);
+            } else if (invocation.action == PerennialAction.CLAIM_FEE) {
+                (IMarket market) = abi.decode(invocation.args, (IMarket));
+
+                _claimFee(account, market);
             }
         }
         // ETH must not remain in this contract at rest
@@ -290,6 +294,14 @@ contract MultiInvoker is IMultiInvoker, Kept {
         else DSU.push(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
 
         emit InterfaceFeeCharged(account, market, interfaceFee);
+    }
+
+    /// @notice Claims market fees, unwraps DSU, and pushes USDC to fee earner
+    /// @param market Market from which fees should be claimed
+    /// @param account Address of the user who earned fees
+    function _claimFee(address account, IMarket market) internal isMarketInstance(market) {
+        UFixed6 claimAmount = market.claimFee(account);
+        _withdraw(account, claimAmount, true);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from `account` to this address for market usage
