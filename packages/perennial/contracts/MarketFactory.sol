@@ -29,7 +29,7 @@ contract MarketFactory is IMarketFactory, Factory {
     mapping(IOracleProvider => mapping(address => IMarket)) private _markets;
 
     /// @dev The referreral fee level for each referrer for orders
-    mapping(address => UFixed6) public referralFees;
+    mapping(address => UFixed6) private _referralFees;
 
     /// @dev Mapping of allowed signers for each account
     mapping(address => mapping(address => bool)) public signers;
@@ -57,6 +57,15 @@ contract MarketFactory is IMarketFactory, Factory {
         return _markets[oracle][address(0)];
     }
 
+    /// @notice Returns the referral fee for a referrer
+    /// @dev If the referrer has no fee set, the default protocol fee is returned
+    /// @param referrer The referrer to query
+    /// @return The referral fee for the referrer
+    function referralFees(address referrer) public view returns (UFixed6) {
+        if (referrer == address(0)) return UFixed6Lib.ZERO;
+        return _referralFees[referrer].isZero() ? parameter().referralFee : _referralFees[referrer];
+    }
+
     /// @notice Returns authorizaton information for a market order
     /// @param account The account the order is operating on
     /// @param sender The sender of the order
@@ -74,7 +83,7 @@ contract MarketFactory is IMarketFactory, Factory {
         return (
             account == sender || extensions[sender] || operators[account][sender],
             account == signer || signers[account][signer],
-            referralFees[orderReferrer]
+            referralFees(orderReferrer)
         );
     }
 
@@ -186,7 +195,7 @@ contract MarketFactory is IMarketFactory, Factory {
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external onlyOwner {
         if (newReferralFee.gt(UFixed6Lib.ONE)) revert MarketFactoryInvalidReferralFeeError();
 
-        referralFees[referrer] = newReferralFee;
+        _referralFees[referrer] = newReferralFee;
         emit ReferralFeeUpdated(referrer, newReferralFee);
     }
 
