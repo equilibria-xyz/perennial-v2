@@ -76,6 +76,7 @@ library InvariantLib {
                 context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
                 context.latestOracleVersion,
                 context.riskParameter,
+                updateContext.collateralization,
                 context.local.collateral
             )
         ) revert IMarket.MarketInsufficientMarginError();
