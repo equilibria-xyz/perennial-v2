@@ -82,6 +82,7 @@ struct VersionAccumulationResult {
 struct VersionAccumulationContext {
     Global global;
     Position fromPosition;
+    uint256 orderId;
     Order order;
     Guarantee guarantee;
     OracleVersion fromOracleVersion;
@@ -95,6 +96,8 @@ struct VersionAccumulationContext {
 /// @dev (external-safe): this library is safe to externalize
 /// @notice Manages the logic for the global order accumulation
 library VersionLib {
+    event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
+
     /// @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
     /// @param self The Version object to update
     /// @param context The accumulation context
@@ -104,7 +107,7 @@ library VersionLib {
     function accumulate(
         Version memory self,
         VersionAccumulationContext memory context
-    ) external pure returns (Version memory next, Global memory nextGlobal, VersionAccumulationResult memory result) {
+    ) external returns (Version memory next, Global memory nextGlobal, VersionAccumulationResult memory result) {
         // setup next accumulators
         _next(self, next);
 
@@ -146,6 +149,8 @@ library VersionLib {
 
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
+
+        emit PositionProcessed(context.orderId, context.order, result);
 
         return (next, context.global, result);
     }

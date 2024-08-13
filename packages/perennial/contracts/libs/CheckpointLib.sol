@@ -41,6 +41,8 @@ struct CheckpointAccumulationResult {
 /// @dev (external-safe): this library is safe to externalize
 /// @notice Manages the logic for the local order accumulation
 library CheckpointLib {
+    event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
+
     /// @notice Accumulate pnl and fees from the latest position to next position
     /// @param self The Local object to update
     /// @param order The next order
@@ -51,12 +53,14 @@ library CheckpointLib {
     /// @return result The accumulated pnl and fees
     function accumulate(
         Checkpoint memory self,
+        address account,
+        uint256 orderId,
         Order memory order,
         Guarantee memory guarantee,
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) external pure returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
+    ) external returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
@@ -76,6 +80,8 @@ library CheckpointLib {
         next.transfer = order.collateral;
         next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
+
+        emit AccountPositionProcessed(account, orderId, order, result);
     }
 
     /// @notice Accumulate pnl, funding, and interest from the latest position to next position
