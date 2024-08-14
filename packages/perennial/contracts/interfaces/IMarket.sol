@@ -139,7 +139,6 @@ interface IMarket is IInstance {
     function oracle() external view returns (IOracleProvider);
     function beneficiary() external view returns (address);
     function coordinator() external view returns (address);
-    function payoff() external view returns (address);
     function positions(address account) external view returns (Position memory);
     function pendingOrders(address account, uint256 id) external view returns (Order memory);
     function guarantees(address account, uint256 id) external view returns (Guarantee memory);

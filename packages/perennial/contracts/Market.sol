@@ -370,12 +370,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _global.store(newGlobal);
     }
 
-    /// @notice Returns the payoff provider
-    /// @dev For backwards compatibility
-    function payoff() external pure returns (address) {
-        return address(0);
-    }
-
     /// @notice Returns the current parameter set
     function parameter() external view returns (MarketParameter memory) {
         return _parameter.read();
