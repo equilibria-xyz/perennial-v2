@@ -38,7 +38,7 @@ import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../.
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 
