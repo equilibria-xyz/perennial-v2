@@ -14723,6 +14723,7 @@ describe('Market', () => {
             fee: parse6decimal('0.5'),
             originator: liquidator.address,
             solver: owner.address,
+            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -14738,7 +14739,7 @@ describe('Market', () => {
             market
               .connect(user)
               [
-                'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](user.address, intent, '0x'),
           ).to.be.revertedWithCustomError(market, 'InstancePausedError')
         })
@@ -18030,6 +18031,7 @@ describe('Market', () => {
             fee: parse6decimal('0.5'),
             originator: liquidator.address,
             solver: owner.address,
+            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: liquidator.address,
@@ -18066,7 +18068,7 @@ describe('Market', () => {
             market
               .connect(userC)
               [
-                'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](userC.address, intent, DEFAULT_SIGNATURE),
           )
             .to.emit(market, 'OrderCreated')
@@ -18247,6 +18249,7 @@ describe('Market', () => {
             fee: parse6decimal('0.5'),
             originator: liquidator.address,
             solver: owner.address,
+            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: liquidator.address,
@@ -18283,7 +18286,7 @@ describe('Market', () => {
             market
               .connect(userC)
               [
-                'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
@@ -20425,6 +20428,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -20457,7 +20461,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -20669,6 +20673,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -20701,7 +20706,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -20914,6 +20919,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -20946,7 +20952,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -21159,6 +21165,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -21191,7 +21198,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -21403,6 +21410,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -21419,6 +21427,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: owner.address,
               solver: liquidator.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: userD.address,
                 signer: userD.address,
@@ -21458,7 +21467,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent1, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -21509,7 +21518,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent2, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -21746,6 +21755,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -21772,7 +21782,7 @@ describe('Market', () => {
             // maker
             factory.authorization
               .whenCalledWith(userC.address, userD.address, constants.AddressZero, constants.AddressZero) // userD is operator of userC
-              .returns([true, false, parse6decimal('0.20')])
+              .returns([true, false, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userD.address, user.address, liquidator.address)
@@ -21782,7 +21792,7 @@ describe('Market', () => {
               market
                 .connect(userD)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -21985,6 +21995,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -22043,7 +22054,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -22245,6 +22256,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -22303,7 +22315,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -22505,6 +22517,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -22563,7 +22576,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -22766,6 +22779,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -22824,7 +22838,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -23027,6 +23041,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -23091,7 +23106,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -23294,6 +23309,7 @@ describe('Market', () => {
               fee: parse6decimal('0.5'),
               originator: liquidator.address,
               solver: owner.address,
+              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -23358,7 +23374,7 @@ describe('Market', () => {
               market
                 .connect(userC)
                 [
-                  'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
                 ](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
@@ -23558,6 +23574,7 @@ describe('Market', () => {
             fee: 0,
             originator: liquidator.address,
             solver: constants.AddressZero,
+            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: userB.address,
@@ -23585,7 +23602,7 @@ describe('Market', () => {
             market
               .connect(userC)
               [
-                'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
@@ -23614,6 +23631,7 @@ describe('Market', () => {
             fee: parse6decimal('1.5'),
             originator: liquidator.address,
             solver: constants.AddressZero,
+            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -23641,9 +23659,75 @@ describe('Market', () => {
             market
               .connect(userC)
               [
-                'update(address,(int256,int256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketInvalidIntentFeeError')
+        })
+
+        it('reverts if collateralization is too low', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxFeeAbsolute: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: constants.AddressZero,
+            collateralization: parse6decimal('20.0'), // 10_000 / 20 = 500 < 125 * 5
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // maker
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
       })
     })

@@ -2,7 +2,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
   AccessUpdateBatchStruct,
   CommonStruct,
-  FillStruct,
   GroupCancellationStruct,
   IntentStruct,
   OperatorUpdateStruct,
@@ -59,42 +58,12 @@ export async function signIntent(
       { name: 'fee', type: 'uint256' },
       { name: 'originator', type: 'address' },
       { name: 'solver', type: 'address' },
+      { name: 'collateralization', type: 'uint256' },
       { name: 'common', type: 'Common' },
     ],
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, intent)
-}
-
-export async function signFill(
-  signer: SignerWithAddress,
-  verifier: IVerifier | Verifier | FakeContract<IVerifier>,
-  fill: FillStruct,
-): Promise<string> {
-  const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'signer', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
-    Intent: [
-      { name: 'amount', type: 'int256' },
-      { name: 'price', type: 'int256' },
-      { name: 'fee', type: 'uint256' },
-      { name: 'originator', type: 'address' },
-      { name: 'solver', type: 'address' },
-      { name: 'common', type: 'Common' },
-    ],
-    Fill: [
-      { name: 'intent', type: 'Intent' },
-      { name: 'common', type: 'Common' },
-    ],
-  }
-
-  return await signer._signTypedData(erc721Domain(verifier), types, fill)
 }
 
 export async function signGroupCancellation(

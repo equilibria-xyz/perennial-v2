@@ -739,6 +739,7 @@ describe('Invoke', () => {
             fee: parse6decimal('0.5'),
             originator: userC.address,
             solver: owner.address,
+            collateralization: parse6decimal('0.01'),
             common: {
               account: userB.address,
               signer: userB.address,
@@ -798,7 +799,6 @@ describe('Invoke', () => {
             orders: 1,
             shortPos: parse6decimal('1'),
             collateral: ethers.utils.parseUnits('1000', 6),
-            takerReferral: parse6decimal('0.05'),
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
@@ -806,6 +806,7 @@ describe('Invoke', () => {
             orders: 1,
             longPos: parse6decimal('1'),
             collateral: ethers.utils.parseUnits('1000', 6),
+            takerReferral: parse6decimal('0.05'),
           })
         })
 
