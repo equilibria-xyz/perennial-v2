@@ -25,9 +25,15 @@ import {
   ETH_ORACLE,
 } from '../helpers/setupHelpers'
 
-import { buildApproveTarget, buildPlaceOrder, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
+import {
+  buildApproveTarget,
+  buildPlaceOrder,
+  buildUpdateIntent,
+  buildUpdateMarket,
+  buildUpdateVault,
+} from '../../helpers/invoke'
 
-import { OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
@@ -714,6 +720,93 @@ describe('Invoke', () => {
           expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
             userB.address,
           )
+        })
+
+        it('fills an intent update', async () => {
+          const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier } = instanceVars
+
+          await marketFactory.updateParameter({
+            ...(await marketFactory.parameter()),
+            referralFee: parse6decimal('0.05'),
+          })
+          await usdc.connect(user).approve(multiInvoker.address, collateral)
+          await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+          await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+          const intent = {
+            amount: parse6decimal('1'),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: userC.address,
+            solver: owner.address,
+            common: {
+              account: userB.address,
+              signer: userB.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: constants.MaxUint256,
+            },
+          }
+
+          await dsu.connect(user).approve(market.address, ethers.utils.parseUnits('1000', 18))
+          await dsu.connect(userB).approve(market.address, ethers.utils.parseUnits('1000', 18))
+          await dsu.connect(userC).approve(market.address, ethers.utils.parseUnits('1000', 18))
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              0,
+              0,
+              ethers.utils.parseUnits('1000', 6),
+              false,
+            )
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              0,
+              0,
+              0,
+              ethers.utils.parseUnits('1000', 6),
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              parse6decimal('1'),
+              0,
+              0,
+              ethers.utils.parseUnits('1000', 6),
+              false,
+            )
+
+          await invoke(
+            await buildUpdateIntent({
+              signer: userB,
+              verifier: verifier,
+              market: market.address,
+              intent,
+            }),
+          )
+
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: 1631112904,
+            orders: 1,
+            shortPos: parse6decimal('1'),
+            collateral: ethers.utils.parseUnits('1000', 6),
+            takerReferral: parse6decimal('0.05'),
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: 1631112904,
+            orders: 1,
+            longPos: parse6decimal('1'),
+            collateral: ethers.utils.parseUnits('1000', 6),
+          })
         })
 
         it('Only allows updates to factory created markets', async () => {

@@ -122,15 +122,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates both the long and short positions of an intent order
     /// @dev - One side is specified in the signed intent, while the sender is assumed to be the counterparty
     ///      - The sender is charged the settlement fee
+    /// @param account The account that is filling this intent (maker)
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
-    function update(Intent calldata intent, bytes memory signature) external nonReentrant whenNotPaused {
+    function update(address account, Intent calldata intent, bytes memory signature) external nonReentrant whenNotPaused {
         if (intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
 
         verifier.verifyIntent(intent, signature);
 
         _updateIntent(
-            msg.sender,
+            account,
             address(0),
             intent.amount.mul(Fixed6Lib.NEG_ONE),
             intent.price,
@@ -139,7 +140,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             UFixed6Lib.ZERO,
             true,
             false
-        ); // sender
+        ); // account
         _updateIntent(
             intent.common.account,
             intent.common.signer,
@@ -534,6 +535,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // load factory metadata
         (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =
             IMarketFactory(address(factory())).authorization(context.account, msg.sender, signer, orderReferrer);
+
         updateContext.guaranteeReferralFee = guaranteeReferralFee;
     }
 
