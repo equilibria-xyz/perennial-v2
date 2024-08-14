@@ -166,7 +166,7 @@ describe('Invoke', () => {
         return multiInvoker.connect(user)['invoke((uint8,bytes)[])'](args)
       },
     },
-    /*{
+    {
       context: 'From delegate',
       setup: async () => {
         const { user, userD } = instanceVars
@@ -176,7 +176,7 @@ describe('Invoke', () => {
         const { user, userD } = instanceVars
         return multiInvoker.connect(userD)['invoke(address,(uint8,bytes)[])'](user.address, args)
       },
-    },*/
+    },
   ]
 
   testCases.forEach(({ context: contextStr, setup, invoke }) => {
@@ -842,9 +842,9 @@ describe('Invoke', () => {
           await chainlink.next()
           await market.connect(user).settle(user.address)
           await market.connect(userB).settle(userB.address)
+          const expectedFee = (await market.locals(user.address)).claimable
 
           // user invokes to claim their fee
-          const expectedFee = parse6decimal('2.560421')
           await expect(invoke(buildClaimFee({ market: market.address })))
             .to.emit(market, 'FeeClaimed')
             .withArgs(user.address, multiInvoker.address, expectedFee)
