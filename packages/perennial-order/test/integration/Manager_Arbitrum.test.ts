@@ -7,7 +7,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 import { advanceBlock, currentBlockTimestamp, increase } from '../../../common/testutil/time'
-import { getEventArguments } from '../../../common/testutil/transaction'
+import { getEventArguments, getTimestamp } from '../../../common/testutil/transaction'
 import { parse6decimal } from '../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@equilibria/perennial-v2/types/generated'
@@ -187,7 +187,7 @@ describe('Manager_Arbitrum', () => {
       .withArgs(market.address, user.address, spentOrder, orderId)
       .to.emit(market, 'OrderCreated')
       .withArgs(user.address, anyValue, anyValue, constants.AddressZero, order.referrer, constants.AddressZero)
-    const timestamp = (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
+    const timestamp = await getTimestamp(tx)
 
     // ensure trigger order was marked as spent
     const deletedOrder = await manager.orders(market.address, user.address, orderId)

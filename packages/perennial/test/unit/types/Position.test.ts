@@ -881,12 +881,12 @@ describe('Position', () => {
       describe('#margined', () => {
         context('0 position', () => {
           it('returns true', async () => {
-            expect(await position.margined(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, 0)).to.be.true
+            expect(await position.margined(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, 0, 0)).to.be.true
           })
 
           context('collateral is negative', () => {
             it('returns true', async () => {
-              expect(await position.margined(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, parse6decimal('-1'))).to.be
+              expect(await position.margined(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, 0, parse6decimal('-1'))).to.be
                 .true
             })
           })
@@ -901,6 +901,7 @@ describe('Position', () => {
                 await position.margined(
                   { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
                   { ...VALID_RISK_PARAMETER, margin: parse6decimal('0.3') },
+                  0,
                   parse6decimal('181'),
                 ),
               ).to.be.true
@@ -915,6 +916,7 @@ describe('Position', () => {
                 await position.margined(
                   { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
                   { ...VALID_RISK_PARAMETER, margin: parse6decimal('0.3') },
+                  0,
                   parse6decimal('180'),
                 ),
               ).to.be.true
@@ -929,7 +931,23 @@ describe('Position', () => {
                 await position.margined(
                   { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
                   { ...VALID_RISK_PARAMETER, margin: parse6decimal('0.3') },
+                  0,
                   parse6decimal('179'),
+                ),
+              ).to.be.false
+            })
+          })
+
+          context('collateral < notional * collateralization', () => {
+            it('returns false', async () => {
+              await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
+
+              expect(
+                await position.margined(
+                  { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
+                  { ...VALID_RISK_PARAMETER, margin: parse6decimal('0.3') },
+                  parse6decimal('0.35'),
+                  parse6decimal('180'),
                 ),
               ).to.be.false
             })
@@ -950,6 +968,7 @@ describe('Position', () => {
                       minMargin: parse6decimal('200'),
                     },
                     parse6decimal('199'),
+                    0,
                   ),
                 ).to.be.false
               })

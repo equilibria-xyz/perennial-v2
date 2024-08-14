@@ -8,7 +8,6 @@ import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
-import { Fill, FillLib } from "./types/Fill.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBatch.sol";
@@ -38,22 +37,6 @@ contract Verifier is VerifierBase, IVerifier {
         if (!SignatureChecker.isValidSignatureNow(
             intent.common.signer,
             _hashTypedDataV4(IntentLib.hash(intent)),
-            signature
-        )) revert VerifierInvalidSignerError();
-    }
-
-    /// @notice Verifies the signature of a intent order fill type
-    /// @dev Cancels the nonce after verifying the signature
-    ///      Reverts if the signature does not match the signer
-    /// @param fill The intent order fill to verify
-    /// @param signature The signature of the maker for the intent order fill
-    function verifyFill(Fill calldata fill, bytes calldata signature)
-        external
-        validateAndCancel(fill.common, signature)
-    {
-        if (!SignatureChecker.isValidSignatureNow(
-            fill.common.signer,
-            _hashTypedDataV4(FillLib.hash(fill)),
             signature
         )) revert VerifierInvalidSignerError();
     }

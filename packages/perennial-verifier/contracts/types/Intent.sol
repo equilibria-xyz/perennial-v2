@@ -24,6 +24,9 @@ struct Intent {
     /// @dev The referral address of the solver of the order (ex. the router)
     address solver;
 
+    /// @dev The minimium collateralization ratio that must be maintained after the order is executed
+    UFixed6 collateralization;
+
     /// @dev The common information for the intent
     Common common;
 }
@@ -33,11 +36,11 @@ using IntentLib for Intent global;
 /// @notice Library for Intent logic and data.
 library IntentLib {
     bytes32 constant public STRUCT_HASH = keccak256(
-        "Intent(int256 amount,int256 price,uint256 fee,address originator,address solver,Common common)"
+        "Intent(int256 amount,int256 price,uint256 fee,address originator,address solver,uint256 collateralization,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     function hash(Intent memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.amount, self.price, self.fee, self.originator, self.solver, CommonLib.hash(self.common)));
+        return keccak256(abi.encode(STRUCT_HASH, self.amount, self.price, self.fee, self.originator, self.solver, self.collateralization, CommonLib.hash(self.common)));
     }
 }

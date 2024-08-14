@@ -191,7 +191,8 @@ library StrategyLib {
         marketContext.margin = PositionLib.margin(
             marketContext.latestAccountPosition.magnitude().add(pendingLocal.pos()),
             latestVersion,
-            marketContext.riskParameter
+            marketContext.riskParameter,
+            UFixed6Lib.ZERO
         );
         marketContext.latestPrice = latestVersion.price;
 

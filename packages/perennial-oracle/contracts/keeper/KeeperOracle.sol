@@ -32,7 +32,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     mapping(uint256 => uint256) public requests;
 
     /// @dev The global state of the oracle
-    Global private _global;
+    KeeperOracleGlobal private _global;
 
     /// @dev Mapping from timestamp to oracle version responses
     mapping(uint256 => PriceResponseStorage) private _responses;
@@ -53,7 +53,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
     /// @notice Returns the global state of the oracle
     /// @return The global state of the oracle
-    function global() external view returns (Global memory) { return _global; }
+    function global() external view returns (KeeperOracleGlobal memory) { return _global; }
 
     /// @notice Updates the registered oracle provider
     /// @dev The oracle provider is the only authorized caller
