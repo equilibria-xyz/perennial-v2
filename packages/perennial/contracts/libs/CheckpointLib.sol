@@ -41,8 +41,6 @@ struct CheckpointAccumulationResult {
 /// @dev (external-safe): this library is safe to externalize
 /// @notice Manages the logic for the local order accumulation
 library CheckpointLib {
-    event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
-
     /// @notice Accumulate pnl and fees from the latest position to next position
     /// @param self The Local object to update
     /// @param order The next order
@@ -81,7 +79,7 @@ library CheckpointLib {
         next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
 
-        emit AccountPositionProcessed(account, orderId, order, result);
+        emit IMarket.AccountPositionProcessed(account, orderId, order, result);
     }
 
     /// @notice Accumulate pnl, funding, and interest from the latest position to next position

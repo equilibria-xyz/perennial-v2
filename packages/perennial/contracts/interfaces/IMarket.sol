@@ -62,6 +62,8 @@ interface IMarket is IInstance {
 
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer);
     event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);
+    event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
+    event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
     event BeneficiaryUpdated(address newBeneficiary);
     event CoordinatorUpdated(address newCoordinator);
     /// @notice Fee earned by an account was transferred from market to a receiver
@@ -72,9 +74,6 @@ interface IMarket is IInstance {
     event ExposureClaimed(address indexed account, Fixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
     event RiskParameterUpdated(RiskParameter newRiskParameter);
-
-    event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
-    event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
 
     // sig: 0x0fe90964
     error MarketInsufficientLiquidityError();

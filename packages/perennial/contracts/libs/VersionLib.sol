@@ -96,8 +96,6 @@ struct VersionAccumulationContext {
 /// @dev (external-safe): this library is safe to externalize
 /// @notice Manages the logic for the global order accumulation
 library VersionLib {
-    event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
-
     /// @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
     /// @param self The Version object to update
     /// @param context The accumulation context
@@ -150,7 +148,7 @@ library VersionLib {
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
 
-        emit PositionProcessed(context.orderId, context.order, result);
+        emit IMarket.PositionProcessed(context.orderId, context.order, result);
 
         return (next, context.global, result);
     }
