@@ -156,7 +156,7 @@ interface IMarket is IInstance {
     function orderReferrers(address account, uint256 id) external view returns (address);
     function guaranteeReferrers(address account, uint256 id) external view returns (address);
     function settle(address account) external;
-    function update(Intent calldata intent, bytes memory signature) external;
+    function update(address account, Intent calldata intent, bytes memory signature) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
     function parameter() external view returns (MarketParameter memory);

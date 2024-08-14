@@ -54,7 +54,10 @@ import {
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
+  IVerifier,
+  IVerifier__factory,
 } from '@equilibria/perennial-v2/types/generated'
+import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
 
 const { ethers } = HRE
 
@@ -81,6 +84,7 @@ export interface InstanceVars {
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   marketFactory: MarketFactory
+  verifier: IVerifier
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
@@ -119,12 +123,13 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
-  const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+  const verifierImpl = await new Verifier__factory(owner).deploy()
   const verifierProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     verifierImpl.address,
     proxyAdmin.address,
     [],
   )
+  const verifier = IVerifier__factory.connect(verifierProxy.address, owner)
 
   const marketImpl = await new Market__factory(
     {
@@ -219,6 +224,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     proxyAdmin,
     oracleFactory,
     marketFactory,
+    verifier,
     chainlink,
     payoff,
     dsu,

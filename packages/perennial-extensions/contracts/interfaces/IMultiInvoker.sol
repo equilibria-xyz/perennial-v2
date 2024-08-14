@@ -30,7 +30,8 @@ interface IMultiInvoker {
         COMMIT_PRICE,    // 6
         __LIQUIDATE__DEPRECATED,
         APPROVE,         // 8
-        CLAIM_FEE        // 9 // TODO: move to 10 after PR#402 merged
+        UPDATE_INTENT,   // 9
+        CLAIM_FEE        // 10
     }
 
     struct Invocation {

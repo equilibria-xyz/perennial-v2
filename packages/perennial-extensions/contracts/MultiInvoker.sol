@@ -157,6 +157,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
 
                 _update(account, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
+            } else if (invocation.action == PerennialAction.UPDATE_INTENT) {
+                (IMarket market, Intent memory intent, bytes memory signature) = abi.decode(invocation.args, (IMarket, Intent, bytes));
+
+                _updateIntent(account, market, intent, signature);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
@@ -236,6 +240,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // charge interface fee
         _chargeFee(account, market, interfaceFee1);
         _chargeFee(account, market, interfaceFee2);
+    }
+
+    /// @notice Fills an intent update on behalf of account
+    /// @param account Address of account to update
+    /// @param intent The intent that is being filled
+    /// @param signature The signature of the intent that is being filled
+    function _updateIntent(
+        address account,
+        IMarket market,
+        Intent memory intent,
+        bytes memory signature
+    ) internal isMarketInstance(market) {
+        market.update(account, intent, signature);
     }
 
     /// @notice Update vault on behalf of account
