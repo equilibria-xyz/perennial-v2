@@ -1,3 +1,4 @@
+import { ethers } from 'hardhat'
 import { ContractTransaction, utils } from 'ethers'
 
 // Reads data from first event matching provided name.
@@ -10,4 +11,8 @@ export async function getEventArguments(tx: ContractTransaction, name: string): 
   const args = firstMatch.args
   if (!args) throw new Error(`${name} event had no arguments`)
   return args
+}
+
+export async function getTimestamp(tx: ContractTransaction) {
+  return (await ethers.provider.getBlock(tx.blockNumber!)).timestamp
 }

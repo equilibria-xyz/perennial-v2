@@ -878,7 +878,7 @@ describe('Position', () => {
         })
       })
 
-      describe.only('#margined', () => {
+      describe('#margined', () => {
         context('0 position', () => {
           it('returns true', async () => {
             expect(await position.margined(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, 0, 0)).to.be.true

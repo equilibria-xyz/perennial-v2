@@ -5,7 +5,7 @@ import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { time as hhTime } from '@nomicfoundation/hardhat-network-helpers'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { currentBlockTimestamp, increase, increaseTo } from '../../../../common/testutil/time'
+import { advanceBlock, currentBlockTimestamp, increase, increaseTo } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,

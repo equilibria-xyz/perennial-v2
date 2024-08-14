@@ -10,7 +10,7 @@ import {
 import { IVerifier, Verifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
 
-export function erc721Domain(verifier: Verifier | FakeContract<IVerifier>) {
+export function erc721Domain(verifier: IVerifier | Verifier | FakeContract<IVerifier>) {
   return {
     name: 'Perennial',
     version: '1.0.0',
@@ -21,7 +21,7 @@ export function erc721Domain(verifier: Verifier | FakeContract<IVerifier>) {
 
 export async function signCommon(
   signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
+  verifier: IVerifier | Verifier | FakeContract<IVerifier>,
   common: CommonStruct,
 ): Promise<string> {
   const types = {
@@ -40,7 +40,7 @@ export async function signCommon(
 
 export async function signIntent(
   signer: SignerWithAddress,
-  verifier: Verifier | FakeContract<IVerifier>,
+  verifier: IVerifier | Verifier | FakeContract<IVerifier>,
   intent: IntentStruct,
 ): Promise<string> {
   const types = {
