@@ -10,7 +10,12 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
 
     address public immutable signer;
 
-    constructor(address signer_, address implementation_) KeeperFactory(implementation_) {
+    constructor(
+        address signer_,
+        IGasOracle commitmentGasOracle_,
+        IGasOracle settlementGasOracle_,
+        address implementation_
+    ) KeeperFactory(commitmentGasOracle_, settlementGasOracle_, implementation_) {
         signer = signer_;
     }
 
@@ -39,7 +44,8 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(exponent)));
             prices[i] = PriceRecord(
                 parsedUpdate.priceFeed.price.publishTime,
-                exponent < 0 ? significand.div(base) : significand.mul(base)
+                exponent < 0 ? significand.div(base) : significand.mul(base),
+                0
             );
         }
     }

@@ -16,8 +16,15 @@ contract PythFactory is IPythFactory, KeeperFactory {
 
     /// @notice Initializes the immutable contract state
     /// @param pyth_ Pyth contract
+    /// @param commitmentGasOracle_ Commitment gas oracle contract
+    /// @param settlementGasOracle_ Settlement gas oracle contract
     /// @param implementation_ IPythOracle implementation contract
-    constructor(AbstractPyth pyth_, address implementation_) KeeperFactory(implementation_) {
+    constructor(
+        AbstractPyth pyth_,
+        IGasOracle commitmentGasOracle_,
+        IGasOracle settlementGasOracle_,
+        address implementation_
+    ) KeeperFactory(commitmentGasOracle_, settlementGasOracle_, implementation_) {
         pyth = pyth_;
     }
 
@@ -54,13 +61,16 @@ contract PythFactory is IPythFactory, KeeperFactory {
             type(uint64).max
         );
 
+        uint256 updateFee = IPythStaticFee(address(pyth)).singleUpdateFeeInWei();
+
         for (uint256 i; i < parsedPrices.length; i++) {
             (Fixed18 significand, int256 exponent) =
                 (Fixed18.wrap(parsedPrices[i].price.price), parsedPrices[i].price.expo + PARSE_DECIMALS);
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(exponent)));
             prices[i] = PriceRecord(
                 parsedPrices[i].price.publishTime,
-                exponent < 0 ? significand.div(base) : significand.mul(base)
+                exponent < 0 ? significand.div(base) : significand.mul(base),
+                updateFee
             );
         }
     }

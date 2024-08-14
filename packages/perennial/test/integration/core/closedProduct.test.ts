@@ -118,7 +118,6 @@ describe('Closed Market', () => {
     const feesABefore = (await market.global()).protocolFee
     const feesBBefore = (await market.global()).oracleFee
     const feesCBefore = (await market.global()).riskFee
-    const feesDBefore = (await market.global()).donation
 
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
@@ -132,7 +131,6 @@ describe('Closed Market', () => {
     expect((await market.global()).protocolFee).to.equal(feesABefore)
     expect((await market.global()).oracleFee).to.equal(feesBBefore)
     expect((await market.global()).riskFee).to.equal(feesCBefore)
-    expect((await market.global()).donation).to.equal(feesDBefore)
   })
 
   it('handles closing during liquidations', async () => {
@@ -171,7 +169,6 @@ describe('Closed Market', () => {
     const feesABefore = (await market.global()).protocolFee
     const feesBBefore = (await market.global()).oracleFee
     const feesCBefore = (await market.global()).riskFee
-    const feesDBefore = (await market.global()).donation
 
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
@@ -185,6 +182,5 @@ describe('Closed Market', () => {
     expect((await market.global()).protocolFee).to.equal(feesABefore)
     expect((await market.global()).oracleFee).to.equal(feesBBefore)
     expect((await market.global()).riskFee).to.equal(feesCBefore)
-    expect((await market.global()).donation).to.equal(feesDBefore)
   })
 })

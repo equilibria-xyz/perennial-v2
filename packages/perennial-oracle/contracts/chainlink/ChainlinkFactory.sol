@@ -7,6 +7,8 @@ import "../keeper/KeeperFactory.sol";
 /// @title ChainlinkFactory
 /// @notice Factory contract for creating and managing Chainlink oracles
 contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
+    uint256 private constant PERCENTAGE_SCALAR = 1e18;
+
     /// @dev Chainlink verifier contract
     IVerifierProxy public immutable chainlink;
 
@@ -20,13 +22,17 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
     /// @param chainlink_ Chainlink verifier contract
     /// @param feeManager_ Chainlink fee manager contract
     /// @param feeTokenAddress_ Fee token address
+    /// @param commitmentGasOracle_ Commitment gas oracle contract
+    /// @param settlementGasOracle_ Settlement gas oracle contract
     /// @param implementation_ IKeeperOracle implementation contract
     constructor(
         IVerifierProxy chainlink_,
         IFeeManager feeManager_,
         address feeTokenAddress_,
+        IGasOracle commitmentGasOracle_,
+        IGasOracle settlementGasOracle_,
         address implementation_
-    ) KeeperFactory(implementation_) {
+    ) KeeperFactory(commitmentGasOracle_, settlementGasOracle_, implementation_) {
         chainlink = chainlink_;
         feeManager = feeManager_;
         feeTokenAddress = feeTokenAddress_;
@@ -48,13 +54,25 @@ contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
 
         prices = new PriceRecord[](ids.length);
         for (uint256 i = 0; i < verifiedReports.length; i++) {
-            (bytes32 feedId, , uint32 observationsTimestamp, , , , uint192 price) =
+            (bytes32 feedId, , uint32 observationsTimestamp, uint192 nativeQuantity, , , uint192 price) =
                 abi.decode(verifiedReports[i], (bytes32, uint32, uint32, uint192, uint192, uint32, uint192));
 
             if (feedId != toUnderlyingId[ids[i]]) revert ChainlinkFactoryInvalidFeedIdError(feedId);
 
-            prices[i] = PriceRecord(observationsTimestamp, Fixed18Lib.from(UFixed18.wrap(price)));
+            prices[i] = PriceRecord(
+                observationsTimestamp,
+                Fixed18Lib.from(UFixed18.wrap(price)),
+                _commitmentPrice(feedId, nativeQuantity)
+            );
         }
+    }
+
+    function _commitmentPrice(bytes32 underlyingId, uint256 nativeQuantity) internal view returns (uint256) {
+        // see FeeManager.getFeeAndReward()
+        // https://sepolia.arbiscan.io/address/0x226D04b3a60beE1C2d522F63a87340220b8F9D6B#code
+        uint256 discount = feeManager.s_subscriberDiscounts(address(this), underlyingId, feeTokenAddress);
+        uint256 surchargedFee = Math.ceilDiv(nativeQuantity * (PERCENTAGE_SCALAR + feeManager.s_nativeSurcharge()), PERCENTAGE_SCALAR);
+        return Math.ceilDiv(surchargedFee * (PERCENTAGE_SCALAR - discount), PERCENTAGE_SCALAR);
     }
 }
 

@@ -19,9 +19,9 @@ import {
   MockVerifierProxy__factory,
   ChainlinkFactory,
   ChainlinkFactory__factory,
+  GasOracle,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { parse6decimal } from '../../../../common/testutil/types'
 import { utils, BigNumberish } from 'ethers'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
@@ -74,6 +74,8 @@ describe('ChainlinkFactory', () => {
   let chainlinkFeed: FakeContract<AggregatorV3Interface>
   let mockFeeManager: MockFeeManager
   let mockVerifierProxy: MockVerifierProxy
+  let commitmentGasOracle: FakeContract<GasOracle>
+  let settlementGasOracle: FakeContract<GasOracle>
   let oracle: Oracle
   let keeperOracle: KeeperOracle
   let chainlinkFactory: ChainlinkFactory
@@ -118,15 +120,22 @@ describe('ChainlinkFactory', () => {
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
     await oracleFactory.initialize()
 
+    commitmentGasOracle = await smock.fake<GasOracle>('GasOracle')
+    commitmentGasOracle.cost.whenCalledWith(1).returns(utils.parseEther('0.20'))
+    settlementGasOracle = await smock.fake<GasOracle>('GasOracle')
+    settlementGasOracle.cost.whenCalledWith(0).returns(utils.parseEther('0.05'))
+
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
     chainlinkFactory = await new ChainlinkFactory__factory(owner).deploy(
       mockVerifierProxy.address,
       mockFeeManager.address,
       weth.address,
+      commitmentGasOracle.address,
+      settlementGasOracle.address,
       keeperOracleImpl.address,
     )
     await chainlinkFactory.initialize(oracleFactory.address)
-    await chainlinkFactory.updateParameter(1, 0, 0, 0, 4, 10)
+    await chainlinkFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(chainlinkFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(
@@ -154,6 +163,7 @@ describe('ChainlinkFactory', () => {
   })
 
   it('parses Chainlink report correctly', async () => {
+    market.claimFee.returns(utils.parseUnits('0.25', 6))
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
 
     const report = listify(

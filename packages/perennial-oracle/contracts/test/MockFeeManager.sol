@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "../interfaces/IChainlinkFactory.sol";
 
-contract MockFeeManager {
+contract MockFeeManager is IFeeManager{
     address public immutable nativeAddress;
 
     constructor(address nativeAddress_) {
@@ -22,5 +22,13 @@ contract MockFeeManager {
         );
         Asset memory reward;
         return (Asset(nativeAddress, nativeQuantity), reward, 0);
-  }
+    }
+
+    function s_nativeSurcharge() external pure returns (uint256) {
+        return 0;
+    }
+
+    function s_subscriberDiscounts(address, bytes32, address) external pure returns (uint256) {
+        return 0;
+    }
 }

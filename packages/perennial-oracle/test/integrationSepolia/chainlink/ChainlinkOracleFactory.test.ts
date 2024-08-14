@@ -34,6 +34,8 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
+  GasOracle,
+  GasOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -179,6 +181,8 @@ testOracles.forEach(testOracle => {
   describe(testOracle.name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
+    let commitmentGasOracle: GasOracle
+    let settlementGasOracle: GasOracle
     let oracle: Oracle
     let oracleBtc: Oracle
     let keeperOracle: KeeperOracle
@@ -208,11 +212,34 @@ testOracles.forEach(testOracle => {
         maxOracleFee: parse6decimal('0.5'),
       })
 
+      commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+        CHAINLINK_ETH_USD_FEED,
+        8,
+        1_000_000,
+        ethers.utils.parseEther('1.02'),
+        1_000_000,
+        0,
+        0,
+        0,
+      )
+      settlementGasOracle = await new GasOracle__factory(owner).deploy(
+        CHAINLINK_ETH_USD_FEED,
+        8,
+        200_000,
+        ethers.utils.parseEther('1.02'),
+        500_000,
+        0,
+        0,
+        0,
+      )
+
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
       chainlinkOracleFactory = await new ChainlinkFactory__factory(owner).deploy(
         CHAINLINK_VERIFIER_PROXY_ADDRESS,
         FEE_MANAGER_ADDRESS,
         WETH_ADDRESS,
+        commitmentGasOracle.address,
+        settlementGasOracle.address,
         keeperOracleImpl.address,
       )
       await chainlinkOracleFactory.initialize(oracleFactory.address)
@@ -297,7 +324,6 @@ testOracles.forEach(testOracle => {
       )
       await marketFactory.initialize()
       await marketFactory.updateParameter({
-        protocolFee: parse6decimal('0.50'),
         maxFee: parse6decimal('0.01'),
         maxFeeAbsolute: parse6decimal('1000'),
         maxCut: parse6decimal('0.50'),
@@ -407,14 +433,7 @@ testOracles.forEach(testOracle => {
 
       // set the oracle parameters at STARTING_TIME - 1
       await includeAt(async () => {
-        await chainlinkOracleFactory.updateParameter(
-          1,
-          parse6decimal('1.0'),
-          parse6decimal('0.5'),
-          parse6decimal('0.1'),
-          4,
-          10,
-        )
+        await chainlinkOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
         await chainlinkOracleFactory.commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 1, REPORT, {
           value: getFee(REPORT),
         })
@@ -430,6 +449,8 @@ testOracles.forEach(testOracle => {
             CHAINLINK_VERIFIER_PROXY_ADDRESS,
             FEE_MANAGER_ADDRESS,
             WETH_ADDRESS,
+            commitmentGasOracle.address,
+            settlementGasOracle.address,
             await chainlinkOracleFactory.implementation(),
           )
           await chainlinkOracleFactory2.initialize(oracleFactory.address)
@@ -480,10 +501,7 @@ testOracles.forEach(testOracle => {
 
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
         await expect(
@@ -495,7 +513,10 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
           .withArgs([STARTING_TIME, getPrices(REPORT)[0], true])
 
-        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('9')))
+        const reward = utils.parseEther('0.547442')
+        expect(await dsu.balanceOf(user.address)).to.be.equal(
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
+        )
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
       })
@@ -515,10 +536,7 @@ testOracles.forEach(testOracle => {
               ),
           STARTING_TIME,
         )
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           chainlinkOracleFactory.connect(user).commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME, '0x', {
@@ -578,7 +596,11 @@ testOracles.forEach(testOracle => {
 
         // Even though there are two updates, only one was requested so we
         // should only receive half of the fee.
-        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('9')))
+        const reward = utils.parseEther('0.100972')
+        expect(await dsu.balanceOf(user.address)).to.be.within(
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(1),
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(utils.parseEther('1')),
+        )
       })
     })
   })

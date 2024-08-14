@@ -17,9 +17,9 @@ import {
   IMarketFactory,
   KeeperOracle,
   KeeperOracle__factory,
+  GasOracle,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { parse6decimal } from '../../../../common/testutil/types'
 import { utils, BigNumber, BigNumberish } from 'ethers'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
@@ -50,6 +50,8 @@ describe('PythOracleFactory', () => {
   let pyth: FakeContract<AbstractPyth>
   let pythUpdateFee: FakeContract<IPythStaticFee>
   let chainlinkFeed: FakeContract<AggregatorV3Interface>
+  let commitmentGasOracle: FakeContract<GasOracle>
+  let settlementGasOracle: FakeContract<GasOracle>
   let oracle: Oracle
   let keeperOracle: KeeperOracle
   let pythOracleFactory: PythFactory
@@ -99,10 +101,20 @@ describe('PythOracleFactory', () => {
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
     await oracleFactory.initialize()
 
+    commitmentGasOracle = await smock.fake<GasOracle>('GasOracle')
+    commitmentGasOracle.cost.whenCalledWith(1).returns(utils.parseEther('0.20'))
+    settlementGasOracle = await smock.fake<GasOracle>('GasOracle')
+    settlementGasOracle.cost.whenCalledWith(0).returns(utils.parseEther('0.05'))
+
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(pyth.address, keeperOracleImpl.address)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(
+      pyth.address,
+      commitmentGasOracle.address,
+      settlementGasOracle.address,
+      keeperOracleImpl.address,
+    )
     await pythOracleFactory.initialize(oracleFactory.address)
-    await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
+    await pythOracleFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(
@@ -130,6 +142,8 @@ describe('PythOracleFactory', () => {
   })
 
   it('parses Pyth exponents correctly', async () => {
+    market.claimFee.returns(utils.parseUnits('0.25', 6))
+
     const minDelay = (await pythOracleFactory.parameter()).validFrom
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
