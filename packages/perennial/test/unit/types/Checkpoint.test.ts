@@ -25,8 +25,11 @@ import {
 const { ethers } = HRE
 use(smock.matchers)
 
+const ORDER_ID = BigNumber.from(17)
+
 describe('Checkpoint', () => {
   let owner: SignerWithAddress
+  let user: SignerWithAddress
   let checkpointLib: CheckpointLib
   let checkpointStorageLib: CheckpointStorageLib
   let checkpoint: CheckpointTester
@@ -39,7 +42,7 @@ describe('Checkpoint', () => {
   }
 
   beforeEach(async () => {
-    ;[owner] = await ethers.getSigners()
+    ;[owner, user] = await ethers.getSigners()
 
     checkpointLib = await new CheckpointLib__factory(owner).deploy()
     checkpointStorageLib = await new CheckpointStorageLib__factory(owner).deploy()
@@ -256,6 +259,8 @@ describe('Checkpoint', () => {
 
       it('accumulates transfer', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, collateral: parse6decimal('123') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -263,6 +268,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, collateral: parse6decimal('123') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -276,6 +283,8 @@ describe('Checkpoint', () => {
 
       it('accumulates price override pnl (long)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
           {
             ...DEFAULT_GUARANTEE,
@@ -288,6 +297,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, price: parse6decimal('123') },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
           {
             ...DEFAULT_GUARANTEE,
@@ -307,6 +318,8 @@ describe('Checkpoint', () => {
 
       it('accumulates price override pnl (short)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
           {
             ...DEFAULT_GUARANTEE,
@@ -319,6 +332,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, price: parse6decimal('123') },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
           {
             ...DEFAULT_GUARANTEE,
@@ -338,6 +353,8 @@ describe('Checkpoint', () => {
 
       it('accumulates pnl (maker)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, maker: parse6decimal('10') },
@@ -345,6 +362,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, maker: parse6decimal('10') },
@@ -359,6 +378,8 @@ describe('Checkpoint', () => {
 
       it('accumulates pnl (long)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, long: parse6decimal('10') },
@@ -366,6 +387,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, long: parse6decimal('10') },
@@ -380,6 +403,8 @@ describe('Checkpoint', () => {
 
       it('accumulates pnl (short)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, short: parse6decimal('10') },
@@ -387,6 +412,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, short: parse6decimal('10') },
@@ -401,6 +428,8 @@ describe('Checkpoint', () => {
 
       it('accumulates fees (maker)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -408,6 +437,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, makerFee: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -422,6 +453,8 @@ describe('Checkpoint', () => {
 
       it('accumulates fees (taker)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -429,6 +462,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, takerFee: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -443,6 +478,8 @@ describe('Checkpoint', () => {
 
       it('accumulates fees (maker offset)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -450,6 +487,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, makerOffset: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -464,6 +503,8 @@ describe('Checkpoint', () => {
 
       it('accumulates fees (taker pos offset)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -471,6 +512,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, takerPosOffset: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -485,6 +528,8 @@ describe('Checkpoint', () => {
 
       it('accumulates fees (taker neg offset)', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -492,6 +537,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, takerNegOffset: { _value: parse6decimal('-2') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -506,6 +553,8 @@ describe('Checkpoint', () => {
 
       it('accumulates settlement fee', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, orders: 2 },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -513,6 +562,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, orders: 2 },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -527,6 +578,8 @@ describe('Checkpoint', () => {
 
       it('accumulates liquidation fee', async () => {
         const result = await checkpoint.callStatic.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, protection: 1 },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
@@ -534,6 +587,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, liquidationFee: { _value: parse6decimal('-4') } },
         )
         await checkpoint.accumulate(
+          user.address,
+          ORDER_ID,
           { ...DEFAULT_ORDER, protection: 1 },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
