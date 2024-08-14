@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root/accumulator/types/Accumulator6.sol";
 import "@equilibria/root/accumulator/types/UAccumulator6.sol";
+import "../interfaces/IMarket.sol";
 import "../types/ProtocolParameter.sol";
 import "../types/MarketParameter.sol";
 import "../types/RiskParameter.sol";

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/accumulator/types/Accumulator6.sol";
+import "../interfaces/IMarket.sol";
 import "../types/OracleVersion.sol";
 import "../types/RiskParameter.sol";
 import "../types/Global.sol";
