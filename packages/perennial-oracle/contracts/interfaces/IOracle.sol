@@ -33,7 +33,7 @@ interface IOracle is IOracleProvider, IInstance {
     }
 
     /// @dev The global state for oracle
-    struct Global {
+    struct OracleGlobal {
         /// @dev The current epoch
         uint128 current;
 

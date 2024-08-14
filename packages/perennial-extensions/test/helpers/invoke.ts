@@ -3,6 +3,11 @@ import { IMultiInvoker } from '../../types/generated'
 import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
+import { IntentStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/Market'
+import { signIntent } from '../../../perennial-verifier/test/helpers/erc712'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { IVerifier } from '@equilibria/perennial-v2/types/generated'
+import { sign } from 'crypto'
 
 export const MAX_INT = ethers.constants.MaxInt256
 export const MIN_INT = ethers.constants.MinInt256
@@ -72,6 +77,51 @@ export const buildUpdateMarket = ({
             interfaceFee2 ? interfaceFee2.receiver : constants.AddressZero,
             interfaceFee2 ? interfaceFee2.unwrap : false,
           ],
+        ],
+      ),
+    },
+  ]
+}
+
+export const buildUpdateIntent = async ({
+  signer,
+  verifier,
+  market,
+  intent,
+}: {
+  signer: SignerWithAddress
+  verifier: IVerifier
+  market: string
+  intent: IntentStruct
+}): Promise<Actions> => {
+  const signature = await signIntent(signer, verifier, intent)
+  return [
+    {
+      action: 9,
+      args: utils.defaultAbiCoder.encode(
+        [
+          'address',
+          'tuple(int256,int256,uint256,address,address,tuple(address,address,address,uint256,uint256,uint256))',
+          'bytes',
+        ],
+        [
+          market,
+          [
+            intent.amount,
+            intent.price,
+            intent.fee,
+            intent.originator,
+            intent.solver,
+            [
+              intent.common.account,
+              intent.common.signer,
+              intent.common.domain,
+              intent.common.nonce,
+              intent.common.group,
+              intent.common.expiry,
+            ],
+          ],
+          signature,
         ],
       ),
     },
@@ -236,6 +286,7 @@ module.exports = {
   buildExecOrder,
   buildPlaceOrder,
   buildUpdateMarket,
+  buildUpdateIntent,
   buildLiquidateUser,
   buildUpdateVault,
   buildApproveTarget,
