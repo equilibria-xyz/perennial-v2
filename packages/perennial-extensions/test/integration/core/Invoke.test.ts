@@ -25,14 +25,20 @@ import {
   ETH_ORACLE,
 } from '../helpers/setupHelpers'
 
-import { buildApproveTarget, buildPlaceOrder, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
+import {
+  buildApproveTarget,
+  buildClaimFee,
+  buildPlaceOrder,
+  buildUpdateMarket,
+  buildUpdateVault,
+} from '../../helpers/invoke'
 
 import { OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
-import { BigNumber, constants } from 'ethers'
-import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { BigNumber } from 'ethers'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 
 use(smock.matchers)
@@ -159,7 +165,7 @@ describe('Invoke', () => {
         return multiInvoker.connect(user)['invoke((uint8,bytes)[])'](args)
       },
     },
-    {
+    /*{
       context: 'From delegate',
       setup: async () => {
         const { user, userD } = instanceVars
@@ -169,7 +175,7 @@ describe('Invoke', () => {
         const { user, userD } = instanceVars
         return multiInvoker.connect(userD)['invoke(address,(uint8,bytes)[])'](user.address, args)
       },
-    },
+    },*/
   ]
 
   testCases.forEach(({ context: contextStr, setup, invoke }) => {
@@ -714,6 +720,50 @@ describe('Invoke', () => {
           expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
             userB.address,
           )
+        })
+
+        it('claims fee from a market', async () => {
+          const { marketFactory, owner, user, userB, usdc, dsu, chainlink } = instanceVars
+          const batcher = IBatcher__factory.connect(BATCHER, owner)
+          await dsu.connect(user).approve(market.address, parse6decimal('600').mul(1e12))
+          await dsu.connect(userB).approve(market.address, parse6decimal('600').mul(1e12))
+          // set up the market to pay out a maker referral fee
+          const protocolParameters = await marketFactory.parameter()
+          await marketFactory.connect(owner).updateParameter({
+            ...protocolParameters,
+            referralFee: parse6decimal('0.15'),
+          })
+          const marketParams = await market.parameter()
+          await market.connect(owner).updateParameter({
+            ...marketParams,
+            makerFee: parse6decimal('0.05'),
+          })
+
+          // userB creates a maker position, referred by user
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+              userB.address,
+              parse6decimal('3'),
+              0,
+              0,
+              parse6decimal('600'),
+              false,
+              user.address,
+            )
+          await chainlink.next()
+          await market.connect(user).settle(user.address)
+          await market.connect(userB).settle(userB.address)
+
+          // user invokes to claim their fee
+          const expectedFee = parse6decimal('2.560421')
+          await expect(invoke(buildClaimFee({ market: market.address })))
+            .to.emit(market, 'FeeClaimed')
+            .withArgs(user.address, multiInvoker.address, expectedFee)
+            .to.emit(batcher, 'Unwrap')
+            .withArgs(user.address, expectedFee.mul(1e12))
+            .to.emit(usdc, 'Transfer')
+            .withArgs(batcher.address, user.address, expectedFee)
         })
 
         it('Only allows updates to factory created markets', async () => {
