@@ -25,7 +25,6 @@ interface IMarket is IInstance {
 
     struct Context {
         address account;
-        ProtocolParameter protocolParameter;
         MarketParameter marketParameter;
         RiskParameter riskParameter;
         OracleVersion latestOracleVersion;
