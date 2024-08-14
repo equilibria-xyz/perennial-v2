@@ -138,6 +138,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             intent.originator,
             intent.solver,
             intent.fee,
+            UFixed6Lib.ZERO,
             true
         ); // account
         _updateIntent(
@@ -148,6 +149,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             intent.originator,
             intent.solver,
             intent.fee,
+            intent.collateralization,
             false
         ); // signer
     }
@@ -160,6 +162,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param orderReferrer The referrer of the order
     /// @param guaranteeReferrer The referrer of the guarantee
     /// @param guaranteeReferralFee The referral fee for the guarantee
+    /// @param collateralization The minimum collateralization ratio that must be maintained after the order is executed
     /// @param chargeFee Whether to charge the fee
     function _updateIntent(
         address account,
@@ -169,6 +172,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address orderReferrer,
         address guaranteeReferrer,
         UFixed6 guaranteeReferralFee,
+        UFixed6 collateralization,
         bool chargeFee
     ) private {
         // settle market & account
@@ -176,7 +180,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _settle(context);
 
         // load update context
-        UpdateContext memory updateContext = _loadUpdateContext(context, signer, orderReferrer, guaranteeReferralFee);
+        UpdateContext memory updateContext =
+            _loadUpdateContext(context, signer, orderReferrer, guaranteeReferralFee, collateralization);
 
         (UFixed6 processedOrderReferralFee, UFixed6 processedGuaranteeReferralFee) = chargeFee
             ? _processReferralFee(context, updateContext, orderReferrer, guaranteeReferrer)
@@ -238,7 +243,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _settle(context);
 
         // load update context
-        UpdateContext memory updateContext = _loadUpdateContext(context, address(0), referrer, UFixed6Lib.ZERO);
+        UpdateContext memory updateContext =
+            _loadUpdateContext(context, address(0), referrer, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
         // magic values
         collateral = _processCollateralMagicValue(context, collateral);
@@ -498,12 +504,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param signer The signer of the update order, if one exists
     /// @param orderReferrer The order referrer to load for
     /// @param guaranteeReferralFee The guarantee referral fee to load for
+    /// @param collateralization The collateralization to load for
     /// @return updateContext The update context
     function _loadUpdateContext(
         Context memory context,
         address signer,
         address orderReferrer,
-        UFixed6 guaranteeReferralFee
+        UFixed6 guaranteeReferralFee,
+        UFixed6 collateralization
     ) private view returns (UpdateContext memory updateContext) {
         // load current position
         updateContext.currentPositionGlobal = context.latestPositionGlobal.clone();
@@ -521,6 +529,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.liquidator = liquidators[context.account][context.local.currentId];
         updateContext.orderReferrer = orderReferrers[context.account][context.local.currentId];
         updateContext.guaranteeReferrer = guaranteeReferrers[context.account][context.local.currentId];
+        updateContext.collateralization = collateralization;
 
         // load factory metadata
         (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =

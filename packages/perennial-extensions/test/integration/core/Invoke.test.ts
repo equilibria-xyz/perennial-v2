@@ -739,6 +739,7 @@ describe('Invoke', () => {
             fee: parse6decimal('0.5'),
             originator: userC.address,
             solver: owner.address,
+            collateralization: parse6decimal('0.01'),
             common: {
               account: userB.address,
               signer: userB.address,
