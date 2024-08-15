@@ -2,7 +2,6 @@ import { expect } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
 import HRE from 'hardhat'
-import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
@@ -103,8 +102,6 @@ describe('Verifier', () => {
 
     // deploy a verifier
     orderVerifier = await new OrderVerifier__factory(owner).deploy()
-    const dsu = await smock.fake<IERC20>('IERC20')
-    const marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     manager = await smock.fake<IManager>('IManager')
 
     orderVerifierSigner = await impersonate.impersonateWithBalance(orderVerifier.address, utils.parseEther('10'))

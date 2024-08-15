@@ -24,6 +24,10 @@ export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrder
   expect(actual.maxFee).to.equal(expected.maxFee)
   expect(actual.isSpent).to.equal(expected.isSpent)
   expect(actual.referrer).to.equal(expected.referrer)
+
+  expect(actual.interfaceFee.amount).to.equal(expected.interfaceFee.amount)
+  expect(actual.interfaceFee.receiver).to.equal(expected.interfaceFee.receiver)
+  expect(actual.interfaceFee.unwrap).to.equal(expected.interfaceFee.unwrap)
 }
 
 export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): TriggerOrderStruct {
@@ -35,5 +39,10 @@ export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): T
     maxFee: structOutput.maxFee,
     isSpent: structOutput.isSpent,
     referrer: structOutput.referrer,
+    interfaceFee: {
+      amount: structOutput.interfaceFee.amount,
+      receiver: structOutput.interfaceFee.receiver,
+      unwrap: structOutput.interfaceFee.unwrap,
+    },
   }
 }

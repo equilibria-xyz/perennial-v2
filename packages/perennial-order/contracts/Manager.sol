@@ -108,12 +108,14 @@ abstract contract Manager is IManager, Kept {
 
         _compensateKeeper(market, user, order.maxFee);
         order.execute(market, user);
+        bool interfaceFeeCharged = order.interfaceFee.chargeFee(user, market);
 
         // invalidate the order nonce
         order.isSpent = true;
         _orders[market][user][orderId].store(order);
 
         emit TriggerOrderExecuted(market, user, order, orderId);
+        if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(user, market, order.interfaceFee);
     }
 
     /// @dev reads keeper compensation parameters from an action message

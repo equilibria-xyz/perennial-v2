@@ -4,7 +4,8 @@ pragma solidity ^0.8.13;
 import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 import { CancelOrderAction } from "../types/CancelOrderAction.sol";
-import { PlaceOrderAction, TriggerOrder} from "../types/PlaceOrderAction.sol";
+import { InterfaceFee } from "../types/InterfaceFee.sol";
+import { PlaceOrderAction, TriggerOrder } from "../types/PlaceOrderAction.sol";
 
 /// @notice Stores and executes trigger orders
 interface IManager {
@@ -32,6 +33,12 @@ interface IManager {
     /// @param order Change in position and conditions which were satisfied
     /// @param orderId Uniquely identifies the executed order
     event TriggerOrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderId);
+
+    /// @notice Emitted when an interface fee specified on a trigger order has been paid
+    /// @param account Actor who paid the fee
+    /// @param market Perennial market from which the fee was pulled
+    /// @param fee Details including the fee amount and recipient of the fee
+    event TriggerOrderInterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
 
     // sig: 0x955cc4b9
     /// @custom:error Order does not exist or was already cancelled or executed
