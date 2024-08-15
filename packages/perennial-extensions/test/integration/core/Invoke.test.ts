@@ -724,7 +724,7 @@ describe('Invoke', () => {
         })
 
         it('fills an intent update', async () => {
-          const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier } = instanceVars
+          const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier, chainlink } = instanceVars
 
           await marketFactory.updateParameter({
             ...(await marketFactory.parameter()),
@@ -792,10 +792,11 @@ describe('Invoke', () => {
               intent,
             }),
           )
+          const intentTimestamp = await chainlink.oracle.current()
 
           expectOrderEq(await market.pendingOrders(user.address, 1), {
             ...DEFAULT_ORDER,
-            timestamp: 1631112904,
+            timestamp: intentTimestamp,
             orders: 1,
             shortPos: parse6decimal('1'),
             collateral: ethers.utils.parseUnits('1000', 6),
@@ -803,7 +804,7 @@ describe('Invoke', () => {
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
-            timestamp: 1631112904,
+            timestamp: intentTimestamp,
             orders: 1,
             longPos: parse6decimal('1'),
             collateral: ethers.utils.parseUnits('1000', 6),
