@@ -14952,9 +14952,11 @@ describe('Market', () => {
 
         it('reverts if price is stale (invalid)', async () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(10800) }
-          await market.connect(owner).updateRiskParameter(riskParameter, false)
+          await market.connect(owner).updateRiskParameter(riskParameter)
 
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns({ ...ORACLE_VERSION_1, valid: false })
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_1.timestamp)
+            .returns([{ ...ORACLE_VERSION_1, valid: false }, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([{ ...ORACLE_VERSION_1, valid: false }, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
@@ -16421,6 +16423,10 @@ describe('Market', () => {
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
+          factory.authorization
+            .whenCalledWith(user.address, liquidator.address, constants.AddressZero, userB.address)
+            .returns([true, false, parse6decimal('0.20')])
+
           await settle(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
@@ -16475,6 +16481,10 @@ describe('Market', () => {
             .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
+
+          factory.authorization
+            .whenCalledWith(user.address, liquidator.address, constants.AddressZero, userB.address)
+            .returns([true, false, parse6decimal('0.20')])
 
           await settle(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)

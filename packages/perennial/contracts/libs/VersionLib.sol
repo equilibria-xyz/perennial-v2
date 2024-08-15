@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "@equilibria/root/accumulator/types/Accumulator6.sol";
 import "@equilibria/root/accumulator/types/UAccumulator6.sol";
+import "../interfaces/IMarket.sol";
 import "../types/ProtocolParameter.sol";
 import "../types/MarketParameter.sol";
 import "../types/RiskParameter.sol";
@@ -82,6 +83,7 @@ struct VersionAccumulationResult {
 struct VersionAccumulationContext {
     Global global;
     Position fromPosition;
+    uint256 orderId;
     Order order;
     Guarantee guarantee;
     OracleVersion fromOracleVersion;
@@ -104,7 +106,7 @@ library VersionLib {
     function accumulate(
         Version memory self,
         VersionAccumulationContext memory context
-    ) external pure returns (Version memory next, Global memory nextGlobal, VersionAccumulationResult memory result) {
+    ) external returns (Version memory next, Global memory nextGlobal, VersionAccumulationResult memory result) {
         // setup next accumulators
         _next(self, next);
 
@@ -146,6 +148,8 @@ library VersionLib {
 
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
+
+        emit IMarket.PositionProcessed(context.orderId, context.order, result);
 
         return (next, context.global, result);
     }

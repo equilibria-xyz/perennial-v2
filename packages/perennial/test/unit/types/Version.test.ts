@@ -57,7 +57,6 @@ const GLOBAL: GlobalStruct = {
   protocolFee: 2,
   oracleFee: 3,
   riskFee: 4,
-  donation: 5,
   pAccumulator: {
     _value: 6,
     _skew: 7,
@@ -72,6 +71,8 @@ const FROM_POSITION: PositionStruct = {
   long: 4,
   short: 5,
 }
+
+const ORDER_ID: BigNumber = BigNumber.from(17)
 
 const ORDER: OrderStruct = {
   timestamp: 20,
@@ -112,6 +113,7 @@ describe('Version', () => {
   const accumulateWithReturn = async (
     global: GlobalStruct,
     fromPosition: PositionStruct,
+    orderId: BigNumber,
     order: OrderStruct,
     guarantee: GuaranteeStruct,
     fromOracleVersion: OracleVersionStruct,
@@ -123,6 +125,7 @@ describe('Version', () => {
     const accumulationResult = await version.callStatic.accumulate({
       global,
       fromPosition,
+      orderId,
       order,
       guarantee,
       fromOracleVersion,
@@ -134,6 +137,7 @@ describe('Version', () => {
     await version.accumulate({
       global,
       fromPosition,
+      orderId,
       order,
       guarantee,
       fromOracleVersion,
@@ -629,6 +633,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('10'), short: parse6decimal('10'), maker: parse6decimal('10') },
+          ORDER_ID,
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
@@ -684,6 +689,7 @@ describe('Version', () => {
           await accumulateWithReturn(
             GLOBAL,
             FROM_POSITION,
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -704,6 +710,7 @@ describe('Version', () => {
           await accumulateWithReturn(
             GLOBAL,
             FROM_POSITION,
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -724,6 +731,7 @@ describe('Version', () => {
           await accumulateWithReturn(
             GLOBAL,
             FROM_POSITION,
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -745,6 +753,7 @@ describe('Version', () => {
         await accumulateWithReturn(
           GLOBAL,
           FROM_POSITION,
+          ORDER_ID,
           ORDER,
           { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
@@ -809,6 +818,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           { ...order, orders: 1, makerPos: parse6decimal('4') },
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
@@ -829,6 +839,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           order,
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
@@ -846,6 +857,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           { ...order, orders: 1, shortNeg: parse6decimal('2') },
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
@@ -864,6 +876,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           {
             ...order,
             orders: orderCount,
@@ -890,6 +903,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           {
             ...order,
             orders: orderCount,
@@ -961,6 +975,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           order,
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
@@ -981,6 +996,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           order,
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
@@ -1001,6 +1017,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           order,
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
@@ -1067,6 +1084,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           { ...ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 }, // 123
@@ -1086,6 +1104,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
+          ORDER_ID,
           { ...ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 }, // 123
@@ -1112,6 +1131,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           { ...position, maker: 0 },
+          ORDER_ID,
           { ...order, makerPos: parse6decimal('0.7'), longPos: 0 },
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1, price: parse6decimal('142') },
@@ -1146,6 +1166,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: 0 },
+          ORDER_ID,
           {
             ...ORDER,
             makerNeg: parse6decimal('0'),
@@ -1250,6 +1271,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: parse6decimal('50') },
+          ORDER_ID,
           {
             ...ORDER,
             makerNeg: parse6decimal('10'),
@@ -1352,6 +1374,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: parse6decimal('50') },
+          ORDER_ID,
           {
             ...ORDER,
             makerNeg: parse6decimal('10'),
@@ -1462,6 +1485,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1506,6 +1530,7 @@ describe('Version', () => {
               long: 0,
               short: 0,
             },
+            ORDER_ID,
             {
               ...ORDER,
               makerPos: ORDER.makerPos,
@@ -1554,6 +1579,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('8'),
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1599,6 +1625,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('12'),
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1644,6 +1671,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('12'),
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1692,6 +1720,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1736,6 +1765,7 @@ describe('Version', () => {
               long: parse6decimal('12'),
               short: parse6decimal('2'),
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1787,6 +1817,7 @@ describe('Version', () => {
               long: parse6decimal('8'),
               short: parse6decimal('2'),
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1838,6 +1869,7 @@ describe('Version', () => {
               long: 0,
               short: 0,
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1885,6 +1917,7 @@ describe('Version', () => {
               long: parse6decimal('2'),
               short: parse6decimal('9'),
             },
+            ORDER_ID,
             ORDER,
             { ...DEFAULT_GUARANTEE },
             ORACLE_VERSION_1,
@@ -1930,6 +1963,7 @@ describe('Version', () => {
                 long: parse6decimal('9'),
                 short: parse6decimal('9'),
               },
+              ORDER_ID,
               ORDER,
               { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
@@ -1988,6 +2022,7 @@ describe('Version', () => {
                 long: parse6decimal('2'),
                 short: parse6decimal('9'),
               },
+              ORDER_ID,
               ORDER,
               { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
@@ -2046,6 +2081,7 @@ describe('Version', () => {
                 long: parse6decimal('20'),
                 short: parse6decimal('15'),
               },
+              ORDER_ID,
               ORDER,
               { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
@@ -2106,6 +2142,7 @@ describe('Version', () => {
                 long: parse6decimal('9'),
                 short: parse6decimal('9'),
               },
+              ORDER_ID,
               ORDER,
               { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
@@ -2164,6 +2201,7 @@ describe('Version', () => {
                 long: parse6decimal('2'),
                 short: parse6decimal('9'),
               },
+              ORDER_ID,
               ORDER,
               { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
@@ -2222,6 +2260,7 @@ describe('Version', () => {
                 long: parse6decimal('20'),
                 short: parse6decimal('15'),
               },
+              ORDER_ID,
               ORDER,
               { ...DEFAULT_GUARANTEE },
               ORACLE_VERSION_1,
@@ -2282,6 +2321,7 @@ describe('Version', () => {
             long: parse6decimal('2'),
             short: parse6decimal('9'),
           },
+          ORDER_ID,
           ORDER,
           { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
@@ -2319,6 +2359,7 @@ describe('Version', () => {
             long: parse6decimal('2'),
             short: parse6decimal('9'),
           },
+          ORDER_ID,
           ORDER,
           { ...DEFAULT_GUARANTEE },
           ORACLE_VERSION_1,
