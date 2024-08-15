@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/accumulator/types/Accumulator6.sol";
+import "../interfaces/IMarket.sol";
 import "../types/OracleVersion.sol";
 import "../types/RiskParameter.sol";
 import "../types/Global.sol";
@@ -51,12 +52,14 @@ library CheckpointLib {
     /// @return result The accumulated pnl and fees
     function accumulate(
         Checkpoint memory self,
+        address account,
+        uint256 orderId,
         Order memory order,
         Guarantee memory guarantee,
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) external pure returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
+    ) external returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
@@ -76,6 +79,8 @@ library CheckpointLib {
         next.transfer = order.collateral;
         next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
+
+        emit IMarket.AccountPositionProcessed(account, orderId, order, result);
     }
 
     /// @notice Accumulate pnl, funding, and interest from the latest position to next position
