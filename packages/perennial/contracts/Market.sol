@@ -606,7 +606,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
 
         // after
-        InvariantLib.validate(context, updateContext, newOrder);
+        InvariantLib.validate(context, updateContext, newOrder, newGuarantee);
 
         // store
         _storeUpdateContext(context, updateContext);
@@ -616,14 +616,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (newOrder.collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
 
         // events
-        emit OrderCreated(
-            context.account,
-            newOrder,
-            newGuarantee,
-            updateContext.liquidator,
-            updateContext.orderReferrer,
-            updateContext.guaranteeReferrer
-        );
     }
 
     /// @notice Processes the referrer for the given order

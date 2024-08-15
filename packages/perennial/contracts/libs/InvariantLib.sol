@@ -19,11 +19,23 @@ library InvariantLib {
     /// @param context The context to use
     /// @param updateContext The update context to use
     /// @param newOrder The order to verify the invariant for
+    /// @param newGuarantee The guarantee to verify the invariant for
     function validate(
         IMarket.Context memory context,
         IMarket.UpdateContext memory updateContext,
-        Order memory newOrder
-    ) external pure {
+        Order memory newOrder,
+        Guarantee memory newGuarantee
+    ) external {
+        // emit created event first due to early return
+        emit IMarket.OrderCreated(
+            context.account,
+            newOrder,
+            newGuarantee,
+            updateContext.liquidator,
+            updateContext.orderReferrer,
+            updateContext.guaranteeReferrer
+        );
+
         if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) // total pending close is greater than latest position
             revert IMarket.MarketOverCloseError();
 
