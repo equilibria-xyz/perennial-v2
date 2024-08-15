@@ -41,13 +41,13 @@ export default task('check-solvency', 'Check the solvency of all markets')
 
     const markets = await marketFactory.queryFilter(marketFactory.filters.InstanceRegistered(), 0, 'latest')
     let totalShortfall = 0n
-    let totalClaimable = 0n
 
     const { result: allUsers } = args.full
       ? await getAllMarketUsers(graphURL)
       : { result: {} as { [key: string]: Set<string> } }
 
     for (const marketEvent of markets) {
+      let totalClaimable = 0n
       const marketAddress = marketEvent.args.instance
       console.log('-------------------')
       console.log('Checking market:', marketAddress)
@@ -108,6 +108,7 @@ export default task('check-solvency', 'Check the solvency of all markets')
           'DSU',
           `\n\tBalance: ${utils.formatUnits(marketBalance6, 6)}, Collateral: ${utils.formatUnits(marketCollateral, 6)}`,
           `\n\t\tFees: ${utils.formatUnits(globalFees, 6)}, Exposure: ${utils.formatUnits(global.exposure, 6)}`,
+          `\n\t\tClaimable: ${utils.formatUnits(totalClaimable, 6)}`,
         )
       }
     }

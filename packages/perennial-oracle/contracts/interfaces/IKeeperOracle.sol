@@ -23,7 +23,7 @@ interface IKeeperOracle is IOracleProvider, IInstance {
         uint256 version;
     }
 
-    struct Global {
+    struct KeeperOracleGlobal {
         /// @dev The latest committed oracle version
         uint64 latestVersion;
 
@@ -56,5 +56,5 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     function oracle() external view returns (IOracle);
     function requests(uint256 index) external view returns (uint256);
     function responses(uint256 timestamp) external view returns (PriceResponse memory);
-    function global() external view returns (Global memory);
+    function global() external view returns (KeeperOracleGlobal memory);
 }

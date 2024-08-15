@@ -3,6 +3,7 @@ import HRE from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
+import { getTimestamp } from '../../../common/testutil/transaction'
 import {
   IKeeperOracle,
   IOracleFactory,
@@ -45,10 +46,10 @@ export async function advanceToPrice(
   }
   const tx: ContractTransaction = await keeperOracle
     .connect(oracleFactory)
-    .commit(oracleVersion, receiver.address, overrides ?? {})
+    .commit(oracleVersion, receiver.address, 0, overrides ?? {})
 
   // inform the caller of the current timestamp
-  return (await HRE.ethers.provider.getBlock(tx.blockNumber ?? 0)).timestamp
+  return await getTimestamp(tx)
 }
 
 export async function createPythOracle(

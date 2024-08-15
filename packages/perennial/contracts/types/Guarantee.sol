@@ -51,20 +51,22 @@ library GuaranteeLib {
     /// @param order The order to create the guarantee from
     /// @param priceOverride The price override
     /// @param referralFee The referral fee percentage
-    /// @param chargeFee Whether the order will still be charged the fee
+    /// @param chargeSettlementFee Whether the order will still be charged the settlement fee
+    /// @param chargeTradeFee Whether the order will still be charged the trade fee
     /// @return newGuarantee The resulting guarantee
     function from(
         Order memory order,
         Fixed6 priceOverride,
         UFixed6 referralFee,
-        bool chargeFee
+        bool chargeSettlementFee,
+        bool chargeTradeFee
     ) internal pure returns (Guarantee memory newGuarantee) {
         // maker orders and one intent order per fill will be required to pay the settlement fee
-        if (!order.takerTotal().isZero() && !chargeFee) newGuarantee.orders = order.orders;
+        if (!order.takerTotal().isZero() && !chargeSettlementFee) newGuarantee.orders = order.orders;
 
         (newGuarantee.takerPos, newGuarantee.takerNeg) =
             (order.longPos.add(order.shortNeg), order.longNeg.add(order.shortPos));
-        newGuarantee.takerFee = chargeFee ? UFixed6Lib.ZERO : order.takerTotal();
+        newGuarantee.takerFee = chargeTradeFee ? UFixed6Lib.ZERO : order.takerTotal();
 
         newGuarantee.notional = taker(newGuarantee).mul(priceOverride);
         newGuarantee.referral = order.takerReferral.mul(referralFee);
