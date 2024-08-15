@@ -24,6 +24,7 @@ describe('Verifier', () => {
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
+  let userC: SignerWithAddress
   let managerSigner: SignerWithAddress
   let orderVerifierSigner: SignerWithAddress
   let lastNonce = 0
@@ -68,6 +69,11 @@ describe('Verifier', () => {
         delta: parse6decimal('400'),
         maxFee: parse6decimal('0.67'),
         referrer: userB.address,
+        interfaceFee: {
+          amount: parse6decimal('0.35'),
+          receiver: userC.address,
+          unwrap: true,
+        },
       },
       ...createActionMessage(userAddress, signerAddress, expiresInSeconds),
     }
@@ -93,7 +99,7 @@ describe('Verifier', () => {
   }
 
   const fixture = async () => {
-    ;[owner, userA, userB] = await ethers.getSigners()
+    ;[owner, userA, userB, userC] = await ethers.getSigners()
 
     // deploy a verifier
     orderVerifier = await new OrderVerifier__factory(owner).deploy()
