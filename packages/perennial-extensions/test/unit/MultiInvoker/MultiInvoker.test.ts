@@ -643,17 +643,27 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             usdc.transfer.returns(true)
             market.claimFee.returns(fee)
 
-            await expect(invoke(buildClaimFee({ market: market.address }))).to.not.be.reverted
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: true }))).to.not.be.reverted
             expect(market.claimFee).to.have.been.calledWith(user.address)
             expect(reserve.redeem).to.have.been.calledWith(fee.mul(1e12))
             expect(usdc.transfer).to.have.been.calledWith(user.address, fee)
           })
 
+          it('claims fee from a market without unwrapping', async () => {
+            const fee = parse6decimal('0.0654')
+            dsu.transfer.returns(true)
+            market.claimFee.returns(fee)
+
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: false }))).to.not.be.reverted
+            expect(market.claimFee).to.have.been.calledWith(user.address)
+            expect(reserve.redeem).to.not.have.been.called
+            expect(dsu.transfer).to.have.been.calledWith(user.address, fee.mul(1e12))
+          })
+
           it('reverts if claiming fee from a non-market', async () => {
-            await expect(invoke(buildClaimFee({ market: batcher.address }))).to.be.revertedWithCustomError(
-              multiInvoker,
-              'MultiInvokerInvalidInstanceError',
-            )
+            await expect(
+              invoke(buildClaimFee({ market: batcher.address, unwrap: true })),
+            ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
           })
 
           describe('ETH return', async () => {

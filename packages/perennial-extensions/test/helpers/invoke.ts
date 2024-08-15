@@ -275,11 +275,11 @@ export const buildExecOrder = ({
   ]
 }
 
-export const buildClaimFee = ({ market }: { market: string }): Actions => {
+export const buildClaimFee = ({ market, unwrap }: { market: string; unwrap: boolean }): Actions => {
   return [
     {
       action: 10,
-      args: utils.defaultAbiCoder.encode(['address'], [market]),
+      args: utils.defaultAbiCoder.encode(['address', 'bool'], [market, unwrap]),
     },
   ]
 }
