@@ -26,6 +26,16 @@ library InvariantLib {
         Order memory newOrder,
         Guarantee memory newGuarantee
     ) external {
+        // emit created event first due to early return
+        emit IMarket.OrderCreated(
+            context.account,
+            newOrder,
+            newGuarantee,
+            updateContext.liquidator,
+            updateContext.orderReferrer,
+            updateContext.guaranteeReferrer
+        );
+
         if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) // total pending close is greater than latest position
             revert IMarket.MarketOverCloseError();
 
@@ -105,15 +115,5 @@ library InvariantLib {
 
         if (context.local.collateral.lt(Fixed6Lib.ZERO))
             revert IMarket.MarketInsufficientCollateralError();
-
-        // emit event if all invariants pass
-        emit IMarket.OrderCreated(
-            context.account,
-            newOrder,
-            newGuarantee,
-            updateContext.liquidator,
-            updateContext.orderReferrer,
-            updateContext.guaranteeReferrer
-        );
     }
 }
