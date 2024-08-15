@@ -370,12 +370,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _global.store(newGlobal);
     }
 
-    /// @notice Returns the payoff provider
-    /// @dev For backwards compatibility
-    function payoff() external pure returns (address) {
-        return address(0);
-    }
-
     /// @notice Returns the current parameter set
     function parameter() external view returns (MarketParameter memory) {
         return _parameter.read();
@@ -765,6 +759,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         VersionAccumulationContext memory accumulationContext = VersionAccumulationContext(
             context.global,
             context.latestPositionGlobal,
+            newOrderId,
             newOrder,
             newGuarantee,
             settlementContext.orderOracleVersion,
@@ -782,8 +777,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         settlementContext.orderOracleVersion = oracleVersion;
         _versions[newOrder.timestamp].store(settlementContext.latestVersion);
-
-        emit PositionProcessed(newOrderId, newOrder, accumulationResult);
     }
 
     /// @notice Processes the given local pending position into the latest position
@@ -819,6 +812,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         CheckpointAccumulationResult memory accumulationResult;
         (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
+            context.account,
+            newOrderId,
             newOrder,
             newGuarantee,
             context.latestPositionLocal,
@@ -834,8 +829,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _credit(context, liquidators[context.account][newOrderId], accumulationResult.liquidationFee);
         _credit(context, orderReferrers[context.account][newOrderId], accumulationResult.subtractiveFee);
         _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResult.solverFee);
-
-        emit AccountPositionProcessed(context.account, newOrderId, newOrder, accumulationResult);
     }
 
     /// @notice Credits an account's claimable

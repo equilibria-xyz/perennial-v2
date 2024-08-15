@@ -14,12 +14,6 @@ struct KeeperOracleParameter {
     /// @dev The timestamp at which the current granularity setting becomes effective
     uint256 effectiveAfter;
 
-    /// @dev the synchronous portion of the fixed settlement fee of the request
-    UFixed6 syncFee;
-
-    /// @dev the asynchronous portion of the fixed settlement fee of the request
-    UFixed6 asyncFee;
-
     /// @dev The relative oracle fee percentage of the request
     UFixed6 oracleFee;
 
@@ -34,8 +28,6 @@ struct StoredKeeperOracleParameter {
     uint16 latestGranularity;   // <= 65k
     uint16 currentGranularity;  // <= 65k
     uint32 effectiveAfter;      // <= 2038
-    uint48 syncFee;             // <= 281m
-    uint48 asyncFee;            // <= 281m
     uint24 oracleFee;           // <= 100%
     uint16 validFrom;           // <= 65k
     uint16 validTo;             // <= 65k
@@ -54,8 +46,6 @@ library KeeperOracleParameterStorageLib {
             uint256(storedValue.latestGranularity),
             uint256(storedValue.currentGranularity),
             uint256(storedValue.effectiveAfter),
-            UFixed6.wrap(uint256(storedValue.syncFee)),
-            UFixed6.wrap(uint256(storedValue.asyncFee)),
             UFixed6.wrap(uint256(storedValue.oracleFee)),
             uint256(storedValue.validFrom),
             uint256(storedValue.validTo)
@@ -74,8 +64,6 @@ library KeeperOracleParameterStorageLib {
         if (newValue.latestGranularity > type(uint16).max) revert KeeperOracleParameterStorageInvalidError();
         if (newValue.currentGranularity > type(uint16).max) revert KeeperOracleParameterStorageInvalidError();
         if (newValue.effectiveAfter > type(uint32).max) revert KeeperOracleParameterStorageInvalidError();
-        if (newValue.syncFee.gt(UFixed6.wrap(type(uint48).max))) revert KeeperOracleParameterStorageInvalidError();
-        if (newValue.asyncFee.gt(UFixed6.wrap(type(uint48).max))) revert KeeperOracleParameterStorageInvalidError();
         if (newValue.oracleFee.gt(UFixed6.wrap(type(uint24).max))) revert KeeperOracleParameterStorageInvalidError();
         if (newValue.validFrom > type(uint16).max) revert KeeperOracleParameterStorageInvalidError();
         if (newValue.validTo > type(uint16).max) revert KeeperOracleParameterStorageInvalidError();
@@ -84,8 +72,6 @@ library KeeperOracleParameterStorageLib {
             uint16(newValue.latestGranularity),
             uint16(newValue.currentGranularity),
             uint32(newValue.effectiveAfter),
-            uint48(UFixed6.unwrap(newValue.syncFee)),
-            uint48(UFixed6.unwrap(newValue.asyncFee)),
             uint24(UFixed6.unwrap(newValue.oracleFee)),
             uint16(newValue.validFrom),
             uint16(newValue.validTo)

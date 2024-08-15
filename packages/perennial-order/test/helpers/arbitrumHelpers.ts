@@ -9,6 +9,7 @@ import {
   OracleFactory,
   PythFactory,
   PythFactory__factory,
+  GasOracle__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -23,6 +24,7 @@ const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Stan
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
+const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
 
 // creates an ETH market using a locally deployed factory and oracle
 export async function createMarketETH(
@@ -66,7 +68,6 @@ async function deployMarketFactory(
   // Set protocol parameters
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
-    protocolFee: parse6decimal('0.50'),
     maxFee: parse6decimal('0.01'),
     maxFeeAbsolute: parse6decimal('1000'),
     maxCut: parse6decimal('0.50'),
@@ -116,11 +117,37 @@ export async function deployPythOracleFactory(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
 ): Promise<PythFactory> {
+  const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    1_000_000,
+    utils.parseEther('1.02'),
+    1_000_000,
+    0,
+    0,
+    0,
+  )
+  const settlementGasOracle = await new GasOracle__factory(owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    200_000,
+    utils.parseEther('1.02'),
+    500_000,
+    0,
+    0,
+    0,
+  )
+
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-  const pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
+    PYTH_ADDRESS,
+    commitmentGasOracle.address,
+    settlementGasOracle.address,
+    keeperOracleImpl.address,
+  )
   await pythOracleFactory.initialize(oracleFactory.address)
-  await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
+  await pythOracleFactory.updateParameter(1, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
   return pythOracleFactory
 }

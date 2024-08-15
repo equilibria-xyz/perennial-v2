@@ -3,10 +3,10 @@ pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@equilibria/root/attribute/Factory.sol";
+import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
 import "../interfaces/IKeeperFactory.sol";
 import "../interfaces/IOracleFactory.sol";
 import { KeeperOracleParameter, KeeperOracleParameterStorage } from "./types/KeeperOracleParameter.sol";
-import { PriceRequest } from "./types/PriceRequest.sol";
 import { DedupLib } from "./libs/DedupLib.sol";
 
 /// @title KeeperFactory
@@ -14,6 +14,12 @@ import { DedupLib } from "./libs/DedupLib.sol";
 abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @dev The root oracle factory
     IOracleFactory public oracleFactory;
+
+    /// @dev The gas oracles for pricing a commit keeper reward
+    IGasOracle public immutable commitmentGasOracle;
+
+    /// @dev The gas oracles for pricing a settle keeper reward
+    IGasOracle public immutable settlementGasOracle;
 
     /// @dev Registered payoff providers
     mapping(IPayoffProvider => bool) public payoffs;
@@ -38,7 +44,16 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
     /// @notice Initializes the immutable contract state
     /// @param implementation_ IKeeperOracle implementation contract
-    constructor(address implementation_) Factory(implementation_) { }
+    /// @param commitmentGasOracle_ The gas oracle for pricing a commit keeper reward
+    /// @param settlementGasOracle_ The gas oracle for pricing a settle keeper reward
+    constructor(
+        IGasOracle commitmentGasOracle_,
+        IGasOracle settlementGasOracle_,
+        address implementation_
+    ) Factory(implementation_) {
+        commitmentGasOracle = commitmentGasOracle_;
+        settlementGasOracle = settlementGasOracle_;
+    }
 
     /// @notice Initializes the contract state
     /// @param oracleFactory_ The root oracle factory
@@ -132,10 +147,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
         }
 
         // create array of prices
-        Fixed6[] memory prices = _transformPrices(oracleIds, indices, dedupedPrices, valid);
+        (Fixed6[] memory prices, uint256[] memory costs) = _transformPrices(oracleIds, indices, dedupedPrices, valid);
 
         for (uint256 i; i < oracleIds.length; i++)
-            IKeeperOracle(address(oracles[oracleIds[i]])).commit(OracleVersion(version, prices[i], valid), msg.sender);
+            IKeeperOracle(address(oracles[oracleIds[i]]))
+                .commit(OracleVersion(version, prices[i], valid), msg.sender, costs[i]);
     }
 
     /// @notice Performs a list of local settlement callbacks
@@ -160,15 +176,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
     /// @notice Updates the oracle parameter set
     /// @param newGranularity The new granularity value in seconds
-    /// @param newSyncFee The new synchronous portion of the settlement fee
-    /// @param newAsyncFee The new asynchronous portion of the settlement fee
     /// @param newOraclefee The new relative oracle fee percentage
     /// @param newValidFrom The new valid from value in seconds
     /// @param newValidTo The new valid to value in seconds
     function updateParameter(
         uint256 newGranularity,
-        UFixed6 newSyncFee,
-        UFixed6 newAsyncFee,
         UFixed6 newOraclefee,
         uint256 newValidFrom,
         uint256 newValidTo
@@ -179,14 +191,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
         if (currentTimestamp <= keeperOracleParameter.effectiveAfter) revert KeeperFactoryInvalidParameterError();
         if (newGranularity > oracleParameter.maxGranularity) revert KeeperFactoryInvalidParameterError();
-        if (newSyncFee.add(newAsyncFee).gt(oracleParameter.maxSettlementFee)) revert KeeperFactoryInvalidParameterError();
         if (newOraclefee.gt(oracleParameter.maxOracleFee)) revert KeeperFactoryInvalidParameterError();
 
         keeperOracleParameter.latestGranularity = keeperOracleParameter.currentGranularity;
         keeperOracleParameter.currentGranularity = newGranularity;
         keeperOracleParameter.effectiveAfter = currentTimestamp;
-        keeperOracleParameter.syncFee = newSyncFee;
-        keeperOracleParameter.asyncFee = newAsyncFee;
         keeperOracleParameter.oracleFee = newOraclefee;
         keeperOracleParameter.validFrom = newValidFrom;
         keeperOracleParameter.validTo = newValidTo;
@@ -208,14 +217,16 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param dedupedPrices The list of deduped price records to transform
     /// @param valid Whether the prices we are committing are valid
     /// @return prices The transformed prices
+    /// @return costs The keeper costs associated with the prices
     function _transformPrices(
         bytes32[] memory oracleIds,
         uint256[] memory indices,
         PriceRecord[] memory dedupedPrices,
         bool valid
-    ) private view returns (Fixed6[] memory prices) {
+    ) private view returns (Fixed6[] memory prices, uint256[] memory costs) {
         prices = new Fixed6[](oracleIds.length);
-        if (!valid) return prices;
+        costs = new uint256[](oracleIds.length);
+        if (!valid) return (prices, costs);
 
         for (uint256 i; i < oracleIds.length; i++) {
             // remap the price to the original index
@@ -232,6 +243,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
             // trucate to 6-decimal
             prices[i] = Fixed6Lib.from(price);
+            costs[i] = dedupedPrices[indices[i]].cost;
         }
     }
 

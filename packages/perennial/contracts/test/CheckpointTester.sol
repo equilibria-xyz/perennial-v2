@@ -16,6 +16,8 @@ contract CheckpointTester {
     }
 
     function accumulate(
+        address account,
+        uint256 orderId,
         Order memory order,
         Guarantee memory guarantee,
         Position memory fromPosition,
@@ -23,7 +25,7 @@ contract CheckpointTester {
         Version memory toVersion
     ) external returns (CheckpointAccumulationResult memory result) {
         Checkpoint memory newCheckpoint = checkpoint.read();
-        (newCheckpoint, result) = CheckpointLib.accumulate(newCheckpoint, order, guarantee, fromPosition, fromVersion, toVersion);
+        (newCheckpoint, result) = CheckpointLib.accumulate(newCheckpoint, account, orderId, order, guarantee, fromPosition, fromVersion, toVersion);
         checkpoint.store(newCheckpoint);
     }
 }

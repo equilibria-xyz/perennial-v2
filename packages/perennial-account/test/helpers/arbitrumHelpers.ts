@@ -24,6 +24,7 @@ import {
   IMarketFactory,
   IOracleProvider,
   RebalanceLib__factory,
+  GasOracle__factory,
 } from '../../types/generated'
 import { IKept } from '../../types/generated/contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
@@ -32,6 +33,7 @@ import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
+const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
 const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
@@ -50,10 +52,36 @@ export async function createFactories(
   const marketFactory = await deployProtocolForOracle(owner, oracleFactory)
 
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
+
+  const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    1_000_000,
+    utils.parseEther('1.02'),
+    1_000_000,
+    0,
+    0,
+    0,
+  )
+  const settlementGasOracle = await new GasOracle__factory(owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    200_000,
+    utils.parseEther('1.02'),
+    500_000,
+    0,
+    0,
+    0,
+  )
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-  const pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
+    PYTH_ADDRESS,
+    commitmentGasOracle.address,
+    settlementGasOracle.address,
+    keeperOracleImpl.address,
+  )
   await pythOracleFactory.initialize(oracleFactory.address)
-  await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
+  await pythOracleFactory.updateParameter(1, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
 
   return [oracleFactory, marketFactory, pythOracleFactory]

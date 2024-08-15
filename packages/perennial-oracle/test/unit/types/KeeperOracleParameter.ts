@@ -13,8 +13,6 @@ const DEFAULT_PROVIDER_PARAMETER: KeeperOracleParameterStruct = {
   latestGranularity: 0,
   currentGranularity: 1,
   effectiveAfter: 0,
-  syncFee: 0,
-  asyncFee: 0,
   oracleFee: 0,
   validFrom: 0,
   validTo: 0,
@@ -136,48 +134,6 @@ describe('KeeperOracleParameter', () => {
             ...DEFAULT_PROVIDER_PARAMETER,
             latestGranularity: 1,
             effectiveAfter: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(providerParameter, 'KeeperOracleParameterStorageInvalidError')
-      })
-    })
-
-    context('.syncFee', async () => {
-      const STORAGE_SIZE = 48
-      it('saves if in range', async () => {
-        await providerParameter.store({
-          ...DEFAULT_PROVIDER_PARAMETER,
-          syncFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await providerParameter.read()
-        expect(value.syncFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if syncFee out of range', async () => {
-        await expect(
-          providerParameter.store({
-            ...DEFAULT_PROVIDER_PARAMETER,
-            syncFee: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(providerParameter, 'KeeperOracleParameterStorageInvalidError')
-      })
-    })
-
-    context('.asyncFee', async () => {
-      const STORAGE_SIZE = 48
-      it('saves if in range', async () => {
-        await providerParameter.store({
-          ...DEFAULT_PROVIDER_PARAMETER,
-          asyncFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await providerParameter.read()
-        expect(value.asyncFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if asyncFee out of range', async () => {
-        await expect(
-          providerParameter.store({
-            ...DEFAULT_PROVIDER_PARAMETER,
-            asyncFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(providerParameter, 'KeeperOracleParameterStorageInvalidError')
       })

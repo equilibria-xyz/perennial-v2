@@ -34,6 +34,8 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
+  GasOracle,
+  GasOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -117,6 +119,8 @@ testOracles.forEach(testOracle => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
     let user2: SignerWithAddress
+    let commitmentGasOracle: GasOracle
+    let settlementGasOracle: GasOracle
     let oracle: Oracle
     let oracleBtc: Oracle
     let oracle2: Oracle
@@ -150,8 +154,33 @@ testOracles.forEach(testOracle => {
         maxOracleFee: parse6decimal('0.5'),
       })
 
+      commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+        CHAINLINK_ETH_USD_FEED,
+        8,
+        1_000_000,
+        ethers.utils.parseEther('1.02'),
+        1_000_000,
+        0,
+        0,
+        0,
+      )
+      settlementGasOracle = await new GasOracle__factory(owner).deploy(
+        CHAINLINK_ETH_USD_FEED,
+        8,
+        200_000,
+        ethers.utils.parseEther('1.02'),
+        500_000,
+        0,
+        0,
+        0,
+      )
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
-      pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+      pythOracleFactory = await new PythFactory__factory(owner).deploy(
+        PYTH_ADDRESS,
+        commitmentGasOracle.address,
+        settlementGasOracle.address,
+        keeperOracleImpl.address,
+      )
       await pythOracleFactory.initialize(oracleFactory.address)
       await oracleFactory.register(pythOracleFactory.address)
       await pythOracleFactory.register(powerTwoPayoff.address)
@@ -270,7 +299,6 @@ testOracles.forEach(testOracle => {
       )
       await marketFactory.initialize()
       await marketFactory.updateParameter({
-        protocolFee: parse6decimal('0.50'),
         maxFee: parse6decimal('0.01'),
         maxFeeAbsolute: parse6decimal('1000'),
         maxCut: parse6decimal('0.50'),
@@ -394,14 +422,7 @@ testOracles.forEach(testOracle => {
       await time.increaseTo(STARTING_TIME - 10)
 
       await includeAt(async () => {
-        await pythOracleFactory.updateParameter(
-          1,
-          parse6decimal('1.0'),
-          parse6decimal('0.5'),
-          parse6decimal('0.1'),
-          4,
-          10,
-        )
+        await pythOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
         await pythOracleFactory.commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 1, VAA, { value: 1 })
         await pythOracleFactory.commit(
           ['0x0000000000000000000000000000000000000000000000000000000000000021'],
@@ -417,6 +438,8 @@ testOracles.forEach(testOracle => {
         it('reverts if already initialized', async () => {
           const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
             PYTH_ADDRESS,
+            commitmentGasOracle.address,
+            settlementGasOracle.address,
             await pythOracleFactory.implementation(),
           )
           await pythOracleFactory2.initialize(oracleFactory.address)
@@ -458,9 +481,10 @@ testOracles.forEach(testOracle => {
 
       context('#updateParameter', async () => {
         it('reverts when not owner', async () => {
-          await expect(
-            pythOracleFactory.connect(user).updateParameter(10, 11, 12, 13, 14, 15),
-          ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
+          await expect(pythOracleFactory.connect(user).updateParameter(10, 13, 14, 15)).to.be.revertedWithCustomError(
+            pythOracleFactory,
+            'OwnableNotOwnerError',
+          )
         })
       })
 
@@ -523,10 +547,7 @@ testOracles.forEach(testOracle => {
 
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
@@ -537,7 +558,10 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
           .withArgs({ timestamp: STARTING_TIME, price: '1838167031', valid: true })
 
-        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('9')))
+        const reward = utils.parseEther('0.370586')
+        expect(await dsu.balanceOf(user.address)).to.be.equal(
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
+        )
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
       })
@@ -561,10 +585,7 @@ testOracles.forEach(testOracle => {
 
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect((await keeperOracle2.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle2.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle2.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle2.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle2.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle2.next()).to.be.equal(STARTING_TIME)
         await expect(
           pythOracleFactory
@@ -577,7 +598,10 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle2, 'OracleProviderVersionFulfilled')
           .withArgs({ timestamp: STARTING_TIME, price: '3378858036', valid: true })
 
-        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('9')))
+        const reward = utils.parseEther('0.370586')
+        expect(await dsu.balanceOf(user.address)).to.be.equal(
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
+        )
       })
 
       it('fails to commit if update fee is not provided', async () => {
@@ -595,10 +619,7 @@ testOracles.forEach(testOracle => {
               ),
           STARTING_TIME,
         )
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA),
@@ -631,10 +652,7 @@ testOracles.forEach(testOracle => {
               ),
           STARTING_TIME,
         )
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
       })
 
@@ -653,10 +671,7 @@ testOracles.forEach(testOracle => {
               ),
           STARTING_TIME,
         )
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
@@ -686,10 +701,7 @@ testOracles.forEach(testOracle => {
               ),
           STARTING_TIME,
         )
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, '0x', {
@@ -721,14 +733,8 @@ testOracles.forEach(testOracle => {
           STARTING_TIME + 1,
         )
 
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
-        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(STARTING_TIME + 1)
-        expect((await keeperOracle.requests(2)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(2)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
+        expect(await keeperOracle.requests(2)).to.be.equal(STARTING_TIME + 1)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, VAA, {
@@ -759,14 +765,8 @@ testOracles.forEach(testOracle => {
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false), // make request to oracle (new price)
           STARTING_TIME + 60,
         )
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
-        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(STARTING_TIME + 60)
-        expect((await keeperOracle.requests(2)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(2)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
+        expect(await keeperOracle.requests(2)).to.be.equal(STARTING_TIME + 60)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await expect(
           pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
@@ -794,13 +794,13 @@ testOracles.forEach(testOracle => {
         await expect(
           keeperOracle
             .connect(user)
-            .commit({ timestamp: STARTING_TIME, price: parse6decimal('1000'), valid: true }, user.address),
+            .commit({ timestamp: STARTING_TIME, price: parse6decimal('1000'), valid: true }, user.address, 1),
         ).to.be.revertedWithCustomError(keeperOracle, 'InstanceNotFactoryError')
       })
 
       it('reverts if version is zero', async () => {
         await expect(
-          keeperOracle.connect(factorySigner).commit({ timestamp: 0, price: 0, valid: false }, user.address),
+          keeperOracle.connect(factorySigner).commit({ timestamp: 0, price: 0, valid: false }, user.address, 1),
         ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
       })
 
@@ -1039,14 +1039,7 @@ testOracles.forEach(testOracle => {
       it('can update single from batched update', async () => {
         await time.reset(18028156)
         await setup()
-        await pythOracleFactory.updateParameter(
-          1,
-          parse6decimal('1.0'),
-          parse6decimal('0.5'),
-          parse6decimal('0.1'),
-          4,
-          10,
-        )
+        await pythOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
 
         const MIN_DELAY = 4
         const BATCHED_TIMESTAMP = 1697317340
@@ -1068,14 +1061,7 @@ testOracles.forEach(testOracle => {
       it('can update multiple from batched update', async () => {
         await time.reset(18028156)
         await setup()
-        await pythOracleFactory.updateParameter(
-          1,
-          parse6decimal('1.0'),
-          parse6decimal('0.5'),
-          parse6decimal('0.1'),
-          4,
-          10,
-        )
+        await pythOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
 
         const MIN_DELAY = 4
         const BATCHED_TIMESTAMP = 1697317340
@@ -1131,7 +1117,10 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle2, 'OracleProviderVersionFulfilled')
           .withArgs({ timestamp: STARTING_TIME, price: '3378858036', valid: true })
 
-        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('18')))
+        const reward = utils.parseEther('0.370586')
+        expect(await dsu.balanceOf(user.address)).to.be.equal(
+          utils.parseEther('200000').sub(utils.parseEther('20')).add(reward.mul(2)),
+        )
 
         expect((await market.position()).timestamp).to.equal(STARTING_TIME)
         expect((await market2.position()).timestamp).to.equal(STARTING_TIME)
@@ -1237,10 +1226,7 @@ testOracles.forEach(testOracle => {
         )
         // Base fee isn't working properly in coverage, so we need to set it manually
         await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
           value: 1,
@@ -1258,7 +1244,10 @@ testOracles.forEach(testOracle => {
 
         expect((await market.positions(user.address)).timestamp).to.equal(STARTING_TIME)
 
-        expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('9')))
+        const reward = utils.parseEther('0.370586')
+        expect(await dsu.balanceOf(user.address)).to.be.equal(
+          utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
+        )
       })
 
       it('reverts if array lengths mismatch', async () => {
@@ -1353,23 +1342,13 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle, 'OracleProviderVersionRequested')
           .withArgs('1686198981', true)
         // Now there is exactly one requested version
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(STARTING_TIME)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
       })
 
       it('can request a version w/ granularity', async () => {
         const parameter = await pythOracleFactory.parameter()
-        await pythOracleFactory.updateParameter(
-          10,
-          parameter.syncFee,
-          parameter.asyncFee,
-          parameter.oracleFee,
-          parameter.validFrom,
-          parameter.validTo,
-        )
+        await pythOracleFactory.updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
 
         // No requested versions
         expect((await keeperOracle.global()).currentIndex).to.equal(0)
@@ -1379,10 +1358,7 @@ testOracles.forEach(testOracle => {
         const currentTimestamp = await pythOracleFactory.current()
 
         // Now there is exactly one requested version
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
+        expect(await keeperOracle.requests(1)).to.be.equal(currentTimestamp)
         expect((await keeperOracle.global()).currentIndex).to.equal(1)
       })
 
@@ -1412,14 +1388,8 @@ testOracles.forEach(testOracle => {
         await ethers.provider.send('evm_mine', [])
 
         const currentTimestamp = await pythOracleFactory.current()
-        expect((await keeperOracle.requests(1)).timestamp).to.be.equal(currentTimestamp)
-        expect((await keeperOracle.requests(1)).syncFee).to.be.equal(parse6decimal('1.0'))
-        expect((await keeperOracle.requests(1)).asyncFee).to.be.equal(parse6decimal('0.5'))
-        expect((await keeperOracle.requests(1)).oracleFee).to.be.equal(parse6decimal('0.1'))
-        expect((await keeperOracle.requests(2)).timestamp).to.be.equal(0)
-        expect((await keeperOracle.requests(2)).syncFee).to.be.equal(0)
-        expect((await keeperOracle.requests(2)).asyncFee).to.be.equal(0)
-        expect((await keeperOracle.requests(2)).oracleFee).to.be.equal(0)
+        expect(await keeperOracle.requests(1)).to.be.equal(currentTimestamp)
+        expect(await keeperOracle.requests(2)).to.be.equal(0)
       })
     })
 
@@ -1458,14 +1428,7 @@ testOracles.forEach(testOracle => {
         await expect(
           pythOracleFactory
             .connect(owner)
-            .updateParameter(
-              0,
-              parameter.syncFee,
-              parameter.asyncFee,
-              parameter.oracleFee,
-              parameter.validFrom,
-              parameter.validTo,
-            ),
+            .updateParameter(0, parameter.oracleFee, parameter.validFrom, parameter.validTo),
         ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperOracleParameterStorageInvalidError')
       })
 
@@ -1474,26 +1437,12 @@ testOracles.forEach(testOracle => {
         await expect(
           pythOracleFactory
             .connect(owner)
-            .updateParameter(
-              10001,
-              parameter.syncFee,
-              parameter.asyncFee,
-              parameter.oracleFee,
-              parameter.validFrom,
-              parameter.validTo,
-            ),
+            .updateParameter(10001, parameter.oracleFee, parameter.validFrom, parameter.validTo),
         ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidParameterError')
         await expect(
           pythOracleFactory
             .connect(owner)
-            .updateParameter(
-              10000,
-              parameter.syncFee,
-              parameter.asyncFee,
-              parameter.oracleFee,
-              parameter.validFrom,
-              parameter.validTo,
-            ),
+            .updateParameter(10000, parameter.oracleFee, parameter.validFrom, parameter.validTo),
         ).to.be.not.reverted
       })
 
@@ -1501,14 +1450,7 @@ testOracles.forEach(testOracle => {
         const parameter = await pythOracleFactory.parameter()
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            10,
-            parameter.syncFee,
-            parameter.asyncFee,
-            parameter.oracleFee,
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
 
         const parameter2 = await pythOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(1)
@@ -1526,14 +1468,7 @@ testOracles.forEach(testOracle => {
 
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            10,
-            parameter.syncFee,
-            parameter.asyncFee,
-            parameter.oracleFee,
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
 
         const parameter2 = await pythOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(1)
@@ -1551,36 +1486,15 @@ testOracles.forEach(testOracle => {
         const parameter = await pythOracleFactory.parameter()
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            10,
-            parameter.syncFee,
-            parameter.asyncFee,
-            parameter.oracleFee,
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         // hardhat automatically moves 1 second ahead so we have to do this twice
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            100,
-            parameter.syncFee,
-            parameter.asyncFee,
-            parameter.oracleFee,
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(100, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await expect(
           pythOracleFactory
             .connect(owner)
-            .updateParameter(
-              1000,
-              parameter.syncFee,
-              parameter.asyncFee,
-              parameter.oracleFee,
-              parameter.validFrom,
-              parameter.validTo,
-            ),
+            .updateParameter(1000, parameter.oracleFee, parameter.validFrom, parameter.validTo),
         ).to.be.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidParameterError')
       })
 
@@ -1588,26 +1502,12 @@ testOracles.forEach(testOracle => {
         const parameter = await pythOracleFactory.parameter()
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            10,
-            parameter.syncFee,
-            parameter.asyncFee,
-            parameter.oracleFee,
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await time.increase(1)
 
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            100,
-            parameter.syncFee,
-            parameter.asyncFee,
-            parameter.oracleFee,
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(100, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await pythOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(10)
         expect(parameter2.currentGranularity).to.equal(100)
@@ -1622,26 +1522,12 @@ testOracles.forEach(testOracle => {
         const parameter = await pythOracleFactory.parameter()
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            10,
-            parameter.syncFee,
-            parameter.asyncFee,
-            parameter.oracleFee,
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         await time.increase(1)
 
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            100,
-            parameter.syncFee,
-            parameter.asyncFee,
-            parameter.oracleFee,
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(100, parameter.oracleFee, parameter.validFrom, parameter.validTo)
         const parameter2 = await pythOracleFactory.parameter()
         expect(parameter2.latestGranularity).to.equal(10)
         expect(parameter2.currentGranularity).to.equal(100)
@@ -1661,14 +1547,7 @@ testOracles.forEach(testOracle => {
         const parameter = await pythOracleFactory.parameter()
         await pythOracleFactory
           .connect(owner)
-          .updateParameter(
-            1,
-            parse6decimal('1.0'),
-            parse6decimal('0.5'),
-            parse6decimal('0.1'),
-            parameter.validFrom,
-            parameter.validTo,
-          )
+          .updateParameter(1, parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
         await includeAt(
           async () =>
             await market
@@ -1684,14 +1563,14 @@ testOracles.forEach(testOracle => {
           STARTING_TIME + 1,
         )
 
-        await pythOracleFactory.connect(owner).updateParameter(1, 0, 0, 0, parameter.validFrom, parameter.validTo)
         await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 1, VAA, {
           value: 1,
         })
+        const reward = utils.parseUnits('0.073476', 6)
         const version = await keeperOracle.connect(user).at(STARTING_TIME + 1)
         expect(version[0].price).to.equal('1838167031')
         expect(version[0].valid).to.equal(true)
-        expect(version[1].settlementFee).to.equal(parse6decimal('1.5'))
+        expect(version[1].settlementFee).to.be.within(1, utils.parseUnits('0.1', 6))
         expect(version[1].oracleFee).to.equal(parse6decimal('0.1'))
       })
 

@@ -46,7 +46,7 @@ export async function advanceToPrice(
   }
   const tx: ContractTransaction = await keeperOracle
     .connect(oracleFactory)
-    .commit(oracleVersion, receiver.address, overrides ?? {})
+    .commit(oracleVersion, receiver.address, 0, overrides ?? {})
 
   // inform the caller of the current timestamp
   return await getTimestamp(tx)

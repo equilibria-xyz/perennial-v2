@@ -10,10 +10,10 @@ import {
   IERC20Metadata,
   Oracle__factory,
   OracleFactory__factory,
-  AggregatorV3Interface,
   IMarket,
   IMarketFactory,
   Oracle,
+  GasOracle,
 } from '../../../types/generated'
 import { utils, BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -33,6 +33,8 @@ describe('KeeperOracle', () => {
   let receiver: SignerWithAddress
   let oracle: Oracle
   let oracleSigner: SignerWithAddress
+  let commitmentGasOracle: FakeContract<GasOracle>
+  let settlementGasOracle: FakeContract<GasOracle>
   let keeperOracle: KeeperOracle
   let keeperOracleFactory: KeeperFactory
   let market: FakeContract<IMarket>
@@ -48,7 +50,7 @@ describe('KeeperOracle', () => {
     const keeperFactorySigner = await impersonateWithBalance(keeperOracleFactory.address, utils.parseEther('10'))
 
     await expect(
-      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, {
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, 1, {
         gasLimit: 1_000_000,
         maxFeePerGas: 100000000,
       }),
@@ -62,7 +64,6 @@ describe('KeeperOracle', () => {
     // mock external components
     const pyth = await smock.fake<AbstractPyth>('AbstractPyth')
     pyth.priceFeedExists.returns(true)
-    const chainlinkFeed = await smock.fake<AggregatorV3Interface>('AggregatorV3Interface')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu.transfer.returns(true)
 
@@ -80,10 +81,20 @@ describe('KeeperOracle', () => {
     await oracleFactory.initialize()
 
     // deploy the implementation contract and a factory letting us create an instance
+    commitmentGasOracle = await smock.fake<GasOracle>('GasOracle')
+    commitmentGasOracle.cost.whenCalledWith(1).returns(utils.parseEther('0.20'))
+    settlementGasOracle = await smock.fake<GasOracle>('GasOracle')
+    settlementGasOracle.cost.whenCalledWith(0).returns(utils.parseEther('0.05'))
+
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(KEEPER_ORACLE_TIMEOUT)
-    keeperOracleFactory = await new PythFactory__factory(owner).deploy(pyth.address, keeperOracleImpl.address)
+    keeperOracleFactory = await new PythFactory__factory(owner).deploy(
+      pyth.address,
+      commitmentGasOracle.address,
+      settlementGasOracle.address,
+      keeperOracleImpl.address,
+    )
     await keeperOracleFactory.initialize(oracleFactory.address)
-    await keeperOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
+    await keeperOracleFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(keeperOracleFactory.address)
 
     // create our KeeperOracle instance
@@ -150,7 +161,7 @@ describe('KeeperOracle', () => {
       valid: false,
     }
     expect(
-      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, { maxFeePerGas: 100000000 }),
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, 1, { maxFeePerGas: 100000000 }),
     ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleInvalidPriceError')
   })
 
@@ -166,13 +177,13 @@ describe('KeeperOracle', () => {
       valid: true,
     }
     expect(
-      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, { maxFeePerGas: 100000000 }),
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, 1, { maxFeePerGas: 100000000 }),
     ).to.be.reverted
 
     const underflowPrice = BigNumber.from(2).pow(STORAGE_SIZE).add(2).mul(-1)
     oracleVersion.price = underflowPrice
     expect(
-      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, { maxFeePerGas: 100000000 }),
+      keeperOracle.connect(keeperFactorySigner).commit(oracleVersion, receiver.address, 1, { maxFeePerGas: 100000000 }),
     ).to.be.reverted
   })
 
@@ -184,7 +195,7 @@ describe('KeeperOracle', () => {
     }
     const keeperFactorySigner = await impersonateWithBalance(keeperOracleFactory.address, utils.parseEther('10'))
     await expect(
-      keeperOracle.connect(keeperFactorySigner).commit(badOracleVersion, receiver.address, {
+      keeperOracle.connect(keeperFactorySigner).commit(badOracleVersion, receiver.address, 1, {
         maxFeePerGas: 100000000,
       }),
     ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
@@ -208,6 +219,11 @@ describe('KeeperOracle', () => {
 
     // attempt to commit a requested price older than the timeout
     await increase(KEEPER_ORACLE_TIMEOUT + 3)
+
+    // enable market settlement callback
+    market.claimFee.returns(parse6decimal('0.25'))
+    market.settle.whenCalledWith(ethers.constants.AddressZero).returns()
+
     await commitPrice(requestedTime, parse6decimal('3333.444'))
 
     // ensure carryover price is received instead of invalid price

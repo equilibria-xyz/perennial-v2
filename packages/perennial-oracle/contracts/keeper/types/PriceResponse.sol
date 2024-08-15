@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/number/types/UFixed6.sol";
 import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
 import { OracleReceipt } from "@equilibria/perennial-v2/contracts/types/OracleReceipt.sol";
-import { PriceRequest } from "./PriceRequest.sol";
 
 struct PriceResponse {
     /// @dev The oracle price of the corresponding version

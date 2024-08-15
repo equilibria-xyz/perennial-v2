@@ -12,6 +12,8 @@ import {
   OracleFactory__factory,
   PythFactory,
   PythFactory__factory,
+  GasOracle,
+  GasOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
@@ -26,6 +28,8 @@ const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
 describe('OracleFactory', () => {
   let user: SignerWithAddress
   let owner: SignerWithAddress
+  let commitmentGasOracle: GasOracle
+  let settlementGasOracle: GasOracle
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: IERC20Metadata
@@ -40,10 +44,36 @@ describe('OracleFactory', () => {
 
     await oracleFactory.initialize()
 
+    commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+      CHAINLINK_ETH_USD_FEED,
+      8,
+      1_000_000,
+      ethers.utils.parseEther('1.02'),
+      1_000_000,
+      0,
+      0,
+      0,
+    )
+    settlementGasOracle = await new GasOracle__factory(owner).deploy(
+      CHAINLINK_ETH_USD_FEED,
+      8,
+      200_000,
+      ethers.utils.parseEther('1.02'),
+      500_000,
+      0,
+      0,
+      0,
+    )
+
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-    pythOracleFactory = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl.address)
+    pythOracleFactory = await new PythFactory__factory(owner).deploy(
+      PYTH_ADDRESS,
+      commitmentGasOracle.address,
+      settlementGasOracle.address,
+      keeperOracleImpl.address,
+    )
     await pythOracleFactory.initialize(oracleFactory.address)
-    await pythOracleFactory.updateParameter(1, 0, 0, 0, 4, 10)
+    await pythOracleFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
 
     await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
@@ -74,9 +104,14 @@ describe('OracleFactory', () => {
   describe('#update', async () => {
     it('can update the price id', async () => {
       const keeperOracleImpl2 = await new KeeperOracle__factory(owner).deploy(60)
-      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(PYTH_ADDRESS, keeperOracleImpl2.address)
+      const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
+        PYTH_ADDRESS,
+        commitmentGasOracle.address,
+        settlementGasOracle.address,
+        keeperOracleImpl2.address,
+      )
       await pythOracleFactory2.initialize(oracleFactory.address)
-      await pythOracleFactory2.updateParameter(1, 0, 0, 0, 4, 10)
+      await pythOracleFactory2.updateParameter(1, 0, 4, 10)
       await oracleFactory.register(pythOracleFactory2.address)
 
       await pythOracleFactory2.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
