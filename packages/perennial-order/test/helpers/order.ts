@@ -1,5 +1,7 @@
 import { expect } from 'chai'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
+import { parse6decimal } from '../../../common/testutil/types'
+
 import { TriggerOrderStruct } from '../../types/generated/contracts/Manager'
 import { TriggerOrderStructOutput } from '../../types/generated/contracts/Manager'
 
@@ -12,6 +14,21 @@ export enum Side {
 export enum Compare {
   LTE = -1,
   GTE = 1,
+}
+
+export const DEFAULT_TRIGGER_ORDER = {
+  side: Side.MAKER,
+  comparison: Compare.GTE,
+  price: constants.Zero,
+  delta: parse6decimal('1'),
+  maxFee: utils.parseEther('0.77'),
+  isSpent: false,
+  referrer: constants.AddressZero,
+  interfaceFee: {
+    amount: constants.Zero,
+    receiver: constants.AddressZero,
+    unwrap: false,
+  },
 }
 
 export const MAGIC_VALUE_CLOSE_POSITION = BigNumber.from(2).pow(63).mul(-1)

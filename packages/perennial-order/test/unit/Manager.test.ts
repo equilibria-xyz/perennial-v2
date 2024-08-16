@@ -19,13 +19,13 @@ import {
 } from '../../types/generated'
 import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
 import { OracleVersionStruct } from '../../types/generated/contracts/test/TriggerOrderTester'
-import { Compare, compareOrders, Side } from '../helpers/order'
+import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../helpers/order'
 
 const { ethers } = HRE
 
 const FIRST_ORDER_ID = BigNumber.from(300)
 
-const MAX_FEE = utils.parseEther('7')
+const MAX_FEE = utils.parseEther('3.8')
 
 const KEEP_CONFIG = {
   multiplierBase: 0,
@@ -35,13 +35,12 @@ const KEEP_CONFIG = {
 }
 
 const MAKER_ORDER = {
+  ...DEFAULT_TRIGGER_ORDER,
   side: Side.MAKER,
   comparison: Compare.LTE,
   price: parse6decimal('2222.33'),
   delta: parse6decimal('100'),
   maxFee: MAX_FEE,
-  isSpent: false,
-  referrer: constants.AddressZero,
 }
 
 describe('Manager', () => {
@@ -163,11 +162,11 @@ describe('Manager', () => {
       await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
       const nonce2 = advanceOrderId()
       const longOrder = {
+        ...DEFAULT_TRIGGER_ORDER,
         side: Side.LONG,
         comparison: Compare.GTE,
         price: parse6decimal('2111.2'),
         delta: parse6decimal('60'),
-        maxFee: MAX_FEE,
         referrer: userA.address,
       }
       await manager.connect(userB).placeOrder(market.address, nextOrderId, longOrder)
@@ -238,13 +237,11 @@ describe('Manager', () => {
       for (const side of [Side.MAKER, Side.LONG, Side.SHORT]) {
         marketOracle.latest.returns(createOracleVersion(scenario.oraclePrice))
         const order = {
+          ...DEFAULT_TRIGGER_ORDER,
           side: side,
           comparison: scenario.comparison,
           price: scenario.orderPrice,
           delta: parse6decimal('9'),
-          maxFee: MAX_FEE,
-          isSpent: false,
-          referrer: constants.AddressZero,
         }
         advanceOrderId()
         await expect(manager.connect(userA).placeOrder(market.address, nextOrderId, order))
@@ -339,13 +336,11 @@ describe('Manager', () => {
       advanceOrderId()
       const message = {
         order: {
+          ...DEFAULT_TRIGGER_ORDER,
           side: Side.MAKER,
           comparison: Compare.GTE,
           price: parse6decimal('1888.99'),
           delta: parse6decimal('200'),
-          maxFee: MAX_FEE,
-          isSpent: false,
-          referrer: constants.AddressZero,
         },
         ...createActionMessage(),
       }
@@ -364,13 +359,11 @@ describe('Manager', () => {
       advanceOrderId()
       const message = {
         order: {
+          ...DEFAULT_TRIGGER_ORDER,
           side: Side.MAKER,
           comparison: Compare.GTE,
           price: parse6decimal('1777.88'),
           delta: parse6decimal('100'),
-          maxFee: MAX_FEE,
-          isSpent: false,
-          referrer: constants.AddressZero,
         },
         ...createActionMessage(),
       }
@@ -426,12 +419,11 @@ describe('Manager', () => {
       // different user can use the same order nonce
       const message = {
         order: {
+          ...DEFAULT_TRIGGER_ORDER,
           side: Side.SHORT,
           comparison: Compare.GTE,
           price: parse6decimal('1888.99'),
           delta: parse6decimal('30'),
-          maxFee: MAX_FEE,
-          isSpent: false,
           referrer: userA.address,
         },
         ...createActionMessage(userB.address),

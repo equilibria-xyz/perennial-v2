@@ -6,11 +6,13 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 import { impersonate } from '../../../common/testutil'
-import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
-import { IERC20, IManager, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../types/generated'
+import { currentBlockTimestamp } from '../../../common/testutil/time'
+
 import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
+import { DEFAULT_TRIGGER_ORDER } from '../helpers/order'
+import { IMarket } from '@equilibria/perennial-v2/types/generated'
+import { IManager, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../types/generated'
 
 const { ethers } = HRE
 
@@ -62,8 +64,7 @@ describe('Verifier', () => {
   ) {
     return {
       order: {
-        side: 0,
-        comparison: -1,
+        ...DEFAULT_TRIGGER_ORDER,
         price: parse6decimal('2010.33'),
         delta: parse6decimal('400'),
         maxFee: parse6decimal('0.67'),

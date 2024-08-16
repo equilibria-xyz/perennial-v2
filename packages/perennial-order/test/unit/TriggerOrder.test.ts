@@ -5,39 +5,29 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { expect } from 'chai'
 
 import { TriggerOrderTester, TriggerOrderTester__factory, TriggerOrderStruct } from '../../types/generated'
-import { Compare, compareOrders, Side } from '../helpers/order'
+import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../helpers/order'
 import { OracleVersionStruct } from '../../types/generated/contracts/test/TriggerOrderTester'
 
 const { ethers } = HRE
 
-const NO_FEES = {
-  isSpent: false,
-  referrer: constants.AddressZero,
-  interfaceFee: {
-    amount: 0,
-    receiver: constants.AddressZero,
-    unwrap: false,
-  },
-}
-
 // go long 300 if price drops below 1999.88
 const ORDER_LONG: TriggerOrderStruct = {
+  ...DEFAULT_TRIGGER_ORDER,
   side: Side.LONG,
   comparison: Compare.LTE,
   price: parse6decimal('1999.88'),
   delta: parse6decimal('300'),
   maxFee: parse6decimal('0.66'),
-  ...NO_FEES,
 }
 
 // short 400 if price exceeds 2444.55
 const ORDER_SHORT: TriggerOrderStruct = {
+  ...DEFAULT_TRIGGER_ORDER,
   side: Side.SHORT,
   comparison: Compare.GTE,
   price: parse6decimal('2444.55'),
   delta: parse6decimal('400'),
   maxFee: parse6decimal('0.66'),
-  ...NO_FEES,
 }
 
 describe('TriggerOrder', () => {
@@ -84,12 +74,12 @@ describe('TriggerOrder', () => {
 
     it('allows execution greater than 0 trigger price', async () => {
       const zeroPriceOrder = {
+        ...DEFAULT_TRIGGER_ORDER,
         side: Side.MAKER,
         comparison: Compare.GTE,
         price: 0,
         delta: parse6decimal('200'),
         maxFee: parse6decimal('0.55'),
-        ...NO_FEES,
       }
       expect(await orderTester.canExecute(zeroPriceOrder, createOracleVersion(parse6decimal('1')))).to.be.true
     })
