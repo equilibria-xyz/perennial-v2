@@ -167,8 +167,6 @@ library VersionLib {
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
 
-        emit IMarket.PositionProcessed(context.orderId, context.order, result);
-
         return _return(context, result, next);
     }
 
