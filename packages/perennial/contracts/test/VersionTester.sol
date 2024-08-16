@@ -15,13 +15,13 @@ contract VersionTester {
         version.store(newVersion);
     }
 
-    function accumulate(
-        VersionAccumulationContext memory context
-    ) external returns (Global memory nextGlobal, VersionAccumulationResult memory values) {
-        Version memory newVersion = version.read();
+    // function accumulate(
+    //     VersionAccumulationContext memory context
+    // ) external returns (Global memory nextGlobal, VersionAccumulationResult memory values) {
+    //     Version memory newVersion = version.read();
 
-        (newVersion, nextGlobal, values) = VersionLib.accumulate(newVersion, context);
+    //     (newVersion, nextGlobal, values) = VersionLib.accumulate(newVersion, context);
 
-        version.store(newVersion);
-    }
+    //     version.store(newVersion);
+    // }
 }

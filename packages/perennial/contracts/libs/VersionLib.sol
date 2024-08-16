@@ -98,15 +98,53 @@ struct VersionAccumulationContext {
 /// @notice Manages the logic for the global order accumulation
 library VersionLib {
     /// @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
+    function accumulate(
+        IMarket.Context memory context,
+        IMarket.SettlementContext memory settlementContext,
+        uint256 newOrderId,
+        Order memory newOrder,
+        Guarantee memory newGuarantee,
+        OracleVersion memory oracleVersion,
+        OracleReceipt memory oracleReceipt
+    ) external returns (
+        Version memory next,
+        Global memory nextGlobal,
+        UFixed6 tradeFee,
+        UFixed6 settlementFee,
+        Fixed6 exposure
+    ) {
+        VersionAccumulationContext memory accumulationContext = VersionAccumulationContext(
+            context.global,
+            context.latestPositionGlobal,
+            newOrderId,
+            newOrder,
+            newGuarantee,
+            settlementContext.orderOracleVersion,
+            oracleVersion,
+            oracleReceipt,
+            context.marketParameter,
+            context.riskParameter
+        );
+
+        return _accumulate(settlementContext.latestVersion, accumulationContext);
+    }
+
+    /// @notice Accumulates the global state for the period from `fromVersion` to `toOracleVersion`
     /// @param self The Version object to update
     /// @param context The accumulation context
     /// @return next The accumulated version
     /// @return nextGlobal The next global state
-    /// @return result The accumulation result
-    function accumulate(
+    function _accumulate(
         Version memory self,
         VersionAccumulationContext memory context
-    ) external returns (Version memory next, Global memory nextGlobal, VersionAccumulationResult memory result) {
+    ) private returns (
+        Version memory next,
+        Global memory nextGlobal,
+        UFixed6 tradeFee,
+        UFixed6 settlementFee,
+        Fixed6 exposure
+    ) {
+        VersionAccumulationResult memory result;
         // setup next accumulators
         _next(self, next);
 
@@ -136,7 +174,7 @@ library VersionLib {
         _accumulateAdiabaticFee(next, context, result);
 
         // if closed, don't accrue anything else
-        if (context.marketParameter.closed) return (next, context.global, result);
+        if (context.marketParameter.closed) return (next, context.global, result.tradeFee, result.settlementFee, result.adiabaticExposureMarket);
 
         // accumulate funding
         (result.fundingMaker, result.fundingLong, result.fundingShort, result.fundingFee) =
@@ -151,7 +189,7 @@ library VersionLib {
 
         emit IMarket.PositionProcessed(context.orderId, context.order, result);
 
-        return (next, context.global, result);
+        return (next, context.global, result.tradeFee, result.settlementFee, result.adiabaticExposureMarket);
     }
 
     /// @notice Copies over the version-over-version accumulators to prepare the next version

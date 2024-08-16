@@ -756,27 +756,21 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGuarantee.invalidate();
         }
 
-        VersionAccumulationContext memory accumulationContext = VersionAccumulationContext(
-            context.global,
-            context.latestPositionGlobal,
-            newOrderId,
-            newOrder,
-            newGuarantee,
-            settlementContext.orderOracleVersion,
-            oracleVersion,
-            oracleReceipt,
-            context.marketParameter,
-            context.riskParameter
-        );
-        VersionAccumulationResult memory accumulationResult;
-        (settlementContext.latestVersion, context.global, accumulationResult) =
-            VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
+        VersionResponse memory versionResponse;
+        (settlementContext.latestVersion, context.global, versionResponse.tradeFee, versionResponse.settlementFee, versionResponse.exposure) =
+            VersionLib.accumulate(context, settlementContext, newOrderId, newOrder, newGuarantee, oracleVersion, oracleReceipt);
 
-        context.global.update(newOrderId, accumulationResult, context.marketParameter, oracleReceipt);
+        context.global.update(newOrderId, versionResponse.tradeFee, versionResponse.settlementFee, versionResponse.exposure, context.marketParameter, oracleReceipt);
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
         _versions[newOrder.timestamp].store(settlementContext.latestVersion);
+    }
+
+    struct VersionResponse {
+        UFixed6 tradeFee;
+        UFixed6 settlementFee;
+        Fixed6 exposure;
     }
 
     /// @notice Processes the given local pending position into the latest position

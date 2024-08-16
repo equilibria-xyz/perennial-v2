@@ -14,14 +14,14 @@ contract GlobalTester {
         return global.store(newGlobal);
     }
 
-    function update(
-        uint256 newLatestId,
-        VersionAccumulationResult memory accumulation,
-        MarketParameter memory marketParameter,
-        OracleReceipt memory oracleReceipt
-    ) external {
-        Global memory newGlobal = global.read();
-        newGlobal.update(newLatestId, accumulation, marketParameter, oracleReceipt);
-        global.store(newGlobal);
-    }
+    // function update(
+    //     uint256 newLatestId,
+    //     VersionAccumulationResult memory accumulation,
+    //     MarketParameter memory marketParameter,
+    //     OracleReceipt memory oracleReceipt
+    // ) external {
+    //     Global memory newGlobal = global.read();
+    //     newGlobal.update(newLatestId, accumulation, marketParameter, oracleReceipt);
+    //     global.store(newGlobal);
+    // }
 }
