@@ -88,7 +88,7 @@ const DEFAULT_VERSION_ACCUMULATION_RESULT = {
   pnlShort: 0,
 
   settlementFee: 0,
-  liquidationFee: parse6decimal('10.000'), // will return liquidation fee unless invalid
+  liquidationFee: 0,
 }
 
 const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
@@ -2532,6 +2532,7 @@ describe('Market', () => {
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
         })
@@ -3114,6 +3115,7 @@ describe('Market', () => {
                 ...DEFAULT_VERSION,
                 makerValue: { _value: MAKER_OFFSET.div(10) },
                 price: PRICE,
+                liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
             })
           })
@@ -3893,6 +3895,7 @@ describe('Market', () => {
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
+                liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
             })
 
@@ -4046,6 +4049,7 @@ describe('Market', () => {
                 },
                 longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
+                liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
             })
           })
@@ -4897,6 +4901,7 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
+                  liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
                 })
               })
             })
@@ -7400,6 +7405,7 @@ describe('Market', () => {
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
+                liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
             })
 
@@ -7554,6 +7560,7 @@ describe('Market', () => {
                 longValue: { _value: 0 },
                 shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
+                liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
             })
           })
@@ -8413,6 +8420,7 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
+                  liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
                 })
               })
             })
@@ -10251,6 +10259,7 @@ describe('Market', () => {
               makerFee: { _value: -EXPECTED_MAKER_FEE.div(5) },
               settlementFee: { _value: -EXPECTED_SETTLEMENT_FEE },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(EXPECTED_SETTLEMENT_FEE).div(1e6) },
             })
           })
         })
@@ -11128,6 +11137,7 @@ describe('Market', () => {
                     .sub(1), // loss of precision
                 },
                 price: PRICE,
+                liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
             })
 
@@ -12568,6 +12578,7 @@ describe('Market', () => {
                   takerFee: { _value: -EXPECTED_TAKER_FEE.div(5) },
                   settlementFee: { _value: -SETTLEMENT_FEE },
                   price: PRICE,
+                  liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
                 })
               })
             })
@@ -16868,6 +16879,7 @@ describe('Market', () => {
             takerFee: { _value: -TAKER_FEE.div(5) },
             settlementFee: { _value: -SETTLEMENT_FEE },
             price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
         })
 
@@ -17234,6 +17246,7 @@ describe('Market', () => {
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
             price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
         })
 
@@ -17468,6 +17481,7 @@ describe('Market', () => {
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
             price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
@@ -17477,6 +17491,7 @@ describe('Market', () => {
             },
             takerFee: { _value: -TAKER_FEE.div(5) },
             settlementFee: { _value: -SETTLEMENT_FEE },
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             price: PRICE,
           })
         })
@@ -18246,6 +18261,7 @@ describe('Market', () => {
             longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
             shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
             price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
         })
 
@@ -19952,6 +19968,7 @@ describe('Market', () => {
             minScale: parse6decimal('0.001'),
           })
 
+          const riskParameter = { ...(await market.riskParameter()) }
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.fundingFee = BigNumber.from(0)
           marketParameter.makerFee = parse6decimal('0.005')
@@ -20057,6 +20074,7 @@ describe('Market', () => {
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
             price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
         })
 
@@ -20074,6 +20092,7 @@ describe('Market', () => {
             minScale: parse6decimal('0.001'),
           })
 
+          const riskParameter = { ...(await market.riskParameter()) }
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
@@ -20219,6 +20238,7 @@ describe('Market', () => {
             },
             longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
             price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
         })
 
@@ -20236,6 +20256,7 @@ describe('Market', () => {
             minScale: parse6decimal('0.001'),
           })
 
+          const riskParameter = { ...(await market.riskParameter()) }
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
@@ -20378,6 +20399,7 @@ describe('Market', () => {
             },
             longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
             price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
         })
       })
@@ -20632,6 +20654,7 @@ describe('Market', () => {
               longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -20877,6 +20900,7 @@ describe('Market', () => {
               longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -21122,6 +21146,7 @@ describe('Market', () => {
               longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -21366,7 +21391,7 @@ describe('Market', () => {
               longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
-              liquidationFee: { _value: -riskParameter.liquidationFee },
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -21711,7 +21736,7 @@ describe('Market', () => {
               longValue: { _value: EXPECTED_INTEREST_10_123_EFF_2.div(2).div(10).mul(-1) },
               shortValue: { _value: EXPECTED_INTEREST_10_123_EFF_2.div(2).div(10).mul(-1).sub(1) },
               price: PRICE,
-              liquidationFee: { _value: -riskParameter.liquidationFee },
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -21960,6 +21985,7 @@ describe('Market', () => {
               longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
         })
@@ -22222,6 +22248,7 @@ describe('Market', () => {
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -22482,6 +22509,7 @@ describe('Market', () => {
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -22743,6 +22771,7 @@ describe('Market', () => {
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -23004,6 +23033,7 @@ describe('Market', () => {
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -23271,6 +23301,7 @@ describe('Market', () => {
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -23538,6 +23569,7 @@ describe('Market', () => {
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
         })
