@@ -678,7 +678,7 @@ describe('Version', () => {
         expect(ret.pnlLong).to.equal(0)
         expect(ret.pnlShort).to.equal(0)
         expect(ret.settlementFee).to.equal(parse6decimal('2'))
-        expect(ret.liquidationFee).to.equal(9)
+        expect(ret.liquidationFee).to.equal(9 * 2)
       })
     })
 
@@ -928,7 +928,7 @@ describe('Version', () => {
       let riskParameters = {
         ...VALID_RISK_PARAMETER,
         pController: { min: 0, max: 0, k: parse6decimal('1') },
-        liquidationFee: parse6decimal('0.20'),
+        liquidationFee: parse6decimal('5.00'),
         utilizationCurve: {
           minRate: 0,
           maxRate: 0,
@@ -980,19 +980,19 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
-          DEFAULT_ORACLE_RECEIPT,
+          { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('0.05') },
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
 
-        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.20'))
-        expect(ret.liquidationFee).to.equal(parse6decimal('0.20')) // risk parameter
+        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.25'))
+        expect(ret.liquidationFee).to.equal(parse6decimal('0.25'))
       })
 
       it('allocates with a reduced fee', async () => {
         await version.store(VALID_VERSION)
 
-        riskParameters = { ...riskParameters, liquidationFee: parse6decimal('0.15') }
+        riskParameters = { ...riskParameters, liquidationFee: parse6decimal('4.00') }
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           position,
@@ -1001,13 +1001,13 @@ describe('Version', () => {
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
           { ...ORACLE_VERSION_2 },
-          DEFAULT_ORACLE_RECEIPT,
+          { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('0.05') },
           { ...VALID_MARKET_PARAMETER },
           riskParameters,
         )
 
-        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.15'))
-        expect(ret.liquidationFee).to.equal(parse6decimal('0.15'))
+        expect(value.liquidationFee._value).to.equal(parse6decimal('-0.20'))
+        expect(ret.liquidationFee).to.equal(parse6decimal('0.20'))
       })
 
       it('handles invalid oracle version', async () => {
