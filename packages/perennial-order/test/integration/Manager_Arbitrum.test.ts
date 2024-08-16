@@ -22,7 +22,14 @@ import {
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../helpers/eip712'
 import { createMarketETH, deployProtocol, deployPythOracleFactory, fundWalletDSU } from '../helpers/arbitrumHelpers'
-import { Compare, compareOrders, MAGIC_VALUE_CLOSE_POSITION, orderFromStructOutput, Side } from '../helpers/order'
+import {
+  Compare,
+  compareOrders,
+  DEFAULT_TRIGGER_ORDER,
+  MAGIC_VALUE_CLOSE_POSITION,
+  orderFromStructOutput,
+  Side,
+} from '../helpers/order'
 import { transferCollateral } from '../helpers/marketHelpers'
 import { advanceToPrice } from '../helpers/oracleHelpers'
 import { PlaceOrderActionStruct } from '../../types/generated/contracts/Manager'
@@ -34,18 +41,6 @@ const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 
-const MAX_FEE = utils.parseEther('7')
-
-const EMPTY_ORDER = {
-  side: 0,
-  comparison: 0,
-  price: 0,
-  delta: 0,
-  maxFee: 0,
-  isSpent: false,
-  referrer: constants.AddressZero,
-}
-
 const KEEP_CONFIG = {
   multiplierBase: 0,
   bufferBase: 1_000_000,
@@ -53,14 +48,14 @@ const KEEP_CONFIG = {
   bufferCalldata: 500_000,
 }
 
-const MAKER_ORDER = {
-  side: BigNumber.from(0),
-  comparison: BigNumber.from(-2),
-  price: parse6decimal('2222.33'),
-  delta: parse6decimal('100'),
-  maxFee: MAX_FEE,
-  isSpent: false,
-  referrer: constants.AddressZero,
+const MAX_FEE = utils.parseEther('0.88')
+
+const NO_INTERFACE_FEE = {
+  interfaceFee: {
+    amount: constants.Zero,
+    receiver: constants.AddressZero,
+    unwrap: false,
+  },
 }
 
 // because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
@@ -187,8 +182,19 @@ describe('Manager_Arbitrum', () => {
       .withArgs(market.address, user.address, spentOrder, orderId)
       .to.emit(market, 'OrderCreated')
       .withArgs(user.address, anyValue, anyValue, constants.AddressZero, order.referrer, constants.AddressZero)
+    if (order.interfaceFee.amount.gt(0)) {
+      await expect(tx)
+        .to.emit(market, 'TriggerOrderInterfaceFeeCharged')
+        .withArgs(user.address, market.address, order.interfaceFee)
+      if (order.interfaceFee.unwrap) {
+        // TODO: check whether USDC transfer event emitted
+      } else {
+        await expect(tx)
+          .to.emit(dsu, 'Transfer')
+          .withArgs(market.address, order.interfaceFee.receiver, order.interfaceFee.amount)
+      }
+    }
     const timestamp = await getTimestamp(tx)
-
     // ensure trigger order was marked as spent
     const deletedOrder = await manager.orders(market.address, user.address, orderId)
     expect(deletedOrder.isSpent).to.be.true
@@ -235,6 +241,7 @@ describe('Manager_Arbitrum', () => {
     delta: BigNumber,
     maxFee = MAX_FEE,
     referrer = constants.AddressZero,
+    interfaceFee = NO_INTERFACE_FEE,
   ): Promise<BigNumber> {
     const order = {
       side: side,
@@ -244,6 +251,7 @@ describe('Manager_Arbitrum', () => {
       maxFee: maxFee,
       isSpent: false,
       referrer: referrer,
+      ...interfaceFee,
     }
     advanceOrderId(user)
     const orderId = nextOrderId[user.address]
@@ -264,6 +272,7 @@ describe('Manager_Arbitrum', () => {
     delta: BigNumber,
     maxFee = MAX_FEE,
     referrer = constants.AddressZero,
+    interfaceFee = NO_INTERFACE_FEE,
   ): Promise<BigNumber> {
     advanceOrderId(user)
     const message: PlaceOrderActionStruct = {
@@ -275,6 +284,7 @@ describe('Manager_Arbitrum', () => {
         maxFee: maxFee,
         isSpent: false,
         referrer: referrer,
+        ...interfaceFee,
       },
       ...createActionMessage(user.address),
     }
@@ -451,13 +461,11 @@ describe('Manager_Arbitrum', () => {
       advanceOrderId(userA)
       const message: PlaceOrderActionStruct = {
         order: {
+          ...DEFAULT_TRIGGER_ORDER,
           side: Side.MAKER,
           comparison: Compare.GTE,
           price: parse6decimal('1003'),
           delta: parse6decimal('2'),
-          maxFee: MAX_FEE,
-          isSpent: false,
-          referrer: constants.AddressZero,
         },
         ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
       }
@@ -468,7 +476,7 @@ describe('Manager_Arbitrum', () => {
       ).to.be.revertedWithCustomError(manager, 'ManagerInvalidSignerError')
     })
 
-    it('delegated signer may interact', async () => {
+    it('delegated signer can interact', async () => {
       // userA delegates userB
       await marketFactory.connect(userA).updateSigner(userB.address, true, TX_OVERRIDES)
 
@@ -476,13 +484,11 @@ describe('Manager_Arbitrum', () => {
       advanceOrderId(userA)
       const message: PlaceOrderActionStruct = {
         order: {
+          ...DEFAULT_TRIGGER_ORDER,
           side: Side.MAKER,
           comparison: Compare.GTE,
           price: parse6decimal('1004'),
           delta: parse6decimal('3'),
-          maxFee: MAX_FEE,
-          isSpent: false,
-          referrer: constants.AddressZero,
         },
         ...createActionMessage(userA.address, nextMessageNonce(), userB.address),
       }
@@ -496,10 +502,41 @@ describe('Manager_Arbitrum', () => {
       compareOrders(storedOrder, message.order)
     })
 
+    it('charges interface fee upon execution', async () => {
+      const positionBefore = await getPendingPosition(userA, Side.MAKER)
+      // user A reduces their maker position through a GUI which charges an interface fee
+      const interfaceFee = {
+        interfaceFee: {
+          amount: constants.Zero,
+          receiver: constants.AddressZero,
+          unwrap: false,
+        },
+      }
+      const positionDelta = parse6decimal('-5')
+      const orderId = await placeOrder(
+        userA,
+        Side.MAKER,
+        Compare.LTE,
+        parse6decimal('2828.28'),
+        positionDelta,
+        MAX_FEE,
+        constants.AddressZero,
+        interfaceFee,
+      )
+      expect(orderId).to.equal(BigNumber.from(508))
+
+      // keeper executes the order
+      await executeOrder(userA, orderId)
+      expect(await getPendingPosition(userA, Side.MAKER)).to.equal(positionBefore.add(positionDelta))
+      await commitPrice()
+      await market.connect(userA).settle(userA.address, TX_OVERRIDES)
+      checkKeeperCompensation = true
+    })
+
     it('users can close positions', async () => {
       // can close directly
       let orderId = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, MAGIC_VALUE_CLOSE_POSITION)
-      expect(orderId).to.equal(BigNumber.from(508))
+      expect(orderId).to.equal(BigNumber.from(509))
 
       // can close using a signed message
       orderId = await placeOrderWithSignature(
@@ -514,7 +551,7 @@ describe('Manager_Arbitrum', () => {
       // keeper closes the taker position before removing liquidity
       await executeOrder(userB, 502)
       await commitPrice()
-      await executeOrder(userA, 508)
+      await executeOrder(userA, 509)
       await commitPrice()
 
       // settle and confirm positions are closed
