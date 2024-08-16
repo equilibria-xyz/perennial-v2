@@ -70,14 +70,11 @@ library GlobalLib {
     function update(
         Global memory self,
         uint256 newLatestId,
-        VersionAccumulationResult memory accumulation,
+        VersionAccumulationResponse memory accumulation,
         MarketParameter memory marketParameter,
         OracleReceipt memory oracleReceipt
     ) internal pure {
-        UFixed6 marketFee = accumulation.tradeFee
-            .add(accumulation.tradeOffsetMarket)
-            .add(accumulation.fundingFee)
-            .add(accumulation.interestFee);
+        UFixed6 marketFee = accumulation.marketFee;
 
         UFixed6 oracleFee = marketFee.mul(oracleReceipt.oracleFee);
         marketFee = marketFee.sub(oracleFee);
@@ -89,7 +86,7 @@ library GlobalLib {
         self.protocolFee = self.protocolFee.add(marketFee);
         self.oracleFee = self.oracleFee.add(accumulation.settlementFee).add(oracleFee);
         self.riskFee = self.riskFee.add(riskFee);
-        self.exposure = self.exposure.add(accumulation.adiabaticExposureMarket);
+        self.exposure = self.exposure.add(accumulation.marketExposure);
     }
 
     /// @notice Overrides the price of the oracle with the latest global version if it is empty

@@ -768,11 +768,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.marketParameter,
             context.riskParameter
         );
-        VersionAccumulationResult memory accumulationResult;
-        (settlementContext.latestVersion, context.global, accumulationResult) =
+        VersionAccumulationResponse memory accumulationResponse;
+        (settlementContext.latestVersion, context.global, accumulationResponse) =
             VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
-        context.global.update(newOrderId, accumulationResult, context.marketParameter, oracleReceipt);
+        context.global.update(newOrderId, accumulationResponse, context.marketParameter, oracleReceipt);
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
