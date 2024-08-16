@@ -182,7 +182,6 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
       price: PRICE_0,
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // Settle the market with a new oracle version
@@ -302,7 +301,6 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
       price: PRICE_0,
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // Settle the market with a new oracle version
@@ -429,7 +427,6 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
       price: PRICE_1,
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
@@ -506,7 +503,6 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
       price: PRICE_1,
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
@@ -616,7 +612,6 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
       price: PRICE_0,
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // One round
@@ -755,7 +750,6 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
       price: PRICE_0,
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
 
     // One round
@@ -899,7 +893,6 @@ describe('Happy Path', () => {
       makerValue: { _value: 0 },
       longValue: { _value: 0 },
       shortValue: { _value: 0 },
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
@@ -988,7 +981,6 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
       price: PRICE_1,
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
@@ -1262,7 +1254,6 @@ describe('Happy Path', () => {
       makerValue: { _value: '-3538257' },
       longValue: { _value: '3620965' },
       shortValue: { _value: 0 },
-      liquidationFee: { _value: -riskParameter.liquidationFee },
     })
   })
 
