@@ -58,27 +58,24 @@ struct CheckpointAccumulationResult {
 /// @notice Manages the logic for the local order accumulation
 library CheckpointLib {
     /// @notice Accumulate pnl and fees from the latest position to next position
-    /// @param self The Local object to update
     /// @param order The next order
-    /// @param fromPosition The previous latest position
     /// @param fromVersion The previous latest version
     /// @param toVersion The next latest version
     /// @return next The next checkpoint
     /// @return response The accumulated pnl and fees
     function accumulate(
-        Checkpoint memory self,
-        address account,
+        IMarket.Context memory context,
+        IMarket.SettlementContext memory settlementContext,
         uint256 orderId,
         Order memory order,
         Guarantee memory guarantee,
-        Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
     ) external returns (Checkpoint memory next, CheckpointAccumulationResponse memory) {
         CheckpointAccumulationResult memory result;
 
         // accumulate
-        result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
+        result.collateral = _accumulateCollateral(context.latestPositionLocal, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
         (result.tradeFee, result.subtractiveFee, result.solverFee) = _accumulateFee(order, guarantee, toVersion);
         result.offset = _accumulateOffset(order, guarantee, toVersion);
@@ -86,18 +83,18 @@ library CheckpointLib {
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
         // update checkpoint
-        next.collateral = self.collateral
-            .sub(self.tradeFee)                       // trade fee processed post settlement
-            .sub(Fixed6Lib.from(self.settlementFee)); // settlement / liquidation fee processed post settlement
+        next.collateral = settlementContext.latestCheckpoint.collateral
+            .sub(settlementContext.latestCheckpoint.tradeFee)                       // trade fee processed post settlement
+            .sub(Fixed6Lib.from(settlementContext.latestCheckpoint.settlementFee)); // settlement / liquidation fee processed post settlement
         next.collateral = next.collateral
-            .add(self.transfer)                       // deposit / withdrawal processed post settlement
-            .add(result.collateral)                   // incorporate collateral change at this settlement
-            .add(result.priceOverride);               // incorporate price override pnl at this settlement
+            .add(settlementContext.latestCheckpoint.transfer)                       // deposit / withdrawal processed post settlement
+            .add(result.collateral)                                                 // incorporate collateral change at this settlement
+            .add(result.priceOverride);                                             // incorporate price override pnl at this settlement
         next.transfer = order.collateral;
         next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
 
-        emit IMarket.AccountPositionProcessed(account, orderId, order, result);
+        emit IMarket.AccountPositionProcessed(context.account, orderId, order, result);
 
         return (next, _response(result));
     }

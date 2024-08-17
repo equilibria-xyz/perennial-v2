@@ -97,6 +97,74 @@ export interface Fee {
   market: BigNumberish
 }
 
+export interface MarketParameter {
+  fundingFee: BigNumberish
+  interestFee: BigNumberish
+  makerFee: BigNumberish
+  takerFee: BigNumberish
+  riskFee: BigNumberish
+  maxPendingGlobal: number
+  maxPendingLocal: number
+  closed: boolean
+  settle: boolean
+}
+
+export interface AdiabaticFee {
+  linearFee: BigNumberish
+  proportionalFee: BigNumberish
+  adiabaticFee: BigNumberish
+  scale: BigNumberish
+}
+
+export interface UtilizationCurve {
+  minRate: BigNumberish
+  maxRate: BigNumberish
+  targetRate: BigNumberish
+  targetUtilization: BigNumberish
+}
+
+export interface PController {
+  k: BigNumberish
+  min: BigNumberish
+  max: BigNumberish
+}
+
+export interface RiskParameter {
+  margin: BigNumberish
+  maintenance: BigNumberish
+  takerFee: AdiabaticFee
+  makerFee: AdiabaticFee
+  makerLimit: BigNumberish
+  efficiencyLimit: BigNumberish
+  liquidationFee: BigNumberish
+  utilizationCurve: UtilizationCurve
+  pController: PController
+  minMargin: BigNumberish
+  minMaintenance: BigNumberish
+  staleAfter: BigNumberish
+  makerReceiveOnly: boolean
+}
+
+export interface Context {
+  account: string
+  marketParameter: MarketParameter
+  riskParameter: RiskParameter
+  latestOracleVersion: OracleVersion
+  currentTimestamp: number
+  global: Global
+  local: Local
+  latestPositionGlobal: Position
+  latestPositionLocal: Position
+  pendingGlobal: Order
+  pendingLocal: Order
+}
+
+export interface SettlementContext {
+  latestVersion: Version
+  latestCheckpoint: Checkpoint
+  orderOracleVersion: OracleVersion
+}
+
 export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
   expect(a.tradeFee).to.equal(b.tradeFee, 'Checkpoint:TradeFee')
   expect(a.settlementFee).to.equal(b.settlementFee, 'Checkpoint:SettlementFee')
@@ -272,4 +340,78 @@ export const DEFAULT_VERSION: Version = {
 export const DEFAULT_ORACLE_RECEIPT: OracleReceipt = {
   settlementFee: 0,
   oracleFee: 0,
+}
+
+export const DEFAULT_ORACLE_VERSION: OracleVersion = {
+  valid: true, // a valid version is the default
+  price: 0,
+  timestamp: 0,
+}
+
+export const DEFAULT_MARKET_PARAMETER: MarketParameter = {
+  fundingFee: 0,
+  interestFee: 0,
+  makerFee: 0,
+  takerFee: 0,
+  riskFee: 0,
+  maxPendingGlobal: 0,
+  maxPendingLocal: 0,
+  closed: false,
+  settle: false,
+}
+
+export const DEFAULT_ADIABATIC_FEE: AdiabaticFee = {
+  linearFee: 0,
+  proportionalFee: 0,
+  adiabaticFee: 0,
+  scale: 0,
+}
+
+export const DEFAULT_UTILIZATION_CURVE: UtilizationCurve = {
+  minRate: 0,
+  maxRate: 0,
+  targetRate: 0,
+  targetUtilization: 0,
+}
+
+export const DEFAULT_PCONTROLLER: PController = {
+  k: 0,
+  min: 0,
+  max: 0,
+}
+
+export const DEFAULT_RISK_PARAMETER: RiskParameter = {
+  margin: 0,
+  maintenance: 0,
+  takerFee: DEFAULT_ADIABATIC_FEE,
+  makerFee: DEFAULT_ADIABATIC_FEE,
+  makerLimit: 0,
+  efficiencyLimit: 0,
+  liquidationFee: 0,
+  utilizationCurve: DEFAULT_UTILIZATION_CURVE,
+  pController: DEFAULT_PCONTROLLER,
+  minMargin: 0,
+  minMaintenance: 0,
+  staleAfter: 0,
+  makerReceiveOnly: false,
+}
+
+export const DEFAULT_CONTEXT: Context = {
+  account: constants.AddressZero,
+  marketParameter: DEFAULT_MARKET_PARAMETER,
+  riskParameter: DEFAULT_RISK_PARAMETER,
+  latestOracleVersion: DEFAULT_ORACLE_VERSION,
+  currentTimestamp: 0,
+  global: DEFAULT_GLOBAL,
+  local: DEFAULT_LOCAL,
+  latestPositionGlobal: DEFAULT_POSITION,
+  latestPositionLocal: DEFAULT_POSITION,
+  pendingGlobal: DEFAULT_ORDER,
+  pendingLocal: DEFAULT_ORDER,
+}
+
+export const DEFAULT_SETTLEMENT_CONTEXT: SettlementContext = {
+  latestVersion: DEFAULT_VERSION,
+  latestCheckpoint: DEFAULT_CHECKPOINT,
+  orderOracleVersion: DEFAULT_ORACLE_VERSION,
 }

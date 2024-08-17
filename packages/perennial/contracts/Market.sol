@@ -756,21 +756,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGuarantee.invalidate();
         }
 
-        VersionAccumulationContext memory accumulationContext = VersionAccumulationContext(
-            context.global,
-            context.latestPositionGlobal,
+        VersionAccumulationResponse memory accumulationResponse;
+        (settlementContext.latestVersion, context.global, accumulationResponse) = VersionLib.accumulate(
+            context,
+            settlementContext,
             newOrderId,
             newOrder,
             newGuarantee,
-            settlementContext.orderOracleVersion,
             oracleVersion,
-            oracleReceipt,
-            context.marketParameter,
-            context.riskParameter
+            oracleReceipt
         );
-        VersionAccumulationResponse memory accumulationResponse;
-        (settlementContext.latestVersion, context.global, accumulationResponse) =
-            VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
         context.global.update(newOrderId, accumulationResponse, context.marketParameter, oracleReceipt);
         context.latestPositionGlobal.update(newOrder);
@@ -811,12 +806,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         CheckpointAccumulationResponse memory accumulationResponse;
         (settlementContext.latestCheckpoint, accumulationResponse) = CheckpointLib.accumulate(
-            settlementContext.latestCheckpoint,
-            context.account,
+            context,
+            settlementContext,
             newOrderId,
             newOrder,
             newGuarantee,
-            context.latestPositionLocal,
             versionFrom,
             versionTo
         );
