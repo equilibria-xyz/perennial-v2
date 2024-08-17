@@ -338,9 +338,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Push DSU or unwrap DSU to push USDC from this address to `account`
     /// @param account Account to push DSU or USDC to
     /// @param amount Amount to transfer
-    /// @param wrap flag to unwrap DSU to USDC
-    function _withdraw(address account, UFixed6 amount, bool wrap) internal {
-        if (wrap) {
+    /// @param unwrap flag to unwrap DSU to USDC
+    function _withdraw(address account, UFixed6 amount, bool unwrap) internal {
+        if (unwrap) {
             _unwrap(account, UFixed18Lib.from(amount));
         } else {
             DSU.push(account, UFixed18Lib.from(amount));
