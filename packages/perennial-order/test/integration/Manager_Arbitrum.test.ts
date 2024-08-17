@@ -14,6 +14,9 @@ import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@equil
 import { IKeeperOracle, IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 import {
   ArbGasInfo,
+  IEmptySetReserve,
+  IEmptySetReserve__factory,
+  IERC20Metadata__factory,
   IOrderVerifier,
   Manager_Arbitrum,
   Manager_Arbitrum__factory,
@@ -40,6 +43,8 @@ import { impersonate } from '../../../common/testutil'
 const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
+const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC, a 6-decimal token
 
 const KEEP_CONFIG = {
   multiplierBase: 0,
@@ -63,6 +68,8 @@ const TX_OVERRIDES = { maxFeePerGas: 150_000_000 }
 
 describe('Manager_Arbitrum', () => {
   let dsu: IERC20Metadata
+  let usdc: IERC20Metadata
+  let reserve: IEmptySetReserve
   let keeperOracle: IKeeperOracle
   let manager: Manager_Arbitrum
   let marketFactory: IMarketFactory
@@ -92,12 +99,20 @@ describe('Manager_Arbitrum', () => {
     ;[owner, userA, userB, userC, userD, keeper, oracleFeeReceiver] = await ethers.getSigners()
     let oracleFactory: IOracleFactory
     ;[marketFactory, dsu, oracleFactory] = await deployProtocol(owner)
+    usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
+    reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, owner)
     const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory)
     ;[market, oracle, keeperOracle] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
 
     // deploy the order manager
     verifier = await new OrderVerifier__factory(owner).deploy()
-    manager = await new Manager_Arbitrum__factory(owner).deploy(dsu.address, marketFactory.address, verifier.address)
+    manager = await new Manager_Arbitrum__factory(owner).deploy(
+      USDC_ADDRESS,
+      dsu.address,
+      DSU_RESERVE,
+      marketFactory.address,
+      verifier.address,
+    )
     await manager.initialize(CHAINLINK_ETH_USD_FEED, KEEP_CONFIG)
 
     // commit a start price
@@ -184,14 +199,22 @@ describe('Manager_Arbitrum', () => {
       .withArgs(user.address, anyValue, anyValue, constants.AddressZero, order.referrer, constants.AddressZero)
     if (order.interfaceFee.amount.gt(0)) {
       await expect(tx)
-        .to.emit(market, 'TriggerOrderInterfaceFeeCharged')
+        .to.emit(manager, 'TriggerOrderInterfaceFeeCharged')
         .withArgs(user.address, market.address, order.interfaceFee)
       if (order.interfaceFee.unwrap) {
-        // TODO: check whether USDC transfer event emitted
+        await expect(tx)
+          .to.emit(dsu, 'Transfer')
+          .withArgs(market.address, manager.address, order.interfaceFee.amount.mul(1e12))
+          .to.emit(reserve, 'Redeem')
+          .withArgs(manager.address, order.interfaceFee.amount.mul(1e12), order.interfaceFee.amount.mul(1e12))
+          .to.emit(usdc, 'Transfer')
+          .withArgs(manager.address, order.interfaceFee.receiver, order.interfaceFee.amount)
       } else {
         await expect(tx)
           .to.emit(dsu, 'Transfer')
-          .withArgs(market.address, order.interfaceFee.receiver, order.interfaceFee.amount)
+          .withArgs(market.address, manager.address, order.interfaceFee.amount.mul(1e12))
+          .to.emit(dsu, 'Transfer')
+          .withArgs(manager.address, order.interfaceFee.receiver, order.interfaceFee.amount.mul(1e12))
       }
     }
     const timestamp = await getTimestamp(tx)
@@ -504,11 +527,14 @@ describe('Manager_Arbitrum', () => {
 
     it('charges interface fee upon execution', async () => {
       const positionBefore = await getPendingPosition(userA, Side.MAKER)
+      const interfaceBalanceBefore = await dsu.balanceOf(userC.address)
+
       // user A reduces their maker position through a GUI which charges an interface fee
+      const feeAmount = parse6decimal('3.5')
       const interfaceFee = {
         interfaceFee: {
-          amount: constants.Zero,
-          receiver: constants.AddressZero,
+          amount: feeAmount,
+          receiver: userC.address,
           unwrap: false,
         },
       }
@@ -525,11 +551,50 @@ describe('Manager_Arbitrum', () => {
       )
       expect(orderId).to.equal(BigNumber.from(508))
 
-      // keeper executes the order
+      // keeper executes the order and user settles themselves
       await executeOrder(userA, orderId)
       expect(await getPendingPosition(userA, Side.MAKER)).to.equal(positionBefore.add(positionDelta))
       await commitPrice()
       await market.connect(userA).settle(userA.address, TX_OVERRIDES)
+
+      // ensure fees were paid
+      expect(await dsu.balanceOf(userC.address)).to.equal(interfaceBalanceBefore.add(feeAmount.mul(1e12)))
+      checkKeeperCompensation = true
+    })
+
+    it('charges and unwraps interface fee upon execution', async () => {
+      const positionBefore = await getPendingPosition(userB, Side.LONG)
+
+      // user B increases their long position through a GUI which charges an interface fee
+      const feeAmount = parse6decimal('2.75')
+      const interfaceFee = {
+        interfaceFee: {
+          amount: feeAmount,
+          receiver: userC.address,
+          unwrap: true,
+        },
+      }
+      const positionDelta = parse6decimal('1.5')
+      const orderId = await placeOrder(
+        userB,
+        Side.LONG,
+        Compare.GTE,
+        parse6decimal('1900'),
+        positionDelta,
+        MAX_FEE,
+        constants.AddressZero,
+        interfaceFee,
+      )
+      expect(orderId).to.equal(BigNumber.from(502))
+
+      // keeper executes the order and interface settles
+      await executeOrder(userB, orderId)
+      expect(await getPendingPosition(userB, Side.LONG)).to.equal(positionBefore.add(positionDelta))
+      await commitPrice()
+      await market.connect(userC).settle(userB.address, TX_OVERRIDES)
+
+      // ensure fees were paid
+      expect(await usdc.balanceOf(userC.address)).to.equal(feeAmount)
       checkKeeperCompensation = true
     })
 
@@ -546,10 +611,10 @@ describe('Manager_Arbitrum', () => {
         parse6decimal('4000'),
         MAGIC_VALUE_CLOSE_POSITION,
       )
-      expect(orderId).to.equal(BigNumber.from(502))
+      expect(orderId).to.equal(BigNumber.from(503))
 
       // keeper closes the taker position before removing liquidity
-      await executeOrder(userB, 502)
+      await executeOrder(userB, 503)
       await commitPrice()
       await executeOrder(userA, 509)
       await commitPrice()

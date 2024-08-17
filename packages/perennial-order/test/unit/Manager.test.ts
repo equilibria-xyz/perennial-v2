@@ -12,6 +12,7 @@ import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@equ
 import {
   AggregatorV3Interface,
   ArbGasInfo,
+  IEmptySetReserve,
   IOrderVerifier,
   Manager_Arbitrum,
   Manager_Arbitrum__factory,
@@ -44,7 +45,9 @@ const MAKER_ORDER = {
 }
 
 describe('Manager', () => {
+  let usdc: FakeContract<IERC20>
   let dsu: FakeContract<IERC20>
+  let reserve: FakeContract<IEmptySetReserve>
   let manager: Manager_Arbitrum
   let marketFactory: FakeContract<IMarketFactory>
   let market: FakeContract<IMarket>
@@ -70,13 +73,21 @@ describe('Manager', () => {
   }
 
   const fixture = async () => {
+    usdc = await smock.fake<IERC20>('IERC20')
     dsu = await smock.fake<IERC20>('IERC20')
+    reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
     verifier = await new OrderVerifier__factory(owner).deploy()
 
     // deploy the order manager
-    manager = await new Manager_Arbitrum__factory(owner).deploy(dsu.address, marketFactory.address, verifier.address)
+    manager = await new Manager_Arbitrum__factory(owner).deploy(
+      usdc.address,
+      dsu.address,
+      reserve.address,
+      marketFactory.address,
+      verifier.address,
+    )
 
     dsu.approve.whenCalledWith(manager.address).returns(true)
     dsu.transferFrom.returns(true)

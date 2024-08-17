@@ -1,24 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { AggregatorV3Interface, Kept, Token18 } from "@equilibria/root/attribute/Kept/Kept.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action } from "./types/Action.sol";
 import { CancelOrderAction } from "./types/CancelOrderAction.sol";
+import { InterfaceFee } from "./types/InterfaceFee.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 
 /// @notice Base class with business logic to store and execute trigger orders.
 ///         Derived implementations created as appropriate for different chains.
 abstract contract Manager is IManager, Kept {
+    /// @dev USDC stablecoin address
+    Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
+
     /// @dev Digital Standard Unit token used for keeper compensation
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
+
+    /// @dev DSU Reserve address
+    IEmptySetReserve public immutable reserve;
 
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
@@ -36,8 +45,16 @@ abstract contract Manager is IManager, Kept {
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
     /// @param marketFactory_ Contract used to validate delegated signers
-    constructor(Token18 dsu_, IMarketFactory marketFactory_, IOrderVerifier verifier_) {
+    constructor(
+        Token6 usdc_,
+        Token18 dsu_,
+        IEmptySetReserve reserve_,
+        IMarketFactory marketFactory_,
+        IOrderVerifier verifier_
+    ) {
+        USDC = usdc_;
         DSU = dsu_;
+        reserve = reserve_;
         marketFactory = marketFactory_;
         verifier = verifier_;
     }
@@ -51,6 +68,8 @@ abstract contract Manager is IManager, Kept {
     ) external initializer(1) {
         __Kept__initialize(ethOracle_, DSU);
         keepConfig = keepConfig_;
+        // allows DSU to unwrap to USDC
+        DSU.approve(address(reserve));
     }
 
     /// @inheritdoc IManager
@@ -108,7 +127,7 @@ abstract contract Manager is IManager, Kept {
 
         _compensateKeeper(market, user, order.maxFee);
         order.execute(market, user);
-        bool interfaceFeeCharged = order.interfaceFee.chargeFee(user, market);
+        bool interfaceFeeCharged = _chargeInterfaceFee(market, user, order.interfaceFee);
 
         // invalidate the order nonce
         order.isSpent = true;
@@ -134,7 +153,7 @@ abstract contract Manager is IManager, Kept {
         if (user != signer && !marketFactory.signers(user, signer)) revert ManagerInvalidSignerError();
     }
 
-    /// @notice Transfers DSU from market to manager to compensate keeper
+    /// @dev Transfers DSU from market to manager to compensate keeper
     /// @param amount Keeper fee as calculated
     /// @param data Identifies the market from and user for which funds should be withdrawn,
     ///             and the user-defined fee cap
@@ -146,14 +165,7 @@ abstract contract Manager is IManager, Kept {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
-        market.update(
-            account,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            Fixed6Lib.from(-1, raisedKeeperFee),
-            false
-        );
+        _marketWithdraw(market, account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
     }
@@ -170,6 +182,22 @@ abstract contract Manager is IManager, Kept {
         emit TriggerOrderCancelled(market, user, orderId);
     }
 
+    /// @dev Transfers DSU from market to manager to pay interface fee
+    function _chargeInterfaceFee(IMarket market, address user, InterfaceFee memory fee) internal returns (bool) {
+        if (fee.amount.isZero()) return false;
+        _marketWithdraw(market, user, fee.amount);
+
+        if (fee.unwrap) _unwrap(fee.receiver, UFixed18Lib.from(fee.amount));
+        else DSU.push(fee.receiver, UFixed18Lib.from(fee.amount));
+
+        return true;
+    }
+
+    /// @dev Transfers DSU from market to manager to pay keeper or interface fee
+    function _marketWithdraw(IMarket market, address user, UFixed6 amount) private {
+        market.update(user, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, amount), false);
+    }
+
     function _placeOrder(IMarket market, address user, uint256 orderId, TriggerOrder calldata order) private {
         // prevent user from reusing an order identifier
         TriggerOrder memory old = _orders[market][user][orderId].read();
@@ -177,5 +205,11 @@ abstract contract Manager is IManager, Kept {
 
         _orders[market][user][orderId].store(order);
         emit TriggerOrderPlaced(market, user, order, orderId);
+    }
+
+    /// @dev Unwraps DSU to USDC
+    function _unwrap(address receiver, UFixed18 amount) private {
+        reserve.redeem(amount);
+        if (receiver != address(this)) USDC.push(receiver, UFixed6Lib.from(amount));
     }
 }

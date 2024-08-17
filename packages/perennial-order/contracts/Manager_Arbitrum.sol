@@ -1,14 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
+import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Kept, Kept_Arbitrum, Token18, UFixed18 } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
+
 import { IOrderVerifier, Manager } from "./Manager.sol";
 
 contract Manager_Arbitrum is Manager, Kept_Arbitrum {
     /// @dev passthrough constructor
-    constructor(Token18 dsu, IMarketFactory marketFactory, IOrderVerifier verifier)
-        Manager(dsu, marketFactory, verifier) {}
+    constructor(
+        Token6 usdc,
+        Token18 dsu,
+        IEmptySetReserve reserve,
+        IMarketFactory marketFactory,
+        IOrderVerifier verifier
+    )
+        Manager(usdc, dsu, reserve, marketFactory, verifier) {}
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(
