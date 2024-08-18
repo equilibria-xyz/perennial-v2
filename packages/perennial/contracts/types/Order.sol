@@ -85,15 +85,18 @@ library OrderLib {
     /// @param timestamp The current timestamp
     /// @param position The current position
     /// @param amount The magnitude and direction of the order
+    /// @param collateral The change in the collateral
     /// @param referralFee The referral fee
     /// @return newOrder The resulting order
     function from(
         uint256 timestamp,
         Position memory position,
         Fixed6 amount,
+        Fixed6 collateral,
         UFixed6 referralFee
     ) internal pure returns (Order memory newOrder) {
         newOrder.timestamp = timestamp;
+        newOrder.collateral = collateral;
         newOrder.orders = amount.isZero() ? 0 : 1;
         newOrder.takerReferral = amount.abs().mul(referralFee);
 
