@@ -44,14 +44,12 @@ library LocalLib {
     /// @notice Updates the collateral with the new collateral change
     /// @param self The Local object to update
     /// @param accumulation The accumulation result
-    function update(Local memory self, uint256 newId, CheckpointAccumulationResult memory accumulation) internal pure {
-        Fixed6 tradeFee = Fixed6Lib.from(accumulation.tradeFee).add(accumulation.offset);
-        self.collateral = self.collateral
-            .add(accumulation.collateral)
-            .add(accumulation.priceOverride)
-            .sub(tradeFee)
-            .sub(Fixed6Lib.from(accumulation.settlementFee))
-            .sub(Fixed6Lib.from(accumulation.liquidationFee));
+    function update(
+        Local memory self,
+        uint256 newId,
+        CheckpointAccumulationResponse memory accumulation
+    ) internal pure {
+        self.collateral = self.collateral.add(accumulation.collateral).sub(Fixed6Lib.from(accumulation.liquidationFee));
         self.latestId = newId;
     }
 

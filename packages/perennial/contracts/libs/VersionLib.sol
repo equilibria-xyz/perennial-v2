@@ -13,30 +13,46 @@ import "../types/Version.sol";
 import "../types/OracleVersion.sol";
 import "../types/OracleReceipt.sol";
 
+/// @dev The response of the version accumulation
+///      Contains only select fee information needed for the downstream market contract
+///      Returned by the accumulate function
+struct VersionAccumulationResponse {
+    /// @dev The total market fee charged including (tradeFee, tradeOffsetMarket, fundingFee, interestFee)
+    UFixed6 marketFee;
+
+    /// @dev The settlement fee charged
+    UFixed6 settlementFee;
+
+    /// @dev The market's adiabatic exposure
+    Fixed6 marketExposure;
+}
+
 /// @dev The result of the version accumulation
+///      Contains all the accumulated values for the version
+///      Emitted via the PositionProcessed event
 struct VersionAccumulationResult {
-    /// @dev TODO
+    /// @dev The trade fee charged
     UFixed6 tradeFee;
 
-    /// @dev TODO
+    /// @dev The subtractive fee charged
     UFixed6 subtractiveFee;
 
-    /// @dev TODO
+    /// @dev The total price impact of the trade (including linear, proportional, and adiabatic)
     Fixed6 tradeOffset;
 
-    /// @dev TODO
+    /// @dev The portion of the trade offset that the makers receive
     Fixed6 tradeOffsetMaker;
 
-    /// @dev TODO
+    /// @dev The portion of the trade offset that the market receives (if there are no makers)
     UFixed6 tradeOffsetMarket;
 
-    /// @dev TODO
+    /// @dev The adiabatic exposure accrued
     Fixed6 adiabaticExposure;
 
-    /// @dev TODO
+    /// @dev The adiabatic exposure accrued by makers
     Fixed6 adiabaticExposureMaker;
 
-    /// @dev TODO
+    /// @dev The adiabatic exposure accrued by the market
     Fixed6 adiabaticExposureMarket;
 
     /// @dev Funding accrued by makers
@@ -102,11 +118,13 @@ library VersionLib {
     /// @param context The accumulation context
     /// @return next The accumulated version
     /// @return nextGlobal The next global state
-    /// @return result The accumulation result
+    /// @return response The accumulation response
     function accumulate(
         Version memory self,
         VersionAccumulationContext memory context
-    ) external returns (Version memory next, Global memory nextGlobal, VersionAccumulationResult memory result) {
+    ) external returns (Version memory next, Global memory nextGlobal, VersionAccumulationResponse memory response) {
+        VersionAccumulationResult memory result;
+
         // setup next accumulators
         _next(self, next);
 
@@ -136,7 +154,7 @@ library VersionLib {
         _accumulateAdiabaticFee(next, context, result);
 
         // if closed, don't accrue anything else
-        if (context.marketParameter.closed) return (next, context.global, result);
+        if (context.marketParameter.closed) return _return(context, result, next);
 
         // accumulate funding
         (result.fundingMaker, result.fundingLong, result.fundingShort, result.fundingFee) =
@@ -149,9 +167,31 @@ library VersionLib {
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
 
+        return _return(context, result, next);
+    }
+
+    function _return(
+        VersionAccumulationContext memory context,
+        VersionAccumulationResult memory result,
+        Version memory next
+    ) private returns (Version memory, Global memory, VersionAccumulationResponse memory) {
         emit IMarket.PositionProcessed(context.orderId, context.order, result);
 
-        return (next, context.global, result);
+        return (next, context.global, _response(result));
+    }
+
+    /// @notice Converts the accumulation result into a response
+    /// @param result The accumulation result
+    /// @return response The accumulation response
+    function _response(
+        VersionAccumulationResult memory result
+    ) private pure returns (VersionAccumulationResponse memory response) {
+        response.marketFee = result.tradeFee
+            .add(result.tradeOffsetMarket)
+            .add(result.fundingFee)
+            .add(result.interestFee);
+        response.settlementFee = result.settlementFee;
+        response.marketExposure = result.adiabaticExposureMarket;
     }
 
     /// @notice Copies over the version-over-version accumulators to prepare the next version

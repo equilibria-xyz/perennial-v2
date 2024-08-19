@@ -768,11 +768,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.marketParameter,
             context.riskParameter
         );
-        VersionAccumulationResult memory accumulationResult;
-        (settlementContext.latestVersion, context.global, accumulationResult) =
+        VersionAccumulationResponse memory accumulationResponse;
+        (settlementContext.latestVersion, context.global, accumulationResponse) =
             VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
-        context.global.update(newOrderId, accumulationResult, context.marketParameter, oracleReceipt);
+        context.global.update(newOrderId, accumulationResponse, context.marketParameter, oracleReceipt);
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
@@ -809,8 +809,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGuarantee.invalidate();
         }
 
-        CheckpointAccumulationResult memory accumulationResult;
-        (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
+        CheckpointAccumulationResponse memory accumulationResponse;
+        (settlementContext.latestCheckpoint, accumulationResponse) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
             context.account,
             newOrderId,
@@ -821,14 +821,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             versionTo
         );
 
-        context.local.update(newOrderId, accumulationResult);
+        context.local.update(newOrderId, accumulationResponse);
         context.latestPositionLocal.update(newOrder);
 
         _checkpoints[context.account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
-        _credit(context, liquidators[context.account][newOrderId], accumulationResult.liquidationFee);
-        _credit(context, orderReferrers[context.account][newOrderId], accumulationResult.subtractiveFee);
-        _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResult.solverFee);
+        _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
+        _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
+        _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
     }
 
     /// @notice Credits an account's claimable

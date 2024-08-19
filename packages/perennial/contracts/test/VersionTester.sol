@@ -17,10 +17,10 @@ contract VersionTester {
 
     function accumulate(
         VersionAccumulationContext memory context
-    ) external returns (Global memory nextGlobal, VersionAccumulationResult memory values) {
+    ) external returns (Global memory nextGlobal, VersionAccumulationResponse memory response) {
         Version memory newVersion = version.read();
 
-        (newVersion, nextGlobal, values) = VersionLib.accumulate(newVersion, context);
+        (newVersion, nextGlobal, response) = VersionLib.accumulate(newVersion, context);
 
         version.store(newVersion);
     }

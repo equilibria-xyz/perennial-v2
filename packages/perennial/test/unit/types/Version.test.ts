@@ -4,6 +4,7 @@ import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import {
+  IMarket__factory,
   VersionLib,
   VersionLib__factory,
   VersionStorageLib,
@@ -122,6 +123,7 @@ describe('Version', () => {
     marketParameter: MarketParameterStruct,
     riskParameter: RiskParameterStruct,
   ) => {
+    const marketInterface = new ethers.utils.Interface(IMarket__factory.abi)
     const accumulationResult = await version.callStatic.accumulate({
       global,
       fromPosition,
@@ -134,7 +136,7 @@ describe('Version', () => {
       marketParameter,
       riskParameter,
     })
-    await version.accumulate({
+    const tx = await version.accumulate({
       global,
       fromPosition,
       orderId,
@@ -146,9 +148,14 @@ describe('Version', () => {
       marketParameter,
       riskParameter,
     })
-
+    const result = await tx.wait()
     const value = await version.read()
-    return { ret: accumulationResult[1], value, nextGlobal: accumulationResult[0] }
+    return {
+      ret: marketInterface.parseLog(result.events![0]).args.accumulationResult,
+      value,
+      nextGlobal: accumulationResult[0],
+      rsp: accumulationResult[1],
+    }
   }
 
   beforeEach(async () => {
