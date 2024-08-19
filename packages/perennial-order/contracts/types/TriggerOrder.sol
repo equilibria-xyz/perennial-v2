@@ -114,11 +114,11 @@ struct StoredTriggerOrder {
     /* slot 2 */
     address interfaceFeeReceiver;
     uint64 interfaceFeeAmount;    // < 18.45t
+    bool interfaceFeeFlat;
     bool interfaceFeeUnwrap;
-    // 3 bytes left over (no need to pad trailing bytes)
-
+    // 2 bytes left over (no need to pad trailing bytes)
 }
-struct TriggerOrderStorage { StoredTriggerOrder value; /*uint256 slot0;*/ }
+struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
 
 /// @dev Manually encodes and decodes the TriggerOrder struct to/from storage,
@@ -128,7 +128,7 @@ library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
         "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,InterfaceFee interfaceFee)"
-        "InterfaceFee(uint64 amount,address receiver,bool unwrap)"
+        "InterfaceFee(uint64 amount,address receiver,bool flatFee,bool unwrap)"
     );
 
     // sig: 0xf3469aa7
@@ -149,6 +149,7 @@ library TriggerOrderStorageLib {
             InterfaceFee(
                 UFixed6.wrap(uint256(storedValue.interfaceFeeAmount)),
                 storedValue.interfaceFeeReceiver,
+                storedValue.interfaceFeeFlat,
                 storedValue.interfaceFeeUnwrap
             )
         );
@@ -176,6 +177,7 @@ library TriggerOrderStorageLib {
             0,
             newValue.interfaceFee.receiver,
             uint64(UFixed6.unwrap(newValue.interfaceFee.amount)),
+            newValue.interfaceFee.flatFee,
             newValue.interfaceFee.unwrap
         );
     }

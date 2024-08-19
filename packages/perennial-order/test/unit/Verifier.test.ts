@@ -26,7 +26,6 @@ describe('Verifier', () => {
   let userA: SignerWithAddress
   let userB: SignerWithAddress
   let userC: SignerWithAddress
-  let managerSigner: SignerWithAddress
   let orderVerifierSigner: SignerWithAddress
   let lastNonce = 0
   let lastOrderId = 30
@@ -70,8 +69,9 @@ describe('Verifier', () => {
         maxFee: parse6decimal('0.67'),
         referrer: userB.address,
         interfaceFee: {
-          amount: parse6decimal('0.35'),
+          amount: parse6decimal('0.0053'),
           receiver: userC.address,
+          flatFee: false,
           unwrap: true,
         },
       },
@@ -106,7 +106,6 @@ describe('Verifier', () => {
     manager = await smock.fake<IManager>('IManager')
 
     orderVerifierSigner = await impersonate.impersonateWithBalance(orderVerifier.address, utils.parseEther('10'))
-    managerSigner = await impersonate.impersonateWithBalance(manager.address, utils.parseEther('10'))
     market = await smock.fake<IMarket>('IMarket')
   }
 

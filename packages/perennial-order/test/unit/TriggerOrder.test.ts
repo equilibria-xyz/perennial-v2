@@ -93,7 +93,7 @@ describe('TriggerOrder', () => {
       compareOrders(readOrder, ORDER_LONG)
     })
 
-    it('stores and loads an order with fees', async () => {
+    it('stores and loads an order with flat fee', async () => {
       const [userA, userB] = await ethers.getSigners()
       const writeOrder = {
         ...ORDER_LONG,
@@ -101,6 +101,25 @@ describe('TriggerOrder', () => {
         interfaceFee: {
           amount: parse6decimal('0.44'),
           receiver: userB.address,
+          flatFee: true,
+          unwrap: false,
+        },
+      }
+      await expect(orderTester.connect(owner).store(writeOrder)).to.not.be.reverted
+
+      const readOrder = await orderTester.read()
+      compareOrders(readOrder, writeOrder)
+    })
+
+    it('stores and loads an order with unwrap', async () => {
+      const [userA, userB] = await ethers.getSigners()
+      const writeOrder = {
+        ...ORDER_LONG,
+        referrer: userB.address,
+        interfaceFee: {
+          amount: parse6decimal('0.005555'),
+          receiver: userA.address,
+          flatFee: false,
           unwrap: true,
         },
       }

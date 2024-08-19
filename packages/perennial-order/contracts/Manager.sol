@@ -185,6 +185,15 @@ abstract contract Manager is IManager, Kept {
     /// @dev Transfers DSU from market to manager to pay interface fee
     function _chargeInterfaceFee(IMarket market, address user, InterfaceFee memory fee) internal returns (bool) {
         if (fee.amount.isZero()) return false;
+
+        // determine amount of fee to charge
+        UFixed6 feeAmount;
+        if (fee.flatFee) {
+            feeAmount = fee.amount;
+        } else {
+            // TODO: calculate notional and multiply fee by it
+        }
+
         _marketWithdraw(market, user, fee.amount);
 
         if (fee.unwrap) _unwrap(fee.receiver, UFixed18Lib.from(fee.amount));
