@@ -4,6 +4,7 @@ import {
   Market,
   MultiInvoker,
   IEmptySetReserve__factory,
+  IBatcher,
   IBatcher__factory,
   IOracleProvider,
   IEmptySetReserve,
@@ -27,6 +28,7 @@ import {
 
 import {
   buildApproveTarget,
+  buildClaimFee,
   buildPlaceOrder,
   buildUpdateIntent,
   buildUpdateMarket,
@@ -38,8 +40,10 @@ import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
-import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { IERC20Metadata } from '@equilibria/perennial-v2/types/generated'
 
 use(smock.matchers)
 
@@ -723,7 +727,7 @@ describe('Invoke', () => {
         })
 
         it('fills an intent update', async () => {
-          const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier } = instanceVars
+          const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier, chainlink } = instanceVars
 
           await marketFactory.updateParameter({
             ...(await marketFactory.parameter()),
@@ -792,21 +796,92 @@ describe('Invoke', () => {
               intent,
             }),
           )
+          const intentTimestamp = await chainlink.oracle.current()
 
           expectOrderEq(await market.pendingOrders(user.address, 1), {
             ...DEFAULT_ORDER,
-            timestamp: 1631112904,
+            timestamp: intentTimestamp,
             orders: 1,
             shortPos: parse6decimal('1'),
             collateral: ethers.utils.parseUnits('1000', 6),
           })
           expectOrderEq(await market.pendingOrders(userB.address, 1), {
             ...DEFAULT_ORDER,
-            timestamp: 1631112904,
+            timestamp: intentTimestamp,
             orders: 1,
             longPos: parse6decimal('1'),
             collateral: ethers.utils.parseUnits('1000', 6),
             takerReferral: parse6decimal('0.05'),
+          })
+        })
+
+        describe('#market with claimable fee', async () => {
+          let user: SignerWithAddress
+          let userB: SignerWithAddress
+          let batcher: IBatcher
+          let dsu: IERC20Metadata
+          let usdc: IERC20Metadata
+
+          beforeEach(async () => {
+            user = instanceVars.user
+            userB = instanceVars.userB
+            dsu = instanceVars.dsu
+            usdc = instanceVars.usdc
+            const { marketFactory, owner, chainlink } = instanceVars
+            batcher = IBatcher__factory.connect(BATCHER, owner)
+            await dsu.connect(user).approve(market.address, parse6decimal('600').mul(1e12))
+            await dsu.connect(userB).approve(market.address, parse6decimal('600').mul(1e12))
+            // set up the market to pay out a maker referral fee
+            const protocolParameters = await marketFactory.parameter()
+            await marketFactory.connect(owner).updateParameter({
+              ...protocolParameters,
+              referralFee: parse6decimal('0.15'),
+            })
+            const marketParams = await market.parameter()
+            await market.connect(owner).updateParameter({
+              ...marketParams,
+              makerFee: parse6decimal('0.05'),
+            })
+
+            // userB creates a maker position, referred by user
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                userB.address,
+                parse6decimal('3'),
+                0,
+                0,
+                parse6decimal('600'),
+                false,
+                user.address,
+              )
+            await chainlink.next()
+            await market.connect(user).settle(user.address)
+            await market.connect(userB).settle(userB.address)
+          })
+
+          it('claims fee from a market', async () => {
+            const expectedFee = (await market.locals(user.address)).claimable
+
+            // user invokes to claim their fee
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: true })))
+              .to.emit(market, 'FeeClaimed')
+              .withArgs(user.address, multiInvoker.address, expectedFee)
+              .to.emit(batcher, 'Unwrap')
+              .withArgs(user.address, expectedFee.mul(1e12))
+              .to.emit(usdc, 'Transfer')
+              .withArgs(batcher.address, user.address, expectedFee)
+          })
+
+          it('claims fee from a market without unwrapping', async () => {
+            const expectedFee = (await market.locals(user.address)).claimable
+
+            // user invokes to claim their fee
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: false })))
+              .to.emit(market, 'FeeClaimed')
+              .withArgs(user.address, multiInvoker.address, expectedFee)
+              .to.emit(dsu, 'Transfer')
+              .withArgs(multiInvoker.address, user.address, expectedFee.mul(1e12))
           })
         })
 

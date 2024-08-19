@@ -53,6 +53,7 @@ describe('Vault', () => {
   let btcUser2: SignerWithAddress
   let perennialUser: SignerWithAddress
   let liquidator: SignerWithAddress
+  let other: SignerWithAddress
   let leverage: BigNumber
   let maxCollateral: BigNumber
   let originalOraclePrice: BigNumber
@@ -159,7 +160,7 @@ describe('Vault', () => {
     const instanceVars = await deployProtocol()
 
     let pauser
-    ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
+    ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser, other] = await ethers.getSigners()
     factory = instanceVars.marketFactory
     oracleFactory = instanceVars.oracleFactory
     marketFactory = instanceVars.marketFactory
@@ -311,14 +312,19 @@ describe('Vault', () => {
       fundWallet(asset, perennialUser),
       fundWallet(asset, perennialUser),
       fundWallet(asset, perennialUser),
+      fundWallet(asset, other),
       asset.connect(user).approve(vault.address, ethers.constants.MaxUint256),
       asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256),
       asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256),
       asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256),
+      asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256),
+      asset.connect(other).approve(vault.address, ethers.constants.MaxUint256),
       asset.connect(user).approve(market.address, ethers.constants.MaxUint256),
       asset.connect(user2).approve(market.address, ethers.constants.MaxUint256),
       asset.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256),
       asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256),
+      asset.connect(other).approve(market.address, ethers.constants.MaxUint256),
+      asset.connect(other).approve(btcMarket.address, ethers.constants.MaxUint256),
     ])
 
     // Seed markets with some activity
@@ -1986,16 +1992,15 @@ describe('Vault', () => {
           // We should now be able to deposit.
           await updateOracle()
           await btcMarket.settle(vault.address)
-          await btcMarket.connect(user).claimFee(user.address) // claim liquidation fee to pay for deposit
-          await vault.connect(user).update(user.address, 2, 0, 0)
+          await vault.connect(other).update(other.address, 2, 0, 0)
 
           await updateOracle()
-          await vault.connect(user).update(user.address, 0, 2, 0) // rebalance
+          await vault.connect(other).update(other.address, 0, 2, 0) // rebalance
 
-          const finalPosition = BigNumber.from('109391425')
-          const finalCollateral = BigNumber.from('72971383779')
-          const btcFinalPosition = BigNumber.from('1105389')
-          const btcFinalCollateral = BigNumber.from('16604003402')
+          const finalPosition = BigNumber.from('109403638')
+          const finalCollateral = BigNumber.from('72979255799')
+          const btcFinalPosition = BigNumber.from('1105581')
+          const btcFinalCollateral = BigNumber.from('16606131382')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -2023,16 +2028,15 @@ describe('Vault', () => {
           // We should now be able to deposit.
           await updateOracle()
           await btcMarket.settle(vault.address)
-          await btcMarket.connect(user).claimFee(user.address) // claim liquidation fee to pay for deposit
-          await vault.connect(user).update(user.address, 2, 0, 0)
+          await vault.connect(other).update(other.address, 2, 0, 0)
 
           await updateOracle()
-          await vault.connect(user).update(user.address, 0, 2, 0) // rebalance
+          await vault.connect(other).update(other.address, 0, 2, 0) // rebalance
 
-          const finalPosition = BigNumber.from('75181798')
-          const finalCollateral = BigNumber.from('50920597789')
-          const btcFinalPosition = BigNumber.from('354728')
-          const btcFinalCollateral = BigNumber.from('10643119497')
+          const finalPosition = BigNumber.from('75194011')
+          const finalCollateral = BigNumber.from('50928469809')
+          const btcFinalPosition = BigNumber.from('354848')
+          const btcFinalCollateral = BigNumber.from('10645247477')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -2099,16 +2103,15 @@ describe('Vault', () => {
           // We should now be able to deposit.
           await updateOracle()
           await btcMarket.settle(vault.address)
-          await btcMarket.connect(user).claimFee(user.address) // claim liquidation fee to pay for deposit
-          await vault.connect(user).update(user.address, 2, 0, 0)
+          await vault.connect(other).update(other.address, 2, 0, 0)
 
           await updateOracle()
-          await vault.connect(user).update(user.address, 0, 2, 0) // rebalance
+          await vault.connect(other).update(other.address, 0, 2, 0) // rebalance
 
-          const finalPosition = BigNumber.from('100636568')
-          const finalCollateral = BigNumber.from('67328192557')
-          const btcFinalPosition = BigNumber.from('2419375')
-          const btcFinalCollateral = BigNumber.from('15078505687')
+          const finalPosition = BigNumber.from('100648781')
+          const finalCollateral = BigNumber.from('67336064576')
+          const btcFinalPosition = BigNumber.from('2419855')
+          const btcFinalCollateral = BigNumber.from('15080633668')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -2136,16 +2139,15 @@ describe('Vault', () => {
           // We should now be able to deposit.
           await updateOracle()
           await btcMarket.settle(vault.address)
-          await btcMarket.connect(user).claimFee(user.address) // claim liquidation fee to pay for deposit
-          await vault.connect(user).update(user.address, 2, 0, 0)
+          await vault.connect(other).update(other.address, 2, 0, 0)
 
           await updateOracle()
-          await vault.connect(user).update(user.address, 0, 2, 0) // rebalance
+          await vault.connect(other).update(other.address, 0, 2, 0) // rebalance
 
-          const finalPosition = BigNumber.from('99496198')
-          const finalCollateral = BigNumber.from('66593134539')
-          const btcFinalPosition = BigNumber.from('2499531')
-          const btcFinalCollateral = BigNumber.from('14879801085')
+          const finalPosition = BigNumber.from('99508411')
+          const finalCollateral = BigNumber.from('66601006958')
+          const btcFinalPosition = BigNumber.from('2500036')
+          const btcFinalCollateral = BigNumber.from('14881928666')
           expect(await position()).to.equal(finalPosition)
           expect(await collateralInVault()).to.equal(finalCollateral)
           expect(await btcPosition()).to.equal(btcFinalPosition)
@@ -2185,9 +2187,9 @@ describe('Vault', () => {
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
-        const finalCollateral = BigNumber.from('15743024242')
+        const finalCollateral = BigNumber.from('15751024242')
         const btcFinalPosition = BigNumber.from('0')
-        const btcFinalCollateral = BigNumber.from('3935756060')
+        const btcFinalCollateral = BigNumber.from('3937756060')
         const finalUnclaimed = BigNumber.from('80001128624')
         const vaultFinalCollateral = await asset.balanceOf(vault.address)
         expect(await position()).to.equal(finalPosition)
@@ -2239,7 +2241,7 @@ describe('Vault', () => {
 
         // 5. Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
         const finalPosition = BigNumber.from('0')
-        const finalCollateral = BigNumber.from('-109153672868')
+        const finalCollateral = BigNumber.from('-109143672868')
         const btcFinalPosition = BigNumber.from('411963') // small position because vault is net negative and won't rebalance
         const btcFinalCollateral = BigNumber.from('20000833313')
         const finalUnclaimed = BigNumber.from('80001128624')

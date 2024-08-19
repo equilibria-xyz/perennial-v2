@@ -36,6 +36,7 @@ import {
   VersionStorageLib__factory,
   GasOracle,
   GasOracle__factory,
+  MagicValueLib__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -288,6 +289,9 @@ testOracles.forEach(testOracle => {
           ).address,
           '@equilibria/perennial-v2/contracts/types/Version.sol:VersionStorageLib': (
             await new VersionStorageLib__factory(owner).deploy()
+          ).address,
+          '@equilibria/perennial-v2/contracts/libs/MagicValueLib.sol:MagicValueLib': (
+            await new MagicValueLib__factory(owner).deploy()
           ).address,
         },
         owner,

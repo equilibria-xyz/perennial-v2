@@ -25,6 +25,7 @@ import {
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
   VersionLib__factory,
+  MagicValueLib__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -122,6 +123,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
     },
     owner,
   ).deploy(verifierProxy.address)

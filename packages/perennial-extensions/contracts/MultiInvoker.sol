@@ -188,6 +188,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address target) = abi.decode(invocation.args, (address));
 
                 _approve(target);
+            } else if (invocation.action == PerennialAction.CLAIM_FEE) {
+                (IMarket market, bool unwrap) = abi.decode(invocation.args, (IMarket, bool));
+
+                _claimFee(account, market, unwrap);
             }
         }
         // ETH must not remain in this contract at rest
@@ -309,6 +313,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit InterfaceFeeCharged(account, market, interfaceFee);
     }
 
+    /// @notice Claims market fees, unwraps DSU, and pushes USDC to fee earner
+    /// @param market Market from which fees should be claimed
+    /// @param account Address of the user who earned fees
+    /// @param unwrap Set true to unwrap DSU to USDC when withdrawing
+    function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
+        UFixed6 claimAmount = market.claimFee(account);
+        _withdraw(account, claimAmount, unwrap);
+    }
+
     /// @notice Pull DSU or wrap and deposit USDC from `account` to this address for market usage
     /// @param account Account to pull DSU or USDC from
     /// @param amount Amount to transfer
@@ -325,9 +338,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Push DSU or unwrap DSU to push USDC from this address to `account`
     /// @param account Account to push DSU or USDC to
     /// @param amount Amount to transfer
-    /// @param wrap flag to unwrap DSU to USDC
-    function _withdraw(address account, UFixed6 amount, bool wrap) internal {
-        if (wrap) {
+    /// @param unwrap flag to unwrap DSU to USDC
+    function _withdraw(address account, UFixed6 amount, bool unwrap) internal {
+        if (unwrap) {
             _unwrap(account, UFixed18Lib.from(amount));
         } else {
             DSU.push(account, UFixed18Lib.from(amount));

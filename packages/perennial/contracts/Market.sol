@@ -7,15 +7,12 @@ import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
 import "./libs/InvariantLib.sol";
+import "./libs/MagicValueLib.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
 contract Market is IMarket, Instance, ReentrancyGuard {
-    Fixed6 private constant MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL = Fixed6.wrap(type(int256).min);
-    UFixed6 private constant MAGIC_VALUE_UNCHANGED_POSITION = UFixed6.wrap(type(uint256).max);
-    UFixed6 private constant MAGIC_VALUE_FULLY_CLOSED_POSITION = UFixed6.wrap(type(uint256).max - 1);
-
     IVerifier public immutable verifier;
 
     /// @dev The underlying token that the market settles in
@@ -156,59 +153,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ); // signer
     }
 
-    /// @notice Updates the account's position for an intent order
-    /// @param account The account to operate on
-    /// @param signer The signer of the order
-    /// @param amount The size and direction of the order being opened
-    /// @param price The price to execute the order at
-    /// @param orderReferrer The referrer of the order
-    /// @param guaranteeReferrer The referrer of the guarantee
-    /// @param guaranteeReferralFee The referral fee for the guarantee
-    /// @param collateralization The minimum collateralization ratio that must be maintained after the order is executed
-    /// @param chargeSettlementFee Whether to charge the settlement fee
-    /// @param chargeTradeFee Whether to charge the trade fee
-    function _updateIntent(
-        address account,
-        address signer,
-        Fixed6 amount,
-        Fixed6 price,
-        address orderReferrer,
-        address guaranteeReferrer,
-        UFixed6 guaranteeReferralFee,
-        UFixed6 collateralization,
-        bool chargeSettlementFee,
-        bool chargeTradeFee
-    ) private {
-        // settle market & account
-        Context memory context = _loadContext(account);
-        _settle(context);
-
-        // load update context
-        UpdateContext memory updateContext =
-            _loadUpdateContext(context, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee, collateralization);
-
-        // create new order & guarantee
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            amount,
-            updateContext.orderReferralFee
-        );
-        Guarantee memory newGuarantee = GuaranteeLib.from(
-            newOrder,
-            price,
-            updateContext.guaranteeReferralFee,
-            chargeSettlementFee,
-            chargeTradeFee
-        );
-
-        // process update
-        _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
-
-        // store updated state
-        _storeContext(context);
-    }
-
     /// @notice Updates the account's position and collateral
     /// @param account The account to operate on
     /// @param newMaker The new maker position for the account
@@ -244,19 +188,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bool protect,
         address referrer
     ) public nonReentrant whenNotPaused {
-        // settle market & account
-        Context memory context = _loadContext(account);
-        _settle(context);
-
-        // load update context
-        UpdateContext memory updateContext =
-            _loadUpdateContext(context, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        (Context memory context, UpdateContext memory updateContext) =
+            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
         // magic values
-        collateral = _processCollateralMagicValue(context, collateral);
-        newMaker = _processPositionMagicValue(context, updateContext.currentPositionLocal.maker, newMaker);
-        newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
-        newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
+        (collateral, newMaker, newLong, newShort) =
+            MagicValueLib.process(context, updateContext, collateral, newMaker, newLong, newShort);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
@@ -272,10 +209,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Guarantee memory newGuarantee; // no guarantee is created for a market order
 
         // process update
-        _update(context, updateContext, newOrder, newGuarantee, referrer, address(0));
-
-        // store updated state
-        _storeContext(context);
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
     }
 
     /// @notice Updates the beneficiary of the market
@@ -551,6 +485,96 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         guaranteeReferrers[context.account][context.local.currentId] = updateContext.guaranteeReferrer;
     }
 
+    /// @notice Loads the both context and update context, and settles the account
+    /// @param account The account to load the context for
+    /// @param signer The signer of the update order, if one exists
+    /// @param orderReferrer The order referrer, if one exists
+    /// @param guaranteeReferrer The guarantee referrer, if one exists
+    /// @param guaranteeReferralFee The guarantee referral fee, if one exists
+    /// @param collateralization The collateralization override for the order, if one exists
+    function _loadForUpdate(
+        address account,
+        address signer,
+        address orderReferrer,
+        address guaranteeReferrer,
+        UFixed6 guaranteeReferralFee,
+        UFixed6 collateralization
+    ) private returns (Context memory context, UpdateContext memory updateContext) {
+        // settle market & account
+        context = _loadContext(account);
+        _settle(context);
+
+        // load update context
+        updateContext =
+            _loadUpdateContext(context, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee, collateralization);
+    }
+
+    /// @notice Updates the account's position and collateral, and stores the resulting context in state
+    /// @param context The context to use
+    /// @param updateContext The update context to use
+    /// @param newOrder The new order to apply
+    /// @param newGuarantee The new guarantee to apply
+    /// @param orderReferrer The referrer of the order
+    /// @param guaranteeReferrer The referrer of the guarantee
+    function _updateAndStore(
+        Context memory context,
+        UpdateContext memory updateContext,
+        Order memory newOrder,
+        Guarantee memory newGuarantee,
+        address orderReferrer,
+        address guaranteeReferrer
+    ) private {
+        // process update
+        _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
+
+        // store updated state
+        _storeContext(context);
+    }
+
+    /// @notice Updates the account's position for an intent order
+    /// @param account The account to operate on
+    /// @param signer The signer of the order
+    /// @param amount The size and direction of the order being opened
+    /// @param price The price to execute the order at
+    /// @param orderReferrer The referrer of the order
+    /// @param guaranteeReferrer The referrer of the guarantee
+    /// @param guaranteeReferralFee The referral fee for the guarantee
+    /// @param collateralization The minimum collateralization ratio that must be maintained after the order is executed
+    /// @param chargeSettlementFee Whether to charge the settlement fee
+    /// @param chargeTradeFee Whether to charge the trade fee
+    function _updateIntent(
+        address account,
+        address signer,
+        Fixed6 amount,
+        Fixed6 price,
+        address orderReferrer,
+        address guaranteeReferrer,
+        UFixed6 guaranteeReferralFee,
+        UFixed6 collateralization,
+        bool chargeSettlementFee,
+        bool chargeTradeFee
+    ) private {
+        (Context memory context, UpdateContext memory updateContext) =
+            _loadForUpdate(account, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee, collateralization);
+
+        // create new order & guarantee
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            amount,
+            updateContext.orderReferralFee
+        );
+        Guarantee memory newGuarantee = GuaranteeLib.from(
+            newOrder,
+            price,
+            updateContext.guaranteeReferralFee,
+            chargeSettlementFee,
+            chargeTradeFee
+        );
+
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
+    }
+
     /// @notice Updates the current position with a new order
     /// @param context The context to use
     /// @param updateContext The update context to use
@@ -695,35 +719,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 context.latestOracleVersion.timestamp,
                 _pendingOrders[context.account][context.local.latestId].read()
             );
-    }
-
-    /// @notice Modifies the collateral input per magic values
-    /// @param context The context to use
-    /// @param collateral The collateral to process
-    /// @return The resulting collateral value
-    function _processCollateralMagicValue(Context memory context, Fixed6 collateral) private pure returns (Fixed6) {
-        return collateral.eq(MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL) ?
-            context.local.collateral.mul(Fixed6Lib.NEG_ONE) :
-            collateral;
-    }
-
-    /// @notice Modifies the position input per magic values
-    /// @param context The context to use
-    /// @param currentPosition The current position prior to update
-    /// @param newPosition The position to process
-    /// @return The resulting position value
-    function _processPositionMagicValue(
-        Context memory context,
-        UFixed6 currentPosition,
-        UFixed6 newPosition
-    ) private pure returns (UFixed6) {
-        if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION))
-            return currentPosition;
-        if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
-            if (currentPosition.isZero()) return currentPosition;
-            return currentPosition.sub(context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg()));
-        }
-        return newPosition;
     }
 
     /// @notice Processes the given global pending position into the latest position
