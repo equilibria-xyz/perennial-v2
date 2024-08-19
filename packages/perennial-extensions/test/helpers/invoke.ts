@@ -276,6 +276,15 @@ export const buildExecOrder = ({
   ]
 }
 
+export const buildClaimFee = ({ market, unwrap }: { market: string; unwrap: boolean }): Actions => {
+  return [
+    {
+      action: 10,
+      args: utils.defaultAbiCoder.encode(['address', 'bool'], [market, unwrap]),
+    },
+  ]
+}
+
 module.exports = {
   MAX_INT,
   MAX_UINT,
@@ -291,4 +300,5 @@ module.exports = {
   buildLiquidateUser,
   buildUpdateVault,
   buildApproveTarget,
+  buildClaimFee,
 }

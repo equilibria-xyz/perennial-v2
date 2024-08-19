@@ -11,13 +11,10 @@ import {
 } from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
 import { OracleReceipt, parse6decimal, DEFAULT_GLOBAL } from '../../../../common/testutil/types'
-import {
-  GlobalStruct,
-  MarketParameterStruct,
-  VersionAccumulationResultStruct,
-} from '../../../types/generated/contracts/Market'
+import { GlobalStruct, MarketParameterStruct } from '../../../types/generated/contracts/Market'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
 import { OracleReceiptStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
+import { VersionAccumulationResponseStruct } from '../../../types/generated/contracts/test/GlobalTester'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -26,33 +23,11 @@ function generateAccumulationResult(
   marketFee: BigNumberish,
   settlementFee: BigNumberish,
   marketExposure: BigNumberish,
-): VersionAccumulationResultStruct {
-  const interestFee = BigNumber.from(marketFee).div(10)
-  const fundingFee = BigNumber.from(marketFee).div(5)
-  const tradeFee = BigNumber.from(marketFee).sub(interestFee).sub(fundingFee)
-
+): VersionAccumulationResponseStruct {
   return {
-    tradeFee: tradeFee,
-    tradeOffset: 0,
-    tradeOffsetMaker: 0,
-    tradeOffsetMarket: 0,
-    subtractiveFee: 0,
-    adiabaticExposure: 0,
-    adiabaticExposureMaker: 0,
-    adiabaticExposureMarket: marketExposure,
-    fundingMaker: 0,
-    fundingLong: 0,
-    fundingShort: 0,
-    fundingFee,
-    interestMaker: 0,
-    interestLong: 0,
-    interestShort: 0,
-    interestFee,
-    pnlMaker: 0,
-    pnlLong: 0,
-    pnlShort: 0,
+    marketFee,
     settlementFee,
-    liquidationFee: 0,
+    marketExposure,
   }
 }
 

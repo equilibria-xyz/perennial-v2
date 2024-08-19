@@ -23,9 +23,9 @@ contract CheckpointTester {
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) external returns (CheckpointAccumulationResult memory result) {
+    ) external returns (CheckpointAccumulationResponse memory response) {
         Checkpoint memory newCheckpoint = checkpoint.read();
-        (newCheckpoint, result) = CheckpointLib.accumulate(newCheckpoint, account, orderId, order, guarantee, fromPosition, fromVersion, toVersion);
+        (newCheckpoint, response) = CheckpointLib.accumulate(newCheckpoint, account, orderId, order, guarantee, fromPosition, fromVersion, toVersion);
         checkpoint.store(newCheckpoint);
     }
 }

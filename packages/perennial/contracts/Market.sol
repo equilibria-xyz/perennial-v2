@@ -7,15 +7,12 @@ import "@equilibria/root/attribute/ReentrancyGuard.sol";
 import "./interfaces/IMarket.sol";
 import "./interfaces/IMarketFactory.sol";
 import "./libs/InvariantLib.sol";
+import "./libs/MagicValueLib.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
 contract Market is IMarket, Instance, ReentrancyGuard {
-    Fixed6 private constant MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL = Fixed6.wrap(type(int256).min);
-    UFixed6 private constant MAGIC_VALUE_UNCHANGED_POSITION = UFixed6.wrap(type(uint256).max);
-    UFixed6 private constant MAGIC_VALUE_FULLY_CLOSED_POSITION = UFixed6.wrap(type(uint256).max - 1);
-
     IVerifier public immutable verifier;
 
     /// @dev The underlying token that the market settles in
@@ -223,10 +220,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
         // magic values
-        collateral = _processCollateralMagicValue(context, collateral);
-        newMaker = _processPositionMagicValue(context, updateContext.currentPositionLocal.maker, newMaker);
-        newLong = _processPositionMagicValue(context, updateContext.currentPositionLocal.long, newLong);
-        newShort = _processPositionMagicValue(context, updateContext.currentPositionLocal.short, newShort);
+        (collateral, newMaker, newLong, newShort) =
+            MagicValueLib.process(context, updateContext, collateral, newMaker, newLong, newShort);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
@@ -755,35 +750,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             );
     }
 
-    /// @notice Modifies the collateral input per magic values
-    /// @param context The context to use
-    /// @param collateral The collateral to process
-    /// @return The resulting collateral value
-    function _processCollateralMagicValue(Context memory context, Fixed6 collateral) private pure returns (Fixed6) {
-        return collateral.eq(MAGIC_VALUE_WITHDRAW_ALL_COLLATERAL) ?
-            context.local.collateral.mul(Fixed6Lib.NEG_ONE) :
-            collateral;
-    }
-
-    /// @notice Modifies the position input per magic values
-    /// @param context The context to use
-    /// @param currentPosition The current position prior to update
-    /// @param newPosition The position to process
-    /// @return The resulting position value
-    function _processPositionMagicValue(
-        Context memory context,
-        UFixed6 currentPosition,
-        UFixed6 newPosition
-    ) private pure returns (UFixed6) {
-        if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION))
-            return currentPosition;
-        if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
-            if (currentPosition.isZero()) return currentPosition;
-            return currentPosition.sub(context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg()));
-        }
-        return newPosition;
-    }
-
     /// @notice Processes the given global pending position into the latest position
     /// @param context The context to use
     /// @param newOrderId The id of the pending position to process
@@ -826,11 +792,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.marketParameter,
             context.riskParameter
         );
-        VersionAccumulationResult memory accumulationResult;
-        (settlementContext.latestVersion, context.global, accumulationResult) =
+        VersionAccumulationResponse memory accumulationResponse;
+        (settlementContext.latestVersion, context.global, accumulationResponse) =
             VersionLib.accumulate(settlementContext.latestVersion, accumulationContext);
 
-        context.global.update(newOrderId, accumulationResult, context.marketParameter, oracleReceipt);
+        context.global.update(newOrderId, accumulationResponse, context.marketParameter, oracleReceipt);
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
@@ -867,8 +833,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGuarantee.invalidate();
         }
 
-        CheckpointAccumulationResult memory accumulationResult;
-        (settlementContext.latestCheckpoint, accumulationResult) = CheckpointLib.accumulate(
+        CheckpointAccumulationResponse memory accumulationResponse;
+        (settlementContext.latestCheckpoint, accumulationResponse) = CheckpointLib.accumulate(
             settlementContext.latestCheckpoint,
             context.account,
             newOrderId,
@@ -879,14 +845,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             versionTo
         );
 
-        context.local.update(newOrderId, accumulationResult);
+        context.local.update(newOrderId, accumulationResponse);
         context.latestPositionLocal.update(newOrder);
 
         _checkpoints[context.account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
 
-        _credit(context, liquidators[context.account][newOrderId], accumulationResult.liquidationFee);
-        _credit(context, orderReferrers[context.account][newOrderId], accumulationResult.subtractiveFee);
-        _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResult.solverFee);
+        _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
+        _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
+        _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
     }
 
     /// @notice Credits an account's claimable

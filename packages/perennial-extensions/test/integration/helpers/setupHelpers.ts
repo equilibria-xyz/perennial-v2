@@ -38,6 +38,7 @@ import {
   VersionStorageLib__factory,
   MarketFactory,
   MarketFactory__factory,
+  MagicValueLib__factory,
 } from '../../../types/generated'
 import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
 import { CheckpointLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
@@ -141,6 +142,9 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       ).address,
       '@equilibria/perennial-v2/contracts/libs/VersionLib.sol:VersionLib': (
         await new VersionLib__factory(owner).deploy()
+      ).address,
+      '@equilibria/perennial-v2/contracts/libs/MagicValueLib.sol:MagicValueLib': (
+        await new MagicValueLib__factory(owner).deploy()
       ).address,
       '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
         await new CheckpointStorageLib__factory(owner).deploy()

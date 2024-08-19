@@ -16,7 +16,7 @@ contract GlobalTester {
 
     function update(
         uint256 newLatestId,
-        VersionAccumulationResult memory accumulation,
+        VersionAccumulationResponse memory accumulation,
         MarketParameter memory marketParameter,
         OracleReceipt memory oracleReceipt
     ) external {

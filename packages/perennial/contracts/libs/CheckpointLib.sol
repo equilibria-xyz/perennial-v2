@@ -12,17 +12,32 @@ import "../types/Version.sol";
 import "../types/Checkpoint.sol";
 import "../types/Guarantee.sol";
 
+
+struct CheckpointAccumulationResponse {
+    /// @dev Total Collateral change due to collateral, price override, and trade fee and offset
+    Fixed6 collateral;
+
+    /// @dev Liquidation fee accumulated for this checkpoint (only if the order is protected)
+    UFixed6 liquidationFee;
+
+    /// @dev Subtractive fee accumulated from the previous position to the next position (this amount is included in the linear fee)
+    UFixed6 subtractiveFee;
+
+    /// @dev TODO
+    UFixed6 solverFee;
+}
+
 struct CheckpointAccumulationResult {
     /// @dev Total Collateral change due to pnl, funding, and interest from the previous position to the next position
     Fixed6 collateral;
 
-    /// @dev TODO
+    /// @dev Collateral change from the difference between the price override and underlying market price
     Fixed6 priceOverride;
 
-    /// @dev TODO
+    /// @dev Trade fee accumulated for this checkpoint
     UFixed6 tradeFee;
 
-    /// @dev TODO
+    /// @dev Trade price impact accumulated for this checkpoint
     Fixed6 offset;
 
     /// @dev Settlement fee charged for this checkpoint
@@ -49,7 +64,7 @@ library CheckpointLib {
     /// @param fromVersion The previous latest version
     /// @param toVersion The next latest version
     /// @return next The next checkpoint
-    /// @return result The accumulated pnl and fees
+    /// @return response The accumulated pnl and fees
     function accumulate(
         Checkpoint memory self,
         address account,
@@ -59,7 +74,9 @@ library CheckpointLib {
         Position memory fromPosition,
         Version memory fromVersion,
         Version memory toVersion
-    ) external returns (Checkpoint memory next, CheckpointAccumulationResult memory result) {
+    ) external returns (Checkpoint memory next, CheckpointAccumulationResponse memory) {
+        CheckpointAccumulationResult memory result;
+
         // accumulate
         result.collateral = _accumulateCollateral(fromPosition, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
@@ -81,6 +98,24 @@ library CheckpointLib {
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
 
         emit IMarket.AccountPositionProcessed(account, orderId, order, result);
+
+        return (next, _response(result));
+    }
+
+    /// @notice Converts the accumulation result into a response
+    /// @param result The accumulation result
+    /// @return response The accumulation response
+    function _response(
+        CheckpointAccumulationResult memory result
+    ) private pure returns (CheckpointAccumulationResponse memory response) {
+        response.collateral = result.collateral
+            .add(result.priceOverride)
+            .sub(Fixed6Lib.from(result.tradeFee))
+            .sub(result.offset)
+            .sub(Fixed6Lib.from(result.settlementFee));
+        response.liquidationFee = result.liquidationFee;
+        response.subtractiveFee = result.subtractiveFee;
+        response.solverFee = result.solverFee;
     }
 
     /// @notice Accumulate pnl, funding, and interest from the latest position to next position

@@ -36,6 +36,7 @@ import {
   TransparentUpgradeableProxy__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
+  MagicValueLib__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
 
@@ -221,6 +222,7 @@ export async function mockMarket(token: Address): Promise<IMarket> {
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
     },
     owner,
   ).deploy(verifier.address)
@@ -304,6 +306,7 @@ async function deployMarketImplementation(owner: SignerWithAddress, verifierAddr
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
     },
     owner,
   ).deploy(verifierAddress)
