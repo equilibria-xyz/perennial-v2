@@ -3,12 +3,24 @@ import { BigNumber, constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { expect } from 'chai'
+import { FakeContract, smock } from '@defi-wonderland/smock'
 
-import { TriggerOrderTester, TriggerOrderTester__factory, TriggerOrderStruct } from '../../types/generated'
-import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../helpers/order'
+import {
+  IMarket,
+  IOracleProvider,
+  TriggerOrderTester,
+  TriggerOrderTester__factory,
+  TriggerOrderStruct,
+} from '../../types/generated'
+import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, MAGIC_VALUE_CLOSE_POSITION, Side } from '../helpers/order'
 import { OracleVersionStruct } from '../../types/generated/contracts/test/TriggerOrderTester'
 
 const { ethers } = HRE
+
+const ORDER_MAKER: TriggerOrderStruct = {
+  ...DEFAULT_TRIGGER_ORDER,
+  delta: parse6decimal('10'),
+}
 
 // go long 300 if price drops below 1999.88
 const ORDER_LONG: TriggerOrderStruct = {
@@ -30,6 +42,10 @@ const ORDER_SHORT: TriggerOrderStruct = {
   maxFee: parse6decimal('0.66'),
 }
 
+function now(): BigNumber {
+  return BigNumber.from(Math.floor(Date.now() / 1000))
+}
+
 describe('TriggerOrder', () => {
   let owner: SignerWithAddress
   let orderTester: TriggerOrderTester
@@ -41,7 +57,7 @@ describe('TriggerOrder', () => {
 
   function createOracleVersion(price: BigNumber, valid = true): OracleVersionStruct {
     return {
-      timestamp: Math.floor(Date.now() / 1000),
+      timestamp: now(),
       price: price,
       valid: valid,
     }
@@ -82,6 +98,148 @@ describe('TriggerOrder', () => {
         maxFee: parse6decimal('0.55'),
       }
       expect(await orderTester.canExecute(zeroPriceOrder, createOracleVersion(parse6decimal('1')))).to.be.true
+    })
+  })
+
+  describe('#notional', () => {
+    let market: FakeContract<IMarket>
+    let marketOracle: FakeContract<IOracleProvider>
+    let user: SignerWithAddress
+    let recipient: SignerWithAddress
+
+    before(async () => {
+      ;[user, recipient] = await ethers.getSigners()
+      market = await smock.fake<IMarket>('IMarket')
+      marketOracle = await smock.fake<IOracleProvider>('IOracleProvider')
+      market.oracle.returns(marketOracle.address)
+    })
+
+    function mockPrice(price: BigNumber) {
+      marketOracle.latest.returns({
+        timestamp: Math.floor(Date.now() / 1000),
+        price: price,
+        valid: true,
+      })
+    }
+
+    function mockPosition(side: Side, current: BigNumber, pending: BigNumber) {
+      market.positions.returns({
+        timestamp: now().sub(33),
+        maker: side === Side.MAKER ? current : constants.Zero,
+        long: side === Side.LONG ? current : constants.Zero,
+        short: side === Side.SHORT ? current : constants.Zero,
+      })
+      market.pendings.returns({
+        timestamp: now(),
+        orders: constants.One,
+        collateral: constants.Zero,
+        makerPos: Side.MAKER && pending.gt(0) ? pending : constants.Zero,
+        makerNeg: Side.MAKER && pending.lt(0) ? pending.mul(-1) : constants.Zero,
+        longPos: Side.LONG && pending.gt(0) ? pending : constants.Zero,
+        longNeg: Side.LONG && pending.lt(0) ? pending.mul(-1) : constants.Zero,
+        shortPos: Side.SHORT && pending.gt(0) ? pending : constants.Zero,
+        shortNeg: Side.SHORT && pending.lt(0) ? pending.mul(-1) : constants.Zero,
+        protection: constants.Zero,
+        makerReferral: constants.Zero,
+        takerReferral: constants.Zero,
+      })
+    }
+
+    it('calculates notional for maker order', async () => {
+      mockPrice(parse6decimal('62.38'))
+      const expectedNotional = parse6decimal('623.8') // price * delta
+      expect(await orderTester.notionalValue(ORDER_MAKER, market.address, user.address)).to.equal(expectedNotional)
+    })
+
+    it('calculates notional for long order with small price', async () => {
+      mockPrice(parse6decimal('0.008052'))
+      const order = {
+        ...ORDER_LONG,
+        delta: parse6decimal('370001.000436'),
+      }
+      const expectedNotional = parse6decimal('2979.248055') // price * delta
+      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
+    })
+
+    it('calculates notional for short order with large price', async () => {
+      mockPrice(parse6decimal('987000.654321'))
+      const order = {
+        ...ORDER_SHORT,
+        delta: parse6decimal('0.003039'),
+      }
+      const expectedNotional = parse6decimal('2999.494988') // price * delta
+      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
+    })
+
+    it('calculates notional to close position with no pending position', async () => {
+      mockPrice(parse6decimal('2000'))
+      mockPosition(Side.MAKER, parse6decimal('12.2'), constants.Zero)
+      const order = {
+        ...ORDER_MAKER,
+        delta: MAGIC_VALUE_CLOSE_POSITION,
+        interfaceFee: {
+          amount: parse6decimal('0.0111'),
+          receiver: recipient.address,
+          flatFee: false,
+          unwrap: true,
+        },
+      }
+      const expectedNotional = parse6decimal('24400') // price * position
+      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
+    })
+
+    it('calculates notional to close position with pending position', async () => {
+      mockPrice(parse6decimal('2000'))
+      mockPosition(Side.LONG, parse6decimal('12.2'), parse6decimal('4.4'))
+      const order = {
+        ...ORDER_LONG,
+        delta: MAGIC_VALUE_CLOSE_POSITION,
+        interfaceFee: {
+          amount: parse6decimal('0.00222'),
+          receiver: recipient.address,
+          flatFee: false,
+          unwrap: false,
+        },
+      }
+      const expectedNotional = parse6decimal('33200') // price * (position + pending position)
+      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
+    })
+
+    it('calculates notional to close position with only pending position', async () => {
+      mockPrice(parse6decimal('2000'))
+      mockPosition(Side.SHORT, constants.Zero, parse6decimal('3.7'))
+      const order = {
+        ...ORDER_SHORT,
+        delta: MAGIC_VALUE_CLOSE_POSITION,
+        interfaceFee: {
+          amount: parse6decimal('0.004664'),
+          receiver: recipient.address,
+          flatFee: false,
+          unwrap: true,
+        },
+      }
+      const expectedNotional = parse6decimal('7400') // price * pending position
+      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
+    })
+
+    it('reverts calculating notional for an invalid side', async () => {
+      mockPrice(parse6decimal('1000'))
+      mockPosition(Side.MAKER, parse6decimal('3'), constants.Zero)
+      const order = {
+        ...DEFAULT_TRIGGER_ORDER,
+        side: 3,
+        delta: MAGIC_VALUE_CLOSE_POSITION,
+        interfaceFee: {
+          amount: parse6decimal('0.004747'),
+          receiver: recipient.address,
+          flatFee: false,
+          unwrap: false,
+        },
+      }
+      await expect(orderTester.notionalValue(order, market.address, user.address)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderInvalidError',
+      )
     })
   })
 

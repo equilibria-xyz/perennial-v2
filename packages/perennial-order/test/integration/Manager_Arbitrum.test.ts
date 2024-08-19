@@ -59,6 +59,7 @@ const NO_INTERFACE_FEE = {
   interfaceFee: {
     amount: constants.Zero,
     receiver: constants.AddressZero,
+    flatFee: false,
     unwrap: false,
   },
 }
@@ -535,6 +536,7 @@ describe('Manager_Arbitrum', () => {
         interfaceFee: {
           amount: feeAmount,
           receiver: userC.address,
+          flatFee: true,
           unwrap: false,
         },
       }
@@ -571,6 +573,7 @@ describe('Manager_Arbitrum', () => {
         interfaceFee: {
           amount: feeAmount,
           receiver: userC.address,
+          flatFee: true,
           unwrap: true,
         },
       }

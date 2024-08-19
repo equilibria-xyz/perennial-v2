@@ -127,7 +127,7 @@ abstract contract Manager is IManager, Kept {
 
         _compensateKeeper(market, user, order.maxFee);
         order.execute(market, user);
-        bool interfaceFeeCharged = _chargeInterfaceFee(market, user, order.interfaceFee);
+        bool interfaceFeeCharged = _chargeInterfaceFee(market, user, order);
 
         // invalidate the order nonce
         order.isSpent = true;
@@ -183,21 +183,18 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @dev Transfers DSU from market to manager to pay interface fee
-    function _chargeInterfaceFee(IMarket market, address user, InterfaceFee memory fee) internal returns (bool) {
-        if (fee.amount.isZero()) return false;
+    function _chargeInterfaceFee(IMarket market, address user, TriggerOrder memory order) internal returns (bool) {
+        if (order.interfaceFee.amount.isZero()) return false;
 
         // determine amount of fee to charge
-        UFixed6 feeAmount;
-        if (fee.flatFee) {
-            feeAmount = fee.amount;
-        } else {
-            // TODO: calculate notional and multiply fee by it
-        }
+        UFixed6 feeAmount = order.interfaceFee.flatFee ?
+            order.interfaceFee.amount :
+            order.notionalValue(market, user).mul(order.interfaceFee.amount);
 
-        _marketWithdraw(market, user, fee.amount);
+        _marketWithdraw(market, user, feeAmount);
 
-        if (fee.unwrap) _unwrap(fee.receiver, UFixed18Lib.from(fee.amount));
-        else DSU.push(fee.receiver, UFixed18Lib.from(fee.amount));
+        if (order.interfaceFee.unwrap) _unwrap(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+        else DSU.push(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
 
         return true;
     }
