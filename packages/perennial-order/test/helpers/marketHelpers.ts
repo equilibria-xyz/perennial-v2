@@ -17,6 +17,7 @@ import {
   RiskParameterStruct,
   VersionLib__factory,
   VersionStorageLib__factory,
+  MagicValueLib__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata } from '../../types/generated'
@@ -104,6 +105,7 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
       'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
       'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
+      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
         await new CheckpointStorageLib__factory(owner).deploy()
       ).address,
