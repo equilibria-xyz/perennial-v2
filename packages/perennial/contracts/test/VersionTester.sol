@@ -16,11 +16,18 @@ contract VersionTester {
     }
 
     function accumulate(
-        VersionAccumulationContext memory context
+        IMarket.Context memory context,
+        IMarket.SettlementContext memory settlementContext,
+        uint256 orderId,
+        Order memory order,
+        Guarantee memory guarantee,
+        OracleVersion memory oracleVersion,
+        OracleReceipt memory oracleReceipt
     ) external returns (Global memory nextGlobal, VersionAccumulationResponse memory response) {
         Version memory newVersion = version.read();
+        settlementContext.latestVersion = newVersion;
 
-        (newVersion, nextGlobal, response) = VersionLib.accumulate(newVersion, context);
+        (newVersion, nextGlobal, response) = VersionLib.accumulate(context, settlementContext, orderId, order, guarantee, oracleVersion, oracleReceipt);
 
         version.store(newVersion);
     }

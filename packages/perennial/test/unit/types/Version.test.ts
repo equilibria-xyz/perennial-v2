@@ -20,6 +20,9 @@ import {
   parse6decimal,
   Guarantee,
   DEFAULT_ORACLE_RECEIPT,
+  DEFAULT_CHECKPOINT,
+  DEFAULT_CONTEXT,
+  DEFAULT_SETTLEMENT_CONTEXT,
 } from '../../../../common/testutil/types'
 import {
   GlobalStruct,
@@ -124,30 +127,43 @@ describe('Version', () => {
     riskParameter: RiskParameterStruct,
   ) => {
     const marketInterface = new ethers.utils.Interface(IMarket__factory.abi)
-    const accumulationResult = await version.callStatic.accumulate({
-      global,
-      fromPosition,
+    const accumulationResult = await version.callStatic.accumulate(
+      {
+        ...DEFAULT_CONTEXT,
+        marketParameter,
+        riskParameter,
+        global,
+        latestPositionGlobal: fromPosition,
+      },
+      {
+        ...DEFAULT_SETTLEMENT_CONTEXT,
+        orderOracleVersion: fromOracleVersion,
+      },
       orderId,
       order,
       guarantee,
-      fromOracleVersion,
       toOracleVersion,
       toOracleReceipt,
-      marketParameter,
-      riskParameter,
-    })
-    const tx = await version.accumulate({
-      global,
-      fromPosition,
+    )
+    const tx = await version.accumulate(
+      {
+        ...DEFAULT_CONTEXT,
+        marketParameter,
+        riskParameter,
+        global,
+        latestPositionGlobal: fromPosition,
+        latestOracleVersion: fromOracleVersion,
+      },
+      {
+        ...DEFAULT_SETTLEMENT_CONTEXT,
+        orderOracleVersion: fromOracleVersion,
+      },
       orderId,
       order,
       guarantee,
-      fromOracleVersion,
       toOracleVersion,
       toOracleReceipt,
-      marketParameter,
-      riskParameter,
-    })
+    )
     const result = await tx.wait()
     const value = await version.read()
     return {

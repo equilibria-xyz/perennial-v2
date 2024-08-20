@@ -26,6 +26,8 @@ import {
   DEFAULT_VERSION,
   DEFAULT_POSITION,
   DEFAULT_GUARANTEE,
+  DEFAULT_CONTEXT,
+  DEFAULT_SETTLEMENT_CONTEXT,
   parse6decimal,
 } from '../../../../common/testutil/types'
 
@@ -46,15 +48,23 @@ const accumulateWithReturn = async (
 ) => {
   const marketInterface = new ethers.utils.Interface(IMarket__factory.abi)
   const accumulationResult = await checkpoint.callStatic.accumulate(
-    account,
+    { ...DEFAULT_CONTEXT, account, latestPositionLocal: fromPosition },
+    { ...DEFAULT_SETTLEMENT_CONTEXT },
     orderId,
     order,
     guarantee,
-    fromPosition,
     fromVersion,
     toVersion,
   )
-  const tx = await checkpoint.accumulate(account, orderId, order, guarantee, fromPosition, fromVersion, toVersion)
+  const tx = await checkpoint.accumulate(
+    { ...DEFAULT_CONTEXT, account, latestPositionLocal: fromPosition },
+    { ...DEFAULT_SETTLEMENT_CONTEXT },
+    orderId,
+    order,
+    guarantee,
+    fromVersion,
+    toVersion,
+  )
   const result = await tx.wait()
   const value = await checkpoint.read()
   return {
@@ -362,15 +372,6 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
           { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
         )
-        await checkpoint.accumulate(
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
-          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
-        )
         expect(ret.collateral).to.equal(parse6decimal('1000'))
 
         expect(value.collateral).to.equal(parse6decimal('1000'))
@@ -379,15 +380,6 @@ describe('Checkpoint', () => {
       it('accumulates pnl (long)', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION, long: parse6decimal('10') },
-          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
-        )
-        await checkpoint.accumulate(
           user.address,
           ORDER_ID,
           { ...DEFAULT_ORDER },
@@ -412,15 +404,6 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
           { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
         )
-        await checkpoint.accumulate(
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION, short: parse6decimal('10') },
-          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
-        )
         expect(ret.collateral).to.equal(parse6decimal('1000'))
 
         expect(value.collateral).to.equal(parse6decimal('1000'))
@@ -429,15 +412,6 @@ describe('Checkpoint', () => {
       it('accumulates fees (maker)', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerFee: { _value: parse6decimal('-2') } },
-        )
-        await checkpoint.accumulate(
           user.address,
           ORDER_ID,
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
@@ -462,15 +436,6 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, takerFee: { _value: parse6decimal('-2') } },
         )
-        await checkpoint.accumulate(
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerFee: { _value: parse6decimal('-2') } },
-        )
         expect(ret.tradeFee).to.equal(parse6decimal('20'))
 
         expect(value.tradeFee).to.equal(parse6decimal('20'))
@@ -479,15 +444,6 @@ describe('Checkpoint', () => {
       it('accumulates fees (maker offset)', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerOffset: { _value: parse6decimal('-2') } },
-        )
-        await checkpoint.accumulate(
           user.address,
           ORDER_ID,
           { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
@@ -512,15 +468,6 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, takerPosOffset: { _value: parse6decimal('-2') } },
         )
-        await checkpoint.accumulate(
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER, longPos: parse6decimal('10') },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerPosOffset: { _value: parse6decimal('-2') } },
-        )
         expect(ret.offset).to.equal(parse6decimal('20'))
 
         expect(value.tradeFee).to.equal(parse6decimal('20'))
@@ -529,15 +476,6 @@ describe('Checkpoint', () => {
       it('accumulates fees (taker neg offset)', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerNegOffset: { _value: parse6decimal('-2') } },
-        )
-        await checkpoint.accumulate(
           user.address,
           ORDER_ID,
           { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
@@ -562,15 +500,6 @@ describe('Checkpoint', () => {
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
         )
-        await checkpoint.accumulate(
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER, orders: 2 },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, settlementFee: { _value: parse6decimal('-4') } },
-        )
         expect(ret.settlementFee).to.equal(parse6decimal('8'))
 
         expect(value.settlementFee).to.equal(parse6decimal('8'))
@@ -579,15 +508,6 @@ describe('Checkpoint', () => {
       it('accumulates liquidation fee', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER, protection: 1 },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, liquidationFee: { _value: parse6decimal('-4') } },
-        )
-        await checkpoint.accumulate(
           user.address,
           ORDER_ID,
           { ...DEFAULT_ORDER, protection: 1 },
