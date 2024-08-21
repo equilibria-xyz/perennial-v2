@@ -3,7 +3,7 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PAYOFFS } from '../../deploy/002_deploy_payoff'
 import { PopulatedTransaction, utils } from 'ethers'
-import { NewMarketParameter, NewRiskParams } from './contstants'
+import { NewMarketParameter, NewRiskParams } from './constants'
 
 export default task('multisig_ops:buildCreateMarket', 'Builds the create market transaction')
   .addParam('underlyingid', 'The oracle ID to use')
