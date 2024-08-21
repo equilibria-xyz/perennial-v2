@@ -553,9 +553,9 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
 }
 
 export const NewMarketParameter: MarketParameterStruct = {
-  fundingFee: utils.parseUnits('0.05', 6),
-  interestFee: utils.parseUnits('0.05', 6),
-  positionFee: utils.parseUnits('0.05', 6),
+  fundingFee: utils.parseUnits('0.10', 6),
+  interestFee: utils.parseUnits('0.10', 6),
+  positionFee: utils.parseUnits('0.10', 6),
   oracleFee: 0,
   riskFee: utils.parseUnits('1', 6),
   maxPendingGlobal: 12,
