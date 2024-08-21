@@ -171,7 +171,7 @@ describe('TriggerOrder', () => {
       expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
     })
 
-    it('calculates notional to close position with no pending position', async () => {
+    it('calculates notional to close position', async () => {
       mockPrice(parse6decimal('2000'))
       mockPosition(Side.MAKER, parse6decimal('12.2'), constants.Zero)
       const order = {
@@ -185,40 +185,6 @@ describe('TriggerOrder', () => {
         },
       }
       const expectedNotional = parse6decimal('24400') // price * position
-      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
-    })
-
-    it('calculates notional to close position with pending position', async () => {
-      mockPrice(parse6decimal('2000'))
-      mockPosition(Side.LONG, parse6decimal('12.2'), parse6decimal('4.4'))
-      const order = {
-        ...ORDER_LONG,
-        delta: MAGIC_VALUE_CLOSE_POSITION,
-        interfaceFee: {
-          amount: parse6decimal('0.00222'),
-          receiver: recipient.address,
-          flatFee: false,
-          unwrap: false,
-        },
-      }
-      const expectedNotional = parse6decimal('33200') // price * (position + pending position)
-      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
-    })
-
-    it('calculates notional to close position with only pending position', async () => {
-      mockPrice(parse6decimal('2000'))
-      mockPosition(Side.SHORT, constants.Zero, parse6decimal('3.7'))
-      const order = {
-        ...ORDER_SHORT,
-        delta: MAGIC_VALUE_CLOSE_POSITION,
-        interfaceFee: {
-          amount: parse6decimal('0.004664'),
-          receiver: recipient.address,
-          flatFee: false,
-          unwrap: true,
-        },
-      }
-      const expectedNotional = parse6decimal('7400') // price * pending position
       expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
     })
 

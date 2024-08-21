@@ -91,12 +91,11 @@ library TriggerOrderLib {
         return self.side > 3 && self.side < 7 && (self.comparison == -1 || self.comparison == 1);
     }
 
-
     function notionalValue(TriggerOrder memory self, IMarket market, address user) internal view returns (UFixed6) {
         // Consistent with how margin requirements are calculated, charge a positive fee on a negative price.
         UFixed6 price = market.oracle().latest().price.abs();
         if (self.delta.eq(MAGIC_VALUE_CLOSE_POSITION)) {
-            return _totalPosition(market, user, self.side).mul(price);
+            return _position(market, user, self.side).mul(price);
         } else {
             return self.delta.abs().mul(price);
         }
@@ -109,14 +108,12 @@ library TriggerOrderLib {
             UFixed6Lib.from(Fixed6Lib.from(lhs).add(rhs));
     }
 
-    // TODO: think of a better name for this; "total" is ambiguous
-    /// @dev Adds a user's current and pending positions
-    function _totalPosition(IMarket market, address user, uint8 side) private view returns (UFixed6) {
+    /// @dev Returns user's position for the side of the order they placed
+    function _position(IMarket market, address user, uint8 side) private view returns (UFixed6) {
         Position memory current = market.positions(user);
-        Order memory pending = market.pendings(user);
-        if (side == 4) return current.maker.add(pending.makerPos).sub(pending.makerNeg);
-        else if (side == 5) return current.long.add(pending.longPos).sub(pending.longNeg);
-        else if (side == 6) return current.short.add(pending.shortPos).sub(pending.shortNeg);
+        if (side == 4) return current.maker;
+        else if (side == 5) return current.long;
+        else if (side == 6) return current.short;
         revert TriggerOrderInvalidError();
     }
 }
