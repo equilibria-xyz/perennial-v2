@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@equilibria/root/attribute/Instance.sol";
+// import "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
-import "../interfaces/IKeeperFactory.sol";
+import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { OracleReceipt } from "@equilibria/perennial-v2/contracts/types/OracleReceipt.sol";
+import { IKeeperFactory } from "../interfaces/IKeeperFactory.sol";
+import { IKeeperOracle } from "../interfaces/IKeeperOracle.sol";
 import { PriceResponse, PriceResponseStorage, PriceResponseLib } from "./types/PriceResponse.sol";
+import { KeeperOracleParameter } from "./types/KeeperOracleParameter.sol";
+import { IOracle } from "../interfaces/IOracle.sol";
 
 /// @title KeeperOracle
 /// @notice Generic implementation of the IOracle interface for keeper-based oracles.
