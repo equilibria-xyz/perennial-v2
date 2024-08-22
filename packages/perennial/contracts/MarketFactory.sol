@@ -1,10 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.24;
 
-import "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
-import "@equilibria/root/attribute/Factory.sol";
-import "./interfaces/IOracleProvider.sol";
-import "./interfaces/IMarketFactory.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { IVerifier } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
+import { Factory, IFactory } from "@equilibria/root/attribute/Factory.sol";
+import { IInstance } from "@equilibria/root/attribute/Instance.sol";
+import { IMarket } from "./interfaces/IMarket.sol";
+import { IOracleProvider } from "./interfaces/IOracleProvider.sol";
+import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import { OperatorUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
+import { SignerUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
+import { AccessUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdate.sol";
+import { AccessUpdateBatch } from "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdateBatch.sol";
+import { ProtocolParameter, ProtocolParameterStorage } from "./types/ProtocolParameter.sol";
 
 /// @title MarketFactory
 /// @notice Manages creating new markets and global protocol parameters.

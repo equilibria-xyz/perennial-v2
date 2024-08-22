@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/attribute/interfaces/IFactory.sol";
-import "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
-import "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
-import "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
-import "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdate.sol";
-import "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdateBatch.sol";
-import "../types/ProtocolParameter.sol";
-import "./IMarket.sol";
+import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { IVerifier } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
+import { OperatorUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
+import { SignerUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
+import { AccessUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdate.sol";
+import { AccessUpdateBatch } from "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdateBatch.sol";
+import { ProtocolParameter } from "../types/ProtocolParameter.sol";
+import { IMarket } from "./IMarket.sol";
+import { IOracleProvider } from "./IOracleProvider.sol";
 
 interface IMarketFactory is IFactory {
     event ParameterUpdated(ProtocolParameter newParameter);

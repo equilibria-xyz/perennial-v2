@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
-import "@equilibria/root/pid/types/PController6.sol";
-import "@equilibria/root/adiabatic/types/LinearAdiabatic6.sol";
-import "@equilibria/root/adiabatic/types/NoopAdiabatic6.sol";
-import "../interfaces/IOracleProvider.sol";
-import "./ProtocolParameter.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { UJumpRateUtilizationCurve6 } from "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
+import { PController6 } from "@equilibria/root/pid/types/PController6.sol";
+import { LinearAdiabatic6 } from "@equilibria/root/adiabatic/types/LinearAdiabatic6.sol";
+import { NoopAdiabatic6 } from "@equilibria/root/adiabatic/types/NoopAdiabatic6.sol";
+import { ProtocolParameter } from "./ProtocolParameter.sol";
 
 /// @dev RiskParameter type
 struct RiskParameter {
