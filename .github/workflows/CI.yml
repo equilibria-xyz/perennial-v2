@@ -41,7 +41,7 @@ jobs:
   # [CORE]
   core-unit-test:
     name: '[Core] Unit Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
@@ -73,7 +73,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   core-integration-test:
     name: '[Core] Integration Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
@@ -108,7 +108,7 @@ jobs:
   # [ORACLE]
   oracle-unit-test:
     name: '[Oracle] Unit Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
@@ -140,7 +140,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   oracle-integration-test:
     name: '[Oracle] Integration Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
@@ -173,7 +173,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   oracle-integrationSepolia-test:
     name: '[Oracle] Sepolia Integration Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
@@ -208,7 +208,7 @@ jobs:
   # [VAULT]
   vault-unit-test:
     name: '[Vault] Unit Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
@@ -240,7 +240,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   vault-integration-test:
     name: '[Vault] Integration Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
@@ -275,7 +275,7 @@ jobs:
   # [EXTENSIONS]
   extensions-unit-test:
     name: '[Extensions] Unit Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
@@ -307,7 +307,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   extensions-integration-test:
     name: '[Extensions] Integration Tests w/ Coverage'
-    runs-on: ubuntu-latest
+    runs-on: linux-x64-latest-8
     steps:
       - uses: actions/setup-node@v3
         with:
