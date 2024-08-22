@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import "@equilibria/root/attribute/Kept/Kept_Optimism.sol";
-import "./MultiInvoker.sol";
+// import "@equilibria/root/attribute/Kept/Kept_Optimism.sol";
+import { MultiInvoker } from "./MultiInvoker.sol";
 
 /// @title MultiInvoker_Optimism
 /// @notice Optimism Kept MultiInvoker implementation.
