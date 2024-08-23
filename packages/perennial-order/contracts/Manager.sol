@@ -39,7 +39,7 @@ abstract contract Manager is IManager, Kept {
     IOrderVerifier public verifier;
 
     /// @dev Stores trigger orders while awaiting their conditions to become true
-    /// Market => User => Nonce => Order
+    /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
     /// @dev Creates an instance
@@ -103,57 +103,57 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function orders(IMarket market, address user, uint256 orderId) external view returns (TriggerOrder memory) {
-        return _orders[market][user][orderId].read();
+    function orders(IMarket market, address account, uint256 orderId) external view returns (TriggerOrder memory) {
+        return _orders[market][account][orderId].read();
     }
 
     /// @inheritdoc IManager
     function checkOrder(
         IMarket market,
-        address user,
+        address account,
         uint256 orderId
     ) public view returns (TriggerOrder memory order, bool canExecute) {
-        order = _orders[market][user][orderId].read();
+        order = _orders[market][account][orderId].read();
         // prevent calling canExecute on a spent or empty order
         if (order.isSpent || order.isEmpty()) revert ManagerInvalidOrderNonceError();
         canExecute = order.canExecute(market.oracle().latest());
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address user, uint256 orderId) external {
+    function executeOrder(IMarket market, address account, uint256 orderId) external {
         // check conditions to ensure order is executable
-        (TriggerOrder memory order, bool canExecute) = checkOrder(market, user, orderId);
+        (TriggerOrder memory order, bool canExecute) = checkOrder(market, account, orderId);
         if (!canExecute) revert ManagerCannotExecuteError();
 
-        _compensateKeeper(market, user, order.maxFee);
-        order.execute(market, user);
-        bool interfaceFeeCharged = _chargeInterfaceFee(market, user, order);
+        _compensateKeeper(market, account, order.maxFee);
+        order.execute(market, account);
+        bool interfaceFeeCharged = _chargeInterfaceFee(market, account, order);
 
         // invalidate the order nonce
         order.isSpent = true;
-        _orders[market][user][orderId].store(order);
+        _orders[market][account][orderId].store(order);
 
-        emit TriggerOrderExecuted(market, user, order, orderId);
-        if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(user, market, order.interfaceFee);
+        emit TriggerOrderExecuted(market, account, order, orderId);
+        if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
     }
 
-    /// @dev reads keeper compensation parameters from an action message
+    /// @notice reads keeper compensation parameters from an action message
     function _compensateKeeperAction(Action calldata action) internal {
         _compensateKeeper(action.market, action.common.account, action.maxFee);
     }
 
-    /// @dev encodes data needed to pull DSU from market to pay keeper for fulfilling requests
-    function _compensateKeeper(IMarket market, address user, UFixed6 maxFee) internal {
-        bytes memory data = abi.encode(market, user, maxFee);
+    /// @notice encodes data needed to pull DSU from market to pay keeper for fulfilling requests
+    function _compensateKeeper(IMarket market, address account, UFixed6 maxFee) internal {
+        bytes memory data = abi.encode(market, account, maxFee);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
-    /// @dev reverts if user is not authorized to sign transactions for the user
-    function _ensureValidSigner(address user, address signer) internal view {
-        if (user != signer && !marketFactory.signers(user, signer)) revert ManagerInvalidSignerError();
+    /// @notice reverts if user is not authorized to sign transactions for the account
+    function _ensureValidSigner(address account, address signer) internal view {
+        if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
     }
 
-    /// @dev Transfers DSU from market to manager to compensate keeper
+    /// @notice Transfers DSU from market to manager to compensate keeper
     /// @param amount Keeper fee as calculated
     /// @param data Identifies the market from and user for which funds should be withdrawn,
     ///             and the user-defined fee cap
@@ -170,52 +170,52 @@ abstract contract Manager is IManager, Kept {
         return UFixed18Lib.from(raisedKeeperFee);
     }
 
-    function _cancelOrder(IMarket market, address user, uint256 orderId) private {
+    function _cancelOrder(IMarket market, address account, uint256 orderId) private {
         // ensure this order wasn't already executed/cancelled
-        TriggerOrder memory order = _orders[market][user][orderId].read();
+        TriggerOrder memory order = _orders[market][account][orderId].read();
         if (order.isEmpty() || order.isSpent) revert ManagerCannotCancelError();
 
         // invalidate the order nonce
         order.isSpent = true;
-        _orders[market][user][orderId].store(order);
+        _orders[market][account][orderId].store(order);
 
-        emit TriggerOrderCancelled(market, user, orderId);
+        emit TriggerOrderCancelled(market, account, orderId);
     }
 
-    /// @dev Transfers DSU from market to manager to pay interface fee
-    function _chargeInterfaceFee(IMarket market, address user, TriggerOrder memory order) internal returns (bool) {
+    /// @notice Transfers DSU from market to manager to pay interface fee
+    function _chargeInterfaceFee(IMarket market, address account, TriggerOrder memory order) internal returns (bool) {
         if (order.interfaceFee.amount.isZero()) return false;
 
         // determine amount of fee to charge
         UFixed6 feeAmount = order.interfaceFee.flatFee ?
             order.interfaceFee.amount :
-            order.notionalValue(market, user).mul(order.interfaceFee.amount);
+            order.notionalValue(market, account).mul(order.interfaceFee.amount);
 
-        _marketWithdraw(market, user, feeAmount);
+        _marketWithdraw(market, account, feeAmount);
 
-        if (order.interfaceFee.unwrap) _unwrap(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+        if (order.interfaceFee.unwrap) _unwrapAndWithdaw(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
         else DSU.push(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
 
         return true;
     }
 
-    /// @dev Transfers DSU from market to manager to pay keeper or interface fee
-    function _marketWithdraw(IMarket market, address user, UFixed6 amount) private {
-        market.update(user, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, amount), false);
+    /// @notice Transfers DSU from market to manager to pay keeper or interface fee
+    function _marketWithdraw(IMarket market, address account, UFixed6 amount) private {
+        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, amount), false);
     }
 
-    function _placeOrder(IMarket market, address user, uint256 orderId, TriggerOrder calldata order) private {
+    function _placeOrder(IMarket market, address account, uint256 orderId, TriggerOrder calldata order) private {
         // prevent user from reusing an order identifier
-        TriggerOrder memory old = _orders[market][user][orderId].read();
+        TriggerOrder memory old = _orders[market][account][orderId].read();
         if (old.isSpent) revert ManagerInvalidOrderNonceError();
 
-        _orders[market][user][orderId].store(order);
-        emit TriggerOrderPlaced(market, user, order, orderId);
+        _orders[market][account][orderId].store(order);
+        emit TriggerOrderPlaced(market, account, order, orderId);
     }
 
-    /// @dev Unwraps DSU to USDC
-    function _unwrap(address receiver, UFixed18 amount) private {
+    /// @notice Unwraps DSU to USDC and pushes to interface fee receiver
+    function _unwrapAndWithdaw(address receiver, UFixed18 amount) private {
         reserve.redeem(amount);
-        if (receiver != address(this)) USDC.push(receiver, UFixed6Lib.from(amount));
+        USDC.push(receiver, UFixed6Lib.from(amount));
     }
 }

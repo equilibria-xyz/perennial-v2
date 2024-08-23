@@ -13,7 +13,7 @@ struct PlaceOrderAction {
     TriggerOrder order;
     /// @dev Information shared across all EIP712 actions;
     ///      action.market         - market in which user's position should be changed
-    ///      action.orderId     - per-user unique order identifier
+    ///      action.orderId        - per-user unique order identifier
     ///      action.maxFee         - maximum amount to compensate keeper
     ///      action.common.account - user participating in the market
     ///      action.common.signer  - user or delegate signing the transaction

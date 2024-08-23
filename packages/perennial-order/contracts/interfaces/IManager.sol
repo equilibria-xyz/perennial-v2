@@ -11,28 +11,28 @@ import { PlaceOrderAction, TriggerOrder } from "../types/PlaceOrderAction.sol";
 interface IManager {
     /// @notice Emitted when a trigger order is written to storage, whether as a new order or a replacement
     /// @param market Perennial market for which the order is intended
-    /// @param user Actor who wants to change their position in the market
+    /// @param account Actor who wants to change their position in the market
     /// @param order Desired change in position and conditions upon which change may be made
     /// @param orderId Client-supplied order identifier, unique to client
     event TriggerOrderPlaced(
         IMarket indexed market,
-        address indexed user,
+        address indexed account,
         TriggerOrder order,
         uint256 orderId
     );
 
     /// @notice Emitted when an order has been cancelled
     /// @param market Perennial market for which the order was intended
-    /// @param user Actor whose order was cancelled
+    /// @param account Actor whose order was cancelled
     /// @param orderId Uniquely identifies the cancelled order
-    event TriggerOrderCancelled(IMarket indexed market, address indexed user, uint256 orderId);
+    event TriggerOrderCancelled(IMarket indexed market, address indexed account, uint256 orderId);
 
     /// @notice Emitted when a trigger orders conditions have been met and the user's position has been updated
     /// @param market Perennial market which the order affected
-    /// @param user Actor whose position was changed
+    /// @param account Actor whose position was changed
     /// @param order Change in position and conditions which were satisfied
     /// @param orderId Uniquely identifies the executed order
-    event TriggerOrderExecuted(IMarket indexed market, address indexed user, TriggerOrder order, uint256 orderId);
+    event TriggerOrderExecuted(IMarket indexed market, address indexed account, TriggerOrder order, uint256 orderId);
 
     /// @notice Emitted when an interface fee specified on a trigger order has been paid
     /// @param account Actor who paid the fee
@@ -85,19 +85,19 @@ interface IManager {
 
     /// @notice Determines whether trigger conditions for an order have been met
     /// @param market Perennial market for which the order is intended
-    /// @param user Actor whose position is to be changed
-    /// @param orderId Uniquely identifies the order for a user
+    /// @param account Actor whose position is to be changed
+    /// @param orderId Uniquely identifies the order for an account
     /// @return order Trigger order read from storage
     /// @return canExecute True if trigger conditions have been met and executeOrder may be called on the order
     function checkOrder(
         IMarket market,
-        address user,
+        address account,
         uint256 orderId
     ) external returns (TriggerOrder memory order, bool canExecute);
 
     /// @notice Called by keeper to execute an order whose trigger conditions have been met
     /// @param market Perennial market for which the order is intended
-    /// @param user Actor whose position is to be changed
-    /// @param orderId Uniquely identifies the order for a user
-    function executeOrder(IMarket market, address user, uint256 orderId) external;
+    /// @param account Actor whose position is to be changed
+    /// @param orderId Uniquely identifies the order for an account
+    function executeOrder(IMarket market, address account, uint256 orderId) external;
 }

@@ -50,16 +50,16 @@ library TriggerOrderLib {
     /// @notice Applies the order to the user's position and updates the market
     /// @param self Trigger order
     /// @param market Market for which the trigger order was placed
-    /// @param user Market participant
+    /// @param account Market participant
     function execute(
         TriggerOrder memory self,
         IMarket market,
-        address user
+        address account
     ) internal {
         // settle and get the pending position of the account
-        market.settle(user);
-        Order memory pending = market.pendings(user);
-        Position memory position = market.positions(user);
+        market.settle(account);
+        Order memory pending = market.pendings(account);
+        Position memory position = market.positions(account);
         position.update(pending);
 
         // apply order to position
@@ -69,7 +69,7 @@ library TriggerOrderLib {
 
         // apply position to market
         market.update(
-            user,
+            account,
             position.maker,
             position.long,
             position.short,
@@ -86,31 +86,31 @@ library TriggerOrderLib {
         return self.side == 0 && self.comparison == 0 && self.price.isZero() && self.delta.isZero();
     }
 
-    /// @dev Prevents writing invalid side or comparison to storage
+    /// @notice Prevents writing invalid side or comparison to storage
     function isValid(TriggerOrder memory self) internal pure returns (bool) {
         return self.side > 3 && self.side < 7 && (self.comparison == -1 || self.comparison == 1);
     }
 
-    function notionalValue(TriggerOrder memory self, IMarket market, address user) internal view returns (UFixed6) {
+    function notionalValue(TriggerOrder memory self, IMarket market, address account) internal view returns (UFixed6) {
         // Consistent with how margin requirements are calculated, charge a positive fee on a negative price.
         UFixed6 price = market.oracle().latest().price.abs();
         if (self.delta.eq(MAGIC_VALUE_CLOSE_POSITION)) {
-            return _position(market, user, self.side).mul(price);
+            return _position(market, account, self.side).mul(price);
         } else {
             return self.delta.abs().mul(price);
         }
     }
 
-    /// @dev Helper function to improve readability of TriggerOrderLib.execute
+    /// @notice Helper function to improve readability of TriggerOrderLib.execute
     function _add(UFixed6 lhs, Fixed6 rhs) private pure returns (UFixed6) {
         return rhs.eq(MAGIC_VALUE_CLOSE_POSITION) ?
             UFixed6Lib.ZERO :
             UFixed6Lib.from(Fixed6Lib.from(lhs).add(rhs));
     }
 
-    /// @dev Returns user's position for the side of the order they placed
-    function _position(IMarket market, address user, uint8 side) private view returns (UFixed6) {
-        Position memory current = market.positions(user);
+    /// @notice Returns user's position for the side of the order they placed
+    function _position(IMarket market, address account, uint8 side) private view returns (UFixed6) {
+        Position memory current = market.positions(account);
         if (side == 4) return current.maker;
         else if (side == 5) return current.long;
         else if (side == 6) return current.short;
@@ -154,7 +154,7 @@ library TriggerOrderStorageLib {
     /// @custom:error price, delta, maxFee, or interface fee amount is out-of-bounds
     error TriggerOrderStorageInvalidError();
 
-    /// @dev reads a trigger order struct from storage
+    /// @notice reads a trigger order struct from storage
     function read(TriggerOrderStorage storage self) internal view returns (TriggerOrder memory) {
         StoredTriggerOrder memory storedValue = self.value;
         return TriggerOrder(
@@ -174,7 +174,7 @@ library TriggerOrderStorageLib {
         );
     }
 
-    /// @dev writes a trigger order struct to storage
+    /// @notice writes a trigger order struct to storage
     function store(TriggerOrderStorage storage self, TriggerOrder memory newValue) internal {
         if (!newValue.isValid()) revert TriggerOrderLib.TriggerOrderInvalidError();
         if (newValue.price.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
@@ -201,7 +201,7 @@ library TriggerOrderStorageLib {
         );
     }
 
-    /// @dev Used to create a signed message
+    /// @notice Used to create a signed message
     function hash(TriggerOrder memory self) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             STRUCT_HASH,
