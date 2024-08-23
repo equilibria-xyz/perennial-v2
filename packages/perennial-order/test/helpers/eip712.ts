@@ -46,7 +46,7 @@ const interfaceFeeType = {
   InterfaceFee: [
     { name: 'amount', type: 'uint64' },
     { name: 'receiver', type: 'address' },
-    { name: 'flatFee', type: 'bool' },
+    { name: 'fixedFee', type: 'bool' },
     { name: 'unwrap', type: 'bool' },
   ],
 }

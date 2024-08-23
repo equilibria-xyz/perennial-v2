@@ -71,7 +71,7 @@ describe('Verifier', () => {
         interfaceFee: {
           amount: parse6decimal('0.0053'),
           receiver: userC.address,
-          flatFee: false,
+          fixedFee: false,
           unwrap: true,
         },
       },

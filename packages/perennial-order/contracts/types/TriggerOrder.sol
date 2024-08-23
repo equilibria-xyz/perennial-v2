@@ -147,7 +147,7 @@ library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
         "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,InterfaceFee interfaceFee)"
-        "InterfaceFee(uint64 amount,address receiver,bool flatFee,bool unwrap)"
+        "InterfaceFee(uint64 amount,address receiver,bool fixedFee,bool unwrap)"
     );
 
     // sig: 0xf3469aa7
@@ -196,7 +196,7 @@ library TriggerOrderStorageLib {
             0,
             newValue.interfaceFee.receiver,
             uint64(UFixed6.unwrap(newValue.interfaceFee.amount)),
-            newValue.interfaceFee.flatFee,
+            newValue.interfaceFee.fixedFee,
             newValue.interfaceFee.unwrap
         );
     }

@@ -27,7 +27,7 @@ export const DEFAULT_TRIGGER_ORDER = {
   interfaceFee: {
     amount: constants.Zero,
     receiver: constants.AddressZero,
-    flatFee: true,
+    fixedFee: true,
     unwrap: false,
   },
 }
@@ -45,7 +45,7 @@ export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrder
 
   expect(actual.interfaceFee.amount).to.equal(expected.interfaceFee.amount)
   expect(actual.interfaceFee.receiver).to.equal(expected.interfaceFee.receiver)
-  expect(actual.interfaceFee.flatFee).to.equal(expected.interfaceFee.flatFee)
+  expect(actual.interfaceFee.fixedFee).to.equal(expected.interfaceFee.fixedFee)
   expect(actual.interfaceFee.unwrap).to.equal(expected.interfaceFee.unwrap)
 }
 
@@ -61,7 +61,7 @@ export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): T
     interfaceFee: {
       amount: structOutput.interfaceFee.amount,
       receiver: structOutput.interfaceFee.receiver,
-      flatFee: structOutput.interfaceFee.flatFee,
+      fixedFee: structOutput.interfaceFee.fixedFee,
       unwrap: structOutput.interfaceFee.unwrap,
     },
   }

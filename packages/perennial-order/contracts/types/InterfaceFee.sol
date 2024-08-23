@@ -11,7 +11,7 @@ struct InterfaceFee {
     /// @dev Recipient of the fee
     address receiver;
     /// @dev True if fee is a fixed amount, false if fee is percentage of change in notional value
-    bool flatFee;
+    bool fixedFee;
     /// @dev Whether or not to unwrap the DSU fee to USDC
     bool unwrap;
 }
@@ -21,11 +21,11 @@ using InterfaceFeeLib for InterfaceFee global;
 library InterfaceFeeLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "InterfaceFee(uint64 amount,address receiver,bool flatFee,bool unwrap)"
+        "InterfaceFee(uint64 amount,address receiver,bool fixedFee,bool unwrap)"
     );
 
     /// @dev Used to create a signed message
     function hash(InterfaceFee memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.amount, self.receiver, self.flatFee, self.unwrap));
+        return keccak256(abi.encode(STRUCT_HASH, self.amount, self.receiver, self.fixedFee, self.unwrap));
     }
 }

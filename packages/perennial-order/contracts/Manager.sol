@@ -187,7 +187,7 @@ abstract contract Manager is IManager, Kept {
         if (order.interfaceFee.amount.isZero()) return false;
 
         // determine amount of fee to charge
-        UFixed6 feeAmount = order.interfaceFee.flatFee ?
+        UFixed6 feeAmount = order.interfaceFee.fixedFee ?
             order.interfaceFee.amount :
             order.notionalValue(market, account).mul(order.interfaceFee.amount);
 

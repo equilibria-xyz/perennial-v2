@@ -59,7 +59,7 @@ const NO_INTERFACE_FEE = {
   interfaceFee: {
     amount: constants.Zero,
     receiver: constants.AddressZero,
-    flatFee: false,
+    fixedFee: false,
     unwrap: false,
   },
 }
@@ -203,7 +203,7 @@ describe('Manager_Arbitrum', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(user.address, anyValue, anyValue, constants.AddressZero, order.referrer, constants.AddressZero)
     if (order.interfaceFee.amount.gt(0)) {
-      if (!expectedInterfaceFee && order.interfaceFee.flatFee) {
+      if (!expectedInterfaceFee && order.interfaceFee.fixedFee) {
         expectedInterfaceFee = order.interfaceFee.amount
       }
       if (expectedInterfaceFee) {
@@ -568,7 +568,7 @@ describe('Manager_Arbitrum', () => {
         interfaceFee: {
           amount: feeAmount,
           receiver: userC.address,
-          flatFee: true,
+          fixedFee: true,
           unwrap: false,
         },
       }
@@ -607,7 +607,7 @@ describe('Manager_Arbitrum', () => {
         interfaceFee: {
           amount: feeAmount,
           receiver: userC.address,
-          flatFee: true,
+          fixedFee: true,
           unwrap: true,
         },
       }
@@ -644,7 +644,7 @@ describe('Manager_Arbitrum', () => {
         interfaceFee: {
           amount: parse6decimal('0.0055'),
           receiver: userC.address,
-          flatFee: false,
+          fixedFee: false,
           unwrap: true,
         },
       }
@@ -894,7 +894,7 @@ describe('Manager_Arbitrum', () => {
         interfaceFee: {
           amount: parse6decimal('0.00654'),
           receiver: userB.address,
-          flatFee: false,
+          fixedFee: false,
           unwrap: false,
         },
       }

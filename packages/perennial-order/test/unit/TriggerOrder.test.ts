@@ -180,7 +180,7 @@ describe('TriggerOrder', () => {
         interfaceFee: {
           amount: parse6decimal('0.0111'),
           receiver: recipient.address,
-          flatFee: false,
+          fixedFee: false,
           unwrap: true,
         },
       }
@@ -198,7 +198,7 @@ describe('TriggerOrder', () => {
         interfaceFee: {
           amount: parse6decimal('0.004747'),
           receiver: recipient.address,
-          flatFee: false,
+          fixedFee: false,
           unwrap: false,
         },
       }
@@ -225,7 +225,7 @@ describe('TriggerOrder', () => {
         interfaceFee: {
           amount: parse6decimal('0.44'),
           receiver: userB.address,
-          flatFee: true,
+          fixedFee: true,
           unwrap: false,
         },
       }
@@ -243,7 +243,7 @@ describe('TriggerOrder', () => {
         interfaceFee: {
           amount: parse6decimal('0.005555'),
           receiver: userA.address,
-          flatFee: false,
+          fixedFee: false,
           unwrap: true,
         },
       }
