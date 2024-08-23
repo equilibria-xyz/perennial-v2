@@ -13,7 +13,7 @@ struct PlaceOrderAction {
     TriggerOrder order;
     /// @dev Information shared across all EIP712 actions;
     ///      action.market         - market in which user's position should be changed
-    ///      action.orderId     - per-user unique order identifier
+    ///      action.orderId        - per-user unique order identifier
     ///      action.maxFee         - maximum amount to compensate keeper
     ///      action.common.account - user participating in the market
     ///      action.common.signer  - user or delegate signing the transaction
@@ -32,7 +32,8 @@ library PlaceOrderActionLib {
         "PlaceOrderAction(TriggerOrder order,Action action)"
         "Action(address market,uint256 orderId,uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer)"
+        "InterfaceFee(uint64 amount,address receiver,bool fixedFee,bool unwrap)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,InterfaceFee interfaceFee)"
     );
 
     /// @dev Used to create a signed message

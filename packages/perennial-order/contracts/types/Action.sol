@@ -11,10 +11,11 @@ struct Action {
     IMarket market;
     /// @dev Client-supplied order identifier which cannot be reused
     uint256 orderId;
-    /// @dev Largest amount to compensate relayer/keeper for the transaction in DSU
+    /// @dev Largest amount to compensate relayer/keeper for the transaction in DSU;
+    ///      note this has no bearing on protocol or additive fees
     UFixed6 maxFee;
     /// @dev Information shared across all EIP712 collateral account actions;
-    /// populate common.account with the owner of the collateral account
+    ///      populate common.account with the owner of the collateral account
     Common common;
 }
 using ActionLib for Action global;

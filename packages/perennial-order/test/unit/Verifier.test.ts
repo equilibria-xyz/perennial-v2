@@ -2,16 +2,17 @@ import { expect } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
 import HRE from 'hardhat'
-import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 import { impersonate } from '../../../common/testutil'
-import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
-import { IERC20, IManager, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../types/generated'
+import { currentBlockTimestamp } from '../../../common/testutil/time'
+
 import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
+import { DEFAULT_TRIGGER_ORDER } from '../helpers/order'
+import { IMarket } from '@equilibria/perennial-v2/types/generated'
+import { IManager, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../types/generated'
 
 const { ethers } = HRE
 
@@ -24,7 +25,7 @@ describe('Verifier', () => {
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
-  let managerSigner: SignerWithAddress
+  let userC: SignerWithAddress
   let orderVerifierSigner: SignerWithAddress
   let lastNonce = 0
   let lastOrderId = 30
@@ -62,12 +63,17 @@ describe('Verifier', () => {
   ) {
     return {
       order: {
-        side: 0,
-        comparison: -1,
+        ...DEFAULT_TRIGGER_ORDER,
         price: parse6decimal('2010.33'),
         delta: parse6decimal('400'),
         maxFee: parse6decimal('0.67'),
         referrer: userB.address,
+        interfaceFee: {
+          amount: parse6decimal('0.0053'),
+          receiver: userC.address,
+          fixedFee: false,
+          unwrap: true,
+        },
       },
       ...createActionMessage(userAddress, signerAddress, expiresInSeconds),
     }
@@ -93,16 +99,13 @@ describe('Verifier', () => {
   }
 
   const fixture = async () => {
-    ;[owner, userA, userB] = await ethers.getSigners()
+    ;[owner, userA, userB, userC] = await ethers.getSigners()
 
     // deploy a verifier
     orderVerifier = await new OrderVerifier__factory(owner).deploy()
-    const dsu = await smock.fake<IERC20>('IERC20')
-    const marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     manager = await smock.fake<IManager>('IManager')
 
     orderVerifierSigner = await impersonate.impersonateWithBalance(orderVerifier.address, utils.parseEther('10'))
-    managerSigner = await impersonate.impersonateWithBalance(manager.address, utils.parseEther('10'))
     market = await smock.fake<IMarket>('IMarket')
   }
 

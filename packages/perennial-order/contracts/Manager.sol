@@ -1,24 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { AggregatorV3Interface, Kept, Token18 } from "@equilibria/root/attribute/Kept/Kept.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action } from "./types/Action.sol";
 import { CancelOrderAction } from "./types/CancelOrderAction.sol";
+import { InterfaceFee } from "./types/InterfaceFee.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 
 /// @notice Base class with business logic to store and execute trigger orders.
 ///         Derived implementations created as appropriate for different chains.
 abstract contract Manager is IManager, Kept {
+    /// @dev USDC stablecoin address
+    Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
+
     /// @dev Digital Standard Unit token used for keeper compensation
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
+
+    /// @dev DSU Reserve address
+    IEmptySetReserve public immutable reserve;
 
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
@@ -30,14 +39,22 @@ abstract contract Manager is IManager, Kept {
     IOrderVerifier public verifier;
 
     /// @dev Stores trigger orders while awaiting their conditions to become true
-    /// Market => User => Nonce => Order
+    /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
     /// @param marketFactory_ Contract used to validate delegated signers
-    constructor(Token18 dsu_, IMarketFactory marketFactory_, IOrderVerifier verifier_) {
+    constructor(
+        Token6 usdc_,
+        Token18 dsu_,
+        IEmptySetReserve reserve_,
+        IMarketFactory marketFactory_,
+        IOrderVerifier verifier_
+    ) {
+        USDC = usdc_;
         DSU = dsu_;
+        reserve = reserve_;
         marketFactory = marketFactory_;
         verifier = verifier_;
     }
@@ -51,6 +68,8 @@ abstract contract Manager is IManager, Kept {
     ) external initializer(1) {
         __Kept__initialize(ethOracle_, DSU);
         keepConfig = keepConfig_;
+        // allows DSU to unwrap to USDC
+        DSU.approve(address(reserve));
     }
 
     /// @inheritdoc IManager
@@ -84,52 +103,54 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function orders(IMarket market, address user, uint256 orderId) external view returns (TriggerOrder memory) {
-        return _orders[market][user][orderId].read();
+    function orders(IMarket market, address account, uint256 orderId) external view returns (TriggerOrder memory) {
+        return _orders[market][account][orderId].read();
     }
 
     /// @inheritdoc IManager
     function checkOrder(
         IMarket market,
-        address user,
+        address account,
         uint256 orderId
     ) public view returns (TriggerOrder memory order, bool canExecute) {
-        order = _orders[market][user][orderId].read();
+        order = _orders[market][account][orderId].read();
         // prevent calling canExecute on a spent or empty order
         if (order.isSpent || order.isEmpty()) revert ManagerInvalidOrderNonceError();
         canExecute = order.canExecute(market.oracle().latest());
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address user, uint256 orderId) external {
+    function executeOrder(IMarket market, address account, uint256 orderId) external {
         // check conditions to ensure order is executable
-        (TriggerOrder memory order, bool canExecute) = checkOrder(market, user, orderId);
+        (TriggerOrder memory order, bool canExecute) = checkOrder(market, account, orderId);
         if (!canExecute) revert ManagerCannotExecuteError();
 
-        _compensateKeeper(market, user, order.maxFee);
-        order.execute(market, user);
+        _compensateKeeper(market, account, order.maxFee);
+        order.execute(market, account);
+        bool interfaceFeeCharged = _chargeInterfaceFee(market, account, order);
 
         // invalidate the order nonce
         order.isSpent = true;
-        _orders[market][user][orderId].store(order);
+        _orders[market][account][orderId].store(order);
 
-        emit TriggerOrderExecuted(market, user, order, orderId);
+        emit TriggerOrderExecuted(market, account, order, orderId);
+        if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
     }
 
-    /// @dev reads keeper compensation parameters from an action message
+    /// @notice reads keeper compensation parameters from an action message
     function _compensateKeeperAction(Action calldata action) internal {
         _compensateKeeper(action.market, action.common.account, action.maxFee);
     }
 
-    /// @dev encodes data needed to pull DSU from market to pay keeper for fulfilling requests
-    function _compensateKeeper(IMarket market, address user, UFixed6 maxFee) internal {
-        bytes memory data = abi.encode(market, user, maxFee);
+    /// @notice encodes data needed to pull DSU from market to pay keeper for fulfilling requests
+    function _compensateKeeper(IMarket market, address account, UFixed6 maxFee) internal {
+        bytes memory data = abi.encode(market, account, maxFee);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
-    /// @dev reverts if user is not authorized to sign transactions for the user
-    function _ensureValidSigner(address user, address signer) internal view {
-        if (user != signer && !marketFactory.signers(user, signer)) revert ManagerInvalidSignerError();
+    /// @notice reverts if user is not authorized to sign transactions for the account
+    function _ensureValidSigner(address account, address signer) internal view {
+        if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
     }
 
     /// @notice Transfers DSU from market to manager to compensate keeper
@@ -144,36 +165,57 @@ abstract contract Manager is IManager, Kept {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
-        market.update(
-            account,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            UFixed6Lib.MAX,
-            Fixed6Lib.from(-1, raisedKeeperFee),
-            false
-        );
+        _marketWithdraw(market, account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
     }
 
-    function _cancelOrder(IMarket market, address user, uint256 orderId) private {
+    function _cancelOrder(IMarket market, address account, uint256 orderId) private {
         // ensure this order wasn't already executed/cancelled
-        TriggerOrder memory order = _orders[market][user][orderId].read();
+        TriggerOrder memory order = _orders[market][account][orderId].read();
         if (order.isEmpty() || order.isSpent) revert ManagerCannotCancelError();
 
         // invalidate the order nonce
         order.isSpent = true;
-        _orders[market][user][orderId].store(order);
+        _orders[market][account][orderId].store(order);
 
-        emit TriggerOrderCancelled(market, user, orderId);
+        emit TriggerOrderCancelled(market, account, orderId);
     }
 
-    function _placeOrder(IMarket market, address user, uint256 orderId, TriggerOrder calldata order) private {
+    /// @notice Transfers DSU from market to manager to pay interface fee
+    function _chargeInterfaceFee(IMarket market, address account, TriggerOrder memory order) internal returns (bool) {
+        if (order.interfaceFee.amount.isZero()) return false;
+
+        // determine amount of fee to charge
+        UFixed6 feeAmount = order.interfaceFee.fixedFee ?
+            order.interfaceFee.amount :
+            order.notionalValue(market, account).mul(order.interfaceFee.amount);
+
+        _marketWithdraw(market, account, feeAmount);
+
+        if (order.interfaceFee.unwrap) _unwrapAndWithdaw(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+        else DSU.push(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+
+        return true;
+    }
+
+    /// @notice Transfers DSU from market to manager to pay keeper or interface fee
+    function _marketWithdraw(IMarket market, address account, UFixed6 amount) private {
+        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, amount), false);
+    }
+
+    function _placeOrder(IMarket market, address account, uint256 orderId, TriggerOrder calldata order) private {
         // prevent user from reusing an order identifier
-        TriggerOrder memory old = _orders[market][user][orderId].read();
+        TriggerOrder memory old = _orders[market][account][orderId].read();
         if (old.isSpent) revert ManagerInvalidOrderNonceError();
 
-        _orders[market][user][orderId].store(order);
-        emit TriggerOrderPlaced(market, user, order, orderId);
+        _orders[market][account][orderId].store(order);
+        emit TriggerOrderPlaced(market, account, order, orderId);
+    }
+
+    /// @notice Unwraps DSU to USDC and pushes to interface fee receiver
+    function _unwrapAndWithdaw(address receiver, UFixed18 amount) private {
+        reserve.redeem(amount);
+        USDC.push(receiver, UFixed6Lib.from(amount));
     }
 }
