@@ -24,6 +24,8 @@ import {
   ZERO_ADDR,
   DSU,
   ETH_ORACLE,
+  resetEthSubOracle,
+  resetBtcSubOracle,
 } from '../helpers/setupHelpers'
 
 import {
@@ -98,11 +100,21 @@ describe('Invoke', () => {
     btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
-  beforeEach(async () => {
+  const fixture = async () => {
     instanceVars = await loadFixture(deployProtocol)
     ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
     market = await createMarket(instanceVars)
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
+    // TODO: move into fixture
     multiInvoker = await createInvoker(instanceVars, vaultFactory)
+  })
+
+  afterEach(async () => {
+    resetEthSubOracle(ethSubOracle)
+    resetBtcSubOracle(btcSubOracle)
   })
 
   it('constructs correctly', async () => {
@@ -133,7 +145,6 @@ describe('Invoke', () => {
 
   it('reverts on bad target approval', async () => {
     const { user, userB } = instanceVars
-    multiInvoker = await createInvoker(instanceVars, vaultFactory)
 
     await expect(
       multiInvoker.connect(user)['invoke((uint8,bytes)[])'](buildApproveTarget(userB.address)),
@@ -918,14 +929,10 @@ describe('Invoke', () => {
         })
 
         describe('#batcher 0 address', async () => {
-          let instanceVars: InstanceVars
-          let market: Market
           let reserve: IEmptySetReserve
 
           beforeEach(async () => {
-            instanceVars = await loadFixture(deployProtocol)
-            ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
-            market = await createMarket(instanceVars)
+            // deploy multiinvoker with batcher == 0 address
             multiInvoker = await createInvoker(instanceVars, vaultFactory, true)
             await setup()
             reserve = IEmptySetReserve__factory.connect(RESERVE, instanceVars.owner)
