@@ -23,6 +23,9 @@ contract Oracle is IOracle, Instance {
     /// @notice The beneficiary of the oracle fee
     address public beneficiary;
 
+    /// @notice The name of the oracle
+    string public name;
+
     /// @notice Initializes the contract state
     /// @param initialProvider The initial oracle provider
     function initialize(IOracleProvider initialProvider) external initializer(1) {
@@ -51,6 +54,12 @@ contract Oracle is IOracle, Instance {
     function updateBeneficiary(address newBeneficiary) external onlyOwner {
         beneficiary = newBeneficiary;
         emit BeneficiaryUpdated(newBeneficiary);
+    }
+
+    /// @notice Updates the name of the oracle
+    /// @param newName The new oracle name
+    function updateName(string calldata newName) external onlyOwner {
+        name = newName;
     }
 
     /// @notice Requests a new version at the current timestamp
