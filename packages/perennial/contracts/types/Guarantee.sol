@@ -50,7 +50,7 @@ library GuaranteeLib {
     /// @notice Creates a new guarantee from an order
     /// @param order The order to create the guarantee from
     /// @param priceOverride The price override
-    /// @param referralFee The referral fee percentage
+    /// @param referralFee The the percentage of the subtractive fee to take as a solver referral fee
     /// @param chargeSettlementFee Whether the order will still be charged the settlement fee
     /// @param chargeTradeFee Whether the order will still be charged the trade fee
     /// @return newGuarantee The resulting guarantee
