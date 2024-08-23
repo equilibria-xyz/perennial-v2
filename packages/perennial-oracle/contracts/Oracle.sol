@@ -28,10 +28,12 @@ contract Oracle is IOracle, Instance {
 
     /// @notice Initializes the contract state
     /// @param initialProvider The initial oracle provider
-    function initialize(IOracleProvider initialProvider) external initializer(1) {
+    /// @param name_ The name of the oracle
+    function initialize(IOracleProvider initialProvider, string calldata name_) external initializer(1) {
         __Instance__initialize();
         _updateCurrent(initialProvider);
         _updateLatest(initialProvider.latest());
+        name = name_;
     }
 
     /// @notice Updates the current oracle provider
@@ -57,6 +59,7 @@ contract Oracle is IOracle, Instance {
     }
 
     /// @notice Updates the name of the oracle
+    /// @dev Allows setting the name for previously deployed oracles (v2.3 migration)
     /// @param newName The new oracle name
     function updateName(string calldata newName) external onlyOwner {
         name = newName;

@@ -41,7 +41,7 @@ interface IOracle is IOracleProvider, IInstance {
         uint128 latest;
     }
 
-    function initialize(IOracleProvider initialProvider) external;
+    function initialize(IOracleProvider initialProvider, string calldata name_) external;
     function register(IMarket newMarket) external;
     function update(IOracleProvider newProvider) external;
     function updateBeneficiary(address newBeneficiary) external;

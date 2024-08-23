@@ -151,10 +151,10 @@ describe('ChainlinkFactory', () => {
     })
 
     oracle = Oracle__factory.connect(
-      await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkFactory.address),
+      await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkFactory.address, 'ETH-USD'),
       owner,
     )
-    await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkFactory.address)
+    await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkFactory.address, 'ETH-USD')
 
     await keeperOracle.register(oracle.address)
     await oracle.register(market.address)

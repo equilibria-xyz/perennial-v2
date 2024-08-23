@@ -41,6 +41,7 @@ export async function createMarketETH(
     oracleFactory,
     pythOracleFactory,
     PYTH_ETH_USD_PRICE_FEED,
+    'ETH-USD',
     overrides,
   )
   // Create the market in which user or collateral account may interact

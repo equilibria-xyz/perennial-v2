@@ -295,15 +295,23 @@ testOracles.forEach(testOracle => {
       })
 
       oracle = Oracle__factory.connect(
-        await oracleFactory.callStatic.create(METAQUANTS_BAYC_ETH_PRICE_FEED, metaquantsOracleFactory.address),
+        await oracleFactory.callStatic.create(
+          METAQUANTS_BAYC_ETH_PRICE_FEED,
+          metaquantsOracleFactory.address,
+          'BAYC-USD',
+        ),
         owner,
       )
-      await oracleFactory.create(METAQUANTS_BAYC_ETH_PRICE_FEED, metaquantsOracleFactory.address)
+      await oracleFactory.create(METAQUANTS_BAYC_ETH_PRICE_FEED, metaquantsOracleFactory.address, 'BAYC-USD')
       oracleMilady = Oracle__factory.connect(
-        await oracleFactory.callStatic.create(METAQUANTS_MILADY_ETH_PRICE_FEED, metaquantsOracleFactory.address),
+        await oracleFactory.callStatic.create(
+          METAQUANTS_MILADY_ETH_PRICE_FEED,
+          metaquantsOracleFactory.address,
+          'MILADY-USD',
+        ),
         owner,
       )
-      await oracleFactory.create(METAQUANTS_MILADY_ETH_PRICE_FEED, metaquantsOracleFactory.address)
+      await oracleFactory.create(METAQUANTS_MILADY_ETH_PRICE_FEED, metaquantsOracleFactory.address, 'MILADY-USD')
 
       const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
 

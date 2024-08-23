@@ -80,15 +80,16 @@ contract OracleFactory is IOracleFactory, Factory {
     /// @notice Creates a new oracle instance
     /// @param id The id of the oracle to create
     /// @param factory The initial underlying oracle factory for this oracle to use
+    /// @param name The name of the oracle
     /// @return newOracle The newly created oracle instance
-    function create(bytes32 id, IOracleProviderFactory factory) external onlyOwner returns (IOracle newOracle) {
+    function create(bytes32 id, IOracleProviderFactory factory, string calldata name) external onlyOwner returns (IOracle newOracle) {
         if (!factories[factory]) revert OracleFactoryNotRegisteredError();
         if (oracles[id] != IOracleProvider(address(0))) revert OracleFactoryAlreadyCreatedError();
 
         IOracleProvider oracleProvider = factory.oracles(id);
         if (oracleProvider == IOracleProvider(address(0))) revert OracleFactoryInvalidIdError();
 
-        newOracle = IOracle(address(_create(abi.encodeCall(IOracle.initialize, (oracleProvider)))));
+        newOracle = IOracle(address(_create(abi.encodeCall(IOracle.initialize, (oracleProvider, name)))));
         oracles[id] = newOracle;
         ids[newOracle] = id;
 

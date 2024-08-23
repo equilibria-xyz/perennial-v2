@@ -214,19 +214,23 @@ describe('Vault', () => {
     vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
 
     const rootOracle = IOracle__factory.connect(
-      await instanceVars.oracleFactory.connect(owner).callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address),
+      await instanceVars.oracleFactory
+        .connect(owner)
+        .callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD'),
       owner,
     )
-    await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address)
+    await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD')
 
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
 
     const btcRootOracle = IOracle__factory.connect(
-      await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
+      await instanceVars.oracleFactory
+        .connect(owner)
+        .callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD'),
       owner,
     )
-    await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
+    await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD')
 
     market = await deployProductOnMainnetFork({
       factory: instanceVars.marketFactory,
@@ -444,10 +448,10 @@ describe('Vault', () => {
       vaultOracleFactory.oracles.whenCalledWith(LINK_PRICE_FEE_ID).returns(oracle3.address)
 
       rootOracle3 = IOracle__factory.connect(
-        await oracleFactory.connect(owner).callStatic.create(LINK_PRICE_FEE_ID, vaultOracleFactory.address),
+        await oracleFactory.connect(owner).callStatic.create(LINK_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK-USD'),
         owner,
       )
-      await oracleFactory.connect(owner).create(LINK_PRICE_FEE_ID, vaultOracleFactory.address)
+      await oracleFactory.connect(owner).create(LINK_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK-USD')
 
       market3 = await deployProductOnMainnetFork({
         factory: factory,
@@ -514,10 +518,12 @@ describe('Vault', () => {
       vaultOracleFactory.oracles.whenCalledWith(LINK0_PRICE_FEE_ID).returns(oracle4.address)
 
       const rootOracle4 = IOracle__factory.connect(
-        await oracleFactory.connect(owner).callStatic.create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address),
+        await oracleFactory
+          .connect(owner)
+          .callStatic.create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK0-USD'),
         owner,
       )
-      await oracleFactory.connect(owner).create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address)
+      await oracleFactory.connect(owner).create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK0-USD')
 
       const marketBadAsset = await deployProductOnMainnetFork({
         factory: factory,

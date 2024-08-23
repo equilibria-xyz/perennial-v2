@@ -130,10 +130,10 @@ describe('PythOracleFactory', () => {
     })
 
     oracle = Oracle__factory.connect(
-      await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
+      await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD'),
       owner,
     )
-    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
+    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD')
 
     await keeperOracle.register(oracle.address)
     await oracle.register(market.address)

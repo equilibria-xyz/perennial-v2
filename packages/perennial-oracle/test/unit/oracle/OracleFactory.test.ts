@@ -96,8 +96,12 @@ describe('OracleFactory', () => {
     it('creates the oracle', async () => {
       subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
 
-      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
-      await expect(factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address))
+      const oracleAddress = await factory.callStatic.create(
+        PYTH_ETH_USD_PRICE_FEED,
+        subOracleFactory.address,
+        'ETH-USD',
+      )
+      await expect(factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD'))
         .to.emit(factory, 'InstanceRegistered')
         .withArgs(oracleAddress)
         .to.emit(factory, 'OracleCreated')
@@ -115,17 +119,17 @@ describe('OracleFactory', () => {
       subOracleFactory2.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
 
       await expect(
-        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address),
+        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address, 'ETH-USD'),
       ).to.revertedWithCustomError(factory, 'OracleFactoryNotRegisteredError')
     })
 
     it('reverts when already registered', async () => {
       subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
 
-      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD')
 
       await expect(
-        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
+        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD'),
       ).to.revertedWithCustomError(factory, 'OracleFactoryAlreadyCreatedError')
     })
 
@@ -133,13 +137,13 @@ describe('OracleFactory', () => {
       subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(constants.AddressZero)
 
       await expect(
-        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
+        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD'),
       ).to.revertedWithCustomError(factory, 'OracleFactoryInvalidIdError')
     })
 
     it('reverts if not owner', async () => {
       await expect(
-        factory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
+        factory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD'),
       ).to.revertedWithCustomError(factory, 'OwnableNotOwnerError')
     })
   })
@@ -153,8 +157,12 @@ describe('OracleFactory', () => {
     it('update the factory', async () => {
       await factory.connect(owner).register(subOracleFactory2.address)
 
-      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
-      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      const oracleAddress = await factory.callStatic.create(
+        PYTH_ETH_USD_PRICE_FEED,
+        subOracleFactory.address,
+        'ETH-USD',
+      )
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD')
       const oracle = Oracle__factory.connect(oracleAddress, owner)
       const mockOracle = await smock.fake<IOracle>('IOracle', { address: oracle.address })
       mockOracle.update.whenCalledWith(subOracle2.address).returns()
@@ -183,8 +191,12 @@ describe('OracleFactory', () => {
     it('reverts oracle not instance', async () => {
       await factory.connect(owner).register(subOracleFactory2.address)
 
-      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
-      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      const oracleAddress = await factory.callStatic.create(
+        PYTH_ETH_USD_PRICE_FEED,
+        subOracleFactory.address,
+        'ETH-USD',
+      )
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD')
       const oracle = Oracle__factory.connect(oracleAddress, owner)
       const mockOracle = await smock.fake<IOracle>('IOracle', { address: oracle.address })
       mockOracle.update.whenCalledWith(subOracle2.address).returns()

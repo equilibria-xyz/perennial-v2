@@ -84,7 +84,7 @@ describe('Oracle', () => {
         0,
       )
 
-      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
+      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD'))
         .to.emit(oracle, 'OracleUpdated')
         .withArgs(underlying0.address)
 
@@ -110,7 +110,7 @@ describe('Oracle', () => {
         1687229905,
       )
 
-      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
+      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD'))
         .to.emit(oracle, 'OracleUpdated')
         .withArgs(underlying0.address)
 
@@ -122,9 +122,9 @@ describe('Oracle', () => {
     })
 
     it('reverts if already initialized', async () => {
-      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
 
-      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address))
+      await expect(oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD'))
         .to.be.revertedWithCustomError(oracle, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -132,7 +132,7 @@ describe('Oracle', () => {
 
   describe('#withdraw', async () => {
     beforeEach(async () => {
-      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
       await oracle.register(market.address)
     })
 
@@ -174,7 +174,7 @@ describe('Oracle', () => {
         },
         1687229905,
       )
-      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
       await oracle.register(market.address)
     })
 
@@ -820,7 +820,7 @@ describe('Oracle', () => {
     context('updates the oracle from a blank oracle', async () => {
       beforeEach(async () => {
         oracle = await new Oracle__factory(owner).deploy()
-        await oracle.connect(oracleFactorySigner).initialize(underlying1.address)
+        await oracle.connect(oracleFactorySigner).initialize(underlying1.address, 'ETH-USD')
         await oracle.register(market.address)
       })
 
@@ -890,7 +890,7 @@ describe('Oracle', () => {
         },
         1687229905,
       )
-      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
       await oracle.connect(owner).register(market.address)
     })
 
@@ -930,7 +930,7 @@ describe('Oracle', () => {
         },
         1687229905,
       )
-      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
     })
 
     it('reverts when not the authorized', async () => {
@@ -943,7 +943,7 @@ describe('Oracle', () => {
 
   describe('#updateName', async () => {
     beforeEach(async () => {
-      await oracle.connect(oracleFactorySigner).initialize(underlying0.address)
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
     })
 
     it('update name when owner', async () => {
