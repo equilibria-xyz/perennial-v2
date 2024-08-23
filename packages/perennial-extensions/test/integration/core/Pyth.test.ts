@@ -60,7 +60,6 @@ describe('PythOracleFactory', () => {
   let user: SignerWithAddress
   let oracle: Oracle
   let keeperOracle: KeeperOracle
-  let marketFactory: MarketFactory
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: IERC20Metadata
@@ -71,7 +70,7 @@ describe('PythOracleFactory', () => {
   const fixture = async () => {
     await time.reset(17433260)
     instanceVars = await deployProtocol()
-    ;({ dsu, oracleFactory, owner, user, marketFactory } = instanceVars)
+    ;({ dsu, oracleFactory, owner, user } = instanceVars)
 
     await oracleFactory.updateParameter({
       maxGranularity: 1,

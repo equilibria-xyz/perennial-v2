@@ -1,11 +1,11 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils } from 'ethers'
 import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
-import { time as hhTime } from '@nomicfoundation/hardhat-network-helpers'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { advanceBlock, currentBlockTimestamp, increase, increaseTo } from '../../../../common/testutil/time'
+import { currentBlockTimestamp, increase } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,
@@ -41,7 +41,6 @@ import {
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
-import { pyth } from '../../../types/generated/contracts'
 
 const { ethers } = HRE
 const { constants } = ethers
@@ -135,10 +134,10 @@ testOracles.forEach(testOracle => {
     let marketBtc: IMarket
     let market2: IMarket
     let dsu: IERC20Metadata
-    let oracleSigner: SignerWithAddress
     let factorySigner: SignerWithAddress
 
-    const setup = async () => {
+    const fixture = async () => {
+      await time.reset()
       ;[owner, user, user2] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
@@ -421,8 +420,7 @@ testOracles.forEach(testOracle => {
     }
 
     beforeEach(async () => {
-      await time.reset()
-      await setup()
+      await loadFixture(fixture)
       await time.increaseTo(STARTING_TIME - 10)
 
       await includeAt(async () => {
@@ -437,7 +435,7 @@ testOracles.forEach(testOracle => {
       }, STARTING_TIME - 1)
     })
 
-    describe('Factory', async () => {
+    describe('PythFactory', async () => {
       context('#initialize', async () => {
         it('reverts if already initialized', async () => {
           const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
