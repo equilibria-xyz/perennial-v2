@@ -413,7 +413,6 @@ testOracles.forEach(testOracle => {
       await dsu.connect(user).approve(market.address, constants.MaxUint256)
       await dsu.connect(user).approve(market2.address, constants.MaxUint256)
 
-      oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))
 
       await testOracle.gasMock()
