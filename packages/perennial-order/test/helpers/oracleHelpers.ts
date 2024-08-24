@@ -57,6 +57,7 @@ export async function createPythOracle(
   oracleFactory: IOracleFactory,
   pythOracleFactory: PythFactory,
   pythFeedId: string,
+  name: string,
   overrides?: CallOverrides,
 ): Promise<[KeeperOracle, Oracle]> {
   // Create the keeper oracle, which tests may use to meddle with prices
@@ -76,10 +77,10 @@ export async function createPythOracle(
 
   // Create the oracle, which markets created by the market factory will query
   const oracle = Oracle__factory.connect(
-    await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address),
+    await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address, name),
     owner,
   )
-  await oracleFactory.create(pythFeedId, pythOracleFactory.address, overrides ?? {})
+  await oracleFactory.create(pythFeedId, pythOracleFactory.address, name, overrides ?? {})
   return [keeperOracle, oracle]
 }
 

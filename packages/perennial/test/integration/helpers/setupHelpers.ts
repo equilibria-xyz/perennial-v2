@@ -165,10 +165,10 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     maxOracleFee: parse6decimal('0.5'),
   })
   const oracle = IOracle__factory.connect(
-    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
+    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD'),
     owner,
   )
-  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address)
+  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
   // Set state
   await fundWallet(dsu, user)

@@ -112,10 +112,10 @@ describe('KeeperOracle', () => {
 
     // needed for making oracle requests
     oracle = Oracle__factory.connect(
-      await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, keeperOracleFactory.address),
+      await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, keeperOracleFactory.address, 'ETH-USD'),
       owner,
     )
-    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, keeperOracleFactory.address)
+    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, keeperOracleFactory.address, 'ETH-USD')
 
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
 

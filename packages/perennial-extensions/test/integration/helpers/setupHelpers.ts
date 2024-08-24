@@ -192,7 +192,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   // Params
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
-    protocolFee: parse6decimal('0.50'),
     maxFee: parse6decimal('0.01'),
     maxFeeAbsolute: parse6decimal('1000'),
     maxCut: parse6decimal('0.50'),
@@ -204,10 +203,10 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   const oracle = IOracle__factory.connect(
-    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
+    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD'),
     owner,
   )
-  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address)
+  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
   // Set state
   await fundWallet(dsu, usdc, user)
@@ -419,16 +418,20 @@ export async function createVault(
   vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
 
   const ethOracle = IOracle__factory.connect(
-    await instanceVars.oracleFactory.connect(owner).callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address),
+    await instanceVars.oracleFactory
+      .connect(owner)
+      .callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD'),
     owner,
   )
-  await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address)
+  await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD')
 
   const btcOracle = IOracle__factory.connect(
-    await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
+    await instanceVars.oracleFactory
+      .connect(owner)
+      .callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD'),
     owner,
   )
-  await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
+  await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD')
 
   const ethMarket = await deployProductOnMainnetFork({
     factory: marketFactory,

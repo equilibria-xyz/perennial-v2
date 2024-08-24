@@ -271,15 +271,15 @@ testOracles.forEach(testOracle => {
       })
 
       oracle = Oracle__factory.connect(
-        await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address),
+        await oracleFactory.callStatic.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address, 'ETH-USD'),
         owner,
       )
-      await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address)
+      await oracleFactory.create(CHAINLINK_ETH_USD_PRICE_FEED, chainlinkOracleFactory.address, 'ETH-USD')
       oracleBtc = Oracle__factory.connect(
-        await oracleFactory.callStatic.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address),
+        await oracleFactory.callStatic.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address, 'BTC-USD'),
         owner,
       )
-      await oracleFactory.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address)
+      await oracleFactory.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address, 'BTC-USD')
 
       const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
 

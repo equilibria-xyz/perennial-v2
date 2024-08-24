@@ -229,31 +229,35 @@ testOracles.forEach(testOracle => {
       })
 
       oracle = Oracle__factory.connect(
-        await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
+        await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD'),
         owner,
       )
-      await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
+      await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD')
       oracleBtc = Oracle__factory.connect(
         await oracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000017',
           pythOracleFactory.address,
+          'BTC-USD',
         ),
         owner,
       )
       await oracleFactory.create(
         '0x0000000000000000000000000000000000000000000000000000000000000017',
         pythOracleFactory.address,
+        'BTC-USD',
       )
       oracle2 = Oracle__factory.connect(
         await oracleFactory.callStatic.create(
           '0x0000000000000000000000000000000000000000000000000000000000000021',
           pythOracleFactory.address,
+          'ETH²-USD',
         ),
         owner,
       )
       await oracleFactory.create(
         '0x0000000000000000000000000000000000000000000000000000000000000021',
         pythOracleFactory.address,
+        'ETH²-USD',
       )
 
       const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
