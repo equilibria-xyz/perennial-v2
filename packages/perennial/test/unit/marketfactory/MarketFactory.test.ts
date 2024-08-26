@@ -137,6 +137,7 @@ describe('MarketFactory', () => {
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
+      expect(await factory.markets(oracle.address)).to.be.equal(marketAddress)
     })
 
     it('creates the market w/ zero payoff', async () => {
@@ -290,6 +291,36 @@ describe('MarketFactory', () => {
       expect(isOperator).to.be.equal(true)
       expect(isSigner).to.be.equal(false)
       expect(orderReferralFee).to.be.equal(parse6decimal('0.35'))
+    })
+
+    it('account is signer', async () => {
+      await factory.updateExtension(extension.address, true)
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        extension.address,
+        user.address,
+        constants.AddressZero,
+      )
+
+      expect(isOperator).to.be.equal(true)
+      expect(isSigner).to.be.equal(true)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
+    })
+
+    it('sender is operator', async () => {
+      await factory.connect(user).updateOperator(extension.address, true)
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        extension.address,
+        user.address,
+        constants.AddressZero,
+      )
+
+      expect(isOperator).to.be.equal(true)
+      expect(isSigner).to.be.equal(true)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
     })
   })
 

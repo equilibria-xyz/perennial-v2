@@ -919,5 +919,22 @@ describe('Order', () => {
         })
       })
     })
+
+    describe('#magnitude', () => {
+      it('calculate order magnitude', async () => {
+        await order.store({
+          ...DEFAULT_ORDER,
+          makerPos: 10,
+          makerNeg: 5,
+          longPos: 10,
+          longNeg: 5,
+          shortPos: 10,
+          shortNeg: 5,
+        })
+        const result = await order.magnitude()
+
+        expect(result).to.equals(15)
+      })
+    })
   }
 })

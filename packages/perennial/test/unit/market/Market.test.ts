@@ -41,6 +41,7 @@ import {
   DEFAULT_GLOBAL,
   DEFAULT_GUARANTEE,
   DEFAULT_ORACLE_RECEIPT,
+  expectGuaranteeEq,
 } from '../../../../common/testutil/types'
 import {
   IMarket,
@@ -1973,6 +1974,24 @@ describe('Market', () => {
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               ...DEFAULT_VERSION,
               price: PRICE,
+            })
+            expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+              ...DEFAULT_GUARANTEE,
+            })
+            expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+              ...DEFAULT_GUARANTEE,
+            })
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
             })
           })
 
@@ -16552,6 +16571,14 @@ describe('Market', () => {
           expect(await market.liquidators(user.address, 3)).to.equal(constants.AddressZero)
           expect(await market.orderReferrers(user.address, 3)).to.equal(constants.AddressZero)
         })
+
+        it('reverts when paused', async () => {
+          factory.paused.returns(true)
+
+          await expect(
+            market.connect(user)['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, userB.address),
+          ).to.revertedWithCustomError(market, 'InstancePausedError')
+        })
       })
 
       context('invalid oracle version', async () => {
@@ -24041,6 +24068,31 @@ describe('Market', () => {
         await expect(market.connect(userB).claimFee(oracleSigner.address)).to.be.revertedWithCustomError(
           market,
           'MarketNotOperatorError',
+        )
+      })
+    })
+
+    describe('#claimExpoxure', async () => {
+      it('claims expoxure', async () => {
+        const exposure = (await market.global()).exposure.toNumber()
+        await expect(market.connect(owner).claimExposure())
+          .to.emit(market, 'ExposureClaimed')
+          .withArgs(owner.address, exposure)
+        expect((await market.global()).exposure).to.be.eq(0)
+      })
+
+      it('reverts if not owner (user)', async () => {
+        await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+
+      it('reverts if not owner (coordinator)', async () => {
+        await market.connect(owner).updateParameter(await market.parameter())
+        await expect(market.connect(coordinator).claimExposure()).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
         )
       })
     })
