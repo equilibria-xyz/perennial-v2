@@ -39,6 +39,7 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
+import { includeAt } from '../../../../common/testutil/time'
 
 const { ethers } = HRE
 
@@ -170,19 +171,6 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
     data: dsuIface.encodeFunctionData('mint', [utils.parseEther('200000')]),
   })
   await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000'))
-}
-
-async function includeAt(func: () => Promise<any>, timestamp: number): Promise<any> {
-  await ethers.provider.send('evm_setAutomine', [false])
-  await ethers.provider.send('evm_setIntervalMining', [0])
-
-  await time.setNextBlockTimestamp(timestamp)
-  const result = await func()
-
-  await ethers.provider.send('evm_mine', [])
-  await ethers.provider.send('evm_setAutomine', [true])
-
-  return result
 }
 
 const testOracles = [
