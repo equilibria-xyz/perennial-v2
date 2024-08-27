@@ -26,9 +26,25 @@ export async function setNextBlockTimestamp(timestamp: number): Promise<void> {
   await time.setNextBlockTimestamp(timestamp)
 }
 
+export async function includeAt(func: () => Promise<any>, timestamp: number): Promise<any> {
+  await ethers.provider.send('evm_setAutomine', [false])
+  await ethers.provider.send('evm_setIntervalMining', [0])
+
+  const currentTimestamp = await currentBlockTimestamp()
+
+  await time.setNextBlockTimestamp(timestamp)
+  const result = await func()
+
+  await ethers.provider.send('evm_mine', [])
+  await ethers.provider.send('evm_setAutomine', [true])
+
+  return result
+}
+
 export async function increaseTo(timestamp: number): Promise<void> {
   const currentTimestamp = await currentBlockTimestamp()
   if (timestamp < currentTimestamp) {
+    // TODO: eliminate situations where tests rewind time; instead, call `reset` in test setup
     await ethers.provider.send('evm_increaseTime', [timestamp - currentTimestamp])
     await advanceBlock()
   } else {

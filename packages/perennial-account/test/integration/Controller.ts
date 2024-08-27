@@ -16,7 +16,6 @@ import {
   IOracleFactory,
   IOracleProvider,
   PythFactory,
-  Oracle__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
