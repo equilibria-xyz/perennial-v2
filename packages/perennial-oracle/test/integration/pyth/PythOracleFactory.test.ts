@@ -3,9 +3,8 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils } from 'ethers'
 import HRE from 'hardhat'
-import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { currentBlockTimestamp, includeAt, increase } from '../../../../common/testutil/time'
+import { currentBlockTimestamp, includeAt, increase, increaseTo, reset } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,
@@ -125,12 +124,12 @@ testOracles.forEach(testOracle => {
     let factorySigner: SignerWithAddress
 
     const fixture = async () => {
-      await time.reset()
+      await reset()
       await setup()
     }
 
     const fixture2 = async () => {
-      await time.reset(18028156)
+      await reset(18028156)
       await setup()
     }
 
@@ -468,7 +467,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if feed not included in batched update', async () => {
-        await time.increaseTo(BATCHED_TIMESTAMP + 60)
+        await increaseTo(BATCHED_TIMESTAMP + 60)
 
         await expect(
           pythOracleFactory
@@ -490,7 +489,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if feed not created', async () => {
-        await time.increaseTo(BATCHED_TIMESTAMP + 60)
+        await increaseTo(BATCHED_TIMESTAMP + 60)
 
         await expect(
           pythOracleFactory
@@ -512,7 +511,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if feed included twice in batched update', async () => {
-        await time.increaseTo(BATCHED_TIMESTAMP + 60)
+        await increaseTo(BATCHED_TIMESTAMP + 60)
 
         await expect(
           pythOracleFactory
@@ -537,7 +536,7 @@ testOracles.forEach(testOracle => {
         const stagingTime = STARTING_TIME - 10
         if ((await currentBlockTimestamp()) >= stagingTime)
           throw new Error('Fork block does not allow sufficient time for test setup')
-        await time.increaseTo(stagingTime)
+        await increaseTo(stagingTime)
 
         await includeAt(async () => {
           await pythOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
@@ -925,7 +924,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('can commit if there are requested versions but no committed versions', async () => {
-          await time.increase(30)
+          await increase(30)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
@@ -952,7 +951,7 @@ testOracles.forEach(testOracle => {
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
           })
-          await time.increase(60)
+          await increase(60)
           await pythOracleFactory
             .connect(user)
             .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
@@ -975,7 +974,7 @@ testOracles.forEach(testOracle => {
                 ),
             STARTING_TIME,
           )
-          await time.increase(1)
+          await increase(1)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, { value: 1 })
           await includeAt(
             async () =>
@@ -1062,11 +1061,11 @@ testOracles.forEach(testOracle => {
         })
 
         it('can commit multiple non-requested versions, as long as they are in order', async () => {
-          await time.increase(1)
+          await increase(1)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
           })
-          await time.increase(60)
+          await increase(60)
           await pythOracleFactory
             .connect(user)
             .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
@@ -1091,7 +1090,7 @@ testOracles.forEach(testOracle => {
           )
           expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
-          await time.increase(59)
+          await increase(59)
           await expect(
             pythOracleFactory
               .connect(user)
@@ -1118,7 +1117,7 @@ testOracles.forEach(testOracle => {
           )
           expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
-          await time.increase(60)
+          await increase(60)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, '0x')
           await pythOracleFactory
             .connect(user)
@@ -1152,7 +1151,7 @@ testOracles.forEach(testOracle => {
           )
           expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
-          await time.increase(60)
+          await increase(60)
           await expect(
             pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 1, '0x'),
           ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleInvalidPriceError')
@@ -1467,7 +1466,7 @@ testOracles.forEach(testOracle => {
           expect(parameter2.currentGranularity).to.equal(10)
           expect(parameter2.effectiveAfter).to.equal(await currentBlockTimestamp())
 
-          await time.increase(1)
+          await increase(1)
 
           expect(await keeperOracle.connect(user).current()).to.equal(
             Math.ceil((await currentBlockTimestamp()) / 10) * 10,
@@ -1495,7 +1494,7 @@ testOracles.forEach(testOracle => {
           await pythOracleFactory
             .connect(owner)
             .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
-          await time.increase(1)
+          await increase(1)
 
           await pythOracleFactory
             .connect(owner)
@@ -1515,7 +1514,7 @@ testOracles.forEach(testOracle => {
           await pythOracleFactory
             .connect(owner)
             .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
-          await time.increase(1)
+          await increase(1)
 
           await pythOracleFactory
             .connect(owner)
@@ -1526,7 +1525,7 @@ testOracles.forEach(testOracle => {
           expect(parameter2.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
 
           const previousCurrent = Math.ceil((await currentBlockTimestamp()) / 10) * 10
-          await time.increase(previousCurrent - (await currentBlockTimestamp()) + 1)
+          await increase(previousCurrent - (await currentBlockTimestamp()) + 1)
 
           expect(await keeperOracle.connect(user).current()).to.equal(
             Math.ceil((await currentBlockTimestamp()) / 100) * 100,

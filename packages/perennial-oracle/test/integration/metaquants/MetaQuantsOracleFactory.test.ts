@@ -3,7 +3,6 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils, BigNumber, constants } from 'ethers'
 import HRE from 'hardhat'
-import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   ArbGasInfo,
@@ -39,7 +38,7 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
-import { includeAt } from '../../../../common/testutil/time'
+import { includeAt, increaseTo, reset } from '../../../../common/testutil/time'
 
 const { ethers } = HRE
 
@@ -207,7 +206,7 @@ testOracles.forEach(testOracle => {
     let powerTwoPayoff: PowerTwo
 
     const fixture = async () => {
-      await time.reset()
+      await reset()
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
@@ -451,7 +450,7 @@ testOracles.forEach(testOracle => {
 
     beforeEach(async () => {
       await loadFixture(fixture)
-      await time.increaseTo(STARTING_TIME - 2)
+      await increaseTo(STARTING_TIME - 2)
 
       // block.timestamp of the next call will be STARTING_TIME
 

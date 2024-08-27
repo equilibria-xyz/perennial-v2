@@ -30,8 +30,6 @@ export async function includeAt(func: () => Promise<any>, timestamp: number): Pr
   await ethers.provider.send('evm_setAutomine', [false])
   await ethers.provider.send('evm_setIntervalMining', [0])
 
-  const currentTimestamp = await currentBlockTimestamp()
-
   await time.setNextBlockTimestamp(timestamp)
   const result = await func()
 
@@ -44,9 +42,7 @@ export async function includeAt(func: () => Promise<any>, timestamp: number): Pr
 export async function increaseTo(timestamp: number): Promise<void> {
   const currentTimestamp = await currentBlockTimestamp()
   if (timestamp < currentTimestamp) {
-    // TODO: eliminate situations where tests rewind time; instead, call `reset` in test setup
-    await ethers.provider.send('evm_increaseTime', [timestamp - currentTimestamp])
-    await advanceBlock()
+    throw new Error('Attempting to create a block with timestamp earlier than the previous block')
   } else {
     await time.increaseTo(timestamp)
   }
