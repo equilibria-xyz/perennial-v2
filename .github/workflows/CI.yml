@@ -259,7 +259,7 @@ jobs:
       - name: Install lcov
         run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine unit and integration test
-        run: lcov --add-tracefile account_unit_test_coverage.lcov -a account_integration_test_coverage.lcov --output-file account_combined_coverage.info
+        run: lcov --add-tracefile account_unit_test_coverage.info -a account_integration_test_coverage.info --output-file account_combined_coverage.info
       - name: '[Account] Combined Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
