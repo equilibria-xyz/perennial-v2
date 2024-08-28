@@ -39,119 +39,119 @@ jobs:
       - name: lint
         run: yarn workspaces run lint
         if: ${{ env.PARSER_BROKEN != 'true' }}
-  # # [CORE]
-  # core-unit-test:
-  #   name: '[Core] Unit Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: core_unit_test_coverage
-  #         path: ./packages/perennial/coverage/lcov.info
-  #     - name: '[Core] Unit Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Core] Unit Test Coverage Report'
-  #         lcov-file: ./packages/perennial/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # core-integration-test:
-  #   name: '[Core] Integration Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #         MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: core_integration_test_coverage
-  #         path: ./packages/perennial/coverage/lcov.info
-  #     - name: '[Core] Integration Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Core] Integration Test Coverage Report'
-  #         lcov-file: ./packages/perennial/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # core-combined-test:
-  #   name: '[Core] Combined Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   needs: [core-unit-test, core-integration-test]
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Download unit test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: core_unit_test_coverage
-  #         path: core_unit_test_coverage.lcov
-  #     - name: Download integration test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: core_integration_test_coverage
-  #         path: core_integration_test_coverage.lcov
-  #     - name: Combine unit and integration test
-  #       run: lcov --add-tracefile core_unit_test_coverage.lcov -a core_integration_test_coverage.lcov --output-file core_combined_coverage.info
-  #     - name: '[Core] Combined Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Core] Combined Test Coverage Report'
-  #         lcov-file: core_combined_coverage.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  # [CORE]
+  core-unit-test:
+    name: '[Core] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+        run: |
+          yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: core_unit_test_coverage
+          path: ./packages/perennial/coverage/lcov.info
+      - name: '[Core] Unit Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Core] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  core-integration-test:
+    name: '[Core] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: core_integration_test_coverage
+          path: ./packages/perennial/coverage/lcov.info
+      - name: '[Core] Integration Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Core] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  core-combined-test:
+    name: '[Core] Combined Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    needs: [core-unit-test, core-integration-test]
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Download unit test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: core_unit_test_coverage
+          path: core_unit_test_coverage
+      - name: Download integration test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: core_integration_test_coverage
+          path: core_integration_test_coverage
+      - name: Combine unit and integration test
+        run: lcov --add-tracefile core_unit_test_coverage/lcov.info -a core_integration_test_coverage/lcov.info --output-file core_combined_coverage.info
+      - name: '[Core] Combined Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Core] Combined Test Coverage Report'
+          lcov-file: core_combined_coverage.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   
   # [ACCOUNT]
   account-unit-test:
@@ -269,502 +269,502 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
-  # # [ORACLE]
-  # oracle-unit-test:
-  #   name: '[Oracle] Unit Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: oracle_unit_test_coverage
-  #         path: ./packages/perennial-oracle/coverage/lcov.info
-  #     - name: '[Oracle] Unit Test Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Oracle] Unit Test Coverage Report'
-  #         lcov-file: ./packages/perennial-oracle/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # oracle-integration-test:
-  #   name: '[Oracle] Integration Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #         MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: oracle_integration_test_coverage
-  #         path: ./packages/perennial-oracle/coverage/lcov.info
-  #     - name: '[Oracle] Integration Test Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Oracle] Integration Test Coverage Report'
-  #         lcov-file: ./packages/perennial-oracle/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # oracle-integrationSepolia-test:
-  #   name: '[Oracle] Sepolia Integration Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #         ARBITRUM_SEPOLIA_NODE_URL: ${{ secrets.ARBITRUM_SEPOLIA_NODE_URL }}
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: oracle_sepolia_integration_test_coverage
-  #         path: ./packages/perennial-oracle/coverage/lcov.info
-  #     - name: '[Oracle] Sepolia Integration Test Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Oracle] Sepolia Integration Test Coverage Report'
-  #         lcov-file: ./packages/perennial-oracle/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # oracle-combined-test:
-  #   name: '[Oracle] Combined Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   needs: [oracle-unit-test, oracle-integration-test, oracle-integrationSepolia-test]
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Download unit test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: oracle_unit_test_coverage
-  #         path: oracle_unit_test_coverage.lcov
-  #     - name: Download integration test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: oracle_integration_test_coverage
-  #         path: oracle_integration_test_coverage.lcov
-  #     - name: Download sepolia integration test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: oracle_sepolia_integration_test_coverage
-  #         path: oracle_sepolia_integration_test_coverage.lcov
-  #     - name: Combine unit and integration test
-  #       run: lcov --add-tracefile oracle_unit_test_coverage.lcov -a oracle_integration_test_coverage.lcov -a oracle_sepolia_integration_test_coverage.lcov --output-file oracle_combined_coverage.info
-  #     - name: '[Oracle] Combined Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Oracle] Combined Test Coverage Report'
-  #         lcov-file: oracle_combined_coverage.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  # [ORACLE]
+  oracle-unit-test:
+    name: '[Oracle] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+        run: |
+          yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: oracle_unit_test_coverage
+          path: ./packages/perennial-oracle/coverage/lcov.info
+      - name: '[Oracle] Unit Test Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Oracle] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial-oracle/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  oracle-integration-test:
+    name: '[Oracle] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: oracle_integration_test_coverage
+          path: ./packages/perennial-oracle/coverage/lcov.info
+      - name: '[Oracle] Integration Test Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Oracle] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-oracle/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  oracle-integrationSepolia-test:
+    name: '[Oracle] Sepolia Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          ARBITRUM_SEPOLIA_NODE_URL: ${{ secrets.ARBITRUM_SEPOLIA_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: oracle_sepolia_integration_test_coverage
+          path: ./packages/perennial-oracle/coverage/lcov.info
+      - name: '[Oracle] Sepolia Integration Test Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Oracle] Sepolia Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-oracle/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  oracle-combined-test:
+    name: '[Oracle] Combined Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    needs: [oracle-unit-test, oracle-integration-test, oracle-integrationSepolia-test]
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Download unit test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: oracle_unit_test_coverage
+          path: oracle_unit_test_coverage
+      - name: Download integration test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: oracle_integration_test_coverage
+          path: oracle_integration_test_coverage
+      - name: Download sepolia integration test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: oracle_sepolia_integration_test_coverage
+          path: oracle_sepolia_integration_test_coverage
+      - name: Combine unit and integration test
+        run: lcov --add-tracefile oracle_unit_test_coverage/lcov.info -a oracle_integration_test_coverage/lcov.info -a oracle_sepolia_integration_test_coverage/lcov.info --output-file oracle_combined_coverage.info
+      - name: '[Oracle] Combined Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Oracle] Combined Test Coverage Report'
+          lcov-file: oracle_combined_coverage.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
-  # # [ORDER]
-  # order-unit-test:
-  #   name: '[Trigger Orders] Unit Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-order run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: order_unit_test_coverage
-  #         path: ./packages/perennial-order/coverage/lcov.info
-  #     - name: '[Trigger Orders] Unit Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Trigger Orders] Unit Test Coverage Report'
-  #         lcov-file: ./packages/perennial-order/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # order-integration-test:
-  #   name: '[Trigger Orders] Integration Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #         ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-order run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: order_integration_test_coverage
-  #         path: ./packages/perennial-order/coverage/lcov.info
-  #     - name: '[Trigger Orders] Integration Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Trigger Orders] Integration Test Coverage Report'
-  #         lcov-file: ./packages/perennial-order/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # order-combined-test:
-  #   name: '[Order] Combined Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   needs: [order-unit-test, order-integration-test]
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Download unit test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: order_unit_test_coverage
-  #         path: order_unit_test_coverage.lcov
-  #     - name: Download integration test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: order_integration_test_coverage
-  #         path: order_integration_test_coverage.lcov
-  #     - name: Combine unit and integration test
-  #       run: lcov --add-tracefile order_unit_test_coverage.lcov -a order_integration_test_coverage.lcov --output-file order_combined_coverage.info
-  #     - name: '[Order] Combined Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Order] Combined Test Coverage Report'
-  #         lcov-file: order_combined_coverage.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  # [ORDER]
+  order-unit-test:
+    name: '[Trigger Orders] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+        run: |
+          yarn workspace @equilibria/perennial-v2-order run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: order_unit_test_coverage
+          path: ./packages/perennial-order/coverage/lcov.info
+      - name: '[Trigger Orders] Unit Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Trigger Orders] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial-order/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  order-integration-test:
+    name: '[Trigger Orders] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-order run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: order_integration_test_coverage
+          path: ./packages/perennial-order/coverage/lcov.info
+      - name: '[Trigger Orders] Integration Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Trigger Orders] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-order/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  order-combined-test:
+    name: '[Order] Combined Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    needs: [order-unit-test, order-integration-test]
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Download unit test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: order_unit_test_coverage
+          path: order_unit_test_coverage
+      - name: Download integration test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: order_integration_test_coverage
+          path: order_integration_test_coverage
+      - name: Combine unit and integration test
+        run: lcov --add-tracefile order_unit_test_coverage/lcov.info -a order_integration_test_coverage/lcov.info --output-file order_combined_coverage.info
+      - name: '[Order] Combined Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Order] Combined Test Coverage Report'
+          lcov-file: order_combined_coverage.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
-  # # [VAULT]
-  # vault-unit-test:
-  #   name: '[Vault] Unit Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: vault_unit_test_coverage
-  #         path: ./packages/perennial-vault/coverage/lcov.info
-  #     - name: '[Vault] Unit Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Vault] Unit Test Coverage Report'
-  #         lcov-file: ./packages/perennial-vault/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # vault-integration-test:
-  #   name: '[Vault] Integration Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #         MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: vault_integration_test_coverage
-  #         path: ./packages/perennial-vault/coverage/lcov.info
-  #     - name: '[Vault] Integration Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Vault] Integration Test Coverage Report'
-  #         lcov-file: ./packages/perennial-vault/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # vault-combined-test:
-  #   name: '[Vault] Combined Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   needs: [vault-unit-test, vault-integration-test]
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Download unit test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: vault_unit_test_coverage
-  #         path: vault_unit_test_coverage.lcov
-  #     - name: Download integration test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: vault_integration_test_coverage
-  #         path: vault_integration_test_coverage.lcov
-  #     - name: Combine unit and integration test
-  #       run: lcov --add-tracefile vault_unit_test_coverage.lcov -a vault_integration_test_coverage.lcov --output-file vault_combined_coverage.info
-  #     - name: '[Vault] Combined Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Vault] Combined Test Coverage Report'
-  #         lcov-file: vault_combined_coverage.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  # [VAULT]
+  vault-unit-test:
+    name: '[Vault] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+        run: |
+          yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: vault_unit_test_coverage
+          path: ./packages/perennial-vault/coverage/lcov.info
+      - name: '[Vault] Unit Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Vault] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial-vault/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  vault-integration-test:
+    name: '[Vault] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: vault_integration_test_coverage
+          path: ./packages/perennial-vault/coverage/lcov.info
+      - name: '[Vault] Integration Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Vault] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-vault/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  vault-combined-test:
+    name: '[Vault] Combined Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    needs: [vault-unit-test, vault-integration-test]
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Download unit test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: vault_unit_test_coverage
+          path: vault_unit_test_coverage
+      - name: Download integration test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: vault_integration_test_coverage
+          path: vault_integration_test_coverage
+      - name: Combine unit and integration test
+        run: lcov --add-tracefile vault_unit_test_coverage/lcov.info -a vault_integration_test_coverage/lcov.info --output-file vault_combined_coverage.info
+      - name: '[Vault] Combined Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Vault] Combined Test Coverage Report'
+          lcov-file: vault_combined_coverage.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
-  # # [EXTENSIONS]
-  # extensions-unit-test:
-  #   name: '[Extensions] Unit Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: extensions_unit_test_coverage
-  #         path: ./packages/perennial-extensions/coverage/lcov.info
-  #     - name: '[Extensions] Unit Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Extensions] Unit Test Coverage Report'
-  #         lcov-file: ./packages/perennial-extensions/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # extensions-integration-test:
-  #   name: '[Extensions] Integration Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Compile
-  #       run: yarn workspaces run compile # compile all packages
-  #     - name: Run tests
-  #       env:
-  #         MOCHA_REPORTER: dot
-  #         MOCHA_RETRY_COUNT: 2
-  #         MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
-  #       run: |
-  #         yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
-  #     - name: Upload lcov file
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: extensions_integration_test_coverage
-  #         path: ./packages/perennial-extensions/coverage/lcov.info
-  #     - name: '[Extensions] Integration Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Extensions] Integration Test Coverage Report'
-  #         lcov-file: ./packages/perennial-extensions/coverage/lcov.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-  # extensions-combined-test:
-  #   name: '[Extensions] Combined Tests w/ Coverage'
-  #   runs-on: ubuntu-latest
-  #   needs: [extensions-unit-test, extensions-integration-test]
-  #   steps:
-  #     - uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #     - uses: actions/checkout@v3
-  #     - uses: actions/cache@v3
-  #       id: cache
-  #       with:
-  #         path: |
-  #           node_modules
-  #         key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
-  #     - name: Install
-  #       run: yarn --frozen-lockfile
-  #     - name: Download unit test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: extensions_unit_test_coverage
-  #         path: extensions_unit_test_coverage.lcov
-  #     - name: Download integration test coverage file
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: extensions_integration_test_coverage
-  #         path: extensions_integration_test_coverage.lcov
-  #     - name: Combine unit and integration test
-  #       run: lcov --add-tracefile extensions_unit_test_coverage.lcov -a extensions_integration_test_coverage.lcov --output-file extensions_combined_coverage.info
-  #     - name: '[Extensions] Combined Test Code Coverage Report'
-  #       uses: romeovs/lcov-reporter-action@v0.3.1
-  #       with:
-  #         title: '[Extensions] Combined Test Coverage Report'
-  #         lcov-file: extensions_combined_coverage.info
-  #         github-token: ${{ secrets.GITHUB_TOKEN }}
-  #         delete-old-comments: true
-  #       if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  # [EXTENSIONS]
+  extensions-unit-test:
+    name: '[Extensions] Unit Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+        run: |
+          yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: extensions_unit_test_coverage
+          path: ./packages/perennial-extensions/coverage/lcov.info
+      - name: '[Extensions] Unit Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Extensions] Unit Test Coverage Report'
+          lcov-file: ./packages/perennial-extensions/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  extensions-integration-test:
+    name: '[Extensions] Integration Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+        run: |
+          yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v3
+        with:
+          name: extensions_integration_test_coverage
+          path: ./packages/perennial-extensions/coverage/lcov.info
+      - name: '[Extensions] Integration Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Extensions] Integration Test Coverage Report'
+          lcov-file: ./packages/perennial-extensions/coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
+  extensions-combined-test:
+    name: '[Extensions] Combined Tests w/ Coverage'
+    runs-on: ubuntu-latest
+    needs: [extensions-unit-test, extensions-integration-test]
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Download unit test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: extensions_unit_test_coverage
+          path: extensions_unit_test_coverage
+      - name: Download integration test coverage file
+        uses: actions/download-artifact@v3
+        with:
+          name: extensions_integration_test_coverage
+          path: extensions_integration_test_coverage
+      - name: Combine unit and integration test
+        run: lcov --add-tracefile extensions_unit_test_coverage/lcov.info -a extensions_integration_test_coverage/lcov.info --output-file extensions_combined_coverage.info
+      - name: '[Extensions] Combined Test Code Coverage Report'
+        uses: romeovs/lcov-reporter-action@v0.3.1
+        with:
+          title: '[Extensions] Combined Test Coverage Report'
+          lcov-file: extensions_combined_coverage.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delete-old-comments: true
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
