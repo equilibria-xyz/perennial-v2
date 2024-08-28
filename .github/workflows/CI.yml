@@ -250,16 +250,16 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: account_unit_test_coverage
-          path: account_unit_test_coverage.info
+          path: account_unit_test_coverage
       - name: Download integration test coverage file
         uses: actions/download-artifact@v3
         with:
           name: account_integration_test_coverage
-          path: account_integration_test_coverage.info
+          path: account_integration_test_coverage
       - name: Install lcov
         run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine unit and integration test
-        run: lcov --add-tracefile account_unit_test_coverage.info -a account_integration_test_coverage.info --output-file account_combined_coverage.info
+        run: lcov --add-tracefile account_unit_test_coverage/lcov.info -a account_integration_test_coverage/lcov.info --output-file account_combined_coverage.info
       - name: '[Account] Combined Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
