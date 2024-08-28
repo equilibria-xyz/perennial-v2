@@ -250,12 +250,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: account_unit_test_coverage
-          path: account_unit_test_coverage.lcov
+          path: account_unit_test_coverage.info
       - name: Download integration test coverage file
         uses: actions/download-artifact@v3
         with:
           name: account_integration_test_coverage
-          path: account_integration_test_coverage.lcov
+          path: account_integration_test_coverage.info
       - name: Install lcov
         run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine unit and integration test
