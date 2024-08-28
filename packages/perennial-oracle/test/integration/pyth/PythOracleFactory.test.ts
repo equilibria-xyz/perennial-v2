@@ -3,8 +3,8 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils } from 'ethers'
 import HRE from 'hardhat'
+import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { currentBlockTimestamp, includeAt, increase, increaseTo, reset } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,
@@ -124,12 +124,12 @@ testOracles.forEach(testOracle => {
     let factorySigner: SignerWithAddress
 
     const fixture = async () => {
-      await reset()
+      await time.reset()
       await setup()
     }
 
     const fixture2 = async () => {
-      await reset(18028156)
+      await time.reset(18028156)
       await setup()
     }
 
@@ -416,7 +416,7 @@ testOracles.forEach(testOracle => {
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))
 
       await testOracle.gasMock()
-      console.log('finished creating fixture', await currentBlockTimestamp())
+      console.log('finished creating fixture', await time.currentBlockTimestamp())
     }
 
     describe('without initial price', async () => {
@@ -430,7 +430,7 @@ testOracles.forEach(testOracle => {
       it('can update single from batched update', async () => {
         await pythOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
 
-        await includeAt(
+        await time.includeAt(
           async () =>
             await pythOracleFactory
               .connect(user)
@@ -447,7 +447,7 @@ testOracles.forEach(testOracle => {
       it('can update multiple from batched update', async () => {
         await pythOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
 
-        await includeAt(
+        await time.includeAt(
           async () =>
             await pythOracleFactory
               .connect(user)
@@ -467,7 +467,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if feed not included in batched update', async () => {
-        await increaseTo(BATCHED_TIMESTAMP + 60)
+        await time.increaseTo(BATCHED_TIMESTAMP + 60)
 
         await expect(
           pythOracleFactory
@@ -489,7 +489,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if feed not created', async () => {
-        await increaseTo(BATCHED_TIMESTAMP + 60)
+        await time.increaseTo(BATCHED_TIMESTAMP + 60)
 
         await expect(
           pythOracleFactory
@@ -511,7 +511,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('reverts if feed included twice in batched update', async () => {
-        await increaseTo(BATCHED_TIMESTAMP + 60)
+        await time.increaseTo(BATCHED_TIMESTAMP + 60)
 
         await expect(
           pythOracleFactory
@@ -534,11 +534,11 @@ testOracles.forEach(testOracle => {
       beforeEach(async () => {
         await loadFixture(fixture)
         const stagingTime = STARTING_TIME - 10
-        if ((await currentBlockTimestamp()) >= stagingTime)
+        if ((await time.currentBlockTimestamp()) >= stagingTime)
           throw new Error('Fork block does not allow sufficient time for test setup')
-        await increaseTo(stagingTime)
+        await time.increaseTo(stagingTime)
 
-        await includeAt(async () => {
+        await time.includeAt(async () => {
           await pythOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
           await pythOracleFactory.commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 1, VAA, { value: 1 })
           await pythOracleFactory.commit(
@@ -645,7 +645,7 @@ testOracles.forEach(testOracle => {
 
       describe('#commit', async () => {
         it('commits successfully and incentivizes the keeper', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -684,7 +684,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('commits successfully with payoff and incentivizes the keeper', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market2
                 .connect(user)
@@ -722,7 +722,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('fails to commit if update fee is not provided', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -755,7 +755,7 @@ testOracles.forEach(testOracle => {
             pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, VAA, { value: 1 }),
           ).to.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
 
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -774,7 +774,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('does not commit a version that has already been committed', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -804,7 +804,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('rejects invalid update data', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -828,7 +828,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('cannot skip a version', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -842,7 +842,7 @@ testOracles.forEach(testOracle => {
                 ),
             STARTING_TIME,
           )
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -861,7 +861,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('cannot skip a version if the grace period has expired', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -875,7 +875,7 @@ testOracles.forEach(testOracle => {
                 ),
             STARTING_TIME,
           )
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -895,7 +895,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('commits unincentivized if there are no requested or committed versions, does not incentivize keeper, updates latest', async () => {
-          await increase(1)
+          await time.increase(1)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
           })
@@ -924,7 +924,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('can commit if there are requested versions but no committed versions', async () => {
-          await increase(30)
+          await time.increase(30)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
@@ -934,7 +934,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('can commit if there are committed versions but no requested versions', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -951,7 +951,7 @@ testOracles.forEach(testOracle => {
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
           })
-          await increase(60)
+          await time.increase(60)
           await pythOracleFactory
             .connect(user)
             .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
@@ -960,7 +960,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('can commit if there are committed versions and requested versions', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -974,16 +974,16 @@ testOracles.forEach(testOracle => {
                 ),
             STARTING_TIME,
           )
-          await increase(1)
+          await time.increase(1)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, { value: 1 })
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false), // make request to oracle (new price)
             1686199141,
           )
-          const secondRequestedVersion = await currentBlockTimestamp()
+          const secondRequestedVersion = await time.currentBlockTimestamp()
           const nonRequestedOracleVersion = STARTING_TIME + 60
           await pythOracleFactory
             .connect(user)
@@ -1009,7 +1009,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('must be more recent than the most recently committed version', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1035,7 +1035,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('does not commitRequested if oracleVersion is incorrect', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1061,11 +1061,11 @@ testOracles.forEach(testOracle => {
         })
 
         it('can commit multiple non-requested versions, as long as they are in order', async () => {
-          await increase(1)
+          await time.increase(1)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
           })
-          await increase(60)
+          await time.increase(60)
           await pythOracleFactory
             .connect(user)
             .commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 60, VAA_AFTER_EXPIRATION, {
@@ -1074,7 +1074,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('cant commit non-requested version until after an invalid has passed grace period', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1090,7 +1090,7 @@ testOracles.forEach(testOracle => {
           )
           expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
-          await increase(59)
+          await time.increase(59)
           await expect(
             pythOracleFactory
               .connect(user)
@@ -1101,7 +1101,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('can commit non-requested version after an invalid', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1117,7 +1117,7 @@ testOracles.forEach(testOracle => {
           )
           expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
-          await increase(60)
+          await time.increase(60)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, '0x')
           await pythOracleFactory
             .connect(user)
@@ -1135,7 +1135,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('reverts if committing invalid non-requested version', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1151,14 +1151,14 @@ testOracles.forEach(testOracle => {
           )
           expect((await keeperOracle.global()).latestIndex).to.equal(0)
 
-          await increase(60)
+          await time.increase(60)
           await expect(
             pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 1, '0x'),
           ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleInvalidPriceError')
         })
 
         it('can update multiple payoffs from single update', async () => {
-          await includeAt(async () => {
+          await time.includeAt(async () => {
             await market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false)
@@ -1201,7 +1201,7 @@ testOracles.forEach(testOracle => {
 
       describe('#settle', async () => {
         it('settles successfully and incentivizes the keeper', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1242,7 +1242,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('reverts if array lengths mismatch', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1270,7 +1270,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('reverts if calldata is ids is empty', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1306,7 +1306,7 @@ testOracles.forEach(testOracle => {
           const [latestIndex, currentIndex] = await keeperOracle.status()
           expect(latestIndex.valid).to.be.true
           expect(latestIndex.price).to.equal('1838167031')
-          expect(currentIndex).to.equal(await currentBlockTimestamp())
+          expect(currentIndex).to.equal(await time.currentBlockTimestamp())
         })
       })
 
@@ -1315,7 +1315,7 @@ testOracles.forEach(testOracle => {
           // No requested versions
           expect((await keeperOracle.global()).currentIndex).to.equal(0)
           await expect(
-            includeAt(
+            time.includeAt(
               async () =>
                 await market
                   .connect(user)
@@ -1386,7 +1386,7 @@ testOracles.forEach(testOracle => {
 
       describe('#latest', async () => {
         it('returns the latest version', async () => {
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
@@ -1411,7 +1411,7 @@ testOracles.forEach(testOracle => {
 
       describe('#current', async () => {
         it('returns the current timestamp', async () => {
-          expect(await keeperOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
+          expect(await keeperOracle.connect(user).current()).to.equal(await time.currentBlockTimestamp())
         })
 
         it('returns the current timestamp w/ granularity == 0', async () => {
@@ -1446,9 +1446,9 @@ testOracles.forEach(testOracle => {
           const parameter2 = await pythOracleFactory.parameter()
           expect(parameter2.latestGranularity).to.equal(1)
           expect(parameter2.currentGranularity).to.equal(10)
-          expect(parameter2.effectiveAfter).to.equal(await currentBlockTimestamp())
+          expect(parameter2.effectiveAfter).to.equal(await time.currentBlockTimestamp())
 
-          expect(await keeperOracle.connect(user).current()).to.equal(await currentBlockTimestamp())
+          expect(await keeperOracle.connect(user).current()).to.equal(await time.currentBlockTimestamp())
         })
 
         it('returns the current timestamp w/ settled granularity > 1', async () => {
@@ -1464,12 +1464,12 @@ testOracles.forEach(testOracle => {
           const parameter2 = await pythOracleFactory.parameter()
           expect(parameter2.latestGranularity).to.equal(1)
           expect(parameter2.currentGranularity).to.equal(10)
-          expect(parameter2.effectiveAfter).to.equal(await currentBlockTimestamp())
+          expect(parameter2.effectiveAfter).to.equal(await time.currentBlockTimestamp())
 
-          await increase(1)
+          await time.increase(1)
 
           expect(await keeperOracle.connect(user).current()).to.equal(
-            Math.ceil((await currentBlockTimestamp()) / 10) * 10,
+            Math.ceil((await time.currentBlockTimestamp()) / 10) * 10,
           )
         })
 
@@ -1494,7 +1494,7 @@ testOracles.forEach(testOracle => {
           await pythOracleFactory
             .connect(owner)
             .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
-          await increase(1)
+          await time.increase(1)
 
           await pythOracleFactory
             .connect(owner)
@@ -1502,10 +1502,10 @@ testOracles.forEach(testOracle => {
           const parameter2 = await pythOracleFactory.parameter()
           expect(parameter2.latestGranularity).to.equal(10)
           expect(parameter2.currentGranularity).to.equal(100)
-          expect(parameter2.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+          expect(parameter2.effectiveAfter).to.equal(Math.ceil((await time.currentBlockTimestamp()) / 10) * 10)
 
           expect(await keeperOracle.connect(user).current()).to.equal(
-            Math.ceil((await currentBlockTimestamp()) / 10) * 10,
+            Math.ceil((await time.currentBlockTimestamp()) / 10) * 10,
           )
         })
 
@@ -1514,7 +1514,7 @@ testOracles.forEach(testOracle => {
           await pythOracleFactory
             .connect(owner)
             .updateParameter(10, parameter.oracleFee, parameter.validFrom, parameter.validTo)
-          await increase(1)
+          await time.increase(1)
 
           await pythOracleFactory
             .connect(owner)
@@ -1522,13 +1522,13 @@ testOracles.forEach(testOracle => {
           const parameter2 = await pythOracleFactory.parameter()
           expect(parameter2.latestGranularity).to.equal(10)
           expect(parameter2.currentGranularity).to.equal(100)
-          expect(parameter2.effectiveAfter).to.equal(Math.ceil((await currentBlockTimestamp()) / 10) * 10)
+          expect(parameter2.effectiveAfter).to.equal(Math.ceil((await time.currentBlockTimestamp()) / 10) * 10)
 
-          const previousCurrent = Math.ceil((await currentBlockTimestamp()) / 10) * 10
-          await increase(previousCurrent - (await currentBlockTimestamp()) + 1)
+          const previousCurrent = Math.ceil((await time.currentBlockTimestamp()) / 10) * 10
+          await time.increase(previousCurrent - (await time.currentBlockTimestamp()) + 1)
 
           expect(await keeperOracle.connect(user).current()).to.equal(
-            Math.ceil((await currentBlockTimestamp()) / 100) * 100,
+            Math.ceil((await time.currentBlockTimestamp()) / 100) * 100,
           )
         })
       })
@@ -1539,7 +1539,7 @@ testOracles.forEach(testOracle => {
           await pythOracleFactory
             .connect(owner)
             .updateParameter(1, parse6decimal('0.1'), parameter.validFrom, parameter.validTo)
-          await includeAt(
+          await time.includeAt(
             async () =>
               await market
                 .connect(user)
