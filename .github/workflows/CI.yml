@@ -142,6 +142,8 @@ jobs:
         with:
           name: core_integration_test_coverage
           path: core_integration_test_coverage
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine unit and integration test
         run: lcov --add-tracefile core_unit_test_coverage/lcov.info -a core_integration_test_coverage/lcov.info --output-file core_combined_coverage.info
       - name: '[Core] Combined Test Code Coverage Report'
@@ -415,6 +417,8 @@ jobs:
         with:
           name: oracle_sepolia_integration_test_coverage
           path: oracle_sepolia_integration_test_coverage
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine unit and integration test
         run: lcov --add-tracefile oracle_unit_test_coverage/lcov.info -a oracle_integration_test_coverage/lcov.info -a oracle_sepolia_integration_test_coverage/lcov.info --output-file oracle_combined_coverage.info
       - name: '[Oracle] Combined Test Code Coverage Report'
@@ -529,6 +533,8 @@ jobs:
         with:
           name: order_integration_test_coverage
           path: order_integration_test_coverage
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine unit and integration test
         run: lcov --add-tracefile order_unit_test_coverage/lcov.info -a order_integration_test_coverage/lcov.info --output-file order_combined_coverage.info
       - name: '[Order] Combined Test Code Coverage Report'
@@ -643,6 +649,8 @@ jobs:
         with:
           name: vault_integration_test_coverage
           path: vault_integration_test_coverage
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine unit and integration test
         run: lcov --add-tracefile vault_unit_test_coverage/lcov.info -a vault_integration_test_coverage/lcov.info --output-file vault_combined_coverage.info
       - name: '[Vault] Combined Test Code Coverage Report'
@@ -757,6 +765,8 @@ jobs:
         with:
           name: extensions_integration_test_coverage
           path: extensions_integration_test_coverage
+      - name: Install lcov
+        run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine unit and integration test
         run: lcov --add-tracefile extensions_unit_test_coverage/lcov.info -a extensions_integration_test_coverage/lcov.info --output-file extensions_combined_coverage.info
       - name: '[Extensions] Combined Test Code Coverage Report'
