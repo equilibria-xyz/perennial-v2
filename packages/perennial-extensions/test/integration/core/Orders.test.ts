@@ -1,10 +1,12 @@
 import { BigNumber, utils, constants, PayableOverrides } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, createInvoker, settle } from '../helpers/setupHelpers'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 import 'hardhat'
 
 import { expect } from 'chai'
+import { getTimestamp } from '../../../../common/testutil/transaction'
 import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
@@ -17,7 +19,7 @@ import {
   buildExecOrder,
   buildPlaceOrder,
 } from '../../helpers/invoke'
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+
 import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
@@ -39,11 +41,10 @@ describe('Orders', () => {
   let market: Market
   let multiInvoker: MultiInvoker
 
-  beforeEach(async () => {
+  const fixture = async () => {
     instanceVars = await loadFixture(deployProtocol)
     await instanceVars.chainlink.reset()
-
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu } = instanceVars
 
     market = await createMarket(instanceVars)
     multiInvoker = await createInvoker(instanceVars)
@@ -59,8 +60,6 @@ describe('Orders', () => {
     await market
       .connect(userB)
       ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, position, 0, 0, collateral, false)
-    await chainlink.nextWithPriceModification(() => PRICE)
-    settle(market, userB)
 
     await multiInvoker
       .connect(userB)
@@ -68,9 +67,15 @@ describe('Orders', () => {
 
     await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
     await dsu.connect(userB).approve(multiInvoker.address, dsuCollateral)
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
+    await instanceVars.chainlink.nextWithPriceModification(() => PRICE)
+    settle(market, instanceVars.userB)
   })
 
-  afterEach(async () => {
+  after(async () => {
     await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
   })
 
@@ -481,6 +486,8 @@ describe('Orders', () => {
 
         const balanceBefore = await dsu.balanceOf(userB.address)
         const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        const currentTimestamp = await chainlink.oracle.current()
+
         await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
           .to.emit(multiInvoker, 'OrderExecuted')
           .withArgs(user.address, market.address, 1)
@@ -488,7 +495,7 @@ describe('Orders', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
-            { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
+            { ...DEFAULT_ORDER, timestamp: currentTimestamp, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
             userB.address,
@@ -499,7 +506,7 @@ describe('Orders', () => {
             user.address,
             {
               ...DEFAULT_ORDER,
-              timestamp: 1631114005,
+              timestamp: currentTimestamp,
               orders: 1,
               longPos: userPosition,
               takerReferral: 5e6,
@@ -549,6 +556,8 @@ describe('Orders', () => {
 
         const balanceBefore = await usdc.balanceOf(userB.address)
         const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        const currentTimestamp = await chainlink.oracle.current()
+
         await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
           .to.emit(multiInvoker, 'OrderExecuted')
           .withArgs(user.address, market.address, 1)
@@ -556,7 +565,7 @@ describe('Orders', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
-            { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
+            { ...DEFAULT_ORDER, timestamp: currentTimestamp, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
             userB.address,
@@ -565,7 +574,7 @@ describe('Orders', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
-            { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition, takerReferral: 5e6 },
+            { ...DEFAULT_ORDER, timestamp: currentTimestamp, orders: 1, longPos: userPosition, takerReferral: 5e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
             userB.address,
@@ -613,6 +622,7 @@ describe('Orders', () => {
         const balanceBefore = await usdc.balanceOf(userB.address)
         const balanceBefore2 = await dsu.balanceOf(userD.address)
         const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+        const currentTimestamp = await chainlink.oracle.current()
         await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
           .to.emit(multiInvoker, 'OrderExecuted')
           .withArgs(user.address, market.address, 1)
@@ -620,7 +630,7 @@ describe('Orders', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
-            { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: -50e6 },
+            { ...DEFAULT_ORDER, timestamp: currentTimestamp, collateral: -50e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
             userB.address,
@@ -629,7 +639,7 @@ describe('Orders', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
-            { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition, takerReferral: 5e6 },
+            { ...DEFAULT_ORDER, timestamp: currentTimestamp, orders: 1, longPos: userPosition, takerReferral: 5e6 },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
             userB.address,
@@ -675,6 +685,7 @@ describe('Orders', () => {
 
         const balanceBefore = await usdc.balanceOf(userB.address)
         const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
+        const currentTimestamp = await chainlink.oracle.current()
         await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
           .to.emit(multiInvoker, 'OrderExecuted')
           .withArgs(userB.address, market.address, 1)
@@ -682,7 +693,7 @@ describe('Orders', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             userB.address,
-            { ...DEFAULT_ORDER, timestamp: 1631114005, collateral: collateral.div(-4) },
+            { ...DEFAULT_ORDER, timestamp: currentTimestamp, collateral: collateral.div(-4) },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
             constants.AddressZero,
@@ -952,11 +963,12 @@ describe('Orders', () => {
 
           await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000000'])
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+          const currentTimestamp = await chainlink.oracle.current()
           await expect(invoke(execute, undefined, { maxFeePerGas: 16777216 }))
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              { ...DEFAULT_ORDER, timestamp: 1631114005, orders: 1, longPos: userPosition },
+              { ...DEFAULT_ORDER, timestamp: currentTimestamp, orders: 1, longPos: userPosition },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
               constants.AddressZero,

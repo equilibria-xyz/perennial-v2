@@ -1,4 +1,5 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE from 'hardhat'
@@ -51,7 +52,7 @@ describe('MarketFactory', () => {
   let factory: MarketFactory
   let marketImpl: Market
 
-  beforeEach(async () => {
+  const fixture = async () => {
     ;[user, owner, signer, signer2, operator, operator2, extension, referrer] = await ethers.getSigners()
     oracleFactory = await smock.fake<IFactory>('IFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
@@ -90,6 +91,10 @@ describe('MarketFactory', () => {
       marketImpl.address,
     )
     await factory.initialize()
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
   })
 
   describe('#initialize', async () => {

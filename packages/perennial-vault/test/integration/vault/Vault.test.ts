@@ -18,7 +18,6 @@ import {
   IVaultFactory__factory,
   IOracleFactory,
   IMarketFactory,
-  CheckpointLib__factory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
@@ -29,7 +28,6 @@ import {
   TransparentUpgradeableProxy__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
-import { Address } from 'hardhat-deploy/dist/types'
 
 const { ethers } = HRE
 use(smock.matchers)

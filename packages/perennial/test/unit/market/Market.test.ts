@@ -1,5 +1,6 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE from 'hardhat'
@@ -426,7 +427,7 @@ describe('Market', () => {
   let riskParameter: RiskParameterStruct
   let marketParameter: MarketParameterStruct
 
-  beforeEach(async () => {
+  const fixture = async () => {
     ;[
       protocolTreasury,
       owner,
@@ -550,6 +551,10 @@ describe('Market', () => {
     factory.authorization
       .whenCalledWith(userD.address, userD.address, constants.AddressZero, constants.AddressZero)
       .returns([true, false, BigNumber.from(0)])
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
   })
 
   describe('#initialize', async () => {
@@ -1555,6 +1560,8 @@ describe('Market', () => {
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
         ).to.revertedWithCustomError(market, 'InstancePausedError')
+
+        factory.paused.returns(false)
       })
     })
 
@@ -14709,6 +14716,7 @@ describe('Market', () => {
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
           ).to.be.revertedWithCustomError(market, 'InstancePausedError')
+          factory.paused.returns(false)
         })
 
         it('reverts if paused (intent)', async () => {
@@ -14737,6 +14745,7 @@ describe('Market', () => {
                 'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](user.address, intent, '0x'),
           ).to.be.revertedWithCustomError(market, 'InstancePausedError')
+          factory.paused.returns(false)
         })
 
         it('reverts if over maker limit', async () => {
