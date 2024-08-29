@@ -51,7 +51,7 @@ The upgrade to v2.3 must be processed atomically, similarly to the upgrade to v2
 - Upgrade implementations to v2.3
 - [Run the global Position migration](#position-migration)
 - [Update Risk / Market / Protocol Parameters to new format](#update-risk--market--protocol-parameters-to-new-format)
-- [Update sub-oracles to v2.2-based oracles](#update-sub-oracles-to-v22-based-oracles-implementations)
+- [Update sub-oracles to v2.3-based oracles](#update-sub-oracles-to-v23-based-oracles-implementations)
 
 ### Position Migration
 
