@@ -16588,6 +16588,8 @@ describe('Market', () => {
           await expect(
             market.connect(user)['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, userB.address),
           ).to.revertedWithCustomError(market, 'InstancePausedError')
+
+          factory.paused.reset()
         })
       })
 
