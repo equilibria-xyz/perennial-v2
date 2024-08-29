@@ -39,7 +39,6 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
-import { includeAt } from '../../../../common/testutil/time'
 
 const { ethers } = HRE
 
@@ -456,7 +455,7 @@ testOracles.forEach(testOracle => {
       // block.timestamp of the next call will be STARTING_TIME
 
       // set the oracle parameters at STARTING_TIME - 1
-      await includeAt(async () => {
+      await time.includeAt(async () => {
         await metaquantsOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
         await metaquantsOracleFactory.commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME - 1, listify(PAYLOAD))
       }, STARTING_TIME - 1)
@@ -519,7 +518,7 @@ testOracles.forEach(testOracle => {
 
     describe('#commit', async () => {
       it('commits successfully and incentivizes the keeper', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
@@ -557,7 +556,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('does not allow committing with invalid signature', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
@@ -615,7 +614,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('can update multiple from batched update', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await metaquantsOracleFactory
               .connect(user)

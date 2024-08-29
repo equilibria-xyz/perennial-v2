@@ -1,11 +1,10 @@
 import { expect } from 'chai'
-import { utils } from 'ethers'
+import { BigNumber, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { includeAt, increase } from '../../../../common/testutil/time'
 import { parse6decimal } from '../../../../common/testutil/types'
 
 import {
@@ -21,7 +20,6 @@ import {
   PythFactory__factory,
   GasOracle__factory,
 } from '../../../types/generated'
-import { MarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { InstanceVars, createInvoker, createMarket, deployProtocol } from '../helpers/setupHelpers'
 
 const { ethers } = HRE
@@ -50,12 +48,11 @@ describe('PythOracleFactory', () => {
   let pythOracleFactory: PythFactory
   let oracleFactory: OracleFactory
   let dsu: IERC20Metadata
-  let oracleSigner: SignerWithAddress
+  let dsuBalanceBefore: BigNumber
   let multiInvoker: MultiInvoker
   let market: Market
 
   const fixture = async () => {
-    await time.reset(17433260)
     instanceVars = await deployProtocol()
     ;({ dsu, oracleFactory, owner, user } = instanceVars)
 
@@ -114,8 +111,6 @@ describe('PythOracleFactory', () => {
     )
     await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD')
 
-    oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
-
     const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
 
@@ -133,11 +128,12 @@ describe('PythOracleFactory', () => {
 
   beforeEach(async () => {
     await loadFixture(fixture)
+    dsuBalanceBefore = await dsu.balanceOf(user.address)
   })
 
   describe('PerennialAction.COMMIT_PRICE', async () => {
     it('commits a requested pyth version', async () => {
-      await includeAt(
+      await time.includeAt(
         async () =>
           await market
             .connect(user)
@@ -172,15 +168,11 @@ describe('PythOracleFactory', () => {
 
       const reward = utils.parseEther('0.000016')
       expect((await keeperOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
-      expect(await dsu.balanceOf(user.address)).to.be.eq(
-        utils.parseEther('2000000').sub(utils.parseEther('1000')).add(reward),
-      )
+      expect(await dsu.balanceOf(user.address)).to.be.eq(dsuBalanceBefore.sub(utils.parseEther('1000')).add(reward))
     })
 
     it('commits a non-requested pyth version', async () => {
-      await increase(1)
-
-      const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
+      await time.increase(1)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
@@ -202,11 +194,11 @@ describe('PythOracleFactory', () => {
 
       expect((await keeperOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
       const newDSUBalance = await dsu.callStatic.balanceOf(user.address)
-      expect(newDSUBalance.sub(originalDSUBalance)).to.equal(0)
+      expect(newDSUBalance.sub(dsuBalanceBefore)).to.equal(0)
     })
 
     it('only passes through value specified', async () => {
-      await increase(1)
+      await time.increase(1)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
@@ -230,7 +222,7 @@ describe('PythOracleFactory', () => {
     })
 
     it('commits a non-requested pyth version w/o revert on failure', async () => {
-      await increase(1)
+      await time.increase(1)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
@@ -251,11 +243,11 @@ describe('PythOracleFactory', () => {
       )
 
       expect((await keeperOracle.callStatic.latest()).timestamp).to.equal(STARTING_TIME)
-      expect(await dsu.balanceOf(user.address)).to.be.eq(utils.parseEther('2000000'))
+      expect(await dsu.balanceOf(user.address)).to.be.eq(dsuBalanceBefore)
     })
 
     it('doesnt revert on commit failure w/o revert on failure', async () => {
-      await increase(1)
+      await time.increase(1)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
@@ -279,7 +271,7 @@ describe('PythOracleFactory', () => {
     })
 
     it('soft reverts a bad commit and returns the msg.value to sender on failure', async () => {
-      await increase(1)
+      await time.increase(1)
 
       // Base fee isn't working properly in coverage, so we need to set it manually
       await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
@@ -326,12 +318,10 @@ describe('PythOracleFactory', () => {
     })
 
     it('does soft revert refund outside of invoke loop to allow for successful commits after failed ones', async () => {
-      await increase(1)
+      await time.increase(1)
 
       const originalDSUBalance = await dsu.callStatic.balanceOf(user.address)
 
-      // Base fee isn't working properly in coverage, so we need to set it manually
-      await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000'])
       await multiInvoker.connect(user)['invoke((uint8,bytes)[])'](
         [
           {

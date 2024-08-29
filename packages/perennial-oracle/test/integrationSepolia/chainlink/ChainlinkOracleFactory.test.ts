@@ -1,15 +1,14 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { utils, BigNumber, constants } from 'ethers'
 import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { currentBlockTimestamp, includeAt, increase } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,
   IERC20Metadata__factory,
-  IFactory,
   Market__factory,
   MarketFactory,
   MarketFactory__factory,
@@ -40,7 +39,6 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
-import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
 
 const { ethers } = HRE
 
@@ -183,7 +181,8 @@ testOracles.forEach(testOracle => {
     let dsu: IERC20Metadata
     let powerTwoPayoff: PowerTwo
 
-    const setup = async () => {
+    const fixture = async () => {
+      await time.reset()
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
@@ -413,17 +412,15 @@ testOracles.forEach(testOracle => {
       await dsu.connect(dsuMinter).transfer(oracleFactory.address, utils.parseEther('100000'))
 
       await dsu.connect(user).approve(market.address, constants.MaxUint256)
-
-      await testOracle.gasMock()
     }
 
     beforeEach(async () => {
-      await time.reset()
-      await setup()
+      await loadFixture(fixture)
       await time.increaseTo(STARTING_TIME - 2)
+      await testOracle.gasMock()
 
       // set the oracle parameters at STARTING_TIME - 1
-      await includeAt(async () => {
+      await time.includeAt(async () => {
         await chainlinkOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
         await chainlinkOracleFactory.commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 1, REPORT, {
           value: getFee(REPORT),
@@ -474,7 +471,7 @@ testOracles.forEach(testOracle => {
 
     describe('#commit', async () => {
       it('commits successfully and incentivizes the keeper', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
@@ -504,7 +501,7 @@ testOracles.forEach(testOracle => {
           .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
           .withArgs([STARTING_TIME, getPrices(REPORT)[0], true])
 
-        const reward = utils.parseEther('0.547442')
+        const reward = utils.parseEther('0.547375')
         expect(await dsu.balanceOf(user.address)).to.be.equal(
           utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
         )
@@ -513,7 +510,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('rejects invalid update data', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
@@ -537,7 +534,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('can update multiple from batched update', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await chainlinkOracleFactory.commit(
               [CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_BTC_USD_PRICE_FEED],
@@ -548,7 +545,7 @@ testOracles.forEach(testOracle => {
           BATCH_STARTING_TIME - 1,
         )
 
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
