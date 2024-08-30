@@ -24,6 +24,12 @@ const config = defaultConfig({
     '@equilibria/perennial-v2-extensions/contracts/MultiInvoker_Arbitrum.sol',
     '@equilibria/perennial-v2-extensions/contracts/MultiInvoker_Optimism.sol',
     '@equilibria/perennial-v2-extensions/contracts/Coordinator.sol',
+    '@equilibria/perennial-v2-verifier/contracts/Verifier.sol',
+    '@equilibria/perennial-v2-account/contracts/Account.sol',
+    '@equilibria/perennial-v2-account/contracts/AccountVerifier.sol',
+    '@equilibria/perennial-v2-account/contracts/Controller_Arbitrum.sol',
+    '@equilibria/perennial-v2-order/contracts/OrderVerifier.sol',
+    '@equilibria/perennial-v2-order/contracts/Manager_Arbitrum.sol',
   ],
   solidityOverrides: {
     '@equilibria/perennial-v2/contracts/Market.sol': {

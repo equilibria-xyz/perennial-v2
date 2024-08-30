@@ -1,0 +1,428 @@
+import { HardhatRuntimeEnvironment, Libraries } from 'hardhat/types'
+import { DeployFunction } from 'hardhat-deploy/types'
+import { isArbitrum, isMainnet } from '../../common/testutil/network'
+import { INITIAL_AMOUNT } from './005_deploy_vault'
+import { DEFAULT_KEEPER_ORACLE_TIMEOUT, L1_GAS_BUFFERS } from './003_deploy_oracle'
+import { MARKET_LIBRARIES } from './004_deploy_market'
+import {
+  Account__factory,
+  Controller_Arbitrum__factory,
+  KeeperOracle__factory,
+  Manager_Arbitrum__factory,
+  MarketFactory__factory,
+  MultiInvoker__factory,
+  OracleFactory__factory,
+  ProxyAdmin__factory,
+  PythFactory__factory,
+  TransparentUpgradeableProxy__factory,
+  VaultFactory__factory,
+} from '../types/generated'
+import { PAYOFFS } from './002_deploy_payoff'
+
+const SkipIfAlreadyDeployed = false
+
+type TransparentUpgradeableProxyArgs = Parameters<TransparentUpgradeableProxy__factory['deploy']>
+const log = (...args: unknown[]) => console.log('[v2.3 Migration]', ...args)
+const write = (str: string) => process.stdout.write(`[v2.3 Migration] ${str}`)
+
+const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts } = hre
+  const { get, getNetworkName } = deployments
+  const { deployer } = await getNamedAccounts()
+  const owner = isMainnet(getNetworkName()) ? (await get('TimelockController')).address : deployer
+
+  if (!isArbitrum(getNetworkName())) {
+    log('Skipping. This migration is only for Arbitrum and Arbitrum Sepolia')
+    return
+  }
+
+  if (owner === deployer) log('[WARNING] Testnet detected, timelock will not be set as owner')
+
+  log('Deploying v2.3 migration...')
+
+  await deployVerifier(hre)
+  await deployMarketContracts(hre)
+  await deployVault(hre)
+  await deployOracles(hre)
+  await deployExtensions(hre)
+  await deployCollateralAccounts(hre)
+  await deployTriggerOrders(hre)
+
+  log(`
+    Step 0 of v2.3 migration complete! Next Steps: https://github.com/equilibria-xyz/perennial-v2/blob/4e2e17ec46ec55c778d7465d9495b80f5bd06bba/runbooks/MIGRATION_v2.3.md
+  `)
+}
+
+async function deployVerifier(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts, ethers } = hre
+  const { deploy, get } = deployments
+  const { deployer } = await getNamedAccounts()
+  const proxyAdmin = new ProxyAdmin__factory(await ethers.getSigner(deployer)).attach((await get('ProxyAdmin')).address)
+
+  log('Deploying Verifier...')
+  log('  Deploying Verifier Impl...')
+  await deploy('VerifierImpl', {
+    contract: 'Verifier',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Verifier Proxy...')
+  const verifierProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('VerifierImpl')).address,
+    proxyAdmin.address,
+    ethers.constants.HashZero,
+  ]
+  await deploy('Verifier', {
+    contract: 'TransparentUpgradeableProxy',
+    args: verifierProxyArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Verifier...')
+}
+
+async function deployMarketContracts(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts } = hre
+  const { deploy, get } = deployments
+  const { deployer } = await getNamedAccounts()
+
+  log('Deploying Market Contracts...')
+  log('  Deploying Market libs...')
+  const marketLibrariesBuilt: Libraries = {}
+  for (const library of MARKET_LIBRARIES) {
+    marketLibrariesBuilt[library.name] = (
+      await deploy(library.name, {
+        contract: library.contract,
+        from: deployer,
+        skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+        log: true,
+        autoMine: true,
+      })
+    ).address
+  }
+  log('  Deploying Market Impl...')
+  const marketImpl = await deploy('MarketImpl', {
+    contract: 'Market',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+    libraries: marketLibrariesBuilt,
+  })
+  log('  Deploying Market Factory Impl...')
+  const marketFactoryArgs: Parameters<MarketFactory__factory['deploy']> = [
+    (await get('OracleFactory')).address,
+    (await get('Verifier')).address,
+    marketImpl.address,
+  ]
+  await deploy('MarketFactoryImpl', {
+    contract: 'MarketFactory',
+    args: marketFactoryArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Market Contracts...')
+}
+
+async function deployVault(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts } = hre
+  const { deploy, get } = deployments
+  const { deployer } = await getNamedAccounts()
+
+  log('Deploying Vault...')
+  log('  Deploying Vault Impl...')
+  const vaultImpl = await deploy('VaultImpl', {
+    contract: 'Vault',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Vault Factory Impl...')
+  const vaultFactoryArgs: Parameters<VaultFactory__factory['deploy']> = [
+    (await get('MarketFactory')).address,
+    vaultImpl.address,
+    INITIAL_AMOUNT,
+  ]
+  await deploy('VaultFactoryImpl', {
+    contract: 'VaultFactory',
+    args: vaultFactoryArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Vault...')
+}
+
+async function deployOracles(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts, ethers } = hre
+  const { deploy, get } = deployments
+  const { deployer } = await getNamedAccounts()
+  const deployerSigner = await ethers.getSigner(deployer)
+  const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
+  const owner = isMainnet(hre.network.name) ? (await get('TimelockController')).address : deployer
+
+  log('Deploying Oracles...')
+  log('  Deploying Oracle Impl...')
+  await deploy('OracleImpl', {
+    contract: 'Oracle',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Oracle Factory Impl...')
+  const oracleFactoryArgs: Parameters<OracleFactory__factory['deploy']> = [(await get('OracleImpl')).address]
+  await deploy('OracleFactoryImpl', {
+    contract: 'OracleFactory',
+    args: oracleFactoryArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+
+  log('  Deploying KeeperOracle Impl...')
+  const keeperOracleArgs: Parameters<KeeperOracle__factory['deploy']> = [DEFAULT_KEEPER_ORACLE_TIMEOUT]
+  await deploy('KeeperOracleImpl', {
+    contract: 'KeeperOracle',
+    args: keeperOracleArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+
+  log('  Deploying PythFactory Impl...')
+  // TODO: Determine buffer values
+  const pythFactoryArgs: Parameters<PythFactory__factory['deploy']> = [
+    (await get('Pyth')).address,
+    ethers.constants.AddressZero, // TODO: Commitment gas oracle
+    ethers.constants.AddressZero, // TODO: Settle gas oracle
+    (await get('KeeperOracleImpl')).address,
+  ]
+  await deploy('PythFactoryImpl', {
+    contract: 'PythFactory',
+    args: pythFactoryArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+
+  // Deploy new PythFactoryProxy and setup oracles
+  const previousPythFactory = new PythFactory__factory(deployerSigner).attach((await get('PythFactory')).address)
+  const pythFactoryInterface = PythFactory__factory.createInterface()
+  const pythFactoryProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('PythFactoryImpl')).address,
+    proxyAdmin.address,
+    pythFactoryInterface.encodeFunctionData('initialize', [(await get('OracleFactory')).address]),
+  ]
+  await deploy('PythFactory', {
+    contract: 'TransparentUpgradeableProxy',
+    args: pythFactoryProxyArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  const pythFactory = new PythFactory__factory(deployerSigner).attach((await get('PythFactory')).address)
+  log('  Setting up PythFactory...')
+  if ((await pythFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
+    write('    Setting owner...')
+    await (await pythFactory.updatePendingOwner(owner)).wait()
+    process.stdout.write('complete\n')
+  }
+  for (const payoffName of PAYOFFS) {
+    write(`    Registering payoff provider ${payoffName}...`)
+    const payoffProvider = await get(payoffName)
+    await (await pythFactory.register(payoffProvider.address)).wait()
+    process.stdout.write('complete\n')
+  }
+
+  // TODO: Cryptex keepers for arb sepolia?
+
+  // Create oracles from previous pyth factory
+  const previousOracles = await previousPythFactory.queryFilter(pythFactory.filters.OracleCreated())
+  for (const event of previousOracles) {
+    const previousUnderlyingId = await previousPythFactory.callStatic.toUnderlyingId(event.args.id)
+    const previousPayoff = await previousPythFactory.callStatic.toUnderlyingPayoff(event.args.id)
+    const address = await pythFactory.callStatic.create(event.args.id, previousUnderlyingId, {
+      provider: previousPayoff.provider,
+      decimals: previousPayoff.decimals,
+    })
+    log('    Creating oracle ID:', event.args.id, 'at address:', address)
+    await pythFactory.create(event.args.id, previousUnderlyingId, {
+      provider: previousPayoff.provider,
+      decimals: previousPayoff.decimals,
+    })
+  }
+
+  log('Done deploying Oracles...')
+}
+
+async function deployExtensions(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts, network } = hre
+  const { deploy, get, getOrNull } = deployments
+  const { deployer } = await getNamedAccounts()
+
+  log('Deploying Extensions...')
+  log('  Deploying MultiInvoker Impl...')
+  const multiInvokerContract = isArbitrum(network.name) ? 'MultiInvoker_Arbitrum' : 'MultiInvoker_Optimism'
+
+  const commitBuffer = isArbitrum(network.name)
+    ? L1_GAS_BUFFERS.arbitrum.commitCalldata + L1_GAS_BUFFERS.arbitrum.commitIncrement
+    : L1_GAS_BUFFERS.base.commitCalldata + L1_GAS_BUFFERS.arbitrum.commitIncrement
+  const multiInvokerArgs: Parameters<MultiInvoker__factory['deploy']> = [
+    (await get('USDC')).address,
+    (await get('DSU')).address,
+    (await get('MarketFactory')).address,
+    (await get('VaultFactory')).address,
+    (await getOrNull('DSUBatcher'))?.address ?? ethers.constants.AddressZero,
+    (await get('DSUReserve')).address,
+    1_500_000, // Full Order Commit uses about 1.5M gas
+    commitBuffer,
+  ]
+  await deploy('MultiInvokerImpl', {
+    contract: multiInvokerContract,
+    args: multiInvokerArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  await deploy('GauntletCoordinator', {
+    contract: 'Coordinator',
+    args: [],
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Extensions...')
+}
+
+async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts, ethers } = hre
+  const { deploy, get } = deployments
+  const { deployer } = await getNamedAccounts()
+  const proxyAdmin = new ProxyAdmin__factory(await ethers.getSigner(deployer)).attach((await get('ProxyAdmin')).address)
+
+  log('Deploying Collateral Accounts...')
+  log('  Deploying Account Impl...')
+  const accountArgs: Parameters<Account__factory['deploy']> = [
+    (await get('USDC')).address,
+    (await get('DSU')).address,
+    (await get('DSUReserve')).address,
+  ]
+  await deploy('AccountImpl', {
+    contract: 'Account',
+    from: deployer,
+    args: accountArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Account Verifier Impl...')
+  await deploy('AccountVerifierImpl', {
+    contract: 'AccountVerifier',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Account Verifier Proxy...')
+  const accountVerifierProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('AccountVerifierImpl')).address,
+    proxyAdmin.address,
+    ethers.constants.HashZero,
+  ]
+  await deploy('AccountVerifier', {
+    contract: 'TransparentUpgradeableProxy',
+    from: deployer,
+    args: accountVerifierProxyArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Controller Impl...')
+  const controllerArgs: Parameters<Controller_Arbitrum__factory['deploy']> = [
+    (await get('AccountImpl')).address,
+    {
+      multiplierBase: 0,
+      bufferBase: 0,
+      multiplierCalldata: 0,
+      bufferCalldata: 0,
+    }, // TODO: Determine keep config
+    (await get('AccountVerifier')).address,
+  ]
+  await deploy('ControllerImpl', {
+    contract: 'Controller_Arbitrum',
+    from: deployer,
+    args: controllerArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Collateral Accounts...')
+}
+
+async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts, ethers } = hre
+  const { deploy, get } = deployments
+  const { deployer } = await getNamedAccounts()
+  const proxyAdmin = new ProxyAdmin__factory(await ethers.getSigner(deployer)).attach((await get('ProxyAdmin')).address)
+
+  log('Deploying Trigger Orders...')
+  log('  Deploying Verifier Impl...')
+  await deploy('OrderVerifierImpl', {
+    contract: 'OrderVerifier',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Verifier Proxy...')
+  const orderVerifierProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('OrderVerifierImpl')).address,
+    proxyAdmin.address,
+    ethers.constants.HashZero,
+  ]
+  await deploy('OrderVerifier', {
+    contract: 'TransparentUpgradeableProxy',
+    from: deployer,
+    args: orderVerifierProxyArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+
+  log('  Deploying Manager Impl...')
+  const managerArgs: Parameters<Manager_Arbitrum__factory['deploy']> = [
+    (await get('USDC')).address,
+    (await get('DSU')).address,
+    (await get('DSUReserve')).address,
+    (await get('MarketFactory')).address,
+    (await get('OrderVerifier')).address,
+  ]
+  await deploy('ManagerImpl', {
+    contract: 'Manager_Arbitrum',
+    from: deployer,
+    args: managerArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+
+  log('Done deploying Trigger Orders...')
+}
+
+export default func
+func.tags = ['v2_3_Migration']
