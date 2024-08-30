@@ -40,6 +40,8 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @dev Configuration used to calculate keeper compensation with buffered gas
     KeepConfig public keepConfigBuffered;
 
+    // TODO: Add a KeepConfig to use for withdrawals
+
     /// @dev Handles relayed messages for nonce cancellation
     IVerifierBase public nonceManager;
 
@@ -126,6 +128,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
 
         // if we're depositing collateral to the market, pay the keeper before transferring funds
         if (marketTransfer.amount.gte(Fixed6Lib.ZERO)) {
+            // FIXME: keeper fee should be taken before market transfer here; conditional is useless without that
             _marketTransferWithSignature(account, marketTransfer, signature);
             // otherwise handle the keeper fee normally, after withdrawing to the collateral account
         } else {

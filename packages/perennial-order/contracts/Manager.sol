@@ -17,6 +17,8 @@ import { InterfaceFee } from "./types/InterfaceFee.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 
+import "hardhat/console.sol";
+
 /// @notice Base class with business logic to store and execute trigger orders.
 ///         Derived implementations created as appropriate for different chains.
 abstract contract Manager is IManager, Kept {
@@ -31,6 +33,8 @@ abstract contract Manager is IManager, Kept {
 
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
+
+    // TODO: add buffered KeepConfig
 
     /// @dev Contract used to validate delegated signers
     IMarketFactory public marketFactory;
@@ -78,12 +82,14 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature) external {
+    function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature)
+        external
+        keepAction(request.action, abi.encode(request, signature))
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyPlaceOrder(request, signature);
         _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _compensateKeeperAction(request.action);
         _placeOrder(request.action.market, request.action.common.account, request.action.orderId, request.order);
     }
 
@@ -93,12 +99,14 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature) external {
+    function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature)
+        external
+        keepAction(request.action, abi.encode(request, signature))
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyCancelOrder(request, signature);
         _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _compensateKeeperAction(request.action);
         _cancelOrder(request.action.market, request.action.common.account, request.action.orderId);
     }
 
@@ -120,12 +128,20 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address account, uint256 orderId) external {
+    function executeOrder(IMarket market, address account, uint256 orderId)
+        external
+        keep(
+            keepConfig,
+            abi.encode(market, account, orderId),
+            0,
+            // TODO: discuss; pulling order from storage twice seems expensive
+            abi.encode(market, account, _orders[market][account][orderId].read().maxFee)
+        )
+    {
         // check conditions to ensure order is executable
         (TriggerOrder memory order, bool canExecute) = checkOrder(market, account, orderId);
         if (!canExecute) revert ManagerCannotExecuteError();
 
-        _compensateKeeper(market, account, order.maxFee);
         order.execute(market, account);
         bool interfaceFeeCharged = _chargeInterfaceFee(market, account, order);
 
@@ -137,15 +153,14 @@ abstract contract Manager is IManager, Kept {
         if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
     }
 
-    /// @notice reads keeper compensation parameters from an action message
-    function _compensateKeeperAction(Action calldata action) internal {
-        _compensateKeeper(action.market, action.common.account, action.maxFee);
-    }
+    modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
+        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
 
-    /// @notice encodes data needed to pull DSU from market to pay keeper for fulfilling requests
-    function _compensateKeeper(IMarket market, address account, UFixed6 maxFee) internal {
-        bytes memory data = abi.encode(market, account, maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+        uint256 startGas = gasleft();
+        _;
+        uint256 applicableGas = startGas - gasleft();
+
+        _handleKeeperFee(keepConfig, applicableGas, applicableCalldata, 0, data);
     }
 
     /// @notice reverts if user is not authorized to sign transactions for the account
@@ -164,6 +179,8 @@ abstract contract Manager is IManager, Kept {
     ) internal virtual override returns (UFixed18) {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
+
+        console.log("_raiseKeeperFee is %s", UFixed6.unwrap(raisedKeeperFee));
 
         _marketWithdraw(market, account, raisedKeeperFee);
 
