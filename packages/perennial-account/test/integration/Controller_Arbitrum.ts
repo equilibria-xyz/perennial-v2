@@ -179,13 +179,21 @@ describe('Controller_Arbitrum', () => {
 
     // set up users and deploy artifacts
     const keepConfig = {
+      multiplierBase: ethers.utils.parseEther('1.05'),
+      bufferBase: 0,
+      multiplierCalldata: ethers.utils.parseEther('1.05'),
+      bufferCalldata: 0,
+    }
+    const keepConfigBuffered = {
       multiplierBase: 0,
       bufferBase: 1_000_000,
       multiplierCalldata: 0,
       bufferCalldata: 500_000,
     }
     const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
-    controller = await deployControllerArbitrum(owner, keepConfig, marketVerifier, { maxFeePerGas: 100000000 })
+    controller = await deployControllerArbitrum(owner, keepConfig, keepConfigBuffered, marketVerifier, {
+      maxFeePerGas: 100000000,
+    })
     accountVerifier = await new AccountVerifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
     await controller['initialize(address,address,address)'](
@@ -625,6 +633,7 @@ describe('Controller_Arbitrum', () => {
       expect(await usdc.balanceOf(userA.address)).to.equal(userBalanceBefore.add(withdrawalAmount))
     })
 
+    // FIXME: this fails because modifier cannot be used for full withdrawals
     it('collects fee for full withdrawal', async () => {
       // sign a message to withdraw all funds from the account
       const withdrawalMessage = {

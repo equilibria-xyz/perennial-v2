@@ -28,6 +28,8 @@ import { RelayedSignerUpdate } from "./types/RelayedSignerUpdate.sol";
 import { RelayedAccessUpdateBatch } from "./types/RelayedAccessUpdateBatch.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
+import "hardhat/console.sol";
+
 /// @title Controller_Incentivized
 /// @notice Controller which compensates keepers for handling or relaying messages. Subclass to handle differences in
 /// gas calculations on different chains.
@@ -35,15 +37,25 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @dev Configuration used to calculate keeper compensation
     KeepConfig public keepConfig;
 
+    /// @dev Configuration used to calculate keeper compensation with buffered gas
+    KeepConfig public keepConfigBuffered;
+
     /// @dev Handles relayed messages for nonce cancellation
     IVerifierBase public nonceManager;
 
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation_ Pristine collateral account contract
-    /// @param keepConfig_ Configuration used to compensate keepers
-    constructor(address implementation_, KeepConfig memory keepConfig_, IVerifierBase nonceManager_)
-    Controller(implementation_) {
+    /// @param keepConfig_ Configuration used for unbuffered keeper compensation
+    /// @param keepConfigBuffered_ Configuration used for buffered keeper compensation
+    /// @param nonceManager_ Verifier contract to which nonce and group cancellations are relayed
+    constructor(
+        address implementation_,
+        KeepConfig memory keepConfig_,
+        KeepConfig memory keepConfigBuffered_,
+        IVerifierBase nonceManager_
+    ) Controller(implementation_) {
         keepConfig = keepConfig_;
+        keepConfigBuffered = keepConfigBuffered_;
         nonceManager = nonceManager_;
     }
 
@@ -66,57 +78,94 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     function changeRebalanceConfigWithSignature(
         RebalanceConfigChange calldata configChange,
         bytes calldata signature
-    ) override external {
+    )
+        external
+        override
+        keepCollateralAccount(
+            configChange.action.common.account,
+            abi.encode(configChange, signature),
+            configChange.action.maxFee,
+            0
+        )
+    {
         _changeRebalanceConfigWithSignature(configChange, signature);
-        _compensateKeeper(configChange.action);
     }
 
     /// @inheritdoc IController
     function deployAccountWithSignature(
         DeployAccount calldata deployAccount_,
         bytes calldata signature
-    ) override external {
-        IAccount account = _deployAccountWithSignature(deployAccount_, signature);
-        bytes memory data = abi.encode(address(account), deployAccount_.action.maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
+    )
+        external
+        override
+        keepCollateralAccount(
+            deployAccount_.action.common.account,
+            abi.encode(deployAccount_, signature),
+            deployAccount_.action.maxFee,
+            0
+        )
+    {
+        _deployAccountWithSignature(deployAccount_, signature);
     }
 
     /// @inheritdoc IController
     function marketTransferWithSignature(
         MarketTransfer calldata marketTransfer,
         bytes calldata signature
-    ) override external {
+    )
+        external
+        override
+        keepCollateralAccount(
+            marketTransfer.action.common.account,
+            abi.encode(marketTransfer, signature),
+            marketTransfer.action.maxFee,
+            1
+        )
+    {
         IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
-        bytes memory data = abi.encode(account, marketTransfer.action.maxFee);
 
         // if we're depositing collateral to the market, pay the keeper before transferring funds
         if (marketTransfer.amount.gte(Fixed6Lib.ZERO)) {
-            _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
             _marketTransferWithSignature(account, marketTransfer, signature);
-        // otherwise handle the keeper fee normally, after withdrawing to the collateral account
+            // otherwise handle the keeper fee normally, after withdrawing to the collateral account
         } else {
             _marketTransferWithSignature(account, marketTransfer, signature);
-            _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
         }
     }
 
     /// @inheritdoc IController
-    function rebalanceGroup(address owner, uint256 group) override external {
+    function rebalanceGroup(
+        address owner,
+        uint256 group
+    )
+        external
+        override
+        keepCollateralAccount(
+            owner,
+            abi.encode(owner, group),
+            groupToMaxRebalanceFee[owner][group],
+            groupToMarkets[owner][group].length
+        )
+    {
         _rebalanceGroup(owner, group);
-        address account = getAccountAddress(owner);
-        bytes memory data = abi.encode(account, groupToMaxRebalanceFee[owner][group]);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @inheritdoc IController
     function withdrawWithSignature(
         Withdrawal calldata withdrawal,
         bytes calldata signature
-    ) override external {
+    )
+        external
+        override
+        // FIXME: cannot use modifier here for full withdrawals
+        keepCollateralAccount(
+            withdrawal.action.common.account,
+            abi.encode(withdrawal, signature),
+            withdrawal.action.maxFee,
+            1
+        )
+    {
         address account = getAccountAddress(withdrawal.action.common.account);
-        // levy fee prior to withdrawal
-        bytes memory data = abi.encode(account, withdrawal.action.maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
         _withdrawWithSignature(IAccount(account), withdrawal, signature);
     }
 
@@ -125,12 +174,19 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         RelayedNonceCancellation calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
-    ) override external {
+    )
+        external
+        override
+        keepCollateralAccount(
+            message.action.common.account,
+            abi.encode(message, outerSignature, innerSignature),
+            message.action.maxFee,
+            0
+        )
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedNonceCancellation(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
-
-        _compensateKeeper(message.action);
 
         // relay the message to Verifier
         nonceManager.cancelNonceWithSignature(message.nonceCancellation, innerSignature);
@@ -141,12 +197,19 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         RelayedGroupCancellation calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
-    ) override external {
+    )
+        external
+        override
+        keepCollateralAccount(
+            message.action.common.account,
+            abi.encode(message, outerSignature, innerSignature),
+            message.action.maxFee,
+            0
+        )
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedGroupCancellation(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
-
-        _compensateKeeper(message.action);
 
         // relay the message to Verifier
         nonceManager.cancelGroupWithSignature(message.groupCancellation, innerSignature);
@@ -157,12 +220,19 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         RelayedOperatorUpdate calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
-    ) override external {
+    )
+        external
+        override
+        keepCollateralAccount(
+            message.action.common.account,
+            abi.encode(message, outerSignature, innerSignature),
+            message.action.maxFee,
+            0
+        )
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedOperatorUpdate(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
-
-        _compensateKeeper(message.action);
 
         // relay the message to MarketFactory
         marketFactory.updateOperatorWithSignature(message.operatorUpdate, innerSignature);
@@ -173,12 +243,19 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         RelayedSignerUpdate calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
-    ) override external {
+    )
+        external
+        override
+        keepCollateralAccount(
+            message.action.common.account,
+            abi.encode(message, outerSignature, innerSignature),
+            message.action.maxFee,
+            0
+        )
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedSignerUpdate(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
-
-        _compensateKeeper(message.action);
 
         // relay the message to MarketFactory
         marketFactory.updateSignerWithSignature(message.signerUpdate, innerSignature);
@@ -189,20 +266,22 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         RelayedAccessUpdateBatch calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
-    ) override external {
+    )
+        external
+        override
+        keepCollateralAccount(
+            message.action.common.account,
+            abi.encode(message, outerSignature, innerSignature),
+            message.action.maxFee,
+            0
+        )
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedAccessUpdateBatch(message, outerSignature);
         _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
-        _compensateKeeper(message.action);
-
         // relay the message to MarketFactory
         marketFactory.updateAccessBatchWithSignature(message.accessUpdateBatch, innerSignature);
-    }
-
-    function _compensateKeeper(Action calldata action) internal virtual {
-        bytes memory data = abi.encode(getAccountAddress(action.common.account), action.maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
     }
 
     /// @dev Transfers funds from collateral account to controller, and limits compensation
@@ -217,10 +296,41 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         (address account, UFixed6 maxFee) = abi.decode(data, (address, UFixed6));
         raisedKeeperFee = amount.min(UFixed18Lib.from(maxFee));
 
+        console.log("_raiseKeeperFee is %s", UFixed18.unwrap(raisedKeeperFee));
+
         // if the account has insufficient DSU to pay the fee, wrap
         IAccount(account).wrapIfNecessary(raisedKeeperFee, false);
 
         // transfer DSU to the Controller, such that Kept can transfer to keeper
         DSU.pull(account, raisedKeeperFee);
+    }
+
+    modifier keepCollateralAccount(
+        address account,
+        bytes memory applicableCalldata,
+        UFixed6 maxFee,
+        uint256 bufferMultiplier
+    ) {
+        bytes memory data = abi.encode(getAccountAddress(account), maxFee);
+        uint256 startGas = gasleft();
+
+        _;
+
+        uint256 applicableGas = startGas - gasleft();
+
+        _handleKeeperFee(
+            bufferMultiplier > 0
+                ? KeepConfig(
+                    keepConfigBuffered.multiplierBase,
+                    keepConfigBuffered.bufferBase * (bufferMultiplier),
+                    keepConfigBuffered.multiplierCalldata,
+                    keepConfigBuffered.bufferCalldata * (bufferMultiplier)
+                )
+                : keepConfig,
+            applicableGas,
+            applicableCalldata,
+            0,
+            data
+        );
     }
 }
