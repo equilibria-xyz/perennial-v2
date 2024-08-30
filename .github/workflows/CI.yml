@@ -635,8 +635,8 @@ jobs:
           path: combined_integration_coverage
       - name: Install lcov
         run: sudo apt-get update && sudo apt-get install lcov
-      - name: Combine integration test coverage
-        run: lcov -a combined_unit_coverage/lcov.info -a combined_integration_coverage/lcov.info --output-file combined_coverage.info
+      - name: Combine test coverage
+        run: lcov -a combined_unit_coverage/combined_unit_coverage.info -a combined_integration_coverage/combined_integration_coverage.info --output-file combined_coverage.info
       - name: 'Combined Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
