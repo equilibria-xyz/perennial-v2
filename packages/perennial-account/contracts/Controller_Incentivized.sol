@@ -40,7 +40,8 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @dev Configuration used to calculate keeper compensation with buffered gas
     KeepConfig public keepConfigBuffered;
 
-    // TODO: Add a KeepConfig to use for withdrawals
+    /// @dev Configuration used to calculate keeper compensation to withdraw from a collateral account
+    KeepConfig public keepConfigWithdrawal;
 
     /// @dev Handles relayed messages for nonce cancellation
     IVerifierBase public nonceManager;
@@ -49,15 +50,18 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @param implementation_ Pristine collateral account contract
     /// @param keepConfig_ Configuration used for unbuffered keeper compensation
     /// @param keepConfigBuffered_ Configuration used for buffered keeper compensation
+    /// @param keepConfigWithdrawal_ Configuration used to compensate keepers for withdrawals
     /// @param nonceManager_ Verifier contract to which nonce and group cancellations are relayed
     constructor(
         address implementation_,
         KeepConfig memory keepConfig_,
         KeepConfig memory keepConfigBuffered_,
+        KeepConfig memory keepConfigWithdrawal_,
         IVerifierBase nonceManager_
     ) Controller(implementation_) {
         keepConfig = keepConfig_;
         keepConfigBuffered = keepConfigBuffered_;
+        keepConfigWithdrawal = keepConfigWithdrawal_;
         nonceManager = nonceManager_;
     }
 
@@ -125,15 +129,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         )
     {
         IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
-
-        // if we're depositing collateral to the market, pay the keeper before transferring funds
-        if (marketTransfer.amount.gte(Fixed6Lib.ZERO)) {
-            // FIXME: keeper fee should be taken before market transfer here; conditional is useless without that
-            _marketTransferWithSignature(account, marketTransfer, signature);
-            // otherwise handle the keeper fee normally, after withdrawing to the collateral account
-        } else {
-            _marketTransferWithSignature(account, marketTransfer, signature);
-        }
+        _marketTransferWithSignature(account, marketTransfer, signature);
     }
 
     /// @inheritdoc IController
@@ -157,18 +153,17 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     function withdrawWithSignature(
         Withdrawal calldata withdrawal,
         bytes calldata signature
-    )
-        external
-        override
-        // FIXME: cannot use modifier here for full withdrawals
-        keepCollateralAccount(
-            withdrawal.action.common.account,
-            abi.encode(withdrawal, signature),
-            withdrawal.action.maxFee,
-            1
-        )
-    {
+    ) override external {
         address account = getAccountAddress(withdrawal.action.common.account);
+        // levy fee prior to withdrawal
+        bytes memory data = abi.encode(account, withdrawal.action.maxFee);
+        _handleKeeperFee(
+            keepConfigWithdrawal,
+            0, // no way to calculate applicable gas prior to invocation
+            abi.encode(withdrawal, signature),
+            0,
+            data
+        );
         _withdrawWithSignature(IAccount(account), withdrawal, signature);
     }
 

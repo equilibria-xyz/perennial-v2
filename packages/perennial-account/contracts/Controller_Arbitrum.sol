@@ -13,14 +13,16 @@ contract Controller_Arbitrum is Controller_Incentivized, Kept_Arbitrum {
     /// @param implementation Pristine collateral account contract
     /// @param keepConfig Configuration used for unbuffered keeper compensation
     /// @param keepConfigBuffered Configuration used for buffered keeper compensation
+    /// @param keepConfigWithdrawal Configuration used to compensate keepers for withdrawals
     /// @param nonceManager Verifier contract to which nonce and group cancellations are relayed
     constructor(
         address implementation,
         KeepConfig memory keepConfig,
         KeepConfig memory keepConfigBuffered,
+        KeepConfig memory keepConfigWithdrawal,
         IVerifierBase nonceManager
     )
-    Controller_Incentivized(implementation, keepConfig, keepConfigBuffered, nonceManager) {}
+    Controller_Incentivized(implementation, keepConfig, keepConfigBuffered, keepConfigWithdrawal, nonceManager) {}
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(

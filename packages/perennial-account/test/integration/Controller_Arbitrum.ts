@@ -83,6 +83,7 @@ describe('Controller_Arbitrum', () => {
   let receiver: SignerWithAddress
   let lastNonce = 0
   let currentTime: BigNumber
+  let keeperEthBalanceBefore: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
   function createAction(
@@ -178,6 +179,7 @@ describe('Controller_Arbitrum', () => {
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
     // set up users and deploy artifacts
+    // TODO: need some help configuring meaningful values
     const keepConfig = {
       multiplierBase: ethers.utils.parseEther('1.05'),
       bufferBase: 0,
@@ -190,10 +192,21 @@ describe('Controller_Arbitrum', () => {
       multiplierCalldata: 0,
       bufferCalldata: 500_000,
     }
+    const keepConfigWithdrawal = {
+      multiplierBase: 0,
+      bufferBase: 800_000,
+      multiplierCalldata: 0,
+      bufferCalldata: 200_000,
+    }
     const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
-    controller = await deployControllerArbitrum(owner, keepConfig, keepConfigBuffered, marketVerifier, {
-      maxFeePerGas: 100000000,
-    })
+    controller = await deployControllerArbitrum(
+      owner,
+      keepConfig,
+      keepConfigBuffered,
+      keepConfigWithdrawal,
+      marketVerifier,
+      { maxFeePerGas: 100000000 },
+    )
     accountVerifier = await new AccountVerifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
     await controller['initialize(address,address,address)'](
@@ -224,6 +237,7 @@ describe('Controller_Arbitrum', () => {
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
 
     currentTime = BigNumber.from(await currentBlockTimestamp())
+    keeperEthBalanceBefore = await keeper.getBalance()
   })
 
   afterEach(async () => {
@@ -232,6 +246,11 @@ describe('Controller_Arbitrum', () => {
 
     // reset to avoid impact to setup and other tests
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
+
+    // TODO: do something useful with this or remove log and variables
+    const keeperEthBalanceAfter = await keeper.getBalance()
+    // note this prints _before_ contract logging buffer is flushed
+    console.log('keeper spent', keeperEthBalanceBefore.sub(keeperEthBalanceAfter).toNumber() / 1e18, 'ETH in gas fees')
   })
 
   describe('#deployment', () => {

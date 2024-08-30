@@ -154,6 +154,7 @@ export async function deployControllerArbitrum(
   owner: SignerWithAddress,
   keepConfig: IKept.KeepConfigStruct,
   keepConfigBuffered: IKept.KeepConfigStruct,
+  keepConfigWithdrawal: IKept.KeepConfigStruct,
   nonceManager: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
@@ -163,6 +164,7 @@ export async function deployControllerArbitrum(
     accountImpl.address,
     keepConfig,
     keepConfigBuffered,
+    keepConfigWithdrawal,
     nonceManager.address,
     overrides ?? {},
   )
