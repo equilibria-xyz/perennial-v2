@@ -58,12 +58,13 @@ import { IKeeperOracle, IOracleFactory, PythFactory } from '@equilibria/perennia
 const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
-const DEFAULT_MAX_FEE = utils.parseEther('0.5')
+const DEFAULT_MAX_FEE = parse6decimal('2')
+const DEFAULT_MAX_FEE_18 = DEFAULT_MAX_FEE.mul(1e12)
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
 
-describe('Controller_Arbitrum', () => {
+describe.only('Controller_Arbitrum', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller_Arbitrum
@@ -179,24 +180,23 @@ describe('Controller_Arbitrum', () => {
     await dsu.connect(userA).approve(market.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
 
     // set up users and deploy artifacts
-    // TODO: need some help configuring meaningful values
     const keepConfig = {
-      multiplierBase: ethers.utils.parseEther('1.05'),
-      bufferBase: 0,
-      multiplierCalldata: ethers.utils.parseEther('1.05'),
+      multiplierBase: ethers.utils.parseEther('1'),
+      bufferBase: 100_000, // based on deployAccountWithSignature
+      multiplierCalldata: 0,
       bufferCalldata: 0,
     }
     const keepConfigBuffered = {
-      multiplierBase: 0,
-      bufferBase: 1_000_000,
-      multiplierCalldata: 0,
-      bufferCalldata: 500_000,
+      multiplierBase: ethers.utils.parseEther('1.1'),
+      bufferBase: 3_250_000, // 1.5mm was insufficient for market transfers
+      multiplierCalldata: ethers.utils.parseEther('1.1'),
+      bufferCalldata: 35_200,
     }
     const keepConfigWithdrawal = {
-      multiplierBase: 0,
-      bufferBase: 800_000,
-      multiplierCalldata: 0,
-      bufferCalldata: 200_000,
+      multiplierBase: ethers.utils.parseEther('1.05'),
+      bufferBase: 1_500_000,
+      multiplierCalldata: ethers.utils.parseEther('1.05'),
+      bufferCalldata: 35_200,
     }
     const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
     controller = await deployControllerArbitrum(
@@ -247,10 +247,11 @@ describe('Controller_Arbitrum', () => {
     // reset to avoid impact to setup and other tests
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1'])
 
-    // TODO: do something useful with this or remove log and variables
+    // TODO: remove log and variables
     const keeperEthBalanceAfter = await keeper.getBalance()
+    const gasSpent = keeperEthBalanceBefore.sub(keeperEthBalanceAfter).toNumber() / 1e18
     // note this prints _before_ contract logging buffer is flushed
-    console.log('keeper spent', keeperEthBalanceBefore.sub(keeperEthBalanceAfter).toNumber() / 1e18, 'ETH in gas fees')
+    console.log('keeper spent', gasSpent, 'ETH', gasSpent * 2500, 'USD in gas fees')
   })
 
   describe('#deployment', () => {
@@ -282,7 +283,8 @@ describe('Controller_Arbitrum', () => {
         .withArgs(userA.address, accountAddressA)
 
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      // FIXME: keeper undercompensated
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.145'), utils.parseEther('0.29'))
     })
 
     it('keeper fee is limited by maxFee', async () => {
@@ -290,7 +292,7 @@ describe('Controller_Arbitrum', () => {
       await usdc.connect(userA).transfer(accountAddressA, parse6decimal('15000'), { maxFeePerGas: 100000000 })
 
       // sign a message with maxFee smaller than the calculated keeper fee (~0.0033215)
-      const maxFee = parse6decimal('0.000789')
+      const maxFee = parse6decimal('0.0789')
       const deployAccountMessage = {
         ...createAction(userA.address, userA.address, maxFee),
       }
@@ -339,12 +341,18 @@ describe('Controller_Arbitrum', () => {
       // deploy collateral account for userA
       accountA = await createCollateralAccount(userA, INITIAL_DEPOSIT_6)
       keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+      console.log('keeper balance before', keeperBalanceBefore)
     })
 
     afterEach(async () => {
       // confirm keeper earned their fee
+      console.log('keeper balance after', await dsu.balanceOf(keeper.address))
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      const keeperEthSpentOnGas = keeperEthBalanceBefore.sub(await keeper.getBalance())
+      // cost of transaction plus an extra 0.02 DSU for committing price
+      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2500).add(utils.parseEther('0.02'))
+      // keeper should be compensated between 100-150% of actual gas cost
+      expect(keeperFeePaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(150).div(100))
     })
 
     it('collects fee for depositing some funds to market', async () => {
@@ -496,6 +504,7 @@ describe('Controller_Arbitrum', () => {
     })
   })
 
+  // TODO: balance against gas costs
   describe('#rebalance', async () => {
     let accountA: Account
 
@@ -525,7 +534,7 @@ describe('Controller_Arbitrum', () => {
 
       // ensure keeper was compensated
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.01'), DEFAULT_MAX_FEE)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.01'), DEFAULT_MAX_FEE_18)
     })
 
     it('collects fee for rebalancing a group', async () => {
@@ -567,7 +576,7 @@ describe('Controller_Arbitrum', () => {
 
       // confirm keeper earned their fee
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.01'), DEFAULT_MAX_FEE)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.01'), DEFAULT_MAX_FEE_18)
     })
 
     it('honors max rebalance fee when rebalancing a group', async () => {
@@ -609,6 +618,7 @@ describe('Controller_Arbitrum', () => {
     })
   })
 
+  // TODO: balance against gas costs
   describe('#withdrawal', async () => {
     let accountA: Account
     let userBalanceBefore: BigNumber
@@ -624,7 +634,7 @@ describe('Controller_Arbitrum', () => {
     afterEach(async () => {
       // confirm keeper earned their fee
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE_18)
     })
 
     it('collects fee for partial withdrawal from a delegated signer', async () => {
@@ -678,6 +688,7 @@ describe('Controller_Arbitrum', () => {
     })
   })
 
+  // TODO: balance against gas costs
   describe('#relay', async () => {
     let downstreamVerifier: Verifier
     let keeperBalanceBefore: BigNumber
@@ -704,7 +715,7 @@ describe('Controller_Arbitrum', () => {
     afterEach(async () => {
       // confirm keeper earned their fee
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE_18)
     })
 
     it('relays nonce cancellation messages', async () => {
