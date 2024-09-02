@@ -18203,6 +18203,17 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
+          // update position with incorrect guarantee referrer
+          intent.solver = liquidator.address
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
+
           oracle.at
             .whenCalledWith(ORACLE_VERSION_2.timestamp)
             .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
@@ -23878,6 +23889,17 @@ describe('Market', () => {
               liquidator.address,
               constants.AddressZero,
             )
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, userB.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          // revert with incorrect referrer
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, userB.address),
+          ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_2.timestamp)
