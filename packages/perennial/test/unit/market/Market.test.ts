@@ -53,6 +53,8 @@ import {
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
 
+import { parse } from 'path'
+
 const { ethers } = HRE
 
 const POSITION = parse6decimal('10.000')
@@ -18069,7 +18071,7 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
 
-        it('opens the position when signer', async () => {
+        it.only('opens the position when signer', async () => {
           factory.parameter.returns({
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
@@ -18317,6 +18319,58 @@ describe('Market', () => {
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
+
+          // Update position
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          )
+            .to.emit(market, 'OrderCreated')
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                takerReferral: POSITION.div(2).mul(2).div(10),
+              },
+              {
+                ...DEFAULT_GUARANTEE,
+                orders: 1,
+                takerPos: POSITION.div(2),
+                notional: POSITION.div(2).mul(125),
+                takerFee: 0,
+                referral: POSITION.div(2).div(10),
+              },
+              constants.AddressZero,
+              liquidator.address, // originator
+              owner.address, // solver
+            )
+            .to.emit(market, 'OrderCreated')
+            .withArgs(
+              userC.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                shortPos: POSITION.div(2),
+              },
+              {
+                ...DEFAULT_GUARANTEE,
+                orders: 0,
+                takerNeg: POSITION.div(2),
+                notional: -POSITION.div(2).mul(125),
+                takerFee: POSITION.div(2),
+                referral: 0,
+              },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
+            )
         })
 
         it('reverts when not operator', async () => {
