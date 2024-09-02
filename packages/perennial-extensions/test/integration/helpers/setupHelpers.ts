@@ -73,6 +73,7 @@ export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 const LEGACY_ORACLE_DELAY = 3600
+const STARTING_TIMESTAMP = BigNumber.from(1646456563)
 
 export interface InstanceVars {
   owner: SignerWithAddress
@@ -364,7 +365,6 @@ export async function createVault(
   leverage?: BigNumber,
   maxCollateral?: BigNumber,
 ): Promise<[IVault, VaultFactory, FakeContract<IOracleProvider>, FakeContract<IOracleProvider>]> {
-  const STARTING_TIMESTAMP = BigNumber.from(1646456563)
   const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
   const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
@@ -376,30 +376,10 @@ export async function createVault(
   await oracleFactory.connect(owner).register(vaultOracleFactory.address)
 
   const ethSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  const ethRealVersion = {
-    timestamp: STARTING_TIMESTAMP,
-    price: BigNumber.from('2620237388'),
-    valid: true,
-  }
-
-  ethSubOracle.status.returns([ethRealVersion, ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-  ethSubOracle.request.returns()
-  ethSubOracle.latest.returns(ethRealVersion)
-  ethSubOracle.current.returns(ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-  ethSubOracle.at.whenCalledWith(ethRealVersion.timestamp).returns([ethRealVersion, DEFAULT_ORACLE_RECEIPT])
+  resetEthSubOracle(ethSubOracle)
 
   const btcSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  const btcRealVersion = {
-    timestamp: STARTING_TIMESTAMP,
-    price: BigNumber.from('38838362695'),
-    valid: true,
-  }
-
-  btcSubOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-  btcSubOracle.request.returns()
-  btcSubOracle.latest.returns(btcRealVersion)
-  btcSubOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-  btcSubOracle.at.whenCalledWith(btcRealVersion.timestamp).returns([btcRealVersion, DEFAULT_ORACLE_RECEIPT])
+  resetBtcSubOracle(btcSubOracle)
 
   vaultOracleFactory.instances.whenCalledWith(ethSubOracle.address).returns(true)
   vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
@@ -566,6 +546,34 @@ export async function createVault(
     )
 
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
+}
+
+export function resetEthSubOracle(ethSubOracle: FakeContract<IOracleProvider>) {
+  const ethRealVersion = {
+    timestamp: STARTING_TIMESTAMP,
+    price: BigNumber.from('2620237388'),
+    valid: true,
+  }
+
+  ethSubOracle.status.returns([ethRealVersion, ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+  ethSubOracle.request.returns()
+  ethSubOracle.latest.returns(ethRealVersion)
+  ethSubOracle.current.returns(ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+  ethSubOracle.at.whenCalledWith(ethRealVersion.timestamp).returns([ethRealVersion, DEFAULT_ORACLE_RECEIPT])
+}
+
+export function resetBtcSubOracle(btcSubOracle: FakeContract<IOracleProvider>) {
+  const btcRealVersion = {
+    timestamp: STARTING_TIMESTAMP,
+    price: BigNumber.from('38838362695'),
+    valid: true,
+  }
+
+  btcSubOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+  btcSubOracle.request.returns()
+  btcSubOracle.latest.returns(btcRealVersion)
+  btcSubOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+  btcSubOracle.at.whenCalledWith(btcRealVersion.timestamp).returns([btcRealVersion, DEFAULT_ORACLE_RECEIPT])
 }
 
 export async function createInvoker(

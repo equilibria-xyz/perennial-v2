@@ -1,15 +1,14 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils, BigNumber, constants } from 'ethers'
 import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { currentBlockTimestamp, increase } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,
   IERC20Metadata__factory,
-  IFactory,
   Market__factory,
   MarketFactory,
   MarketFactory__factory,
@@ -40,7 +39,6 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
-import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
 
 const { ethers } = HRE
 
@@ -174,19 +172,6 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
   await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000'))
 }
 
-async function includeAt(func: () => Promise<any>, timestamp: number): Promise<any> {
-  await ethers.provider.send('evm_setAutomine', [false])
-  await ethers.provider.send('evm_setIntervalMining', [0])
-
-  await time.setNextBlockTimestamp(timestamp)
-  const result = await func()
-
-  await ethers.provider.send('evm_mine', [])
-  await ethers.provider.send('evm_setAutomine', [true])
-
-  return result
-}
-
 const testOracles = [
   {
     name: 'MetaQuantsOracleFactory',
@@ -220,7 +205,8 @@ testOracles.forEach(testOracle => {
     let factorySigner: SignerWithAddress
     let powerTwoPayoff: PowerTwo
 
-    const setup = async () => {
+    const fixture = async () => {
+      await time.reset()
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
@@ -463,14 +449,13 @@ testOracles.forEach(testOracle => {
     }
 
     beforeEach(async () => {
-      await time.reset()
-      await setup()
+      await loadFixture(fixture)
       await time.increaseTo(STARTING_TIME - 2)
 
       // block.timestamp of the next call will be STARTING_TIME
 
       // set the oracle parameters at STARTING_TIME - 1
-      await includeAt(async () => {
+      await time.includeAt(async () => {
         await metaquantsOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
         await metaquantsOracleFactory.commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME - 1, listify(PAYLOAD))
       }, STARTING_TIME - 1)
@@ -533,7 +518,7 @@ testOracles.forEach(testOracle => {
 
     describe('#commit', async () => {
       it('commits successfully and incentivizes the keeper', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
@@ -571,7 +556,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('does not allow committing with invalid signature', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
@@ -629,7 +614,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('can update multiple from batched update', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await metaquantsOracleFactory
               .connect(user)
