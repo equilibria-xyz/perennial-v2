@@ -530,7 +530,7 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
