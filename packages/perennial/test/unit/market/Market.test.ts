@@ -24253,6 +24253,32 @@ describe('Market', () => {
       oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
       oracle.request.whenCalledWith(user.address).returns()
 
+      // try to re-enter into update method with maker position
+      await mockToken.setFunctionToCall(0)
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
+
+      // try to re-enter into update method
+      await mockToken.setFunctionToCall(1)
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
+
+      // try to re-enter into update intent method
+      await mockToken.setFunctionToCall(2)
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
+
+      // try to re-enter into settle method
+      mockToken.setFunctionToCall(3)
       await expect(
         market
           .connect(user)
