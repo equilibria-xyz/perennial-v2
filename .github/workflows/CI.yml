@@ -483,9 +483,9 @@ jobs:
           name: extensions_integration_test_coverage
           path: ./packages/perennial-extensions/coverage/lcov.info
 
-  # [COMBINED UNIT COVERAGE]
-  combined-unit-test-coverage:
-    name: 'Combined Unit Tests Coverage'
+  # [PERIPHERY UNIT COVERAGE]
+  periphery-unit-test-coverage:
+    name: 'Periphery Unit Tests Coverage'
     runs-on: ubuntu-latest
     needs: [account-unit-test, oracle-unit-test, order-unit-test, vault-unit-test, extensions-unit-test]
     steps:
@@ -526,24 +526,24 @@ jobs:
           -a order_unit_test_coverage/lcov.info 
           -a vault_unit_test_coverage/lcov.info 
           -a extensions_unit_test_coverage/lcov.info 
-          --output-file combined_unit_coverage.info
+          --output-file periphery_unit_coverage.info
       - name: Upload combined unit test lcov file
         uses: actions/upload-artifact@v3
         with:
-          name: combined_unit_coverage
-          path: combined_unit_coverage.info
-      - name: 'Combined Unit Test Code Coverage Report'
+          name: periphery_unit_coverage
+          path: periphery_unit_coverage.info
+      - name: 'Periphery Unit Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: 'Combined Unit Test Coverage Report'
-          lcov-file: combined_unit_coverage.info
+          title: '[PERIPHERY] Unit Test Coverage Report'
+          lcov-file: periphery_unit_coverage.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
-  # [COMBINED INTEGRATION COVERAGE]
-  combined-integration-test-coverage:
-    name: 'Combined Integration Tests Coverage'
+  # [PERIPHERY INTEGRATION COVERAGE]
+  periphery-integration-test-coverage:
+    name: 'Periphery Integration Tests Coverage'
     runs-on: ubuntu-latest
     needs:
       [
@@ -598,49 +598,49 @@ jobs:
           -a order_integration_test_coverage/lcov.info 
           -a vault_integration_test_coverage/lcov.info 
           -a extensions_integration_test_coverage/lcov.info 
-          --output-file combined_integration_coverage.info
+          --output-file periphery_integration_coverage.info
       - name: Upload combined integration test lcov file
         uses: actions/upload-artifact@v3
         with:
-          name: combined_integration_coverage
-          path: combined_integration_coverage.info
-      - name: 'Combined Integration Test Code Coverage Report'
+          name: periphery_integration_coverage
+          path: periphery_integration_coverage.info
+      - name: 'Periphery Integration Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: 'Combined Integration Test Coverage Report'
-          lcov-file: combined_integration_coverage.info
+          title: '[PERIPHERY] Integration Test Coverage Report'
+          lcov-file: periphery_integration_coverage.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
-  # [COMBINED COVERAGE]
-  combined-test-coverage:
-    name: 'Combined Tests Coverage'
+  # [PERIPHERY COMBINED COVERAGE]
+  Periphery-test-coverage:
+    name: 'Periphery Tests Coverage'
     runs-on: ubuntu-latest
-    needs: [combined-unit-test-coverage, combined-integration-test-coverage]
+    needs: [periphery-unit-test-coverage, periphery-integration-test-coverage]
     steps:
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
-      - name: Download combined unit test coverage file
+      - name: Download periphery unit test coverage file
         uses: actions/download-artifact@v3
         with:
-          name: combined_unit_coverage
-          path: combined_unit_coverage
-      - name: Download combined integration test coverage file
+          name: periphery_unit_coverage
+          path: periphery_unit_coverage
+      - name: Download periphery integration test coverage file
         uses: actions/download-artifact@v3
         with:
-          name: combined_integration_coverage
-          path: combined_integration_coverage
+          name: periphery_integration_coverage
+          path: periphery_integration_coverage
       - name: Install lcov
         run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine test coverage
-        run: lcov -a combined_unit_coverage/combined_unit_coverage.info -a combined_integration_coverage/combined_integration_coverage.info --output-file combined_coverage.info
-      - name: 'Combined Test Code Coverage Report'
+        run: lcov -a periphery_unit_coverage/periphery_unit_coverage.info -a periphery_integration_coverage/periphery_integration_coverage.info --output-file combined_coverage.info
+      - name: 'Periphery Combined Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: 'Combined Test Coverage Report'
+          title: '[PERIPHERY] Test Coverage Report'
           lcov-file: combined_coverage.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
