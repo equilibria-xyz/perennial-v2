@@ -535,7 +535,7 @@ jobs:
       - name: 'Periphery Unit Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: '[PERIPHERY] Unit Test Coverage Report'
+          title: '[Periphery] Unit Test Coverage Report'
           lcov-file: periphery_unit_coverage.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
@@ -607,7 +607,7 @@ jobs:
       - name: 'Periphery Integration Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: '[PERIPHERY] Integration Test Coverage Report'
+          title: '[Periphery] Integration Test Coverage Report'
           lcov-file: periphery_integration_coverage.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
@@ -640,7 +640,7 @@ jobs:
       - name: 'Periphery Combined Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: '[PERIPHERY] Test Coverage Report'
+          title: '[Periphery] Test Coverage Report'
           lcov-file: combined_coverage.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
