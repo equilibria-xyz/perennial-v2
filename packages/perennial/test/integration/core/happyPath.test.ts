@@ -3,7 +3,7 @@ import 'hardhat'
 import { BigNumber, constants } from 'ethers'
 const { AddressZero } = constants
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle, fundWallet } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
   DEFAULT_POSITION,
@@ -1255,6 +1255,87 @@ describe('Happy Path', () => {
       longValue: { _value: '3620965' },
       shortValue: { _value: 0 },
     })
+  })
+
+  it('owner claims exposure', async () => {
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
+    const COLLATERAL = parse6decimal('1000')
+    const { owner, user, userB, dsu, chainlink } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false)
+
+    await chainlink.nextWithPriceModification(price => price.mul(10))
+
+    await settle(market, user)
+
+    const riskParameter = {
+      margin: parse6decimal('0.3'),
+      maintenance: parse6decimal('0.3'),
+      takerFee: {
+        linearFee: parse6decimal('0.001'),
+        proportionalFee: parse6decimal('0.0006'),
+        adiabaticFee: parse6decimal('0.0004'),
+        scale: parse6decimal('10000'),
+      },
+      makerFee: {
+        linearFee: parse6decimal('0.0005'),
+        proportionalFee: parse6decimal('0.0002'),
+        adiabaticFee: 0,
+        scale: parse6decimal('10000'),
+      },
+      makerLimit: parse6decimal('100000'),
+      efficiencyLimit: parse6decimal('0.2'),
+      liquidationFee: parse6decimal('10.00'),
+      utilizationCurve: {
+        minRate: 0,
+        maxRate: parse6decimal('5.00'),
+        targetRate: parse6decimal('0.80'),
+        targetUtilization: parse6decimal('0.80'),
+      },
+      pController: {
+        k: parse6decimal('40000'),
+        min: parse6decimal('-1.20'),
+        max: parse6decimal('1.20'),
+      },
+      minMargin: parse6decimal('500'),
+      minMaintenance: parse6decimal('500'),
+      staleAfter: 100000, // enable long delays for testing
+      makerReceiveOnly: false,
+    }
+    const parameter = {
+      fundingFee: parse6decimal('0.1'),
+      interestFee: parse6decimal('0.1'),
+      oracleFee: 0,
+      riskFee: 0,
+      settlementFee: 0,
+      maxPendingGlobal: 8,
+      maxPendingLocal: 8,
+      makerFee: parse6decimal('0.2'),
+      takerFee: parse6decimal('0.1'),
+      closed: false,
+      settle: false,
+    }
+
+    await market.updateParameter(parameter)
+    await market.updateRiskParameter(riskParameter)
+
+    await fundWallet(dsu, owner)
+
+    await dsu.connect(owner).approve(market.address, (await market.global()).exposure.mul(-1e12))
+
+    await market.connect(owner).claimExposure()
+
+    expect((await market.global()).exposure).to.equals(0)
   })
 
   // uncheck skip to see gas results
