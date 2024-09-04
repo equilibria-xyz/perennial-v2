@@ -7,9 +7,12 @@ import { MARKET_LIBRARIES } from './004_deploy_market'
 import {
   Account__factory,
   Controller_Arbitrum__factory,
+  GasOracle__factory,
   KeeperOracle__factory,
   Manager_Arbitrum__factory,
+  Market__factory,
   MarketFactory__factory,
+  MetaQuantsFactory__factory,
   MultiInvoker__factory,
   OracleFactory__factory,
   ProxyAdmin__factory,
@@ -72,7 +75,7 @@ async function deployVerifier(hre: HardhatRuntimeEnvironment) {
   const verifierProxyArgs: TransparentUpgradeableProxyArgs = [
     (await get('VerifierImpl')).address,
     proxyAdmin.address,
-    ethers.constants.HashZero,
+    '0x',
   ]
   await deploy('Verifier', {
     contract: 'TransparentUpgradeableProxy',
@@ -105,9 +108,11 @@ async function deployMarketContracts(hre: HardhatRuntimeEnvironment) {
     ).address
   }
   log('  Deploying Market Impl...')
+  const marketImplArgs: Parameters<Market__factory['deploy']> = [(await get('Verifier')).address]
   const marketImpl = await deploy('MarketImpl', {
     contract: 'Market',
     from: deployer,
+    args: marketImplArgs,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
@@ -163,7 +168,7 @@ async function deployVault(hre: HardhatRuntimeEnvironment) {
 
 async function deployOracles(hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get } = deployments
+  const { deploy, get, getOrNull } = deployments
   const { deployer } = await getNamedAccounts()
   const deployerSigner = await ethers.getSigner(deployer)
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
@@ -200,12 +205,51 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
     autoMine: true,
   })
 
+  log('  Deploying CommitmentGasOracle...')
+  // TODO: Finalize gas values
+  const commitmentGasOracleArgs: Parameters<GasOracle__factory['deploy']> = [
+    (await get('ChainlinkETHUSDFeed')).address,
+    8, // Chainlink Decimals
+    788_000n, // Compute Gas
+    ethers.utils.parseEther('1.05'), // Compute Multiplier
+    275_000n, // Compute Base
+    31_000n, // Calldata Gas
+    ethers.utils.parseEther('1.05'), // Calldata Multiplier
+    0n, // Calldata Base
+  ]
+  await deploy('CommitmentGasOracle', {
+    contract: 'GasOracle_Arbitrum',
+    args: commitmentGasOracleArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying SettleGasOracle...')
+  // TODO: Finalize gas values
+  const settlementGasOracleArgs: Parameters<GasOracle__factory['deploy']> = [
+    (await get('ChainlinkETHUSDFeed')).address,
+    8, // Chainlink Decimals
+    788_000n, // Compute Gas
+    ethers.utils.parseEther('1.05'), // Compute Multiplier
+    275_000n, // Compute Base
+    31_000n, // Calldata Gas
+    ethers.utils.parseEther('1.05'), // Calldata Multiplier
+    0n, // Calldata Base
+  ]
+  await deploy('SettlementGasOracle', {
+    contract: 'GasOracle_Arbitrum',
+    args: settlementGasOracleArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
   log('  Deploying PythFactory Impl...')
-  // TODO: Determine buffer values
   const pythFactoryArgs: Parameters<PythFactory__factory['deploy']> = [
     (await get('Pyth')).address,
-    ethers.constants.AddressZero, // TODO: Commitment gas oracle
-    ethers.constants.AddressZero, // TODO: Settle gas oracle
+    (await get('CommitmentGasOracle')).address,
+    (await get('SettlementGasOracle')).address,
     (await get('KeeperOracleImpl')).address,
   ]
   await deploy('PythFactoryImpl', {
@@ -247,8 +291,6 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
     process.stdout.write('complete\n')
   }
 
-  // TODO: Cryptex keepers for arb sepolia?
-
   // Create oracles from previous pyth factory
   const previousOracles = await previousPythFactory.queryFilter(pythFactory.filters.OracleCreated())
   for (const event of previousOracles) {
@@ -265,11 +307,63 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
     })
   }
 
+  // Cryptex keepers for arb sepolia
+  if (await getOrNull('CryptexFactory')) {
+    log('  Deploying CryptexFactory Impl...')
+    const cryptexFactoryArgs: Parameters<MetaQuantsFactory__factory['deploy']> = [
+      '0x6B9d43F52C7d49C298c69d2e4C26f58D20886256',
+      (await get('CommitmentGasOracle')).address,
+      (await get('SettlementGasOracle')).address,
+      (await get('KeeperOracleImpl')).address,
+    ]
+    await deploy('CryptexFactoryImpl', {
+      contract: 'MetaQuantsFactory',
+      args: cryptexFactoryArgs,
+      from: deployer,
+      skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+      log: true,
+      autoMine: true,
+    })
+    const previousCryptexFactory = new MetaQuantsFactory__factory(deployerSigner).attach(
+      (await get('CryptexFactory')).address,
+    )
+    const cryptexFactoryInterface = MetaQuantsFactory__factory.createInterface()
+    const cryptexFactoryProxyArgs: TransparentUpgradeableProxyArgs = [
+      (await get('CryptexFactoryImpl')).address,
+      proxyAdmin.address,
+      cryptexFactoryInterface.encodeFunctionData('initialize', [(await get('OracleFactory')).address]),
+    ]
+    await deploy('CryptexFactory', {
+      contract: 'TransparentUpgradeableProxy',
+      args: cryptexFactoryProxyArgs,
+      from: deployer,
+      skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+      log: true,
+      autoMine: true,
+    })
+    const cryptexFactory = new MetaQuantsFactory__factory(deployerSigner).attach((await get('CryptexFactory')).address)
+
+    const previousOracles = await previousCryptexFactory.queryFilter(cryptexFactory.filters.OracleCreated())
+    for (const event of previousOracles) {
+      const previousUnderlyingId = await previousCryptexFactory.callStatic.toUnderlyingId(event.args.id)
+      const previousPayoff = await previousCryptexFactory.callStatic.toUnderlyingPayoff(event.args.id)
+      const address = await cryptexFactory.callStatic.create(event.args.id, previousUnderlyingId, {
+        provider: previousPayoff.provider,
+        decimals: previousPayoff.decimals,
+      })
+      log('    Creating oracle ID:', event.args.id, 'at address:', address)
+      await cryptexFactory.create(event.args.id, previousUnderlyingId, {
+        provider: previousPayoff.provider,
+        decimals: previousPayoff.decimals,
+      })
+    }
+  }
+
   log('Done deploying Oracles...')
 }
 
 async function deployExtensions(hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts, network } = hre
+  const { deployments, getNamedAccounts, network, ethers } = hre
   const { deploy, get, getOrNull } = deployments
   const { deployer } = await getNamedAccounts()
 
@@ -342,7 +436,7 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
   const accountVerifierProxyArgs: TransparentUpgradeableProxyArgs = [
     (await get('AccountVerifierImpl')).address,
     proxyAdmin.address,
-    ethers.constants.HashZero,
+    '0x',
   ]
   await deploy('AccountVerifier', {
     contract: 'TransparentUpgradeableProxy',
@@ -361,12 +455,30 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
       multiplierCalldata: 0,
       bufferCalldata: 0,
     }, // TODO: Determine keep config
-    (await get('AccountVerifier')).address,
+    (await get('Verifier')).address,
   ]
   await deploy('ControllerImpl', {
     contract: 'Controller_Arbitrum',
     from: deployer,
     args: controllerArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Controller Proxy...')
+  const controllerProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('ControllerImpl')).address,
+    proxyAdmin.address,
+    Controller_Arbitrum__factory.createInterface().encodeFunctionData('initialize(address,address,address)', [
+      (await get('MarketFactory')).address,
+      (await get('AccountVerifier')).address,
+      (await get('ChainlinkETHUSDFeed')).address,
+    ]),
+  ]
+  await deploy('Controller', {
+    contract: 'TransparentUpgradeableProxy',
+    from: deployer,
+    args: controllerProxyArgs,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
@@ -393,7 +505,7 @@ async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
   const orderVerifierProxyArgs: TransparentUpgradeableProxyArgs = [
     (await get('OrderVerifierImpl')).address,
     proxyAdmin.address,
-    ethers.constants.HashZero,
+    '0x',
   ]
   await deploy('OrderVerifier', {
     contract: 'TransparentUpgradeableProxy',
@@ -416,6 +528,28 @@ async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
     contract: 'Manager_Arbitrum',
     from: deployer,
     args: managerArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Manager Proxy...')
+  const managerProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('ManagerImpl')).address,
+    proxyAdmin.address,
+    Manager_Arbitrum__factory.createInterface().encodeFunctionData('initialize', [
+      (await get('ChainlinkETHUSDFeed')).address,
+      {
+        multiplierBase: 0,
+        bufferBase: 0,
+        multiplierCalldata: 0,
+        bufferCalldata: 0,
+      }, // TODO: Determine keep config
+    ]),
+  ]
+  await deploy('Manager', {
+    contract: 'TransparentUpgradeableProxy',
+    from: deployer,
+    args: managerProxyArgs,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,

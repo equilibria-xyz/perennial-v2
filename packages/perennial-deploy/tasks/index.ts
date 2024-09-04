@@ -11,3 +11,6 @@ export * from './verifyIDs'
 export * from './verifyVaultIDs'
 
 export * from './multisig_ops/buildCreateMarket'
+
+export * from './v2.3_migration/01_upgradeImpls'
+export * from './v2.3_migration/02_setupOracles'

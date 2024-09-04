@@ -35,7 +35,7 @@ export default task('verify-ids', 'Verifies that all markets and users have equa
 
     for (const marketAddress in marketUsers) {
       const market = args.prevabi
-        ? ((await ethers.getContractAt((await getArtifact('MarketV2_1_1')).abi, marketAddress)) as IMarket)
+        ? ((await ethers.getContractAt((await getArtifact('MarketV2_2')).abi, marketAddress)) as IMarket)
         : await ethers.getContractAt('IMarket', marketAddress)
 
       const global = await market.global()

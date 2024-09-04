@@ -63,3 +63,5 @@ export const DEFAULT_RISK_PARAMETERS = {
   staleAfter: 7200,
   makerReceiveOnly: false,
 }
+
+export const BaseKeeperBuffer = 275_000n
