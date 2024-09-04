@@ -145,14 +145,6 @@ describe('Controller_Arbitrum', () => {
     // cost of transaction
     const keeperGasCostInUSD = keeperEthSpentOnGas.mul(3413)
     // keeper should be compensated between 100-125% of actual gas cost
-    /*console.log(
-      'expect keeperFeesPaid',
-      utils.formatEther(keeperFeesPaid),
-      'to be between',
-      utils.formatEther(keeperGasCostInUSD),
-      'and',
-      utils.formatEther(keeperGasCostInUSD.mul(125).div(100)),
-    )*/
     expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
   }
 
