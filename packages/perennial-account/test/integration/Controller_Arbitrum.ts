@@ -59,12 +59,11 @@ const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 const DEFAULT_MAX_FEE = parse6decimal('2')
-const DEFAULT_MAX_FEE_18 = DEFAULT_MAX_FEE.mul(1e12)
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxPriorityFeePerGas: 0, maxFeePerGas: 100_000_000 }
 
-describe.only('Controller_Arbitrum', () => {
+describe('Controller_Arbitrum', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller_Arbitrum
@@ -136,24 +135,24 @@ describe.only('Controller_Arbitrum', () => {
     await fundWalletUSDC(wallet, parse6decimal('50000'), { maxFeePerGas: 100000000 })
   }
 
-  async function checkCompensation(withPriceCommitment = false) {
+  async function checkCompensation(priceCommitments = 0) {
     const keeperFeesPaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
     let keeperEthSpentOnGas = keeperEthBalanceBefore.sub(await keeper.getBalance())
 
-    // if TX requires an outside price commitment, compensate the keeper for it
-    if (withPriceCommitment) keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306'))
+    // if TXes in test required outside price commitments, compensate the keeper for them
+    keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306').mul(priceCommitments))
 
     // cost of transaction
     const keeperGasCostInUSD = keeperEthSpentOnGas.mul(3413)
     // keeper should be compensated between 100-125% of actual gas cost
-    console.log(
+    /*console.log(
       'expect keeperFeesPaid',
       utils.formatEther(keeperFeesPaid),
       'to be between',
       utils.formatEther(keeperGasCostInUSD),
       'and',
       utils.formatEther(keeperGasCostInUSD.mul(125).div(100)),
-    )
+    )*/
     expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
   }
 
@@ -210,9 +209,9 @@ describe.only('Controller_Arbitrum', () => {
       bufferCalldata: 0,
     }
     const keepConfigBuffered = {
-      multiplierBase: ethers.utils.parseEther('1.1'),
+      multiplierBase: ethers.utils.parseEther('1.085'),
       bufferBase: 1_500_000, // for price commitment
-      multiplierCalldata: ethers.utils.parseEther('1.1'),
+      multiplierCalldata: ethers.utils.parseEther('1.085'),
       bufferCalldata: 35_200,
     }
     const keepConfigWithdrawal = {
@@ -346,11 +345,6 @@ describe.only('Controller_Arbitrum', () => {
       accountA = await createCollateralAccount(userA, INITIAL_DEPOSIT_6)
     })
 
-    afterEach(async () => {
-      // all transfers require price committment; confirm keeper earned their fee
-      await checkCompensation(true)
-    })
-
     it('collects fee for depositing some funds to market', async () => {
       // sign a message to deposit 6k from the collateral account to the market
       const transferAmount = parse6decimal('6000')
@@ -379,9 +373,10 @@ describe.only('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(transferAmount)
+
+      await checkCompensation(1)
     })
 
-    // FIXME: expected 1.254734709062355509 to be within 0.805891929423374841..1.007364911779218551
     it('collects fee for withdrawing some funds from market', async () => {
       // user deposits collateral to the market
       await deposit(parse6decimal('12000'), accountA)
@@ -414,6 +409,8 @@ describe.only('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(parse6decimal('10000')) // 12k-2k
+
+      await checkCompensation(2)
     })
 
     it('collects fee for withdrawing native deposit from market', async () => {
@@ -459,6 +456,8 @@ describe.only('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(0)
+
+      await checkCompensation(1)
     })
 
     it('collects fee for withdrawing funds into empty collateral account', async () => {
@@ -498,6 +497,8 @@ describe.only('Controller_Arbitrum', () => {
         parse6decimal('9999'),
         parse6decimal('10000'),
       ) // 12k-2k
+
+      await checkCompensation(2)
     })
   })
 
@@ -527,10 +528,9 @@ describe.only('Controller_Arbitrum', () => {
         .withArgs(userA.address, message.group, 1)
 
       // ensure keeper was compensated
-      await checkCompensation(false)
+      await checkCompensation()
     })
 
-    // FIXME: expected 1.715427419142864747 to be within 1.043292187385955311..1.304115234232444138
     it('collects fee for rebalancing a group', async () => {
       const ethMarket = market
 
@@ -566,7 +566,7 @@ describe.only('Controller_Arbitrum', () => {
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
 
       // confirm keeper earned their fee
-      await checkCompensation(true)
+      await checkCompensation(4)
     })
 
     it('honors max rebalance fee when rebalancing a group', async () => {
@@ -620,7 +620,7 @@ describe.only('Controller_Arbitrum', () => {
 
     afterEach(async () => {
       // confirm keeper earned their fee
-      await checkCompensation(true)
+      await checkCompensation(1)
     })
 
     it('collects fee for partial withdrawal from a delegated signer', async () => {
@@ -696,7 +696,7 @@ describe.only('Controller_Arbitrum', () => {
 
     afterEach(async () => {
       // confirm keeper earned their fee
-      await checkCompensation(false)
+      await checkCompensation()
     })
 
     it('relays nonce cancellation messages', async () => {

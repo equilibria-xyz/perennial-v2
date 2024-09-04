@@ -28,8 +28,6 @@ import { RelayedSignerUpdate } from "./types/RelayedSignerUpdate.sol";
 import { RelayedAccessUpdateBatch } from "./types/RelayedAccessUpdateBatch.sol";
 import { Withdrawal } from "./types/Withdrawal.sol";
 
-import "hardhat/console.sol";
-
 /// @title Controller_Incentivized
 /// @notice Controller which compensates keepers for handling or relaying messages. Subclass to handle differences in
 /// gas calculations on different chains.
@@ -293,8 +291,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     ) internal virtual override returns (UFixed18 raisedKeeperFee) {
         (address account, UFixed6 maxFee) = abi.decode(data, (address, UFixed6));
         raisedKeeperFee = amount.min(UFixed18Lib.from(maxFee));
-
-        console.log("_raiseKeeperFee is %s", UFixed18.unwrap(raisedKeeperFee));
 
         // if the account has insufficient DSU to pay the fee, wrap
         IAccount(account).wrapIfNecessary(raisedKeeperFee, false);
