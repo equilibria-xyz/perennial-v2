@@ -47,6 +47,7 @@ const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export interface InstanceVars {
   owner: SignerWithAddress
+  coordinator: SignerWithAddress
   pauser: SignerWithAddress
   user: SignerWithAddress
   userB: SignerWithAddress
@@ -66,7 +67,7 @@ export interface InstanceVars {
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
-  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
+  const [owner, coordinator, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
@@ -179,6 +180,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   return {
     owner,
+    coordinator,
     pauser,
     user,
     userB,
@@ -215,7 +217,7 @@ export async function createMarket(
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
-  const { owner, marketFactory, beneficiaryB, oracle, dsu } = instanceVars
+  const { owner, marketFactory, coordinator, beneficiaryB, oracle, dsu } = instanceVars
 
   const definition = {
     token: dsu.address,
@@ -276,6 +278,7 @@ export async function createMarket(
   await market.updateRiskParameter(riskParameter)
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateParameter(marketParameter)
+  await market.updateCoordinator(coordinator.address)
 
   await oracle.register(market.address)
 

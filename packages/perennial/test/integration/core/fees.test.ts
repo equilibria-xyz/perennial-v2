@@ -1959,7 +1959,7 @@ describe('Fees', () => {
     })
 
     it('charges user referral fee for maker position', async () => {
-      const { user, userB } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       // userB creates a maker position, referred by user
       await market
@@ -1999,6 +1999,13 @@ describe('Fees', () => {
       await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, user.address, expectedClaimable)
+
+      expect(await dsu.balanceOf(user.address)).to.equals(utils.parseEther('200000').add(expectedClaimable.mul(1e12)))
+
+      // Ensure user is not able to claim fees twice
+      await expect(market.connect(user).claimFee(user.address))
+
+      expect(await dsu.balanceOf(user.address)).to.equals(utils.parseEther('200000').add(expectedClaimable.mul(1e12)))
     })
 
     it('charges default referral fee for taker position', async () => {

@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants } from 'ethers'
-const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle, fundWallet } from '../helpers/setupHelpers'
 import {
@@ -19,12 +18,16 @@ import {
   expectCheckpointEq,
   DEFAULT_GLOBAL,
   DEFAULT_GUARANTEE,
+  DEFAULT_RISK_PARAMETER,
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
-import { RiskParameterStruct } from '../../../types/generated/contracts/Market'
+import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
+import { signIntent } from '../../../../perennial-verifier/test/helpers/erc712'
+import { Verifier, Verifier__factory } from '../../../../perennial-verifier/types/generated'
+import { ethers } from 'hardhat'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -82,7 +85,7 @@ describe('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, marketFactory, beneficiaryB, payoff, oracle, dsu } = instanceVars
+    const { owner, marketFactory, payoff, oracle, dsu } = instanceVars
 
     const definition = {
       name: 'Squeeth',
@@ -998,12 +1001,65 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
 
     await marketFactory.connect(pauser).pause()
+
     await expect(
       market
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, parse6decimal('1000'), false),
     ).to.be.revertedWithCustomError(market, 'InstancePausedError')
+
     await expect(settle(market, user)).to.be.revertedWithCustomError(market, 'InstancePausedError')
+
+    await expect(
+      market.connect(user)['update(address,int256,int256,address)'](user.address, 0, 0, constants.AddressZero),
+    ).to.be.revertedWithCustomError(market, 'InstancePausedError')
+
+    const intent = {
+      amount: 0,
+      price: 0,
+      fee: 0,
+      originator: constants.AddressZero,
+      solver: constants.AddressZero,
+      collateralization: 0,
+      common: {
+        account: constants.AddressZero,
+        signer: constants.AddressZero,
+        domain: constants.AddressZero,
+        nonce: 0,
+        group: 0,
+        expiry: 0,
+      },
+    }
+
+    await expect(
+      market
+        .connect(user)
+        [
+          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](user.address, intent, '0x'),
+    ).to.be.revertedWithCustomError(market, 'InstancePausedError')
+  })
+
+  it('disables actions when unauthorized access', async () => {
+    const { user } = instanceVars
+    const market = await createMarket(instanceVars)
+
+    await expect(market.connect(user).updateBeneficiary(user.address)).to.be.revertedWithCustomError(
+      market,
+      'InstanceNotOwnerError',
+    )
+
+    await expect(market.connect(user).updateCoordinator(user.address)).to.be.revertedWithCustomError(
+      market,
+      'InstanceNotOwnerError',
+    )
+
+    await expect(market.connect(user).updateRiskParameter(DEFAULT_RISK_PARAMETER)).to.be.revertedWithCustomError(
+      market,
+      'MarketNotCoordinatorError',
+    )
+
+    await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(market, 'InstanceNotOwnerError')
   })
 
   it('opens a long position and settles after max funding', async () => {
@@ -1329,9 +1385,24 @@ describe('Happy Path', () => {
     await market.updateParameter(parameter)
     await market.updateRiskParameter(riskParameter)
 
+    // ensure exposure is negative
+    expect((await market.global()).exposure).to.lt(0)
+
     await fundWallet(dsu, owner)
 
     await dsu.connect(owner).approve(market.address, (await market.global()).exposure.mul(-1e12))
+
+    await market.connect(owner).claimExposure()
+
+    expect((await market.global()).exposure).to.equals(0)
+
+    // Update adiabatic fee to 0 to get positive exposure
+    riskParameter.takerFee.adiabaticFee = BigNumber.from(0)
+
+    await market.updateRiskParameter(riskParameter)
+
+    // ensure exposure is positive
+    expect((await market.global()).exposure).to.gt(0)
 
     await market.connect(owner).claimExposure()
 
