@@ -34,7 +34,8 @@ abstract contract Manager is IManager, Kept {
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
 
-    // TODO: add buffered KeepConfig
+    /// @dev Configuration used to compensate keepers for price commitments
+    KeepConfig public keepConfigBuffered;
 
     /// @dev Contract used to validate delegated signers
     IMarketFactory public marketFactory;
@@ -66,12 +67,15 @@ abstract contract Manager is IManager, Kept {
     /// @notice Initialize the contract
     /// @param ethOracle_ Chainlink ETH/USD oracle used for keeper compensation
     /// @param keepConfig_ Keeper compensation configuration
+    /// @param keepConfigBuffered_ Configuration used for price commitments
     function initialize(
         AggregatorV3Interface ethOracle_,
-        KeepConfig memory keepConfig_
+        KeepConfig memory keepConfig_,
+        KeepConfig memory keepConfigBuffered_
     ) external initializer(1) {
         __Kept__initialize(ethOracle_, DSU);
         keepConfig = keepConfig_;
+        keepConfigBuffered = keepConfigBuffered_;
         // allows DSU to unwrap to USDC
         DSU.approve(address(reserve));
     }
@@ -131,7 +135,7 @@ abstract contract Manager is IManager, Kept {
     function executeOrder(IMarket market, address account, uint256 orderId)
         external
         keep(
-            keepConfig,
+            keepConfigBuffered,
             abi.encode(market, account, orderId),
             0,
             // TODO: discuss; pulling order from storage twice seems expensive
@@ -151,16 +155,6 @@ abstract contract Manager is IManager, Kept {
 
         emit TriggerOrderExecuted(market, account, order, orderId);
         if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
-    }
-
-    modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
-        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
-
-        uint256 startGas = gasleft();
-        _;
-        uint256 applicableGas = startGas - gasleft();
-
-        _handleKeeperFee(keepConfig, applicableGas, applicableCalldata, 0, data);
     }
 
     /// @notice reverts if user is not authorized to sign transactions for the account
@@ -234,5 +228,15 @@ abstract contract Manager is IManager, Kept {
     function _unwrapAndWithdaw(address receiver, UFixed18 amount) private {
         reserve.redeem(amount);
         USDC.push(receiver, UFixed6Lib.from(amount));
+    }
+
+    modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
+        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
+
+        uint256 startGas = gasleft();
+        _;
+        uint256 applicableGas = startGas - gasleft();
+
+        _handleKeeperFee(keepConfig, applicableGas, applicableCalldata, 0, data);
     }
 }

@@ -46,13 +46,6 @@ const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // p
 const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC, a 6-decimal token
 
-const KEEP_CONFIG = {
-  multiplierBase: 0,
-  bufferBase: 1_000_000,
-  multiplierCalldata: 0,
-  bufferCalldata: 500_000,
-}
-
 const MAX_FEE = utils.parseEther('0.88')
 
 const NO_INTERFACE_FEE = {
@@ -65,7 +58,7 @@ const NO_INTERFACE_FEE = {
 }
 
 // because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
-const TX_OVERRIDES = { maxFeePerGas: 150_000_000 }
+const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 150_000_000 }
 
 describe('Manager_Arbitrum', () => {
   let dsu: IERC20Metadata
@@ -87,6 +80,7 @@ describe('Manager_Arbitrum', () => {
   let checkKeeperCompensation: boolean
   let currentTime: BigNumber
   let keeperBalanceBefore: BigNumber
+  let keeperEthBalanceBefore: BigNumber
   let lastMessageNonce = 0
   let lastPriceCommitted: BigNumber
   const nextOrderId: { [key: string]: BigNumber } = {}
@@ -114,7 +108,20 @@ describe('Manager_Arbitrum', () => {
       marketFactory.address,
       verifier.address,
     )
-    await manager.initialize(CHAINLINK_ETH_USD_FEED, KEEP_CONFIG)
+
+    const keepConfig = {
+      multiplierBase: ethers.utils.parseEther('1'),
+      bufferBase: 275_000, // buffer for handling the keeper fee
+      multiplierCalldata: ethers.utils.parseEther('1'),
+      bufferCalldata: 0,
+    }
+    const keepConfigBuffered = {
+      multiplierBase: ethers.utils.parseEther('1.05'),
+      bufferBase: 1_500_000, // for price commitment
+      multiplierCalldata: ethers.utils.parseEther('1.05'),
+      bufferCalldata: 35_200,
+    }
+    await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
 
     // commit a start price
     await commitPrice(parse6decimal('4444'))
@@ -356,14 +363,17 @@ describe('Manager_Arbitrum', () => {
     currentTime = BigNumber.from(await currentBlockTimestamp())
     checkKeeperCompensation = false
     keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+    keeperEthBalanceBefore = await keeper.getBalance()
   })
 
   afterEach(async () => {
     // ensure keeper was paid for their transaction
     if (checkKeeperCompensation) {
-      const keeperBalanceAfter = await dsu.balanceOf(keeper.address)
-      const keeperFeePaid = keeperBalanceAfter.sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), MAX_FEE)
+      const keeperFeesPaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      const keeperEthSpentOnGas = keeperEthBalanceBefore.sub(await keeper.getBalance())
+      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(3413)
+      // keeper should be compensated between 100-125% of actual gas cost
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
     }
     // ensure manager has no funds at rest
     expect(await dsu.balanceOf(manager.address)).to.equal(constants.Zero)
@@ -428,6 +438,7 @@ describe('Manager_Arbitrum', () => {
       ).to.be.revertedWithCustomError(manager, 'ManagerCannotExecuteError')
     })
 
+    // FIXME: AssertionError: expected 1.469215000000000000 to be within 1.109479810161441462..1.386849762701801827
     it('keeper can execute orders', async () => {
       // commit a price which should make all orders executable
       await commitPrice(parse6decimal('2800'))

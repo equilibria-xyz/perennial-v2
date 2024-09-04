@@ -30,9 +30,9 @@ const MAX_FEE = utils.parseEther('3.8')
 
 const KEEP_CONFIG = {
   multiplierBase: 0,
-  bufferBase: 1_000_000,
+  bufferBase: 0,
   multiplierCalldata: 0,
-  bufferCalldata: 500_000,
+  bufferCalldata: 0,
 }
 
 const MAKER_ORDER = {
@@ -110,7 +110,8 @@ describe('Manager', () => {
       updatedAt: 0,
       answeredInRound: 0,
     })
-    await manager.initialize(ethOracle.address, KEEP_CONFIG)
+    // no need for meaningful keep configs, as keeper compensation is not tested here
+    await manager.initialize(ethOracle.address, KEEP_CONFIG, KEEP_CONFIG)
   }
 
   before(async () => {
