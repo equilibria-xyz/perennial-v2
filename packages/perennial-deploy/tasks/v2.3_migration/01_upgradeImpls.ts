@@ -2,13 +2,8 @@ import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PopulatedTransaction } from 'ethers'
-import { getMarketBeneficiaryAndCoordinator } from '../changeMarketsMode'
-import {
-  NewRiskParams,
-  NewMarketParameter,
-  NewProtocolParameter,
-  VaultMinimumDeposit,
-} from '../multisig_ops/contstants'
+import { NewMarketParameter, NewProtocolParameter, VaultMinimumDeposit } from '../multisig_ops/contstants'
+import { BigNumber } from 'ethers'
 
 export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 Migration')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
@@ -17,7 +12,7 @@ export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 
     console.log('[v2.3 Upgrade Impls] Running Upgrade Implementations Task')
     const {
       ethers,
-      deployments: { get },
+      deployments: { get, getArtifact },
     } = HRE
 
     const marketFactoryAddress = (await get('MarketFactory')).address
@@ -96,15 +91,14 @@ export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 
     )
     const vaults = await Promise.all(vaultAddrs.map(a => ethers.getContractAt('IVault', a)))
     for (const vault of vaults) {
-      const currentVaultParameter = await vault.parameter()
-      await addPayload(
-        () =>
-          vault.populateTransaction.updateParameter({
-            ...currentVaultParameter,
-            minDeposit: VaultMinimumDeposit,
-          }),
-        `Update Vault ${vault.address} Parameter`,
-      )
+      await addPayload(async () => {
+        const currentVault = await ethers.getContractAt((await getArtifact('VaultV2_2')).abi, vault.address)
+        const currentVaultParameter = (await currentVault.callStatic.parameter()) as { cap: BigNumber }
+        return vault.populateTransaction.updateParameter({
+          maxDeposit: currentVaultParameter.cap,
+          minDeposit: VaultMinimumDeposit,
+        })
+      }, `Update Vault ${vault.address} Parameter`)
     }
 
     if (args.timelock) {

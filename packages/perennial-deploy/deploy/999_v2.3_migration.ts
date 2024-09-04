@@ -17,6 +17,7 @@ import {
   OracleFactory__factory,
   ProxyAdmin__factory,
   PythFactory__factory,
+  RebalanceLib__factory,
   TransparentUpgradeableProxy__factory,
   VaultFactory__factory,
 } from '../types/generated'
@@ -48,8 +49,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   await deployVault(hre)
   await deployOracles(hre)
   await deployExtensions(hre)
-  await deployCollateralAccounts(hre)
   await deployTriggerOrders(hre)
+  await deployCollateralAccounts(hre)
 
   log(`
     Step 0 of v2.3 migration complete! Next Steps: https://github.com/equilibria-xyz/perennial-v2/blob/4e2e17ec46ec55c778d7465d9495b80f5bd06bba/runbooks/MIGRATION_v2.3.md
@@ -285,8 +286,9 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
     process.stdout.write('complete\n')
   }
   for (const payoffName of PAYOFFS) {
-    write(`    Registering payoff provider ${payoffName}...`)
     const payoffProvider = await get(payoffName)
+    if (await pythFactory.payoffs(payoffProvider.address)) continue
+    write(`    Registering payoff provider ${payoffName}...`)
     await (await pythFactory.register(payoffProvider.address)).wait()
     process.stdout.write('complete\n')
   }
@@ -294,6 +296,7 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
   // Create oracles from previous pyth factory
   const previousOracles = await previousPythFactory.queryFilter(pythFactory.filters.OracleCreated())
   for (const event of previousOracles) {
+    if ((await pythFactory.oracles(event.args.id)) !== ethers.constants.AddressZero) continue
     const previousUnderlyingId = await previousPythFactory.callStatic.toUnderlyingId(event.args.id)
     const previousPayoff = await previousPythFactory.callStatic.toUnderlyingPayoff(event.args.id)
     const address = await pythFactory.callStatic.create(event.args.id, previousUnderlyingId, {
@@ -403,89 +406,6 @@ async function deployExtensions(hre: HardhatRuntimeEnvironment) {
   log('Done deploying Extensions...')
 }
 
-async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get } = deployments
-  const { deployer } = await getNamedAccounts()
-  const proxyAdmin = new ProxyAdmin__factory(await ethers.getSigner(deployer)).attach((await get('ProxyAdmin')).address)
-
-  log('Deploying Collateral Accounts...')
-  log('  Deploying Account Impl...')
-  const accountArgs: Parameters<Account__factory['deploy']> = [
-    (await get('USDC')).address,
-    (await get('DSU')).address,
-    (await get('DSUReserve')).address,
-  ]
-  await deploy('AccountImpl', {
-    contract: 'Account',
-    from: deployer,
-    args: accountArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  log('  Deploying Account Verifier Impl...')
-  await deploy('AccountVerifierImpl', {
-    contract: 'AccountVerifier',
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  log('  Deploying Account Verifier Proxy...')
-  const accountVerifierProxyArgs: TransparentUpgradeableProxyArgs = [
-    (await get('AccountVerifierImpl')).address,
-    proxyAdmin.address,
-    '0x',
-  ]
-  await deploy('AccountVerifier', {
-    contract: 'TransparentUpgradeableProxy',
-    from: deployer,
-    args: accountVerifierProxyArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  log('  Deploying Controller Impl...')
-  const controllerArgs: Parameters<Controller_Arbitrum__factory['deploy']> = [
-    (await get('AccountImpl')).address,
-    {
-      multiplierBase: 0,
-      bufferBase: 0,
-      multiplierCalldata: 0,
-      bufferCalldata: 0,
-    }, // TODO: Determine keep config
-    (await get('Verifier')).address,
-  ]
-  await deploy('ControllerImpl', {
-    contract: 'Controller_Arbitrum',
-    from: deployer,
-    args: controllerArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  log('  Deploying Controller Proxy...')
-  const controllerProxyArgs: TransparentUpgradeableProxyArgs = [
-    (await get('ControllerImpl')).address,
-    proxyAdmin.address,
-    Controller_Arbitrum__factory.createInterface().encodeFunctionData('initialize(address,address,address)', [
-      (await get('MarketFactory')).address,
-      (await get('AccountVerifier')).address,
-      (await get('ChainlinkETHUSDFeed')).address,
-    ]),
-  ]
-  await deploy('Controller', {
-    contract: 'TransparentUpgradeableProxy',
-    from: deployer,
-    args: controllerProxyArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  log('Done deploying Collateral Accounts...')
-}
-
 async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
   const { deploy, get } = deployments
@@ -556,6 +476,98 @@ async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
   })
 
   log('Done deploying Trigger Orders...')
+}
+
+async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts, ethers } = hre
+  const { deploy, get } = deployments
+  const { deployer } = await getNamedAccounts()
+  const proxyAdmin = new ProxyAdmin__factory(await ethers.getSigner(deployer)).attach((await get('ProxyAdmin')).address)
+
+  log('Deploying Collateral Accounts...')
+  log('  Deploying Account Impl...')
+  const accountArgs: Parameters<Account__factory['deploy']> = [
+    (await get('USDC')).address,
+    (await get('DSU')).address,
+    (await get('DSUReserve')).address,
+  ]
+  await deploy('AccountImpl', {
+    contract: 'Account',
+    from: deployer,
+    args: accountArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Account Verifier Impl...')
+  await deploy('AccountVerifierImpl', {
+    contract: 'AccountVerifier',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Account Verifier Proxy...')
+  const accountVerifierProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('AccountVerifierImpl')).address,
+    proxyAdmin.address,
+    '0x',
+  ]
+  await deploy('AccountVerifier', {
+    contract: 'TransparentUpgradeableProxy',
+    from: deployer,
+    args: accountVerifierProxyArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Controller Impl...')
+  const controllerArgs: Parameters<Controller_Arbitrum__factory['deploy']> = [
+    (await get('AccountImpl')).address,
+    {
+      multiplierBase: 0,
+      bufferBase: 0,
+      multiplierCalldata: 0,
+      bufferCalldata: 0,
+    }, // TODO: Determine keep config
+    (await get('Verifier')).address,
+  ]
+  await deploy('RebalanceLib', {
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  await deploy('ControllerImpl', {
+    contract: 'Controller_Arbitrum',
+    from: deployer,
+    args: controllerArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+    libraries: {
+      RebalanceLib: (await get('RebalanceLib')).address,
+    },
+  })
+  log('  Deploying Controller Proxy...')
+  const controllerProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('ControllerImpl')).address,
+    proxyAdmin.address,
+    Controller_Arbitrum__factory.createInterface().encodeFunctionData('initialize(address,address,address)', [
+      (await get('MarketFactory')).address,
+      (await get('AccountVerifier')).address,
+      (await get('ChainlinkETHUSDFeed')).address,
+    ]),
+  ]
+  await deploy('Controller', {
+    contract: 'TransparentUpgradeableProxy',
+    from: deployer,
+    args: controllerProxyArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('Done deploying Collateral Accounts...')
 }
 
 export default func

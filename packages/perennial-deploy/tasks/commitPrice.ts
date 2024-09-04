@@ -34,7 +34,7 @@ export default task('commit-price', 'Commits a price for the given price ids')
         factoryaddress ?? (await get('PythFactory')).address,
       )
       console.log('Using factory at:', pythFactory.address)
-      const minValidTime = await pythFactory.callStatic.validFrom()
+      const minValidTime = (await pythFactory.callStatic.parameter()).validFrom
       for (const priceId of priceIds) {
         const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
         const underlyingId = await pythFactory.callStatic.toUnderlyingId(priceId)

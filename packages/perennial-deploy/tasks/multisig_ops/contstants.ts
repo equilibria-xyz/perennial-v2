@@ -549,7 +549,7 @@ export const NewMarketParameter: MarketParameterStruct = {
 }
 
 export const NewProtocolParameter: ProtocolParameterStruct = {
-  minScale: utils.parseUnits('100', 6), // TODO: Determine this value
+  minScale: utils.parseUnits('0.25', 6), // TODO: Determine this value
   maxFee: 14200,
   maxFeeAbsolute: 50000000,
   maxCut: 100000,
