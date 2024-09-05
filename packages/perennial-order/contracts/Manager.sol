@@ -202,7 +202,7 @@ abstract contract Manager is IManager, Kept {
 
         _marketWithdraw(market, account, feeAmount);
 
-        if (order.interfaceFee.unwrap) _unwrapAndWithdaw(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+        if (order.interfaceFee.unwrap) _unwrapAndWithdraw(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
         else DSU.push(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
 
         return true;
@@ -223,7 +223,7 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @notice Unwraps DSU to USDC and pushes to interface fee receiver
-    function _unwrapAndWithdaw(address receiver, UFixed18 amount) private {
+    function _unwrapAndWithdraw(address receiver, UFixed18 amount) private {
         reserve.redeem(amount);
         USDC.push(receiver, UFixed6Lib.from(amount));
     }
