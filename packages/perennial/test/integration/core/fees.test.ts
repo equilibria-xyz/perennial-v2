@@ -2312,4 +2312,56 @@ describe('Fees', () => {
       expect(await market.orderReferrers(userC.address, currentId.add(2))).to.equal(constants.AddressZero)
     })
   })
+
+  describe('protocol fees', async () => {
+    const COLLATERAL = parse6decimal('600')
+    const POSITION = parse6decimal('3')
+
+    beforeEach(async () => {
+      const { user, dsu } = instanceVars
+      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+    })
+
+    it('charges protocol fees on maker position', async () => {
+      const { owner, user } = instanceVars
+
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          user.address,
+          POSITION,
+          0,
+          0,
+          COLLATERAL,
+          false,
+          constants.AddressZero,
+        )
+
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+
+      const expectedProtocolFee = parse6decimal('16.809150')
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 1,
+        latestId: 1,
+        protocolFee: expectedProtocolFee,
+        oracleFee: parse6decimal('16.809126'),
+        riskFee: parse6decimal('22.412147'),
+        latestPrice: parse6decimal('113.882975'),
+      })
+
+      // claim protocol fees
+      await expect(market.connect(owner).claimFee(owner.address))
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(owner.address, owner.address, expectedProtocolFee)
+    })
+  })
 })
