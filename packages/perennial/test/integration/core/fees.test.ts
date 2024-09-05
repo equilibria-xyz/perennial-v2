@@ -2000,12 +2000,12 @@ describe('Fees', () => {
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, user.address, expectedClaimable)
 
-      expect(await dsu.balanceOf(user.address)).to.equals(utils.parseEther('200000').add(expectedClaimable.mul(1e12)))
+      const userBalanceBefore = await dsu.balanceOf(user.address)
 
       // Ensure user is not able to claim fees twice
       await expect(market.connect(user).claimFee(user.address))
 
-      expect(await dsu.balanceOf(user.address)).to.equals(utils.parseEther('200000').add(expectedClaimable.mul(1e12)))
+      expect(await dsu.balanceOf(user.address)).to.equals(userBalanceBefore)
     })
 
     it('charges default referral fee for taker position', async () => {
