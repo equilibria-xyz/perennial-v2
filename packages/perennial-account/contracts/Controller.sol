@@ -12,7 +12,6 @@ import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IM
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IAccountVerifier, IController } from "./interfaces/IController.sol";
-import { RebalanceLib } from "./libs/RebalanceLib.sol";
 import { Account } from "./Account.sol";
 import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
 import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
@@ -104,7 +103,7 @@ contract Controller is Factory, IController {
             IMarket market = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketRebalanceConfig = _rebalanceConfigs[owner][group][address(market)];
             (bool canMarketRebalance, Fixed6 imbalance) =
-                RebalanceLib.checkMarket(marketRebalanceConfig, groupCollateral, actualCollateral[i]);
+                _checkMarket(marketRebalanceConfig, groupCollateral, actualCollateral[i]);
             imbalances[i] = imbalance;
             canRebalance = canRebalance || canMarketRebalance;
         }
@@ -167,6 +166,31 @@ contract Controller is Factory, IController {
 
         // sum of the target allocations of all markets in the group
         _updateRebalanceGroup(configChange, configChange.action.common.account);
+    }
+
+    /// @dev Compares actual market collateral for owner with their account's target
+    /// @param marketConfig Rebalance group configuration for this market
+    /// @param groupCollateral Owner's collateral across all markets in the group
+    /// @param marketCollateral Owner's actual amount of collateral in this market
+    /// @return canRebalance True if actual collateral in this market is outside of configured threshold
+    /// @return imbalance Amount which needs to be transferred to balance the market
+    function _checkMarket(
+        RebalanceConfig memory marketConfig,
+        Fixed6 groupCollateral,
+        Fixed6 marketCollateral
+    ) internal pure returns (bool canRebalance, Fixed6 imbalance) {
+        // determine how much collateral the market should have
+        Fixed6 targetCollateral = groupCollateral.mul(Fixed6Lib.from(marketConfig.target));
+
+        // if market is empty, prevent divide-by-zero condition
+        if (marketCollateral.eq(Fixed6Lib.ZERO)) return (false, targetCollateral);
+        // calculate percentage difference between target and actual collateral
+        Fixed6 pctFromTarget = Fixed6Lib.ONE.sub(targetCollateral.div(marketCollateral));
+        // if this percentage exceeds the configured threshold, the market may be rebelanced
+        canRebalance = pctFromTarget.abs().gt(marketConfig.threshold);
+
+        // return negative number for surplus, positive number for deficit
+        imbalance = targetCollateral.sub(marketCollateral);
     }
 
     function _createAccount(address owner) internal returns (IAccount account) {
