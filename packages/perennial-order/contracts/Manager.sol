@@ -17,8 +17,6 @@ import { InterfaceFee } from "./types/InterfaceFee.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 
-import "hardhat/console.sol";
-
 /// @notice Base class with business logic to store and execute trigger orders.
 ///         Derived implementations created as appropriate for different chains.
 abstract contract Manager is IManager, Kept {
@@ -132,18 +130,15 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address account, uint256 orderId)
-        external
-        keep(
-            keepConfigBuffered,
-            abi.encode(market, account, orderId),
-            0,
-            // TODO: discuss; pulling order from storage twice seems expensive
-            abi.encode(market, account, _orders[market][account][orderId].read().maxFee)
-        )
+    function executeOrder(IMarket market, address account, uint256 orderId) external
     {
+        // Using a modifier to measure gas would require us reading order from storage twice.
+        // Instead, measure gas within the method itself.
+        uint256 startGas = gasleft();
+
         // check conditions to ensure order is executable
         (TriggerOrder memory order, bool canExecute) = checkOrder(market, account, orderId);
+
         if (!canExecute) revert ManagerCannotExecuteError();
 
         order.execute(market, account);
@@ -155,6 +150,11 @@ abstract contract Manager is IManager, Kept {
 
         emit TriggerOrderExecuted(market, account, order, orderId);
         if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
+
+        // compensate keeper
+        uint256 applicableGas = startGas - gasleft();
+        bytes memory data = abi.encode(market, account, order.maxFee);
+        _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(market, account, orderId), 0, data);
     }
 
     /// @notice reverts if user is not authorized to sign transactions for the account
@@ -173,8 +173,6 @@ abstract contract Manager is IManager, Kept {
     ) internal virtual override returns (UFixed18) {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
-
-        console.log("_raiseKeeperFee is %s", UFixed6.unwrap(raisedKeeperFee));
 
         _marketWithdraw(market, account, raisedKeeperFee);
 
