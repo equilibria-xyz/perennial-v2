@@ -9,6 +9,8 @@
 ## Pre-upgrade action items
 
 - Deploy v2.3 protocol implementations
+  - Including new GasOracle and Verifier externalized helper contracts
+- Deploy MultiCall4 instance
 - Deploy fresh v2.3 Pyth oracle instance
 - [Clean up v2.2 Checkpoint migration](#checkpoint-migration)
 
@@ -62,7 +64,22 @@ see: https://github.com/equilibria-xyz/perennial-v2/pull/424
 ### Update Risk / Market / Protocol Parameters to new format
 
 All parameter sets have a new format. Each needs to be updated for all markets.
-- RiskParameter adds `minScale`, see: https://github.com/equilibria-xyz/perennial-v2/pull/362.
+- Oracle
+  - OracleParameter
+  - KeeperOracleParameter (per sub-oracle)
+- Market
+  - ProtocolParameter
+  - RiskParameter (per market)
+  - MarketParameter (per market)
+- Vault
+  - VaultParameter (per vault)
+
+Notable fields changes for reference:
+- MarketParameter
+  - removes `.oracleFee` and `.settlementFee`, see: https://github.com/equilibria-xyz/perennial-v2/pull/373.
+  - replaces `.positionFee` with `.makerFee` and `.takerFee`, see: https://github.com/equilibria-xyz/perennial-v2/pull/291.
+- RiskParameter removes `.makerFee.adiabaticFee`, see: https://github.com/equilibria-xyz/perennial-v2/pull/317.
+- ProtocolParameter adds `minScale`, see: https://github.com/equilibria-xyz/perennial-v2/pull/362.
 - VaultParameter adds `minDeposit`, see: https://github.com/equilibria-xyz/perennial-v2/pull/373.
 
 ### Update sub-oracles to v2.3-based oracles implementations
@@ -74,6 +91,19 @@ see:
   - https://github.com/equilibria-xyz/perennial-v2/pull/379
 
 ## Post Upgrade Cleanup
+
+### Instance Metadata
+
+We've added a few new metadata fields to the oracle system. These should be populated after the migration to aid with off-chain discovery, however are not required logically within the protocol.
+
+- `Oracle.updateName(string name)`
+- `OracleFactory.updateId(IOracle Provider oracleProvider, bytes32 id)`
+
+New oracles deployed post-v2.3 will automatically include this information.
+
+see:
+  - https://github.com/equilibria-xyz/perennial-v2/pull/423
+  - https://github.com/equilibria-xyz/perennial-v2/pull/339
 
 ### Position Migration
 
