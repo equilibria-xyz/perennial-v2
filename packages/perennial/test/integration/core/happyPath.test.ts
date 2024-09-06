@@ -19,6 +19,7 @@ import {
   DEFAULT_GLOBAL,
   DEFAULT_GUARANTEE,
   DEFAULT_RISK_PARAMETER,
+  DEFAULT_MARKET_PARAMETER,
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
@@ -26,8 +27,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import { signIntent } from '../../../../perennial-verifier/test/helpers/erc712'
-import { Verifier, Verifier__factory } from '../../../../perennial-verifier/types/generated'
-import { ethers } from 'hardhat'
+import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -112,6 +112,16 @@ describe('Happy Path', () => {
     const market = Market__factory.connect(marketAddress, owner)
     await market.connect(owner).updateRiskParameter(riskParameter)
     await market.connect(owner).updateParameter(parameter)
+
+    const marketDefinition = {
+      token: dsu.address,
+      oracle: oracle.address,
+    }
+
+    // revert when reinitialized
+    await expect(market.connect(owner).initialize(marketDefinition))
+      .to.be.revertedWithCustomError(market, 'InitializableAlreadyInitializedError')
+      .withArgs(1)
   })
 
   it('opens a make position', async () => {
@@ -1054,12 +1064,33 @@ describe('Happy Path', () => {
       'InstanceNotOwnerError',
     )
 
+    await expect(market.connect(user).updateParameter(DEFAULT_MARKET_PARAMETER)).to.be.revertedWithCustomError(
+      market,
+      'InstanceNotOwnerError',
+    )
+
     await expect(market.connect(user).updateRiskParameter(DEFAULT_RISK_PARAMETER)).to.be.revertedWithCustomError(
       market,
       'MarketNotCoordinatorError',
     )
 
     await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(market, 'InstanceNotOwnerError')
+  })
+
+  it('disables update when settle only mode', async () => {
+    const { user, owner } = instanceVars
+    const market = await createMarket(instanceVars)
+
+    const parameters = { ...(await market.parameter()) }
+    parameters.settle = true
+
+    await market.connect(owner).updateParameter(parameters)
+
+    await expect(
+      market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, parse6decimal('1000'), false),
+    ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
   })
 
   it('opens a long position and settles after max funding', async () => {
@@ -1407,6 +1438,94 @@ describe('Happy Path', () => {
     await market.connect(owner).claimExposure()
 
     expect((await market.global()).exposure).to.equals(0)
+  })
+
+  it('open intent order', async () => {
+    const { owner, user, userB, userC, marketFactory, dsu } = instanceVars
+
+    // userC allowed to interact with user's account
+    await marketFactory.connect(user).updateOperator(userC.address, true)
+
+    const market = await createMarket(instanceVars)
+
+    const protocolParameter = { ...(await marketFactory.parameter()) }
+    protocolParameter.referralFee = parse6decimal('0.20')
+
+    await marketFactory.updateParameter(protocolParameter)
+
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('10000')
+
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(userC)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+    const intent: IntentStruct = {
+      amount: POSITION.div(2),
+      price: parse6decimal('125'),
+      fee: parse6decimal('1.5'),
+      originator: userC.address,
+      solver: owner.address,
+      collateralization: parse6decimal('0.01'),
+      common: {
+        account: user.address,
+        signer: userC.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    const verifier = Verifier__factory.connect(await market.verifier(), owner)
+
+    let signature = await signIntent(userC, verifier, intent)
+
+    // revert when fee is greater than 1
+    await expect(
+      market
+        .connect(userC)
+        [
+          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](userC.address, intent, signature),
+    ).to.be.revertedWithCustomError(market, 'MarketInvalidIntentFeeError')
+
+    // update fee to 0.5
+    intent.fee = parse6decimal('0.5')
+    signature = await signIntent(userC, verifier, intent)
+
+    await market
+      .connect(userC)
+      [
+        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+      ](userC.address, intent, signature)
+
+    // update position with incorrect guarantee referrer
+    intent.solver = userB.address
+    intent.common.nonce = 1
+    signature = await signIntent(userC, verifier, intent)
+
+    await expect(
+      market
+        .connect(userC)
+        [
+          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](userC.address, intent, signature),
+    ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
   })
 
   // uncheck skip to see gas results

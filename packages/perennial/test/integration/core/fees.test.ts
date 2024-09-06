@@ -24,6 +24,7 @@ import {
   AccountPositionProcessedEventObject,
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
+import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
 export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
 
@@ -2313,17 +2314,12 @@ describe('Fees', () => {
     })
   })
 
-  describe('protocol fees', async () => {
-    const COLLATERAL = parse6decimal('600')
-    const POSITION = parse6decimal('3')
-
-    beforeEach(async () => {
-      const { user, dsu } = instanceVars
+  describe('claim fee', async () => {
+    it('claim protocol, risk and oracle fee', async () => {
+      const COLLATERAL = parse6decimal('600')
+      const POSITION = parse6decimal('3')
+      const { owner, oracle, coordinator, user, dsu } = instanceVars
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-    })
-
-    it('charges protocol fees on maker position', async () => {
-      const { owner, user } = instanceVars
 
       await market
         .connect(user)
@@ -2348,20 +2344,40 @@ describe('Fees', () => {
       await settle(market, user)
 
       const expectedProtocolFee = parse6decimal('16.809150')
+      const expectedOracleFee = parse6decimal('16.809126')
+      const expectedRiskFee = parse6decimal('22.412147')
+
       expectGlobalEq(await market.global(), {
         ...DEFAULT_GLOBAL,
         currentId: 1,
         latestId: 1,
         protocolFee: expectedProtocolFee,
-        oracleFee: parse6decimal('16.809126'),
-        riskFee: parse6decimal('22.412147'),
+        oracleFee: expectedOracleFee,
+        riskFee: expectedRiskFee,
         latestPrice: parse6decimal('113.882975'),
       })
 
-      // claim protocol fees
+      // revert when user tries to claim protocol fee
+      await expect(market.connect(user).claimFee(owner.address)).to.be.revertedWithCustomError(
+        market,
+        'MarketNotOperatorError',
+      )
+
+      // claim protocol fee
       await expect(market.connect(owner).claimFee(owner.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(owner.address, owner.address, expectedProtocolFee)
+
+      // claim oracle fee
+      const oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
+      await expect(market.connect(oracleSigner).claimFee(oracle.address))
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(oracle.address, oracle.address, expectedOracleFee)
+
+      // claim risk fee
+      await expect(market.connect(coordinator).claimFee(coordinator.address))
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(coordinator.address, coordinator.address, expectedRiskFee)
     })
   })
 })

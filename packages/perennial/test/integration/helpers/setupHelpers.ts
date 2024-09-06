@@ -40,6 +40,7 @@ import {
   IPayoffProvider,
   IPayoffProvider__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
+import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
 const { deployments, ethers } = HRE
 
 export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'
@@ -95,7 +96,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
-  const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+  const verifierImpl = await new Verifier__factory(owner).deploy()
   const verifierProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     verifierImpl.address,
     proxyAdmin.address,
