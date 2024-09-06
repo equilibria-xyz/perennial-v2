@@ -201,7 +201,7 @@ describe('Controller_Arbitrum', () => {
     // touch the provider, such that smock doesn't error out running a single test
     await advanceBlock()
     // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-    await smock.fake<ArbGasInfo>('@equilibria/root/attribute/Kept/Kept_Arbitrum.sol:ArbGasInfo', {
+    await smock.fake<ArbGasInfo>('ArbGasInfo', {
       address: '0x000000000000000000000000000000000000006C',
     })
   })
