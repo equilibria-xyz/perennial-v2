@@ -23,7 +23,6 @@ import {
   IMarket,
   IMarketFactory,
   IOracleProvider,
-  RebalanceLib__factory,
   GasOracle__factory,
 } from '../../types/generated'
 import { IKept } from '../../types/generated/contracts/Controller_Arbitrum'
@@ -159,12 +158,12 @@ export async function deployControllerArbitrum(
 ): Promise<Controller_Arbitrum> {
   const accountImpl = await new Account__factory(owner).deploy(USDC_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
   accountImpl.initialize(constants.AddressZero)
-  const controller = await new Controller_Arbitrum__factory(
-    {
-      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy(accountImpl.address, keepConfig, nonceManager.address, overrides ?? {})
+  const controller = await new Controller_Arbitrum__factory(owner).deploy(
+    accountImpl.address,
+    keepConfig,
+    nonceManager.address,
+    overrides ?? {},
+  )
   return controller
 }
 
