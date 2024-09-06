@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IController } from "../interfaces/IController.sol";
 import { RebalanceConfig } from "../types/RebalanceConfig.sol";
 
@@ -24,7 +24,11 @@ library RebalanceLib {
         Fixed6 targetCollateral = groupCollateral.mul(Fixed6Lib.from(marketConfig.target));
 
         // if market is empty, prevent divide-by-zero condition
-        if (marketCollateral.eq(Fixed6Lib.ZERO)) return (false, targetCollateral);
+        if (marketCollateral.eq(Fixed6Lib.ZERO)) {
+            // can rebalance if market is not supposed to be empty and there is collateral elsewhere in the group
+            canRebalance = !marketConfig.target.eq(UFixed6Lib.ZERO) && !groupCollateral.eq(Fixed6Lib.ZERO);
+            return (canRebalance, targetCollateral);
+        }
         // calculate percentage difference between target and actual collateral
         Fixed6 pctFromTarget = Fixed6Lib.ONE.sub(targetCollateral.div(marketCollateral));
         // if this percentage exceeds the configured threshold, the market may be rebelanced
