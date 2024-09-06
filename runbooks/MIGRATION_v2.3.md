@@ -86,6 +86,8 @@ Notable fields changes for reference:
 
 A new PythOracle implementation will be deployed with this release. A standard sub-oracle update is required on each market's oracle to transition to the new sub-oracles.
 
+Must also register each market with its oracle via `Oracle.register(market)`. This step must be done whenever launching a new oracle going forward as well.
+
 see:
   - https://github.com/equilibria-xyz/perennial-v2/pull/372
   - https://github.com/equilibria-xyz/perennial-v2/pull/379
