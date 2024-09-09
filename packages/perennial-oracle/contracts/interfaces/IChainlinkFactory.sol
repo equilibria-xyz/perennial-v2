@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "./IKeeperFactory.sol";
+import { IKeeperFactory } from "./IKeeperFactory.sol";
 
 interface IChainlinkFactory is IKeeperFactory {
     error ChainlinkFactoryInputLengthMismatchError();

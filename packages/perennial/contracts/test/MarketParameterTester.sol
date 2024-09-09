@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/MarketParameter.sol";
+import { MarketParameter, MarketParameterStorage } from "../types/MarketParameter.sol";
+import { ProtocolParameter } from "../types/ProtocolParameter.sol";
 
 contract MarketParameterTester {
     MarketParameterStorage public marketParameter;

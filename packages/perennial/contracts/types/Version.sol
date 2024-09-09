@@ -1,13 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/accumulator/types/Accumulator6.sol";
-import "./ProtocolParameter.sol";
-import "./MarketParameter.sol";
-import "./RiskParameter.sol";
-import "./Global.sol";
-import "./Position.sol";
-import "./Order.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { Accumulator6 } from "@equilibria/root/accumulator/types/Accumulator6.sol";
 
 /// @dev Version type
 struct Version {

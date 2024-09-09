@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/OracleParameter.sol";
+import { OracleParameter, OracleParameterStorage } from "../types/OracleParameter.sol";
 
 contract OracleParameterTester {
     OracleParameterStorage public oracleParameter;

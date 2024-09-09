@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../interfaces/IMarket.sol";
-import "../types/Checkpoint.sol";
-import "../libs/CheckpointLib.sol";
+import { IMarket } from "../interfaces/IMarket.sol";
+import { Checkpoint, CheckpointStorage } from "../types/Checkpoint.sol";
+import { Order } from "../types/Order.sol";
+import { Guarantee } from "../types/Guarantee.sol";
+import { Version } from "../types/Version.sol";
+import { CheckpointLib, CheckpointAccumulationResponse } from "../libs/CheckpointLib.sol";
 
 contract CheckpointTester {
     CheckpointStorage public checkpoint;

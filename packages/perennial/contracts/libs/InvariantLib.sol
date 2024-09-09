@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/accumulator/types/Accumulator6.sol";
-import "../interfaces/IMarket.sol";
-import "../types/OracleVersion.sol";
-import "../types/RiskParameter.sol";
-import "../types/Global.sol";
-import "../types/Local.sol";
-import "../types/Order.sol";
-import "../types/Version.sol";
-import "../types/Checkpoint.sol";
+import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { IMarket } from "../interfaces/IMarket.sol";
+import { PositionLib } from "../types/Position.sol";
+import { Order } from "../types/Order.sol";
+import { Guarantee } from "../types/Guarantee.sol";
 
 /// @title InvariantLib
 /// @dev (external-safe): this library is safe to externalize

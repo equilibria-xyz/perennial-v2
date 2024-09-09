@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "@equilibria/perennial-v2/contracts/types/Position.sol";
-import "./InterfaceFee.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { Position } from "@equilibria/perennial-v2/contracts/types/Position.sol";
+import { InterfaceFee } from "./InterfaceFee.sol";
 
 struct TriggerOrder {
     uint8 side;

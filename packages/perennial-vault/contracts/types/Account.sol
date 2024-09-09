@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/UFixed6.sol";
-import "./Checkpoint.sol";
+import { UFixed6 } from"@equilibria/root/number/types/UFixed6.sol";
+import { Checkpoint } from "./Checkpoint.sol";
 
 /// @dev Account type
 struct Account {

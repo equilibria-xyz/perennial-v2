@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/pid/types/PAccumulator6.sol";
-import "./ProtocolParameter.sol";
-import "./MarketParameter.sol";
-import "../libs/VersionLib.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { PAccumulator6 } from "@equilibria/root/pid/types/PAccumulator6.sol";
+import { MarketParameter } from "./MarketParameter.sol";
+import { RiskParameter } from "./RiskParameter.sol";
+import { Position } from "./Position.sol";
+import { OracleVersion } from "./OracleVersion.sol";
+import { OracleReceipt } from "./OracleReceipt.sol";
+import { VersionAccumulationResponse } from "../libs/VersionLib.sol";
 
 /// @dev Global type
 struct Global {

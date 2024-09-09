@@ -1,16 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/Fixed6.sol";
-import "@equilibria/root/accumulator/types/UAccumulator6.sol";
-import "@equilibria/root/accumulator/types/Accumulator6.sol";
-import "./Version.sol";
-import "./Position.sol";
-import "./RiskParameter.sol";
-import "./OracleVersion.sol";
-import "./Order.sol";
-import "./Checkpoint.sol";
-import "../libs/CheckpointLib.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { CheckpointAccumulationResponse } from "../libs/CheckpointLib.sol";
 
 /// @dev Local type
 struct Local {

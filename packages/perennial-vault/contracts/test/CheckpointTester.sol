@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/Checkpoint.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Checkpoint as PerennialCheckpoint } from "@equilibria/perennial-v2/contracts/types/Checkpoint.sol";
+import { Checkpoint, CheckpointStorage } from "../types/Checkpoint.sol";
+import { Account } from "../types/Account.sol";
 
 contract CheckpointTester {
     CheckpointStorage public checkpoint;
