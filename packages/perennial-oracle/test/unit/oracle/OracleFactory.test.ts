@@ -52,7 +52,7 @@ describe('OracleFactory', () => {
       subOracleFactory.address,
       ethers.utils.parseEther('1000'),
     )
-    await factory.initialize(dsu.address)
+    await factory.initialize()
   })
 
   describe('#initialize', async () => {
@@ -63,9 +63,28 @@ describe('OracleFactory', () => {
     })
 
     it('reverts if already initialized', async () => {
-      await expect(factory.initialize(dsu.address))
+      await expect(factory.initialize())
         .to.be.revertedWithCustomError(factory, 'InitializableAlreadyInitializedError')
         .withArgs(3)
+    })
+  })
+
+  describe('#withdraw', async () => {
+    it('can withdraw balance', async () => {
+      dsu.balanceOf.whenCalledWith(factory.address).returns(ethers.utils.parseEther('10000'))
+      dsu.transfer.whenCalledWith(owner.address, ethers.utils.parseEther('10000')).returns(true)
+
+      await expect(factory.connect(owner).withdraw(dsu.address)).to.not.reverted
+    })
+
+    it('reverts if not owner', async () => {
+      dsu.balanceOf.whenCalledWith(factory.address).returns(ethers.utils.parseEther('10000'))
+      dsu.transfer.whenCalledWith(owner.address, ethers.utils.parseEther('10000')).returns(true)
+
+      await expect(factory.connect(user).withdraw(dsu.address)).to.be.revertedWithCustomError(
+        factory,
+        'OwnableNotOwnerError',
+      )
     })
   })
 
@@ -77,14 +96,19 @@ describe('OracleFactory', () => {
     it('creates the oracle', async () => {
       subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
 
-      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
-      await expect(factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address))
+      const oracleAddress = await factory.callStatic.create(
+        PYTH_ETH_USD_PRICE_FEED,
+        subOracleFactory.address,
+        'ETH-USD',
+      )
+      await expect(factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD'))
         .to.emit(factory, 'InstanceRegistered')
         .withArgs(oracleAddress)
         .to.emit(factory, 'OracleCreated')
         .withArgs(oracleAddress, PYTH_ETH_USD_PRICE_FEED)
 
       expect(await factory.oracles(PYTH_ETH_USD_PRICE_FEED)).to.equal(oracleAddress)
+      expect(await factory.ids(oracleAddress)).to.equal(PYTH_ETH_USD_PRICE_FEED)
 
       const oracle = Oracle__factory.connect(oracleAddress, owner)
       expect(await oracle.factory()).to.equal(factory.address)
@@ -95,17 +119,17 @@ describe('OracleFactory', () => {
       subOracleFactory2.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
 
       await expect(
-        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address),
+        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory2.address, 'ETH-USD'),
       ).to.revertedWithCustomError(factory, 'OracleFactoryNotRegisteredError')
     })
 
     it('reverts when already registered', async () => {
       subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
 
-      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD')
 
       await expect(
-        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
+        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD'),
       ).to.revertedWithCustomError(factory, 'OracleFactoryAlreadyCreatedError')
     })
 
@@ -113,13 +137,13 @@ describe('OracleFactory', () => {
       subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(constants.AddressZero)
 
       await expect(
-        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
+        factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD'),
       ).to.revertedWithCustomError(factory, 'OracleFactoryInvalidIdError')
     })
 
     it('reverts if not owner', async () => {
       await expect(
-        factory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address),
+        factory.connect(user).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD'),
       ).to.revertedWithCustomError(factory, 'OwnableNotOwnerError')
     })
   })
@@ -133,8 +157,12 @@ describe('OracleFactory', () => {
     it('update the factory', async () => {
       await factory.connect(owner).register(subOracleFactory2.address)
 
-      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
-      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      const oracleAddress = await factory.callStatic.create(
+        PYTH_ETH_USD_PRICE_FEED,
+        subOracleFactory.address,
+        'ETH-USD',
+      )
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD')
       const oracle = Oracle__factory.connect(oracleAddress, owner)
       const mockOracle = await smock.fake<IOracle>('IOracle', { address: oracle.address })
       mockOracle.update.whenCalledWith(subOracle2.address).returns()
@@ -163,8 +191,12 @@ describe('OracleFactory', () => {
     it('reverts oracle not instance', async () => {
       await factory.connect(owner).register(subOracleFactory2.address)
 
-      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
-      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
+      const oracleAddress = await factory.callStatic.create(
+        PYTH_ETH_USD_PRICE_FEED,
+        subOracleFactory.address,
+        'ETH-USD',
+      )
+      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address, 'ETH-USD')
       const oracle = Oracle__factory.connect(oracleAddress, owner)
       const mockOracle = await smock.fake<IOracle>('IOracle', { address: oracle.address })
       mockOracle.update.whenCalledWith(subOracle2.address).returns()
@@ -200,130 +232,19 @@ describe('OracleFactory', () => {
     })
   })
 
-  describe('#authorize', async () => {
-    it('authorizes the caller', async () => {
-      await expect(factory.authorize(marketFactory.address))
-        .to.emit(factory, 'CallerAuthorized')
-        .withArgs(marketFactory.address)
-
-      expect(await factory.callers(marketFactory.address)).to.equal(true)
-    })
-
-    it('reverts if not owner', async () => {
-      await expect(factory.connect(user).authorize(marketFactory.address)).to.be.revertedWithCustomError(
-        factory,
-        'OwnableNotOwnerError',
-      )
-    })
-  })
-
-  describe('#updateMaxClaim', async () => {
+  describe('#updateId', async () => {
     it('updates max claim', async () => {
-      await expect(factory.updateMaxClaim(parse6decimal('11')))
-        .to.emit(factory, 'MaxClaimUpdated')
-        .withArgs(parse6decimal('11'))
-
-      expect(await factory.maxClaim()).to.equal(parse6decimal('11'))
+      expect(await factory.ids(subOracleFactory.address)).to.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      await factory.updateId(subOracleFactory.address, PYTH_ETH_USD_PRICE_FEED)
+      expect(await factory.ids(subOracleFactory.address)).to.equal(PYTH_ETH_USD_PRICE_FEED)
     })
 
     it('reverts if not owner', async () => {
-      await expect(factory.connect(user).updateMaxClaim(parse6decimal('11'))).to.be.revertedWithCustomError(
-        factory,
-        'OwnableNotOwnerError',
-      )
-    })
-  })
-
-  describe('#claim', async () => {
-    beforeEach(async () => {
-      await factory.connect(owner).register(subOracleFactory.address)
-      await factory.updateMaxClaim(parse6decimal('10'))
-    })
-
-    it('claims the assets', async () => {
-      dsu.transfer.whenCalledWith(subOracleFactorySigner.address, parse6decimal('10').mul(1e12)).returns(true)
-
-      await factory.connect(subOracleFactorySigner).claim(parse6decimal('10'))
-
-      expect(dsu.transfer).to.have.been.calledWith(subOracleFactorySigner.address, parse6decimal('10').mul(1e12))
-    })
-
-    it('reverts if above max claim', async () => {
-      await expect(factory.connect(user).claim(parse6decimal('11'))).to.be.revertedWithCustomError(
-        factory,
-        'OracleFactoryClaimTooLargeError',
-      )
-    })
-
-    it('reverts if not instance', async () => {
-      await expect(factory.connect(user).claim(parse6decimal('10'))).to.be.revertedWithCustomError(
-        factory,
-        'OracleFactoryNotRegisteredError',
-      )
-    })
-  })
-
-  describe('#authorized', async () => {
-    let subFactory: FakeContract<IFactory>
-    let subInstance: FakeContract<IInstance>
-
-    beforeEach(async () => {
-      subFactory = await smock.fake<IFactory>('IFactory')
-      subInstance = await smock.fake<IInstance>('IInstance')
-    })
-
-    it('true if instance', async () => {
-      await factory.connect(owner).authorize(subFactory.address)
-      subFactory.instances.whenCalledWith(subInstance.address).returns(true)
-      subInstance.factory.returns(subFactory.address)
-
-      expect(await factory.authorized(subInstance.address)).to.be.true
-    })
-
-    it('false if not registered', async () => {
-      subFactory.instances.whenCalledWith(subInstance.address).returns(true)
-      subInstance.factory.returns(subFactory.address)
-
-      expect(await factory.authorized(subInstance.address)).to.be.false
-    })
-
-    it('false if not instance', async () => {
-      await factory.connect(owner).authorize(subFactory.address)
-      subFactory.instances.whenCalledWith(subInstance.address).returns(false)
-      subInstance.factory.returns(subFactory.address)
-
-      expect(await factory.authorized(subInstance.address)).to.be.false
-    })
-  })
-
-  describe('#fund', () => {
-    let fakeMarket: FakeContract<IMarket>
-
-    beforeEach(async () => {
-      fakeMarket = await smock.fake<IMarket>('IMarket')
-      await factory.connect(owner).register(subOracleFactory.address)
-
-      subOracleFactory.oracles.whenCalledWith(PYTH_ETH_USD_PRICE_FEED).returns(subOracle.address)
-
-      const oracleAddress = await factory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
-      await factory.connect(owner).create(PYTH_ETH_USD_PRICE_FEED, subOracleFactory.address)
-
-      fakeMarket.oracle.returns(oracleAddress)
-    })
-
-    it('claims its fees', async () => {
-      await factory.connect(user).fund(fakeMarket.address)
-
-      expect(fakeMarket.claimFee).to.have.been.called
-    })
-
-    it('reverts if not an instance', async () => {
-      fakeMarket.oracle.reset()
-      fakeMarket.oracle.returns(user.address)
-      await expect(factory.connect(user).fund(fakeMarket.address)).to.be.revertedWithCustomError(
-        factory,
-        'FactoryNotInstanceError',
-      )
+      await expect(
+        factory.connect(user).updateId(subOracleFactory.address, PYTH_ETH_USD_PRICE_FEED),
+      ).to.be.revertedWithCustomError(factory, 'OwnableNotOwnerError')
     })
   })
 })

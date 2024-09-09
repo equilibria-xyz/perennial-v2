@@ -6,18 +6,10 @@ import HRE from 'hardhat'
 import { LocalTester, LocalTester__factory } from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { LocalStruct } from '../../../types/generated/contracts/Market'
+import { DEFAULT_LOCAL } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
-
-const DEFAULT_LOCAL: LocalStruct = {
-  currentId: 0,
-  latestId: 0,
-  collateral: 0,
-  claimable: 0,
-}
-
-const DEFAULT_ADDRESS = '0x0123456789abcdef0123456789abcdef01234567'
 
 describe('Local', () => {
   let owner: SignerWithAddress
@@ -173,18 +165,15 @@ describe('Local', () => {
   describe('#update', () => {
     it('correctly updates fees', async () => {
       await local.store({ ...DEFAULT_LOCAL, collateral: 1000 })
-      await local['update(uint256,(int256,int256,int256,int256,uint256,uint256,uint256))'](11, {
-        collateral: 567,
-        linearFee: 123,
-        proportionalFee: 246,
-        adiabaticFee: -492,
-        settlementFee: 456,
+      await local['update(uint256,(int256,uint256,uint256,uint256))'](11, {
+        collateral: 12,
         liquidationFee: 256,
         subtractiveFee: 0,
+        solverFee: 0,
       })
 
       const storedLocal = await local.read()
-      expect(await storedLocal.collateral).to.equal(978)
+      expect(await storedLocal.collateral).to.equal(756)
       expect(await storedLocal.latestId).to.equal(11)
     })
   })

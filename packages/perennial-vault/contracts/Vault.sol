@@ -9,7 +9,7 @@ import "./types/Checkpoint.sol";
 import "./types/Registration.sol";
 import "./types/VaultParameter.sol";
 import "./interfaces/IVault.sol";
-import "./lib/StrategyLib.sol";
+import "./libs/StrategyLib.sol";
 
 /// @title Vault
 /// @notice Deploys underlying capital by weight in maker positions across registered markets
@@ -49,11 +49,12 @@ contract Vault is IVault, Instance {
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
+    /// @param initialDeposit The initial deposit amount
     /// @param name_ The vault's name
     function initialize(
         Token18 asset_,
         IMarket initialMarket,
-        UFixed6 cap,
+        UFixed6 initialDeposit,
         string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
@@ -61,7 +62,7 @@ contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _register(initialMarket);
-        _updateParameter(VaultParameter(cap));
+        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
     }
 
     /// @notice Returns the vault parameter set
@@ -297,9 +298,9 @@ contract Vault is IVault, Instance {
             revert VaultNotSingleSidedError();
         if (depositAssets.gt(_maxDeposit(context)))
             revert VaultDepositLimitExceededError();
-        if (!depositAssets.isZero() && depositAssets.lt(context.settlementFee))
+        if (!depositAssets.isZero() && depositAssets.lt(context.parameter.minDeposit))
             revert VaultInsufficientMinimumError();
-        if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares, context.settlementFee).isZero())
+        if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares).lt(context.parameter.minDeposit))
             revert VaultInsufficientMinimumError();
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
 
@@ -377,8 +378,8 @@ contract Vault is IVault, Instance {
     /// @notice Manages the internal collateral and position strategy of the vault
     /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
-    /// @param rebalance Whether to rebalance the vault's position
-    function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool rebalance) private {
+    /// @param shouldRebalance Whether to rebalance the vault's position
+    function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool shouldRebalance) private {
         if (context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
         StrategyLib.MarketTarget[] memory targets = StrategyLib
@@ -391,10 +392,10 @@ contract Vault is IVault, Instance {
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
-                _retarget(context.registrations[marketId], targets[marketId], rebalance);
+                _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.gte(Fixed6Lib.ZERO))
-                _retarget(context.registrations[marketId], targets[marketId], rebalance);
+                _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
     }
 
     /// @notice Returns the amount of collateral is ineligible for allocation
@@ -420,15 +421,15 @@ contract Vault is IVault, Instance {
     /// @notice Adjusts the position on `market` to `targetPosition`
     /// @param registration The registration of the market to use
     /// @param target The new state to target
-    /// @param rebalance Whether to rebalance the vault's position
+    /// @param shouldRebalance Whether to rebalance the vault's position
     function _retarget(
         Registration memory registration,
         StrategyLib.MarketTarget memory target,
-        bool rebalance
+        bool shouldRebalance
     ) private {
         registration.market.update(
             address(this),
-            rebalance ? target.position : UFixed6Lib.MAX,
+            shouldRebalance ? target.position : UFixed6Lib.MAX,
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
             target.collateral,
@@ -450,9 +451,7 @@ contract Vault is IVault, Instance {
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             // parameter
             Registration memory registration = _registrations[marketId].read();
-            MarketParameter memory marketParameter = registration.market.parameter();
             context.registrations[marketId] = registration;
-            context.settlementFee = context.settlementFee.add(marketParameter.settlementFee);
 
             // version
             (OracleVersion memory oracleVersion, uint256 currentTimestamp) = registration.market.oracle().status();
@@ -486,7 +485,7 @@ contract Vault is IVault, Instance {
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
         return context.latestCheckpoint.unhealthy() ?
             UFixed6Lib.ZERO :
-            context.parameter.cap.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
+            context.parameter.maxDeposit.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
     }
 
     /// @notice Returns the aggregate perennial checkpoint for the vault at position

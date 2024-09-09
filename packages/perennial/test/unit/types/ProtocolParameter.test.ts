@@ -12,7 +12,6 @@ const { ethers } = HRE
 use(smock.matchers)
 
 export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
-  protocolFee: 2,
   maxFee: 3,
   maxFeeAbsolute: 4,
   maxCut: 5,
@@ -20,6 +19,7 @@ export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   minMaintenance: 7,
   minEfficiency: 8,
   referralFee: 9,
+  minScale: 10,
 }
 
 describe('ProtocolParameter', () => {
@@ -38,7 +38,6 @@ describe('ProtocolParameter', () => {
       await protocolParameter.validateAndStore(VALID_PROTOCOL_PARAMETER)
 
       const value = await protocolParameter.read()
-      expect(value.protocolFee).to.equal(2)
       expect(value.maxFee).to.equal(3)
       expect(value.maxFeeAbsolute).to.equal(4)
       expect(value.maxCut).to.equal(5)
@@ -46,28 +45,7 @@ describe('ProtocolParameter', () => {
       expect(value.minMaintenance).to.equal(7)
       expect(value.minEfficiency).to.equal(8)
       expect(value.referralFee).to.equal(9)
-    })
-
-    context('.protocolFee', async () => {
-      it('saves if in range', async () => {
-        await protocolParameter.validateAndStore({
-          ...VALID_PROTOCOL_PARAMETER,
-          protocolFee: 123,
-          maxCut: 123,
-        })
-        const value = await protocolParameter.read()
-        expect(value.protocolFee).to.equal(123)
-      })
-
-      it('reverts if out of range', async () => {
-        await expect(
-          protocolParameter.validateAndStore({
-            ...VALID_PROTOCOL_PARAMETER,
-            protocolFee: 123,
-            maxCut: 122,
-          }),
-        ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
-      })
+      expect(value.minScale).to.equal(10)
     })
 
     context('.maxFee', async () => {
@@ -196,21 +174,40 @@ describe('ProtocolParameter', () => {
     })
 
     context('.referralFee', async () => {
-      const STORAGE_SIZE = 24
       it('saves if in range', async () => {
         await protocolParameter.validateAndStore({
           ...VALID_PROTOCOL_PARAMETER,
-          referralFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          referralFee: parse6decimal('1'),
         })
         const value = await protocolParameter.read()
-        expect(value.referralFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.referralFee).to.equal(parse6decimal('1'))
       })
 
       it('reverts if out of range', async () => {
         await expect(
           protocolParameter.validateAndStore({
             ...VALID_PROTOCOL_PARAMETER,
-            referralFee: BigNumber.from(2).pow(STORAGE_SIZE),
+            referralFee: parse6decimal('1').add(1),
+          }),
+        ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
+      })
+    })
+
+    context('.minScale', async () => {
+      it('saves if in range', async () => {
+        await protocolParameter.validateAndStore({
+          ...VALID_PROTOCOL_PARAMETER,
+          minScale: parse6decimal('1'),
+        })
+        const value = await protocolParameter.read()
+        expect(value.minScale).to.equal(parse6decimal('1'))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          protocolParameter.validateAndStore({
+            ...VALID_PROTOCOL_PARAMETER,
+            minScale: parse6decimal('1').add(1),
           }),
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })

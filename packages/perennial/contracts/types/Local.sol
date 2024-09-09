@@ -31,6 +31,7 @@ struct LocalStorage { uint256 slot0; uint256 slot1; }
 using LocalStorageLib for LocalStorage global;
 
 /// @title Local
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the local account state
 library LocalLib {
     /// @notice Updates the collateral with the new deposit or withdrwal
@@ -43,15 +44,12 @@ library LocalLib {
     /// @notice Updates the collateral with the new collateral change
     /// @param self The Local object to update
     /// @param accumulation The accumulation result
-    function update(Local memory self, uint256 newId, CheckpointAccumulationResult memory accumulation) internal pure {
-        Fixed6 tradeFee = accumulation.linearFee
-            .add(accumulation.proportionalFee)
-            .add(accumulation.adiabaticFee);
-        self.collateral = self.collateral
-            .add(accumulation.collateral)
-            .sub(tradeFee)
-            .sub(Fixed6Lib.from(accumulation.settlementFee))
-            .sub(Fixed6Lib.from(accumulation.liquidationFee));
+    function update(
+        Local memory self,
+        uint256 newId,
+        CheckpointAccumulationResponse memory accumulation
+    ) internal pure {
+        self.collateral = self.collateral.add(accumulation.collateral).sub(Fixed6Lib.from(accumulation.liquidationFee));
         self.latestId = newId;
     }
 
@@ -64,6 +62,7 @@ library LocalLib {
 }
 
 /// @dev Manually encodes and decodes the Local struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredLocal {
 ///         /* slot 0 */
@@ -72,9 +71,6 @@ library LocalLib {
 ///         int64 collateral;       // <= 9.22t
 ///         uint64 claimable;       // <= 18.44t
 ///         bytes4 __DEPRECATED;    // UNSAFE UNTIL RESET
-///
-///         /* slot 1 */
-///         bytes28 __DEPRECATED;   // UNSAFE UNTIL RESET
 ///     }
 ///
 library LocalStorageLib {
@@ -103,11 +99,9 @@ library LocalStorageLib {
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
             uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
-        uint256 encoded1; // reset deprecated storage on settlement
 
         assembly {
             sstore(self.slot, encoded0)
-            sstore(add(self.slot, 1), encoded1)
         }
     }
 }

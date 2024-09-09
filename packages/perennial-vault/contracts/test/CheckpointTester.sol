@@ -57,8 +57,8 @@ contract CheckpointTester {
         return checkpoint.read().toAssetsLocal(shares);
     }
 
-    function toAssets(UFixed6 shares, UFixed6 settlementFee) external view returns (UFixed6) {
-        return checkpoint.read().toAssets(shares, settlementFee);
+    function toAssets(UFixed6 shares) external view returns (UFixed6) {
+        return checkpoint.read().toAssets(shares);
     }
 
     function unhealthy() external view returns (bool) {

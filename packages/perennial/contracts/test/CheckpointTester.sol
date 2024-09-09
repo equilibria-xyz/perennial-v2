@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import "../interfaces/IMarket.sol";
 import "../types/Checkpoint.sol";
 import "../libs/CheckpointLib.sol";
 
@@ -16,13 +17,19 @@ contract CheckpointTester {
     }
 
     function accumulate(
+        IMarket.Context memory context,
+        IMarket.SettlementContext memory settlementContext,
+        uint256 orderId,
         Order memory order,
-        Position memory fromPosition,
+        Guarantee memory guarantee,
         Version memory fromVersion,
         Version memory toVersion
-    ) external returns (CheckpointAccumulationResult memory result) {
+    ) external returns (CheckpointAccumulationResponse memory response) {
         Checkpoint memory newCheckpoint = checkpoint.read();
-        (newCheckpoint, result) = CheckpointLib.accumulate(newCheckpoint, order, fromPosition, fromVersion, toVersion);
+        settlementContext.latestCheckpoint = newCheckpoint;
+
+        (newCheckpoint, response) = CheckpointLib.accumulate(context, settlementContext, orderId, order, guarantee, fromVersion, toVersion);
+
         checkpoint.store(newCheckpoint);
     }
 }

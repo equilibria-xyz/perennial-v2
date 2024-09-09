@@ -157,6 +157,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
 
                 _update(account, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
+            } else if (invocation.action == PerennialAction.UPDATE_INTENT) {
+                (IMarket market, Intent memory intent, bytes memory signature) = abi.decode(invocation.args, (IMarket, Intent, bytes));
+
+                _updateIntent(account, market, intent, signature);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
                 (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
@@ -184,6 +188,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 (address target) = abi.decode(invocation.args, (address));
 
                 _approve(target);
+            } else if (invocation.action == PerennialAction.CLAIM_FEE) {
+                (IMarket market, bool unwrap) = abi.decode(invocation.args, (IMarket, bool));
+
+                _claimFee(account, market, unwrap);
             }
         }
         // ETH must not remain in this contract at rest
@@ -232,6 +240,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
         // charge interface fee
         _chargeFee(account, market, interfaceFee1);
         _chargeFee(account, market, interfaceFee2);
+    }
+
+    /// @notice Fills an intent update on behalf of account
+    /// @param account Address of account to update
+    /// @param intent The intent that is being filled
+    /// @param signature The signature of the intent that is being filled
+    function _updateIntent(
+        address account,
+        IMarket market,
+        Intent memory intent,
+        bytes memory signature
+    ) internal isMarketInstance(market) {
+        market.update(account, intent, signature);
     }
 
     /// @notice Update vault on behalf of account
@@ -292,6 +313,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit InterfaceFeeCharged(account, market, interfaceFee);
     }
 
+    /// @notice Claims market fees, unwraps DSU, and pushes USDC to fee earner
+    /// @param market Market from which fees should be claimed
+    /// @param account Address of the user who earned fees
+    /// @param unwrap Set true to unwrap DSU to USDC when withdrawing
+    function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
+        UFixed6 claimAmount = market.claimFee(account);
+        _withdraw(account, claimAmount, unwrap);
+    }
+
     /// @notice Pull DSU or wrap and deposit USDC from `account` to this address for market usage
     /// @param account Account to pull DSU or USDC from
     /// @param amount Amount to transfer
@@ -308,9 +338,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Push DSU or unwrap DSU to push USDC from this address to `account`
     /// @param account Account to push DSU or USDC to
     /// @param amount Amount to transfer
-    /// @param wrap flag to unwrap DSU to USDC
-    function _withdraw(address account, UFixed6 amount, bool wrap) internal {
-        if (wrap) {
+    /// @param unwrap flag to unwrap DSU to USDC
+    function _withdraw(address account, UFixed6 amount, bool unwrap) internal {
+        if (unwrap) {
             _unwrap(account, UFixed18Lib.from(amount));
         } else {
             DSU.push(account, UFixed18Lib.from(amount));

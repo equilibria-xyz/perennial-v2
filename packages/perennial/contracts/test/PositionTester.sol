@@ -83,9 +83,10 @@ abstract contract PositionTester {
     function margined(
         OracleVersion memory currentOracleVersion,
         RiskParameter memory riskParameter,
+        UFixed6 collateralization,
         Fixed6 collateral
     ) external view returns (bool) {
-        return read().margined(currentOracleVersion, riskParameter, collateral);
+        return read().margined(currentOracleVersion, riskParameter, collateralization, collateral);
     }
 }
 

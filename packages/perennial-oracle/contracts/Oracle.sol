@@ -5,6 +5,7 @@ import "@equilibria/root/attribute/Instance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 import "./interfaces/IOracle.sol";
+import "./interfaces/IOracleFactory.sol";
 
 /// @title Oracle
 /// @notice The top-level oracle contract that implements an oracle provider interface.
@@ -14,14 +15,25 @@ contract Oracle is IOracle, Instance {
     mapping(uint256 => Epoch) public oracles;
 
     /// @notice The global state of the oracle
-    Global public global;
+    OracleGlobal public global;
+
+    /// @notice The market associated with this oracle
+    IMarket public market;
+
+    /// @notice The beneficiary of the oracle fee
+    address public beneficiary;
+
+    /// @notice The name of the oracle
+    string public name;
 
     /// @notice Initializes the contract state
     /// @param initialProvider The initial oracle provider
-    function initialize(IOracleProvider initialProvider) external initializer(1) {
+    /// @param name_ The name of the oracle
+    function initialize(IOracleProvider initialProvider, string calldata name_) external initializer(1) {
         __Instance__initialize();
         _updateCurrent(initialProvider);
         _updateLatest(initialProvider.latest());
+        name = name_;
     }
 
     /// @notice Updates the current oracle provider
@@ -32,10 +44,30 @@ contract Oracle is IOracle, Instance {
         _updateLatest(newProvider.latest());
     }
 
+    /// @notice Registers the market associated with this oracle
+    /// @param newMarket The market to register
+    function register(IMarket newMarket) external onlyOwner {
+        market = newMarket;
+        emit MarketUpdated(newMarket);
+    }
+
+    /// @notice Updates the beneficiary of the oracle fee
+    /// @param newBeneficiary The new beneficiary
+    function updateBeneficiary(address newBeneficiary) external onlyOwner {
+        beneficiary = newBeneficiary;
+        emit BeneficiaryUpdated(newBeneficiary);
+    }
+
+    /// @notice Updates the name of the oracle
+    /// @dev Allows setting the name for previously deployed oracles (v2.3 migration)
+    /// @param newName The new oracle name
+    function updateName(string calldata newName) external onlyOwner {
+        name = newName;
+    }
+
     /// @notice Requests a new version at the current timestamp
-    /// @param market Original market to optionally use for callbacks
     /// @param account Original sender to optionally use for callbacks
-    function request(IMarket market, address account) external onlyAuthorized {
+    function request(IMarket, address account) external onlyMarket {
         (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
         oracles[
@@ -67,14 +99,37 @@ contract Oracle is IOracle, Instance {
     /// @notice Returns the oracle version at a given timestamp
     /// @param timestamp The timestamp to query
     /// @return atVersion The oracle version at the given timestamp
-    function at(uint256 timestamp) public view returns (OracleVersion memory atVersion) {
-        if (timestamp == 0) return atVersion;
+    /// @return atReceipt The oracle receipt at the given timestamp
+    function at(uint256 timestamp) public view returns (OracleVersion memory atVersion, OracleReceipt memory atReceipt) {
+        if (timestamp == 0) return (atVersion, atReceipt);
+
         IOracleProvider provider = oracles[global.current].provider;
         for (uint256 i = global.current - 1; i > 0; i--) {
             if (timestamp > uint256(oracles[i].timestamp)) break;
             provider = oracles[i].provider;
         }
-        return provider.at(timestamp);
+
+        (atVersion, atReceipt) = provider.at(timestamp);
+    }
+
+    /// @notice Withdraws the accrued oracle fees to the beneficiary
+    /// @param token The token to withdraw
+    function withdraw(Token18 token) external onlyBeneficiary {
+        token.push(beneficiary);
+    }
+
+    /// @notice Claims an amount of incentive tokens, to be paid out as a fee to the keeper
+    /// @dev Will claim all outstanding oracle fees in the underlying market and leave unrequested fees for the beneficiary.
+    ///      Can only be called by a registered underlying oracle provider factory.
+    /// @param settlementFeeRequested The fixed settmentment fee requested by the oracle
+    function claimFee(UFixed6 settlementFeeRequested) external onlySubOracle {
+        // claim the fee from the market
+        UFixed6 feeReceived = market.claimFee(address(this));
+
+        // return the settlement fee portion to the sub oracle's factory
+        market.token().push(msg.sender, UFixed18Lib.from(settlementFeeRequested));
+
+        emit FeeReceived(settlementFeeRequested, feeReceived.sub(settlementFeeRequested));
     }
 
     /// @notice Handles update the oracle to the new provider
@@ -116,7 +171,7 @@ contract Oracle is IOracle, Instance {
         uint256 latestOracleTimestamp =
             uint256(isLatestStale ? oracles[global.current].timestamp : oracles[global.latest].timestamp);
         if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp)
-            return at(latestOracleTimestamp);
+            (latestVersion, ) = at(latestOracleTimestamp);
     }
 
     /// @notice Returns whether the latest oracle is ready to be updated
@@ -132,10 +187,24 @@ contract Oracle is IOracle, Instance {
         return true;
     }
 
-    /// @dev Only if the caller is authorized by the factory
-    modifier onlyAuthorized {
-        if (!IOracleProviderFactory(address(factory())).authorized(msg.sender))
-            revert OracleProviderUnauthorizedError();
+    /// @dev Only if the caller is the beneficiary
+    modifier onlyBeneficiary {
+        if (msg.sender != beneficiary) revert OracleNotBeneficiaryError();
+        _;
+    }
+
+    /// @dev Only if the caller is the registered market
+    modifier onlyMarket {
+        if (msg.sender != address(market)) revert OracleNotMarketError();
+        _;
+    }
+
+    /// @dev Only if the caller is the registered sub oracle
+    modifier onlySubOracle {
+        if (
+            msg.sender != address(oracles[global.current].provider) &&
+            msg.sender != address(oracles[global.latest].provider)
+        ) revert OracleNotSubOracleError();
         _;
     }
 }

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/OracleVersion.sol";
-import "./IMarket.sol";
+import { OracleReceipt } from "../types/OracleReceipt.sol";
+import { OracleVersion } from "../types/OracleVersion.sol";
+import { IMarket } from "./IMarket.sol";
 
 /// @dev OracleVersion Invariants
 ///       - Version are requested at a timestamp, the current timestamp is determined by the oracle
@@ -18,12 +19,12 @@ interface IOracleProvider {
     // sig: 0x652fafab
     error OracleProviderUnauthorizedError();
 
-    event OracleProviderVersionRequested(uint256 indexed version);
+    event OracleProviderVersionRequested(uint256 indexed version, bool newPrice);
     event OracleProviderVersionFulfilled(OracleVersion version);
 
     function request(IMarket market, address account) external;
     function status() external view returns (OracleVersion memory, uint256);
     function latest() external view returns (OracleVersion memory);
     function current() external view returns (uint256);
-    function at(uint256 timestamp) external view returns (OracleVersion memory);
+    function at(uint256 timestamp) external view returns (OracleVersion memory, OracleReceipt memory);
 }

@@ -25,6 +25,7 @@ import {
   buildPlaceOrder,
   buildCancelOrder,
   buildExecOrder,
+  buildClaimFee,
   VaultUpdate,
   Actions,
   MAX_UINT,
@@ -524,7 +525,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             expect(dsu.transfer).to.have.been.calledWith(owner.address, feeAmt.mul(1e12))
           })
 
-          it('charges an interface fee on withdrawal, wraps DSU from colalteral to USDC, and pushes USDC to the receiver', async () => {
+          it('charges an interface fee on withdrawal, wraps DSU from collateral to USDC, and pushes USDC to the receiver', async () => {
             usdc.transferFrom.returns(true)
             dsu.transferFrom.returns(true)
             dsu.transfer.returns(true)
@@ -635,6 +636,34 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               false,
               user2.address,
             )
+          })
+
+          it('claims fee from a market', async () => {
+            const fee = parse6decimal('0.123')
+            usdc.transfer.returns(true)
+            market.claimFee.returns(fee)
+
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: true }))).to.not.be.reverted
+            expect(market.claimFee).to.have.been.calledWith(user.address)
+            expect(reserve.redeem).to.have.been.calledWith(fee.mul(1e12))
+            expect(usdc.transfer).to.have.been.calledWith(user.address, fee)
+          })
+
+          it('claims fee from a market without unwrapping', async () => {
+            const fee = parse6decimal('0.0654')
+            dsu.transfer.returns(true)
+            market.claimFee.returns(fee)
+
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: false }))).to.not.be.reverted
+            expect(market.claimFee).to.have.been.calledWith(user.address)
+            expect(reserve.redeem).to.not.have.been.called
+            expect(dsu.transfer).to.have.been.calledWith(user.address, fee.mul(1e12))
+          })
+
+          it('reverts if claiming fee from a non-market', async () => {
+            await expect(
+              invoke(buildClaimFee({ market: batcher.address, unwrap: true })),
+            ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
           })
 
           describe('ETH return', async () => {

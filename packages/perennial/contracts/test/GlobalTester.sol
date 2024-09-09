@@ -16,12 +16,12 @@ contract GlobalTester {
 
     function update(
         uint256 newLatestId,
-        VersionAccumulationResult memory accumulation,
+        VersionAccumulationResponse memory accumulation,
         MarketParameter memory marketParameter,
-        ProtocolParameter memory protocolParameter
+        OracleReceipt memory oracleReceipt
     ) external {
         Global memory newGlobal = global.read();
-        newGlobal.update(newLatestId, accumulation, marketParameter, protocolParameter);
+        newGlobal.update(newLatestId, accumulation, marketParameter, oracleReceipt);
         global.store(newGlobal);
     }
 }
