@@ -64,4 +64,11 @@ export const DEFAULT_RISK_PARAMETERS = {
   makerReceiveOnly: false,
 }
 
+export const KeeperFactoryParameter = {
+  granularity: 10,
+  oracleFee: 0,
+  validFrom: 4,
+  validTo: 12,
+}
+
 export const BaseKeeperBuffer = 275_000n

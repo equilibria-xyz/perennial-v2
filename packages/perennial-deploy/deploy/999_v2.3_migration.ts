@@ -22,6 +22,7 @@ import {
   VaultFactory__factory,
 } from '../types/generated'
 import { PAYOFFS } from './002_deploy_payoff'
+import { KeeperFactoryParameter } from '../util/constants'
 
 const SkipIfAlreadyDeployed = false
 
@@ -174,6 +175,7 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
   const deployerSigner = await ethers.getSigner(deployer)
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
   const owner = isMainnet(hre.network.name) ? (await get('TimelockController')).address : deployer
+  const oracleFactory = new OracleFactory__factory(deployerSigner).attach((await get('OracleFactory')).address)
 
   log('Deploying Oracles...')
   log('  Deploying Oracle Impl...')
@@ -199,6 +201,16 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
   const keeperOracleArgs: Parameters<KeeperOracle__factory['deploy']> = [DEFAULT_KEEPER_ORACLE_TIMEOUT]
   await deploy('KeeperOracleImpl', {
     contract: 'KeeperOracle',
+    args: keeperOracleArgs,
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+
+  log('  Deploying KeeperOracle_Migration Impl...')
+  await deploy('KeeperOracle_MigrationImpl', {
+    contract: 'KeeperOracle_Migration',
     args: keeperOracleArgs,
     from: deployer,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
@@ -262,8 +274,38 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
     autoMine: true,
   })
 
+  log('   Deploying PythFactoryMigration Impl...')
+  await deploy('PythFactoryMigrationImpl', {
+    contract: 'PythFactoryV2_2',
+    args: [
+      (await get('Pyth')).address,
+      (await get('KeeperOracle_MigrationImpl')).address,
+      4,
+      12,
+      {
+        multiplierBase: 0, // Unused
+        bufferBase: 788_000, // Each Call uses approx 750k gas
+        multiplierCalldata: 0,
+        bufferCalldata: 31_000,
+      },
+      {
+        multiplierBase: ethers.utils.parseEther('1.05'), // Gas usage tracks full call
+        bufferBase: 100_000, // Initial Fee + Transfers
+        multiplierCalldata: ethers.utils.parseEther('1.05'), // Gas usage tracks full L1 calldata,
+        bufferCalldata: 0,
+      },
+      4_200,
+    ],
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+
   // Deploy new PythFactoryProxy and setup oracles
-  const previousPythFactory = new PythFactory__factory(deployerSigner).attach((await get('PythFactory')).address)
+  const previousPythFactory = new PythFactory__factory(deployerSigner).attach(
+    (await get('PreviousPythFactory')).address,
+  )
   const pythFactoryInterface = PythFactory__factory.createInterface()
   const pythFactoryProxyArgs: TransparentUpgradeableProxyArgs = [
     (await get('PythFactoryImpl')).address,
@@ -308,6 +350,10 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
       provider: previousPayoff.provider,
       decimals: previousPayoff.decimals,
     })
+    log('    Registering oracle with sub-oracle')
+    const oracle = await oracleFactory.oracles(event.args.id)
+    const keeperOracleContract = new KeeperOracle__factory(deployerSigner).attach(address)
+    await keeperOracleContract.register(oracle)
   }
 
   // Cryptex keepers for arb sepolia
@@ -345,6 +391,24 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
       autoMine: true,
     })
     const cryptexFactory = new MetaQuantsFactory__factory(deployerSigner).attach((await get('CryptexFactory')).address)
+    log('  Setting up CryptexFactory...')
+    if ((await cryptexFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
+      write('    Setting owner...')
+      await (await cryptexFactory.updatePendingOwner(owner)).wait()
+      process.stdout.write('complete\n')
+    }
+    if ((await cryptexFactory.parameter()).validFrom.eq(0)) {
+      write('    Setting parameter...')
+      await (
+        await cryptexFactory.updateParameter(
+          KeeperFactoryParameter.granularity,
+          KeeperFactoryParameter.oracleFee,
+          KeeperFactoryParameter.validFrom,
+          KeeperFactoryParameter.validTo,
+        )
+      ).wait()
+      process.stdout.write('complete\n')
+    }
 
     const previousOracles = await previousCryptexFactory.queryFilter(cryptexFactory.filters.OracleCreated())
     for (const event of previousOracles) {
@@ -359,6 +423,10 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
         provider: previousPayoff.provider,
         decimals: previousPayoff.decimals,
       })
+
+      log('    Registering oracle with sub-oracle')
+      const oracle = await oracleFactory.oracles(event.args.id)
+      await new KeeperOracle__factory(deployerSigner).attach(address).register(oracle)
     }
   }
 

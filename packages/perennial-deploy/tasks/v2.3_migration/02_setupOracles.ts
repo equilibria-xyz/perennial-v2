@@ -2,6 +2,7 @@ import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PopulatedTransaction } from 'ethers'
+import { KeeperFactoryParameter } from '../../util/constants'
 
 export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 Migration')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
@@ -18,12 +19,18 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
     const owner = await marketFactory.owner()
     const ownerSigner = await ethers.getSigner(owner)
 
+    const proxyAdmin = (await ethers.getContractAt('ProxyAdmin', (await get('ProxyAdmin')).address)).connect(
+      ownerSigner,
+    )
     const oracleFactory = (await ethers.getContractAt('OracleFactory', (await get('OracleFactory')).address)).connect(
       ownerSigner,
     )
     const pythFactory = (await ethers.getContractAt('PythFactory', (await get('PythFactory')).address)).connect(
       ownerSigner,
     )
+    const previousPythFactory = (
+      await ethers.getContractAt('PythFactory', (await get('PreviousPythFactory')).address)
+    ).connect(ownerSigner)
 
     const txPayloads: { to?: string; value?: string; data?: string; info: string }[] = []
 
@@ -36,6 +43,32 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
         info,
       })
     }
+
+    await addPayload(
+      () => oracleFactory.populateTransaction.register(pythFactory.address),
+      'Register PythFactory with OracleFactory',
+    )
+
+    await addPayload(
+      () =>
+        oracleFactory.populateTransaction.updateParameter({
+          maxGranularity: 60,
+          maxOracleFee: ethers.utils.parseUnits('0.10', 6),
+          maxSettlementFee: ethers.utils.parseUnits('25', 6),
+        }),
+      'Update OracleFactory parameter',
+    )
+
+    await addPayload(
+      () =>
+        pythFactory.populateTransaction.updateParameter(
+          KeeperFactoryParameter.granularity,
+          KeeperFactoryParameter.oracleFee,
+          KeeperFactoryParameter.validFrom,
+          KeeperFactoryParameter.validTo,
+        ),
+      'Update PythFactory parameter',
+    )
 
     // Update existing oracles to use new PythFactory
     const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
@@ -50,6 +83,11 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
 
     if (await getOrNull('CryptexFactory')) {
       const cryptexFactory = await ethers.getContractAt('IMetaQuantsFactory', (await get('CryptexFactory')).address)
+      await addPayload(
+        () => oracleFactory.populateTransaction.register(cryptexFactory.address),
+        'Register CryptexFactory with OracleFactory',
+      )
+
       const cryptexOracles = await cryptexFactory.queryFilter(cryptexFactory.filters.OracleCreated())
       for (const oracles of cryptexOracles) {
         if ((await oracleFactory.oracles(oracles.args.id)) === cryptexFactory.address) continue
@@ -60,6 +98,17 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
         )
       }
     }
+
+    await addPayload(
+      async () =>
+        proxyAdmin.populateTransaction.upgrade(
+          previousPythFactory.address,
+          (
+            await get('PythFactoryMigrationImpl')
+          ).address,
+        ),
+      `Upgrade previousPythFactory`,
+    )
 
     if (args.timelock) {
       console.log('[v2.3 Setup Oracles]  Timelock payload:')

@@ -17,6 +17,7 @@ const config = defaultConfig({
     '@equilibria/perennial-v2-oracle/contracts/OracleFactory.sol',
     '@equilibria/perennial-v2-oracle/contracts/keeper/KeeperFactory.sol',
     '@equilibria/perennial-v2-oracle/contracts/keeper/KeeperOracle.sol',
+    '@equilibria/perennial-v2-oracle/contracts/keeper/KeeperOracle_Migration.sol',
     '@equilibria/perennial-v2-oracle/contracts/pyth/PythFactory.sol',
     '@equilibria/perennial-v2-oracle/contracts/metaquants/MetaQuantsFactory.sol',
     '@equilibria/perennial-v2/contracts/Market.sol',

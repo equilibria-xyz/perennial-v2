@@ -17,9 +17,7 @@ export default task('commit-price', 'Commits a price for the given price ids')
       { priceids: priceIds_, timestamp, dry, factoryaddress, gaslimit }: TaskArguments,
       HRE: HardhatRuntimeEnvironment,
     ) => {
-      if (!priceIds_) throw new Error('No Price ID provided')
-      const priceIds = priceIds_.split(',')
-      if (!priceIds.length) throw new Error('No Price ID provided')
+      let priceIds: string[] = []
 
       const {
         ethers,
@@ -27,17 +25,27 @@ export default task('commit-price', 'Commits a price for the given price ids')
       } = HRE
 
       const commitments: { action: number; args: string }[] = []
-
-      console.log('Gathering commitments for priceIds:', priceIds.join(','), 'at timestamp', timestamp)
       const pythFactory = await ethers.getContractAt(
         'IKeeperFactory',
         factoryaddress ?? (await get('PythFactory')).address,
       )
+      if (!priceIds_) {
+        const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
+        priceIds = oracles.map(oracle => oracle.args.id)
+      } else {
+        priceIds = priceIds_.split(',')
+      }
+
+      console.log('Gathering commitments for priceIds:', priceIds.join(','), 'at timestamp', timestamp)
       console.log('Using factory at:', pythFactory.address)
       const minValidTime = (await pythFactory.callStatic.parameter()).validFrom
       for (const priceId of priceIds) {
         const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
         const underlyingId = await pythFactory.callStatic.toUnderlyingId(priceId)
+        if (underlyingId === ethers.constants.HashZero) {
+          console.warn('No underlying id found for', priceId, 'skipping...')
+          continue
+        }
 
         const vaa = await getRecentVaa({
           pyth,
