@@ -19,7 +19,7 @@ library RebalanceLib {
         RebalanceConfig memory marketConfig,
         Fixed6 groupCollateral,
         Fixed6 marketCollateral
-    ) external pure returns (bool canRebalance, Fixed6 imbalance) {
+    ) internal pure returns (bool canRebalance, Fixed6 imbalance) {
         // determine how much collateral the market should have
         Fixed6 targetCollateral = groupCollateral.mul(Fixed6Lib.from(marketConfig.target));
 

@@ -8,13 +8,7 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
 import { getTimestamp } from '../../../common/testutil/transaction'
 
-import {
-  Account__factory,
-  Controller,
-  Controller__factory,
-  IERC20Metadata,
-  RebalanceLib__factory,
-} from '../../types/generated'
+import { Account__factory, Controller, Controller__factory, IERC20Metadata } from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -162,12 +156,7 @@ export async function deployController(
 ): Promise<Controller> {
   const accountImpl = await new Account__factory(owner).deploy(usdcAddress, dsuAddress, reserveAddress)
   accountImpl.initialize(constants.AddressZero)
-  const controller = await new Controller__factory(
-    {
-      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy(accountImpl.address)
+  const controller = await new Controller__factory(owner).deploy(accountImpl.address)
   return controller
 }
 
