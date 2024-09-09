@@ -68,7 +68,7 @@ export interface InstanceVars {
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
-  const [owner, coordinator, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD, beneficiaryB, coordinator] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
