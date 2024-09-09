@@ -119,6 +119,27 @@ export class ChainlinkContext {
     await this.next()
   }
 
+  public async setInvalidVersion(): Promise<void> {
+    await this.next()
+
+    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
+
+    const latestPrice =
+      this.decimals < 18
+        ? latestData.answer.mul(BigNumber.from(10).pow(18 - this.decimals))
+        : latestData.answer.div(BigNumber.from(10).pow(this.decimals - 18))
+
+    const latestVersion = {
+      timestamp: latestData.startedAt,
+      price: await this._payoff(latestPrice),
+      valid: false,
+    }
+
+    this.oracle.at
+      .whenCalledWith(latestData.startedAt)
+      .returns([latestVersion, { settlementFee: this.settlementFee, oracleFee: this.oracleFee }])
+  }
+
   private async _payoff(price: BigNumber): Promise<BigNumber> {
     // apply payoff
     let priceAfterPayoff = this.payoff.provider ? await this.payoff.provider.payoff(price) : price

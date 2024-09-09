@@ -20,6 +20,7 @@ import {
   DEFAULT_GUARANTEE,
   DEFAULT_RISK_PARAMETER,
   DEFAULT_MARKET_PARAMETER,
+  expectGuaranteeEq,
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
@@ -1491,6 +1492,23 @@ describe('Happy Path', () => {
       },
     }
 
+    expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+      ...DEFAULT_GUARANTEE,
+    })
+    expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+      ...DEFAULT_GUARANTEE,
+    })
+    expectOrderEq(await market.pending(), {
+      ...DEFAULT_ORDER,
+      orders: 1,
+      collateral: COLLATERAL.mul(3),
+      makerPos: POSITION,
+    })
+    expectOrderEq(await market.pendings(user.address), {
+      ...DEFAULT_ORDER,
+      collateral: COLLATERAL,
+    })
+
     const verifier = Verifier__factory.connect(await market.verifier(), owner)
 
     let signature = await signIntent(userC, verifier, intent)
@@ -1526,6 +1544,160 @@ describe('Happy Path', () => {
           'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature),
     ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
+  })
+
+  it('settle position with invalid oracle version', async () => {
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink } = instanceVars
+
+    const market = await createMarket(instanceVars)
+
+    const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.makerLimit = parse6decimal('10')
+    const riskParameterTakerFee = { ...riskParameter.takerFee }
+    riskParameterTakerFee.scale = parse6decimal('1')
+    riskParameter.takerFee = riskParameterTakerFee
+    await market.updateRiskParameter(riskParameter)
+
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+    await expect(
+      market
+        .connect(userB)
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero),
+    )
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          collateral: COLLATERAL,
+          longPos: POSITION_B,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    // User State
+    expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 0,
+      collateral: COLLATERAL,
+    })
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      collateral: COLLATERAL,
+      makerPos: POSITION,
+    })
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 0,
+      collateral: COLLATERAL,
+    })
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      collateral: COLLATERAL,
+      longPos: POSITION_B,
+    })
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+
+    // Global State
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 1,
+      latestPrice: PRICE_0,
+    })
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL.mul(2),
+      makerPos: POSITION,
+      longPos: POSITION_B,
+    })
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+    expectVersionEq(await market.versions(TIMESTAMP_0), {
+      ...DEFAULT_VERSION,
+      price: PRICE_0,
+    })
+
+    // Settle after one round with oracle invalid version
+    await chainlink.setInvalidVersion()
+    await settle(market, userB)
+
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 1,
+      latestId: 1,
+      protocolFee: '0',
+      latestPrice: PRICE_1,
+    })
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      collateral: COLLATERAL.mul(2),
+      makerPos: POSITION,
+      longPos: POSITION_B,
+    })
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+    })
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 1,
+      collateral: COLLATERAL,
+    })
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      collateral: COLLATERAL,
+      longPos: POSITION_B,
+    })
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+    })
   })
 
   // uncheck skip to see gas results
