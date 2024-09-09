@@ -3,7 +3,7 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PAYOFFS } from '../../deploy/002_deploy_payoff'
 import { PopulatedTransaction, utils } from 'ethers'
-import { NewMarketParameter, NewRiskParams } from './contstants'
+import { NewMarketParameter, NewRiskParams } from './constants'
 
 export default task('multisig_ops:buildCreateMarket', 'Builds the create market transaction')
   .addParam('underlyingid', 'The oracle ID to use')
@@ -11,6 +11,7 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
   .addOptionalParam('id', 'The oracle ID to use. Defaults to underlying-id')
   .addOptionalParam<typeof PAYOFFS>('payoff', 'The payoff contract to use')
   .addOptionalParam('decimals', 'The number of decimals to use')
+  .addOptionalParam('nonceOffset', 'The nonce offset to use if launching multiple markets')
   .addFlag('pyth', 'Use Pyth oracle factory')
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Multisig Ops: Create Market] Building Create Market Transaction')
@@ -28,6 +29,7 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
     const id = args.id || underlyingID
     const payoff = args.payoff ? (await get(args.payoff)).address : ethers.constants.AddressZero
     const decimals = args.decimals || 0
+    const nonceOffset = Number(args.nonceOffset || 0)
     const oracleFactory = await ethers.getContractAt('OracleFactory', (await get('OracleFactory')).address)
 
     if (!args.pyth) throw new Error('Only Pyth oracle factory is supported')
@@ -62,11 +64,11 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
     // Create the market
     const oracleAddress = utils.getContractAddress({
       from: oracleFactory.address,
-      nonce: await ethers.provider.getTransactionCount(oracleFactory.address),
+      nonce: (await ethers.provider.getTransactionCount(oracleFactory.address)) + nonceOffset,
     })
     const keeperOracleAddress = utils.getContractAddress({
       from: keeperFactory.address,
-      nonce: await ethers.provider.getTransactionCount(keeperFactory.address),
+      nonce: (await ethers.provider.getTransactionCount(keeperFactory.address)) + nonceOffset,
     })
     await addPayload(
       () => marketFactory.populateTransaction.create({ token: DSU.address, oracle: oracleAddress }),
@@ -75,7 +77,7 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
 
     const marketAddress = utils.getContractAddress({
       from: marketFactory.address,
-      nonce: await ethers.provider.getTransactionCount(marketFactory.address),
+      nonce: (await ethers.provider.getTransactionCount(marketFactory.address)) + nonceOffset,
     })
     const coordinatorAddress = (await getOrNull('GauntletCoordinator'))?.address || ethers.constants.AddressZero
     const marketInterface = new ethers.utils.Interface((await get('MarketImpl')).abi)
