@@ -397,18 +397,6 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
       await (await cryptexFactory.updatePendingOwner(owner)).wait()
       process.stdout.write('complete\n')
     }
-    if ((await cryptexFactory.parameter()).validFrom.eq(0)) {
-      write('    Setting parameter...')
-      await (
-        await cryptexFactory.updateParameter(
-          KeeperFactoryParameter.granularity,
-          KeeperFactoryParameter.oracleFee,
-          KeeperFactoryParameter.validFrom,
-          KeeperFactoryParameter.validTo,
-        )
-      ).wait()
-      process.stdout.write('complete\n')
-    }
 
     const previousOracles = await previousCryptexFactory.queryFilter(cryptexFactory.filters.OracleCreated())
     for (const event of previousOracles) {

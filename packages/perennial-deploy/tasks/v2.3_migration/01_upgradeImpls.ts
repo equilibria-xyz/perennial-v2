@@ -2,7 +2,7 @@ import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PopulatedTransaction } from 'ethers'
-import { NewMarketParameter, NewProtocolParameter, VaultMinimumDeposit } from '../multisig_ops/contstants'
+import { NewMarketParameter, NewProtocolParameter, VaultMinimumDeposit } from '../multisig_ops/constants'
 import { BigNumber } from 'ethers'
 
 export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 Migration')

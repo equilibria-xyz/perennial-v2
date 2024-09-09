@@ -97,6 +97,19 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
           `Update Cryptex Oracle ${oracles.args.id}`,
         )
       }
+
+      if ((await cryptexFactory.parameter()).validFrom.eq(0)) {
+        await addPayload(
+          () =>
+            cryptexFactory.populateTransaction.updateParameter(
+              KeeperFactoryParameter.granularity,
+              KeeperFactoryParameter.oracleFee,
+              KeeperFactoryParameter.validFrom,
+              KeeperFactoryParameter.validTo,
+            ),
+          'Update Cryptex parameter',
+        )
+      }
     }
 
     await addPayload(
