@@ -652,7 +652,7 @@ jobs:
 
   # [PERIPHERY COMBINED COVERAGE]
   Periphery-test-coverage:
-    name: 'Periphery Tests Coverage'
+    name: 'Periphery Combined Tests Coverage'
     runs-on: ubuntu-latest
     needs: [periphery-unit-test-coverage, periphery-integration-test-coverage]
     steps:
@@ -677,7 +677,7 @@ jobs:
       - name: 'Periphery Combined Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
-          title: '[Periphery] Test Coverage Report'
+          title: '[Periphery] Combined Test Coverage Report'
           lcov-file: combined_coverage.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
