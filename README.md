@@ -2,7 +2,7 @@
 
 🌸 Perennial V2 is a general-purpose synthetic derivatives primitive for decentralized finance.
 
-![Twitter Follow](https://twitter.com/perenniallabs)
+![X formerly (Twitter) Follow](https://x.com/perenniallabs)
 
 ## 📦 Packages
 
