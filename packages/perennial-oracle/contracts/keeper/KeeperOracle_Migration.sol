@@ -17,10 +17,11 @@ contract KeeperOracle_Migration is KeeperOracle {
     /// @dev Empty responses, as long as they are of the correct format, will be overridden by the Global.latestPrice
     /// @return oracleVersion The empty oracle version
     /// @return oracleReceipt The empty oracle receipt
-    function at(uint256) public pure override returns (
+    function at(uint256 timestamp) public pure override returns (
         OracleVersion memory oracleVersion,
         OracleReceipt memory oracleReceipt
     ) {
+        oracleVersion.timestamp = timestamp;
         return (oracleVersion, oracleReceipt);
     }
 
