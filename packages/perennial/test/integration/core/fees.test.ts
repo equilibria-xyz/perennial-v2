@@ -2069,6 +2069,11 @@ describe('Fees', () => {
     it('handles a change in user referral fee', async () => {
       const { owner, user, userB, marketFactory } = instanceVars
 
+      // revert if referral fee is more than 1
+      await expect(
+        marketFactory.connect(owner).updateReferralFee(user.address, parse6decimal('1.5')),
+      ).to.be.revertedWithCustomError(marketFactory, 'MarketFactoryInvalidReferralFeeError')
+
       // increase referral fee for user
       await expect(marketFactory.connect(owner).updateReferralFee(user.address, parse6decimal('0.17')))
         .to.emit(marketFactory, 'ReferralFeeUpdated')
