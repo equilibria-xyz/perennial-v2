@@ -295,6 +295,10 @@ describe('ControllerBase', () => {
     })
 
     it('handles groups with no collateral', async () => {
+      const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
+      expect(groupCollateral).to.equal(0)
+      expect(canRebalance).to.be.false
+
       await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
         controller,
         'ControllerGroupBalancedError',
