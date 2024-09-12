@@ -36,11 +36,11 @@ export default task('settle-markets', 'Settles users across all markets')
       (await ethers.getSigners())[0],
     )
 
-    const pythFactory = await ethers.getContractAt(
+    const keeperFactory = await ethers.getContractAt(
       'PythFactory',
       args.factoryaddress ?? (await get('PythFactory')).address,
     )
-    const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
+    const oracles = await keeperFactory.queryFilter(keeperFactory.filters.OracleCreated())
     const idsToCommit = oracles.map(oracle => oracle.args.id)
 
     console.log('[Settle Markets] Committing prices for all oracle ids at timestamp:', args.timestamp)
