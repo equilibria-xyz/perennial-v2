@@ -250,6 +250,7 @@ testOracles.forEach(testOracle => {
         commitmentGasOracle.address,
         settlementGasOracle.address,
         keeperOracleImpl.address,
+        'SignedPriceFactory',
       )
       await metaquantsOracleFactory.initialize(oracleFactory.address)
       await oracleFactory.register(metaquantsOracleFactory.address)
@@ -468,6 +469,10 @@ testOracles.forEach(testOracle => {
     })
 
     describe('Factory', async () => {
+      it('factoryType is set', async () => {
+        expect(await metaquantsOracleFactory.factoryType()).to.equal('SignedPriceFactory')
+      })
+
       context('#initialize', async () => {
         it('reverts if already initialized', async () => {
           const metaquantsOracleFactory2 = await new MetaQuantsFactory__factory(owner).deploy(
@@ -475,6 +480,7 @@ testOracles.forEach(testOracle => {
             commitmentGasOracle.address,
             settlementGasOracle.address,
             await metaquantsOracleFactory.implementation(),
+            'SignedPriceFactory',
           )
           await metaquantsOracleFactory2.initialize(oracleFactory.address)
           await expect(metaquantsOracleFactory2.initialize(oracleFactory.address))

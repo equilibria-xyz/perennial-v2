@@ -10,13 +10,17 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
 
     address public immutable signer;
 
+    string public factoryType;
+
     constructor(
         address signer_,
         IGasOracle commitmentGasOracle_,
         IGasOracle settlementGasOracle_,
+        string memory factoryType_,
         address implementation_
     ) KeeperFactory(commitmentGasOracle_, settlementGasOracle_, implementation_) {
         signer = signer_;
+        factoryType = factoryType_;
     }
 
     /// @notice Validates and parses the update data payload against the specified version
