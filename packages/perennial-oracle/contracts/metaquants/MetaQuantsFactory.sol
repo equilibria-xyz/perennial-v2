@@ -10,7 +10,7 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
 
     address public immutable signer;
 
-    string public factoryType;
+    bytes32 private immutable _factoryType;
 
     constructor(
         address signer_,
@@ -20,7 +20,15 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
         address implementation_
     ) KeeperFactory(commitmentGasOracle_, settlementGasOracle_, implementation_) {
         signer = signer_;
-        factoryType = factoryType_;
+        _factoryType = bytes32(abi.encodePacked(factoryType_));
+    }
+
+    function factoryType() external view returns (string memory ret) {
+        bytes memory b = bytes(abi.encodePacked(_factoryType));
+        // Remove null bytes
+        for (uint256 i; i < b.length; i++) {
+            if (b[i] != 0) ret = string.concat(ret, string(abi.encodePacked(b[i])));
+        }
     }
 
     /// @notice Validates and parses the update data payload against the specified version
