@@ -1,10 +1,9 @@
 import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
-import { PopulatedTransaction } from 'ethers'
-import { NewMarketParameter, NewProtocolParameter, VaultMinimumDeposit } from '../multisig_ops/constants'
-import { BigNumber } from 'ethers'
-
+import { PopulatedTransaction, BigNumberish } from 'ethers'
+import { NewMarketParameter, NewProtocolParameter } from '../multisig_ops/constants'
+import { V2_2RiskParameterStructOutput } from './prevTypes'
 export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 Migration')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
   .addFlag('timelock', 'Print timelock transaction payload')
@@ -75,30 +74,28 @@ export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 
         `Update Market ${market.address} Parameter`,
       )
 
-      // TODO: Do we need to update risk parameters?
-      /* await addPayload(() => {
-        const riskParam = Object.values(NewRiskParams).find(
-          ([marketAddress]) => marketAddress.toLowerCase() === market.address.toLowerCase(),
-        )
-        if (!riskParam) throw new Error(`No risk parameters found for market ${market.address}`)
-
-        return market.populateTransaction.updateRiskParameter(riskParam[1], true)
-      }, `Update Market ${market.address} Risk Parameter`) */
-    }
-
-    const vaultAddrs = (await vaultFactory.queryFilter(vaultFactory.filters['InstanceRegistered(address)']())).map(
-      e => e.args.instance,
-    )
-    const vaults = await Promise.all(vaultAddrs.map(a => ethers.getContractAt('IVault', a)))
-    for (const vault of vaults) {
       await addPayload(async () => {
-        const currentVault = await ethers.getContractAt((await getArtifact('VaultV2_2')).abi, vault.address)
-        const currentVaultParameter = (await currentVault.callStatic.parameter()) as { cap: BigNumber }
-        return vault.populateTransaction.updateParameter({
-          maxDeposit: currentVaultParameter.cap,
-          minDeposit: VaultMinimumDeposit,
+        const v2_2Market = await ethers.getContractAt((await getArtifact('MarketV2_2')).abi, market.address)
+        const v2_2RiskParam = (await v2_2Market.callStatic.riskParameter()) as V2_2RiskParameterStructOutput
+        const scaleLimit = v2_2RiskParam.makerLimit
+          .div(v2_2RiskParam.efficiencyLimit)
+          .mul(NewProtocolParameter.minScale as BigNumberish) // TODO: Determine the right value for this
+
+        return market.populateTransaction.updateRiskParameter({
+          ...v2_2RiskParam,
+          makerFee: {
+            linearFee: v2_2RiskParam.makerFee.linearFee,
+            proportionalFee: v2_2RiskParam.makerFee.proportionalFee,
+            scale: scaleLimit,
+          },
+          takerFee: {
+            linearFee: v2_2RiskParam.takerFee.linearFee,
+            proportionalFee: v2_2RiskParam.takerFee.proportionalFee,
+            adiabaticFee: v2_2RiskParam.takerFee.adiabaticFee,
+            scale: scaleLimit,
+          },
         })
-      }, `Update Vault ${vault.address} Parameter`)
+      }, `Update Market ${market.address} Risk Parameter`)
     }
 
     if (args.timelock) {
