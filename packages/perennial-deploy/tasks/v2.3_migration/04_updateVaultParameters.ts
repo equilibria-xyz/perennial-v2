@@ -39,10 +39,10 @@ export default task('04_v2_3_update-vault-parameters', 'Updates vault parameters
     const vaults = await Promise.all(vaultAddrs.map(a => ethers.getContractAt('IVault', a)))
     for (const vault of vaults) {
       await addPayload(async () => {
-        const currentVault = await ethers.getContractAt((await getArtifact('VaultV2_2')).abi, vault.address)
-        const currentVaultParameter = (await currentVault.callStatic.parameter()) as { cap: BigNumber }
+        const v2_2Vault = await ethers.getContractAt((await getArtifact('VaultV2_2')).abi, vault.address)
+        const v2_2Param = (await v2_2Vault.callStatic.parameter()) as { cap: BigNumber }
         return vault.populateTransaction.updateParameter({
-          maxDeposit: currentVaultParameter.cap,
+          maxDeposit: v2_2Param.cap,
           minDeposit: VaultMinimumDeposit,
         })
       }, `Update Vault ${vault.address} Parameter`)
