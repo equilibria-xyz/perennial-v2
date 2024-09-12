@@ -249,8 +249,8 @@ testOracles.forEach(testOracle => {
         SIGNER,
         commitmentGasOracle.address,
         settlementGasOracle.address,
-        keeperOracleImpl.address,
         'SignedPriceFactory',
+        keeperOracleImpl.address,
       )
       await metaquantsOracleFactory.initialize(oracleFactory.address)
       await oracleFactory.register(metaquantsOracleFactory.address)
@@ -479,8 +479,8 @@ testOracles.forEach(testOracle => {
             SIGNER,
             commitmentGasOracle.address,
             settlementGasOracle.address,
-            await metaquantsOracleFactory.implementation(),
             'SignedPriceFactory',
+            await metaquantsOracleFactory.implementation(),
           )
           await metaquantsOracleFactory2.initialize(oracleFactory.address)
           await expect(metaquantsOracleFactory2.initialize(oracleFactory.address))
