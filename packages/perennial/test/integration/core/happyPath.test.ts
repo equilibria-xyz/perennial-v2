@@ -1490,7 +1490,7 @@ describe('Happy Path', () => {
     expect((await market.global()).exposure).to.equals(0)
   })
 
-  it('opens intent order w/ signer', async () => {
+  it.only('opens intent order w/ signer', async () => {
     const { owner, user, userB, userC, marketFactory, dsu } = instanceVars
 
     // userC allowed to sign messages for user
@@ -1564,6 +1564,21 @@ describe('Happy Path', () => {
         'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](userC.address, intent, signature)
 
+    // userC is not allowed to sign messages for user
+    await marketFactory.connect(user).updateSigner(userC.address, false)
+
+    intent.common.nonce = 1
+    signature = await signIntent(userC, verifier, intent)
+
+    // ensure userC is not able to make transaction for user if not signer
+    await expect(
+      market
+        .connect(userC)
+        [
+          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](userC.address, intent, signature),
+    ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
+
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
@@ -1597,7 +1612,6 @@ describe('Happy Path', () => {
 
     // update position with incorrect guarantee referrer
     intent.solver = userB.address
-    intent.common.nonce = 1
     signature = await signIntent(userC, verifier, intent)
 
     await expect(
@@ -1783,13 +1797,28 @@ describe('Happy Path', () => {
 
     const verifier = Verifier__factory.connect(await market.verifier(), owner)
 
-    const signature = await signIntent(userC, verifier, intent)
+    let signature = await signIntent(userC, verifier, intent)
 
     await market
       .connect(userC)
       [
         'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](userC.address, intent, signature)
+
+    // disable userC as operator for user
+    await marketFactory.connect(user).updateOperator(userC.address, false)
+
+    intent.common.nonce = 1
+    signature = await signIntent(userC, verifier, intent)
+
+    // ensure userC is not able to make transaction if not operator
+    await expect(
+      market
+        .connect(userC)
+        [
+          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](userC.address, intent, signature),
+    ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
