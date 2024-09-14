@@ -49,6 +49,10 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
       'Register PythFactory with OracleFactory',
     )
 
+    if ((await pythFactory.owner()) !== owner) {
+      await addPayload(() => pythFactory.populateTransaction.acceptOwner(), 'Accept PythFactory Ownership')
+    }
+
     await addPayload(
       () =>
         oracleFactory.populateTransaction.updateParameter({

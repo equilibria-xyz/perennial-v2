@@ -37,7 +37,7 @@ export default task('settle-markets', 'Settles users across all markets')
     )
 
     const keeperFactory = await ethers.getContractAt(
-      'PythFactory',
+      'IKeeperFactory',
       args.factoryaddress ?? (await get('PythFactory')).address,
     )
     const oracles = await keeperFactory.queryFilter(keeperFactory.filters.OracleCreated())

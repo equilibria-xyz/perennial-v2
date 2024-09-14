@@ -2038,18 +2038,9 @@
   resolved "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-4.8.0.tgz"
   integrity sha512-AGuwhRRL+NaKx73WKRNzeCxOCOCxpaqF+kp8TJ89QzAipSwZy/NoflkWaL9bywXFRhIzXt8j38sfF7KBKCPWLw==
 
-"@perennial/sdk@^0.0.2-beta25":
-  version "0.0.2-beta25"
-  resolved "https://registry.yarnpkg.com/@perennial/sdk/-/sdk-0.0.2-beta25.tgz#c0fbd655a8319a22c52fb29c27ff22a7fb4eb68c"
-  integrity sha512-/qitZhSfs+tZK1MGfMVQIsjmsoFdy/14yLrlylpTr4YYhwKStMEmcHsTmPjUD5FP+mJSQ98QePWhST2zwb/Cxw==
-  dependencies:
-    "@microsoft/tsdoc" "^0.14.2"
-    "@pythnetwork/hermes-client" "^1.0.4"
-    axios "^1.7.2"
-    date-fns "^2.30.0"
-    graphql "^16.6.0"
-    graphql-request "^6.0.0"
-    viem "2.9.9"
+"@perennial/sdk@link:../perennial-v2-sdk-ts":
+  version "0.0.0"
+  uid ""
 
 "@pythnetwork/hermes-client@^1.0.4":
   version "1.0.4"

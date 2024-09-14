@@ -5,8 +5,6 @@ import { utils } from 'ethers'
 import { getAddress, Hex } from 'viem'
 import PerennialSDK, { SupportedChainId } from '@perennial/sdk'
 
-const PYTH_ENDPOINT = 'https://hermes.pyth.network'
-
 export default task('commit-price', 'Commits a price for the given price ids')
   .addParam('priceids', 'The price ids to commit (comma separated)', '', types.string)
   .addFlag('dry', 'Do not commit prices, print out calldata instead')
@@ -25,11 +23,12 @@ export default task('commit-price', 'Commits a price for the given price ids')
         deployments: { get },
       } = HRE
 
-      const commitments: { action: number; args: string }[] = []
       const keeperFactory = await ethers.getContractAt(
         'IKeeperFactory',
         factoryaddress ?? (await get('PythFactory')).address,
       )
+      const multiInvoker = await ethers.getContractAt('IMultiInvoker', (await get('MultiInvoker')).address)
+
       const oracles = await keeperFactory.queryFilter(keeperFactory.filters.OracleCreated())
       priceIds = oracles.map(oracle => ({ id: oracle.args.id, oracle: oracle.args.oracle }))
       if (priceIds_) {
@@ -39,13 +38,16 @@ export default task('commit-price', 'Commits a price for the given price ids')
       const sdk = new PerennialSDK({
         chainId: ethers.provider.network.chainId as SupportedChainId,
         rpcUrl: ethers.provider.connection.url,
-        pythUrl: PYTH_ENDPOINT,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        pythUrl: process.env.PYTH_URL!,
         cryptexUrl: process.env.CRYPTEX_URL,
       })
 
+      const commitments: { action: number; args: string }[] = []
+
       console.log('Gathering commitments for priceIds:', priceIds.map(p => p.id).join(','), 'at timestamp', timestamp)
       console.log('Using factory at:', keeperFactory.address)
-      const minValidTime = await keeperFactory.callStatic.validFrom()
+      const minValidTime = (await keeperFactory.callStatic.parameter()).validFrom
       for (const { id: priceId, oracle } of priceIds) {
         const underlyingId = await keeperFactory.callStatic.toUnderlyingId(priceId)
         if (underlyingId === ethers.constants.HashZero) {
@@ -74,19 +76,26 @@ export default task('commit-price', 'Commits a price for the given price ids')
           continue
         }
 
-        commitments.push(
-          buildCommitPrice({
-            oracleProviderFactory: keeperFactory.address,
-            value: vaa.value,
-            ids: vaa.ids,
-            version: BigInt(vaa.version),
-            vaa: vaa.updateData,
-            revertOnFailure: true,
-          }),
-        )
+        const commitment = buildCommitPrice({
+          oracleProviderFactory: keeperFactory.address,
+          value: vaa.value,
+          ids: vaa.ids,
+          version: BigInt(vaa.version),
+          vaa: vaa.updateData,
+          revertOnFailure: true,
+        })
+
+        try {
+          await multiInvoker.callStatic['invoke((uint8,bytes)[])']([commitment])
+        } catch (e) {
+          console.error('Error committing price for', priceId, ':', e)
+          continue
+        }
+
+        commitments.push(commitment)
       }
 
-      const multiInvoker = await ethers.getContractAt('IMultiInvoker', (await get('MultiInvoker')).address)
+      if (!commitments.length) throw new Error('No commitments found')
 
       if (dry) {
         console.log('Dry run, not committing. Calldata')

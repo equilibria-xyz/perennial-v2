@@ -66,7 +66,7 @@ export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 
     for (const market of markets) {
       await addPayload(() => market.populateTransaction.migrate(), `Migrate Market ${market.address}`)
       await addPayload(
-        () => market.populateTransaction.updateParameter(NewMarketParameter),
+        () => market.populateTransaction.updateParameter({ ...NewMarketParameter, settle: true }),
         `Update Market ${market.address} Parameter`,
       )
       await addPayload(
