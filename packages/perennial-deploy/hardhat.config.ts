@@ -2,6 +2,8 @@ import defaultConfig from '../common/hardhat.default.config'
 import { solidityOverrides as coreOverrides } from '@equilibria/perennial-v2/hardhat.config'
 import { solidityOverrides as vaultOverrides } from '@equilibria/perennial-v2-vault/hardhat.config'
 import './tasks'
+import { extendEnvironment } from 'hardhat/config'
+import { HardhatRuntimeEnvironment, HttpNetworkUserConfig } from 'hardhat/types'
 
 const config = defaultConfig({
   dependencyPaths: [
@@ -44,6 +46,14 @@ const config = defaultConfig({
       ...vaultOverrides['contracts/Vault.sol'],
     },
   },
+})
+
+// Needed to allow impersonation of accounts for testing against virtual networks
+extendEnvironment((hre: HardhatRuntimeEnvironment) => {
+  const config = hre.network.config as HttpNetworkUserConfig
+  if (config?.url) {
+    hre.ethers.provider = new hre.ethers.providers.JsonRpcProvider(config.url)
+  }
 })
 
 export default config

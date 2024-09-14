@@ -1,8 +1,9 @@
 import '@nomiclabs/hardhat-ethers'
 import { task, types } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
-import { EvmPriceServiceConnection } from '@pythnetwork/pyth-evm-js'
 import { utils } from 'ethers'
+import { getAddress, Hex } from 'viem'
+import PerennialSDK, { SupportedChainId } from '@perennial/sdk'
 
 const PYTH_ENDPOINT = 'https://hermes.pyth.network'
 
@@ -17,7 +18,7 @@ export default task('commit-price', 'Commits a price for the given price ids')
       { priceids: priceIds_, timestamp, dry, factoryaddress, gaslimit }: TaskArguments,
       HRE: HardhatRuntimeEnvironment,
     ) => {
-      let priceIds: string[] = []
+      let priceIds: { id: string; oracle: string }[] = []
 
       const {
         ethers,
@@ -25,41 +26,61 @@ export default task('commit-price', 'Commits a price for the given price ids')
       } = HRE
 
       const commitments: { action: number; args: string }[] = []
-      const pythFactory = await ethers.getContractAt(
+      const keeperFactory = await ethers.getContractAt(
         'IKeeperFactory',
         factoryaddress ?? (await get('PythFactory')).address,
       )
-      if (!priceIds_) {
-        const oracles = await pythFactory.queryFilter(pythFactory.filters.OracleCreated())
-        priceIds = oracles.map(oracle => oracle.args.id)
-      } else {
-        priceIds = priceIds_.split(',')
+      const oracles = await keeperFactory.queryFilter(keeperFactory.filters.OracleCreated())
+      priceIds = oracles.map(oracle => ({ id: oracle.args.id, oracle: oracle.args.oracle }))
+      if (priceIds_) {
+        priceIds = priceIds.filter(p => priceIds_.split(',').includes(p.id))
       }
 
-      console.log('Gathering commitments for priceIds:', priceIds.join(','), 'at timestamp', timestamp)
-      console.log('Using factory at:', pythFactory.address)
-      const minValidTime = (await pythFactory.callStatic.parameter()).validFrom
-      for (const priceId of priceIds) {
-        const pyth = new EvmPriceServiceConnection(PYTH_ENDPOINT, { priceFeedRequestConfig: { binary: true } })
-        const underlyingId = await pythFactory.callStatic.toUnderlyingId(priceId)
+      const sdk = new PerennialSDK({
+        chainId: ethers.provider.network.chainId as SupportedChainId,
+        rpcUrl: ethers.provider.connection.url,
+        pythUrl: PYTH_ENDPOINT,
+        cryptexUrl: process.env.CRYPTEX_URL,
+      })
+
+      console.log('Gathering commitments for priceIds:', priceIds.map(p => p.id).join(','), 'at timestamp', timestamp)
+      console.log('Using factory at:', keeperFactory.address)
+      const minValidTime = await keeperFactory.callStatic.validFrom()
+      for (const { id: priceId, oracle } of priceIds) {
+        const underlyingId = await keeperFactory.callStatic.toUnderlyingId(priceId)
         if (underlyingId === ethers.constants.HashZero) {
           console.warn('No underlying id found for', priceId, 'skipping...')
           continue
         }
 
-        const vaa = await getRecentVaa({
-          pyth,
-          feedIds: [{ providerId: underlyingId, minValidTime: minValidTime.toBigInt() }],
-          timestamp,
-        })
+        const request = {
+          factory: getAddress(keeperFactory.address),
+          subOracle: getAddress(oracle),
+          id: priceId as Hex,
+          underlyingId: underlyingId as Hex,
+          minValidTime: minValidTime.toBigInt(),
+        }
+        const [vaa] = timestamp
+          ? await sdk.oracles.read.oracleCommitmentsTimestamp({
+              timestamp,
+              requests: [request],
+            })
+          : await sdk.oracles.read.oracleCommitmentsLatest({
+              requests: [request],
+            })
+
+        if (!vaa) {
+          console.warn('No VAA found for', priceId, 'skipping...')
+          continue
+        }
 
         commitments.push(
           buildCommitPrice({
-            ...vaa[0],
-            oracleProviderFactory: pythFactory.address,
-            value: 1n,
-            ids: [priceId],
-            version: BigInt(vaa[0].publishTime) - minValidTime.toBigInt(),
+            oracleProviderFactory: keeperFactory.address,
+            value: vaa.value,
+            ids: vaa.ids,
+            version: BigInt(vaa.version),
+            vaa: vaa.updateData,
             revertOnFailure: true,
           }),
         )
@@ -82,38 +103,6 @@ export default task('commit-price', 'Commits a price for the given price ids')
       }
     },
   )
-
-const getRecentVaa = async ({
-  pyth,
-  feedIds,
-  timestamp,
-}: {
-  pyth: EvmPriceServiceConnection
-  feedIds: { providerId: string; minValidTime: bigint }[]
-  timestamp?: number
-}) => {
-  if (timestamp && feedIds.length > 1) throw new Error('Cannot query multiple feeds with a timestamp')
-
-  const priceFeeds = timestamp
-    ? [await pyth.getPriceFeed(feedIds[0].providerId, timestamp)]
-    : await pyth.getLatestPriceFeeds(feedIds.map(({ providerId }) => providerId))
-  if (!priceFeeds) throw new Error('No price feeds found')
-
-  return priceFeeds.map(priceFeed => {
-    const vaa = priceFeed.getVAA()
-    if (!vaa) throw new Error('No VAA found')
-
-    const publishTime = priceFeed.getPriceUnchecked().publishTime
-    const minValidTime = feedIds.find(({ providerId }) => `0x${providerId}` === priceFeed.id)?.minValidTime
-
-    return {
-      feedId: priceFeed.id,
-      vaa: `0x${Buffer.from(vaa, 'base64').toString('hex')}`,
-      publishTime,
-      version: BigInt(publishTime) - (minValidTime ?? 4n),
-    }
-  })
-}
 
 const buildCommitPrice = ({
   oracleProviderFactory,

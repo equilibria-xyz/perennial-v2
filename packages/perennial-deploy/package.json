@@ -34,7 +34,7 @@
   "dependencies": {
     "@defi-wonderland/smock": "^2.3.5",
     "@equilibria/perennial-v2": "1.3.0",
-    "@perennial/sdk": "^0.0.2-beta23",
+    "@perennial/sdk": "^0.0.2-beta25",
     "@pythnetwork/pyth-evm-js": "^1.29.0",
     "@types/isomorphic-fetch": "^0.0.37",
     "graphql": "^16.8.1",
