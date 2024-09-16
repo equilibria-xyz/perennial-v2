@@ -43,7 +43,7 @@ const FORK_USE_REAL_DEPLOYS = process.env.FORK_USE_REAL_DEPLOYS === 'true' || fa
 const FORK_USE_REAL_ACCOUNT = process.env.FORK_USE_REAL_ACCOUNT === 'true' || false
 
 const NODE_INTERVAL_MINING = process.env.NODE_INTERVAL_MINING ? parseInt(process.env.NODE_INTERVAL_MINING) : undefined
-const AUTO_IMPERSONATE = process.env.AUTO_IMPERSONATE === 'true' || false
+export const AUTO_IMPERSONATE = process.env.AUTO_IMPERSONATE === 'true' || false
 
 const MOCHA_PARALLEL = process.env.MOCHA_PARALLEL === 'true' || false
 const MOCHA_REPORTER = process.env.MOCHA_REPORTER || 'spec'
