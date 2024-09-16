@@ -1490,7 +1490,7 @@ describe('Happy Path', () => {
     expect((await market.global()).exposure).to.equals(0)
   })
 
-  it.only('opens intent order w/ signer', async () => {
+  it('opens intent order w/ signer', async () => {
     const { owner, user, userB, userC, marketFactory, dsu } = instanceVars
 
     // userC allowed to sign messages for user
