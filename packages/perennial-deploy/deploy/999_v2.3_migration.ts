@@ -363,6 +363,7 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
       '0x6B9d43F52C7d49C298c69d2e4C26f58D20886256',
       (await get('CommitmentGasOracle')).address,
       (await get('SettlementGasOracle')).address,
+      'CryptexFactory',
       (await get('KeeperOracleImpl')).address,
     ]
     await deploy('CryptexFactoryImpl', {

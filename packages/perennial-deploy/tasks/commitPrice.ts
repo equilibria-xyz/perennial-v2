@@ -85,13 +85,6 @@ export default task('commit-price', 'Commits a price for the given price ids')
           revertOnFailure: true,
         })
 
-        try {
-          await multiInvoker.callStatic['invoke((uint8,bytes)[])']([commitment])
-        } catch (e) {
-          console.error('Error committing price for', priceId, ':', e)
-          continue
-        }
-
         commitments.push(commitment)
       }
 

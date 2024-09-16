@@ -1,4 +1,4 @@
-import defaultConfig from '../common/hardhat.default.config'
+import defaultConfig, { AUTO_IMPERSONATE } from '../common/hardhat.default.config'
 import { solidityOverrides as coreOverrides } from '@equilibria/perennial-v2/hardhat.config'
 import { solidityOverrides as vaultOverrides } from '@equilibria/perennial-v2-vault/hardhat.config'
 import './tasks'
@@ -49,11 +49,12 @@ const config = defaultConfig({
 })
 
 // Needed to allow impersonation of accounts for testing against virtual networks
-extendEnvironment((hre: HardhatRuntimeEnvironment) => {
-  const config = hre.network.config as HttpNetworkUserConfig
-  if (config?.url) {
-    hre.ethers.provider = new hre.ethers.providers.JsonRpcProvider(config.url)
-  }
-})
+if (AUTO_IMPERSONATE)
+  extendEnvironment((hre: HardhatRuntimeEnvironment) => {
+    const config = hre.network.config as HttpNetworkUserConfig
+    if (config?.url) {
+      hre.ethers.provider = new hre.ethers.providers.JsonRpcProvider(config.url)
+    }
+  })
 
 export default config
