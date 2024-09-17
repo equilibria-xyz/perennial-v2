@@ -976,6 +976,13 @@ describe('Position', () => {
           )
         })
       })
+
+      describe('#margin', () => {
+        it('margin is positive', async () => {
+          await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
+          expect(await position.margin(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER)).to.equals(9000)
+        })
+      })
     })
   })
 })

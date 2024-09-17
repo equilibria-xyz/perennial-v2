@@ -517,6 +517,18 @@ describe('Guarantee', () => {
         })
       })
     })
+
+    describe('#takerTotal', () => {
+      it('calculate taker total', async () => {
+        await expect(
+          await guaranteeLocal.takerTotal({
+            ...DEFAULT_GUARANTEE,
+            takerPos: 4,
+            takerNeg: 3,
+          }),
+        ).to.equal(7)
+      })
+    })
   })
 
   function shouldBehaveLike(

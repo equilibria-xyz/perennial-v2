@@ -40,6 +40,7 @@ import {
   IPayoffProvider,
   IPayoffProvider__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
+import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
 const { deployments, ethers } = HRE
 
 export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'
@@ -47,6 +48,7 @@ const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export interface InstanceVars {
   owner: SignerWithAddress
+  coordinator: SignerWithAddress
   pauser: SignerWithAddress
   user: SignerWithAddress
   userB: SignerWithAddress
@@ -66,7 +68,7 @@ export interface InstanceVars {
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
-  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD, beneficiaryB, coordinator] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
@@ -94,7 +96,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
-  const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+  const verifierImpl = await new Verifier__factory(owner).deploy()
   const verifierProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     verifierImpl.address,
     proxyAdmin.address,
@@ -179,6 +181,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   return {
     owner,
+    coordinator,
     pauser,
     user,
     userB,
@@ -215,7 +218,7 @@ export async function createMarket(
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
-  const { owner, marketFactory, beneficiaryB, oracle, dsu } = instanceVars
+  const { owner, marketFactory, coordinator, beneficiaryB, oracle, dsu } = instanceVars
 
   const definition = {
     token: dsu.address,
@@ -276,6 +279,7 @@ export async function createMarket(
   await market.updateRiskParameter(riskParameter)
   await market.updateBeneficiary(beneficiaryB.address)
   await market.updateParameter(marketParameter)
+  await market.updateCoordinator(coordinator.address)
 
   await oracle.register(market.address)
 
