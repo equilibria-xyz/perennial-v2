@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import "@equilibria/root/attribute/interfaces/IInstance.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
 import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "../Oracle.sol";
+import "./IOracle.sol";
 import { PriceResponse } from "../keeper/types/PriceResponse.sol";
 
 interface IKeeperOracle is IOracleProvider, IInstance {
