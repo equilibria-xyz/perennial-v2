@@ -162,6 +162,10 @@ describe('ChainlinkFactory', () => {
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
   })
 
+  it('factoryType is ChainlinkFactory', async () => {
+    expect(await chainlinkFactory.factoryType()).to.equal('ChainlinkFactory')
+  })
+
   it('parses Chainlink report correctly', async () => {
     market.claimFee.returns(utils.parseUnits('0.25', 6))
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)

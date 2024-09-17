@@ -10,13 +10,31 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
 
     address public immutable signer;
 
+    bytes32 private immutable _factoryType;
+
     constructor(
         address signer_,
         IGasOracle commitmentGasOracle_,
         IGasOracle settlementGasOracle_,
+        string memory factoryType_,
         address implementation_
     ) KeeperFactory(commitmentGasOracle_, settlementGasOracle_, implementation_) {
         signer = signer_;
+        bytes memory bstr = bytes(factoryType_);
+        _factoryType = bytes32(uint256(bytes32(bstr)) | bstr.length);
+    }
+
+    /// @dev Uses's OZ's short string storage util (only available in newer versions of oz/contracts)
+    ///      https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/ShortStrings.sol
+    function factoryType() external view returns (string memory) {
+        bytes32 shortString = _factoryType;
+        uint256 len = uint256(_factoryType) & 0xFF;
+        string memory str = new string(32);
+        assembly ("memory-safe") {
+            mstore(str, len)
+            mstore(add(str, 0x20), shortString)
+        }
+        return str;
     }
 
     /// @notice Validates and parses the update data payload against the specified version

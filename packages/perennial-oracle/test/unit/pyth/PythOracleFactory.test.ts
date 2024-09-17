@@ -141,6 +141,10 @@ describe('PythOracleFactory', () => {
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
   })
 
+  it('factoryType is PythFactory', async () => {
+    expect(await pythOracleFactory.factoryType()).to.equal('PythFactory')
+  })
+
   it('parses Pyth exponents correctly', async () => {
     market.claimFee.returns(utils.parseUnits('0.25', 6))
 

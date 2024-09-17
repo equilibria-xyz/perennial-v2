@@ -8,6 +8,7 @@ import "../keeper/KeeperFactory.sol";
 /// @notice Factory contract for creating and managing Chainlink oracles
 contract ChainlinkFactory is IChainlinkFactory, KeeperFactory {
     uint256 private constant PERCENTAGE_SCALAR = 1e18;
+    string public constant factoryType = "ChainlinkFactory";
 
     /// @dev Chainlink verifier contract
     IVerifierProxy public immutable chainlink;
