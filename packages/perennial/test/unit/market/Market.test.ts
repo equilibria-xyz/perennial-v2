@@ -22272,7 +22272,6 @@ describe('Market', () => {
             })
 
             const marketParameter = { ...(await market.parameter()) }
-            console.log('Market Parameter ->', marketParameter)
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
@@ -22400,13 +22399,10 @@ describe('Market', () => {
             await settle(market, user)
             await settle(market, userB)
             await settle(market, userC)
-            console.log('====USER D ===')
-            console.log('')
             await settle(market, userD)
-            console.log('==============')
 
             // rate * elapsed * utilization * min(maker, taker) * price
-            // (0.28 / 365 / 24 / 60 / 60 ) * 3600 * 15 * 123 * 2 = 78630
+            // (0.28 / 365 / 24 / 60 / 60 ) * 3600 * 30 * 123 = 78630
             const expectedInterest = BigNumber.from(78630)
             const expectedLongInterest = expectedInterest.mul(3).div(4)
             const expectedFundingFee = BigNumber.from(3320)

@@ -17,6 +17,7 @@ import {
   expectCheckpointEq,
   DEFAULT_GLOBAL,
   DEFAULT_GUARANTEE,
+  expectGuaranteeEq,
 } from '../../../../common/testutil/types'
 import { Market } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
@@ -25,6 +26,9 @@ import {
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
+import { expectIntentEq } from '../../unit/market/Market.test'
+import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
+import { signIntent } from '../../../../perennial-verifier/test/helpers/erc712'
 
 export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
 
@@ -2383,6 +2387,202 @@ describe('Fees', () => {
       await expect(market.connect(coordinator).claimFee(coordinator.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(coordinator.address, coordinator.address, expectedRiskFee)
+    })
+  })
+
+  describe('intent order fee exclusion', async () => {
+    it.only('opens long position and another intent order and settles later with fee', async () => {
+      const { owner, user, userB, userC, userD, marketFactory, dsu, chainlink } = instanceVars
+
+      // userC allowed to interact with user's account
+      await marketFactory.connect(user).updateOperator(userC.address, true)
+
+      const protocolParameter = { ...(await marketFactory.parameter()) }
+      protocolParameter.referralFee = parse6decimal('0.20')
+
+      await marketFactory.updateParameter(protocolParameter)
+
+      const POSITION = parse6decimal('10')
+      const COLLATERAL = parse6decimal('10000')
+
+      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+
+      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+
+      await market
+        .connect(userC)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+      await dsu.connect(userD).approve(market.address, COLLATERAL.mul(1e12))
+
+      await market
+        .connect(userD)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userD.address, 0, POSITION, 0, COLLATERAL, false)
+
+      const intent = {
+        amount: POSITION.div(2),
+        price: parse6decimal('125'),
+        fee: parse6decimal('0.5'),
+        originator: userC.address,
+        solver: owner.address,
+        collateralization: parse6decimal('0.01'),
+        common: {
+          account: user.address,
+          signer: user.address,
+          domain: market.address,
+          nonce: 0,
+          group: 0,
+          expiry: constants.MaxUint256,
+        },
+      }
+
+      const verifier = Verifier__factory.connect(await market.verifier(), owner)
+
+      const signature = await signIntent(user, verifier, intent)
+
+      await market
+        .connect(userC)
+        [
+          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](userC.address, intent, signature)
+
+      expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+        ...DEFAULT_GUARANTEE,
+        orders: 1,
+        takerPos: POSITION.div(2),
+        takerNeg: POSITION.div(2),
+        takerFee: POSITION.div(2),
+      })
+      expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+        ...DEFAULT_GUARANTEE,
+        orders: 1,
+        notional: parse6decimal('625'),
+        takerPos: POSITION.div(2),
+        referral: parse6decimal('0.5'),
+      })
+      expectOrderEq(await market.pending(), {
+        ...DEFAULT_ORDER,
+        orders: 4,
+        collateral: COLLATERAL.mul(4),
+        makerPos: POSITION,
+        longPos: POSITION.mul(3).div(2),
+        shortPos: POSITION.div(2),
+        takerReferral: parse6decimal('1'),
+      })
+      expectOrderEq(await market.pendings(user.address), {
+        ...DEFAULT_ORDER,
+        orders: 1,
+        collateral: COLLATERAL,
+        longPos: POSITION.div(2),
+        takerReferral: parse6decimal('1'),
+      })
+
+      await chainlink.nextWithPriceModification(price => BigNumber.from(123))
+
+      await market.settle(user.address)
+      await market.settle(userB.address)
+      await market.settle(userC.address)
+      await market.settle(userD.address)
+
+      expectIntentEq(intent, user.address, userC.address, market)
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: COLLATERAL.sub(69820500),
+      })
+      expectPositionEq(await market.positions(user.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        long: POSITION.div(2),
+      })
+      expectOrderEq(await market.pendingOrders(user.address, 1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        longPos: POSITION.div(2),
+        takerReferral: POSITION.div(2).mul(2).div(10),
+        collateral: COLLATERAL,
+      })
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+      })
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: COLLATERAL.sub(250542550),
+      })
+      expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        maker: POSITION,
+      })
+      expectOrderEq(await market.pendingOrders(userB.address, 1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
+      })
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+      })
+
+      expectLocalEq(await market.locals(userC.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: COLLATERAL.add(55585125),
+        claimable: BigNumber.from(1423538),
+      })
+      expectPositionEq(await market.positions(userC.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        short: POSITION.div(2),
+      })
+      expectOrderEq(await market.pendingOrders(userC.address, 1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        shortPos: POSITION.div(2),
+        collateral: COLLATERAL,
+      })
+      expectCheckpointEq(await market.checkpoints(userC.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+      })
+
+      expectLocalEq(await market.locals(userD.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: COLLATERAL.sub(1565890920),
+      })
+      expectPositionEq(await market.positions(userD.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        long: POSITION,
+      })
+      expectOrderEq(await market.pendingOrders(userD.address, 1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        longPos: POSITION,
+        collateral: COLLATERAL,
+      })
+      expectCheckpointEq(await market.checkpoints(userD.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+      })
     })
   })
 })
