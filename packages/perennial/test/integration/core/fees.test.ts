@@ -2431,7 +2431,7 @@ describe('Fees', () => {
 
       const intent = {
         amount: POSITION.div(2),
-        price: parse6decimal('125'),
+        price: PRICE.add(2),
         fee: parse6decimal('0.5'),
         originator: userC.address,
         solver: owner.address,
@@ -2466,7 +2466,7 @@ describe('Fees', () => {
       expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
         ...DEFAULT_GUARANTEE,
         orders: 1,
-        notional: parse6decimal('625'),
+        notional: BigNumber.from(569414885),
         takerPos: POSITION.div(2),
         referral: parse6decimal('0.5'),
       })
@@ -2487,7 +2487,7 @@ describe('Fees', () => {
         takerReferral: parse6decimal('1'),
       })
 
-      await chainlink.nextWithPriceModification(price => BigNumber.from(123))
+      await chainlink.next()
 
       await market.settle(user.address)
       await market.settle(userB.address)
@@ -2499,7 +2499,7 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(69820500),
+        collateral: COLLATERAL.sub(14656960),
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -2521,7 +2521,7 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(250542550),
+        collateral: COLLATERAL.sub(250352300),
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -2543,8 +2543,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(55585125),
-        claimable: BigNumber.from(1423538),
+        collateral: COLLATERAL.add(432395),
+        claimable: BigNumber.from(1422457),
       })
       expectPositionEq(await market.positions(userC.address), {
         ...DEFAULT_POSITION,
@@ -2566,7 +2566,7 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(1565890920),
+        collateral: COLLATERAL.sub(1564701860),
       })
       expectPositionEq(await market.positions(userD.address), {
         ...DEFAULT_POSITION,
