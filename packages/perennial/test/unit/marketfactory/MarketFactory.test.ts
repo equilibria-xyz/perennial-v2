@@ -399,17 +399,23 @@ describe('MarketFactory', () => {
 
   describe('#updateExtension', async () => {
     it('updates the operator status', async () => {
-      await expect(factory.connect(user).updateExtension(owner.address, true))
+      await expect(factory.connect(owner).updateExtension(owner.address, true))
         .to.emit(factory, 'ExtensionUpdated')
         .withArgs(owner.address, true)
 
       expect(await factory.extensions(owner.address)).to.equal(true)
 
-      await expect(factory.connect(user).updateExtension(owner.address, false))
+      await expect(factory.connect(owner).updateExtension(owner.address, false))
         .to.emit(factory, 'ExtensionUpdated')
         .withArgs(owner.address, false)
 
       expect(await factory.extensions(owner.address)).to.equal(false)
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(factory.connect(user).updateExtension(user.address, true))
+        .to.be.revertedWithCustomError(factory, 'OwnableNotOwnerError')
+        .withArgs(user.address)
     })
   })
 
