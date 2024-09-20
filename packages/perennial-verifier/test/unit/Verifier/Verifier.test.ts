@@ -1,12 +1,18 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
-import { constants } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
 
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { Verifier, Verifier__factory, IERC1271 } from '../../../types/generated'
+import {
+  Verifier,
+  Verifier__factory,
+  IERC1271,
+  IMarketFactory,
+  IMarketFactory__factory,
+} from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import {
   signIntent,
@@ -27,13 +33,18 @@ describe('Verifier', () => {
   let signer: SignerWithAddress
   let operator: SignerWithAddress
   let verifier: Verifier
+  let marketFactory: FakeContract<IMarketFactory>
   let scSigner: FakeContract<IERC1271>
 
   beforeEach(async () => {
     ;[owner, market, caller, caller2, signer, operator] = await ethers.getSigners()
 
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     verifier = await new Verifier__factory(owner).deploy()
+    verifier.updateMarketFactory(marketFactory.address)
     scSigner = await smock.fake<IERC1271>('IERC1271')
+
+    marketFactory.authorization.returns([true, true, BigNumber.from(0)])
   })
 
   describe('#verifyCommon', () => {
@@ -54,6 +65,28 @@ describe('Verifier', () => {
         .withArgs(caller.address, 0)
 
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject common w/ invalid signer or operator', async () => {
+      const commonMessage = {
+        account: caller.address,
+        signer: caller2.address,
+        domain: caller2.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      }
+      const signature = await signCommon(caller2, verifier, commonMessage)
+
+      marketFactory.authorization.returns([false, false, BigNumber.from(0)])
+
+      await expect(verifier.connect(caller2).verifyCommon(commonMessage, signature)).to.be.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidOperatorError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+      marketFactory.authorization.reset()
     })
   })
 

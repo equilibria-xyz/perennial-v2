@@ -3,10 +3,12 @@ pragma solidity ^0.8.13;
 
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 
 import { IVerifier } from "./interfaces/IVerifier.sol";
+import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
@@ -21,7 +23,10 @@ import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBat
 ///      Messages verification request must come from the domain address if it is set.
 ///       - In the case of intent / fills, this means that the market should be set as the domain.
 ///
-contract Verifier is VerifierBase, IVerifier {
+contract Verifier is VerifierBase, IVerifier, Ownable {
+    /// @dev market factory to check authorization
+    IMarketFactory internal marketFactory;
+
     /// @dev Initializes the domain separator and parameter caches
     constructor() EIP712("Perennial", "1.0.0") { }
 
@@ -87,5 +92,29 @@ contract Verifier is VerifierBase, IVerifier {
             _hashTypedDataV4(AccessUpdateBatchLib.hash(accessUpdateBatch)),
             signature
         )) revert VerifierInvalidSignerError();
+    }
+
+    /// @notice Updates market factory contract
+    /// @param _marketFactory address of market factory contract
+    function updateMarketFactory(IMarketFactory _marketFactory) external onlyOwner {
+        if (address(_marketFactory) == address(0)) {
+            revert VerifierMarketFactoryZeroAddressError();
+        }
+        marketFactory = _marketFactory;
+    }
+
+    /// @dev Validates the common data of a message
+    modifier validateAndCancel(Common calldata common, bytes calldata signature) override {
+        (bool isOperator, bool isSigner, ) = marketFactory.authorization(common.account, address(0), common.signer, address(0));
+        if (!isSigner && !isOperator) revert VerifierInvalidOperatorError();
+        if (common.domain != msg.sender) revert VerifierInvalidDomainError();
+        if (signature.length != 65) revert VerifierInvalidSignatureError();
+        if (nonces[common.account][common.nonce]) revert VerifierInvalidNonceError();
+        if (groups[common.account][common.group]) revert VerifierInvalidGroupError();
+        if (block.timestamp >= common.expiry) revert VerifierInvalidExpiryError();
+
+        _cancelNonce(common.account, common.nonce);
+
+        _;
     }
 }
