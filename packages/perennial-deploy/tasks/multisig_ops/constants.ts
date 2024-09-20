@@ -537,11 +537,11 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
 }
 
 export const NewMarketParameter: MarketParameterStruct = {
-  fundingFee: utils.parseUnits('0.10', 6),
-  interestFee: utils.parseUnits('0.10', 6),
-  makerFee: utils.parseUnits('0.05', 6),
-  takerFee: utils.parseUnits('0.05', 6),
-  riskFee: utils.parseUnits('1', 6),
+  fundingFee: utils.parseUnits('0.10', 6), // TODO: Determine this value
+  interestFee: utils.parseUnits('0.10', 6), // TODO: Determine this value
+  makerFee: utils.parseUnits('0.0005', 6), // TODO: Determine this value
+  takerFee: utils.parseUnits('0.0005', 6), // TODO: Determine this value
+  riskFee: utils.parseUnits('1', 6), // TODO: Determine this value
   maxPendingGlobal: 12,
   maxPendingLocal: 6,
   closed: false,
