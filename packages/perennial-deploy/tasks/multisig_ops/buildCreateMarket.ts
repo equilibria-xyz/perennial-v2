@@ -13,6 +13,7 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
   .addOptionalParam('decimals', 'The number of decimals to use')
   .addOptionalParam('nonceOffset', 'The nonce offset to use if launching multiple markets')
   .addFlag('pyth', 'Use Pyth oracle factory')
+  .addFlag('cryptex', 'Use Cryptex oracle factory')
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Multisig Ops: Create Market] Building Create Market Transaction')
 
@@ -32,8 +33,13 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
     const nonceOffset = Number(args.nonceOffset || 0)
     const oracleFactory = await ethers.getContractAt('OracleFactory', (await get('OracleFactory')).address)
 
-    if (!args.pyth) throw new Error('Only Pyth oracle factory is supported')
-    const keeperFactory = await ethers.getContractAt('KeeperFactory', (await get('PythFactory')).address)
+    if (!args.pyth && !args.cryptex) throw new Error('Only Pyth or Cryptex oracle factory is supported')
+    const keeperFactory = await ethers.getContractAt(
+      'KeeperFactory',
+      (
+        await get(args.pyth ? 'PythFactory' : 'CryptexFactory')
+      ).address,
+    )
 
     const txPayloads: { to?: string; value?: string; data?: string; info: string }[] = []
 
@@ -51,25 +57,35 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
     }
 
     // Create the Oracle if it doesn't exist
-    if ((await keeperFactory.oracles(id)) === ethers.constants.AddressZero) {
+    const existingKeeperOracle = await keeperFactory.oracles(id)
+    if (existingKeeperOracle === ethers.constants.AddressZero) {
       await addPayload(
         () => keeperFactory.populateTransaction.create(id, underlyingID, { provider: payoff, decimals }),
         `Create Keeper ${id}`,
       )
     }
-    if ((await oracleFactory.oracles(id)) === ethers.constants.AddressZero) {
+
+    const existingOracle = await oracleFactory.oracles(id)
+    if (existingOracle === ethers.constants.AddressZero) {
       await addPayload(() => oracleFactory.populateTransaction.create(id, keeperFactory.address), `Create Oracle ${id}`)
     }
 
     // Create the market
-    const oracleAddress = utils.getContractAddress({
-      from: oracleFactory.address,
-      nonce: (await ethers.provider.getTransactionCount(oracleFactory.address)) + nonceOffset,
-    })
-    const keeperOracleAddress = utils.getContractAddress({
-      from: keeperFactory.address,
-      nonce: (await ethers.provider.getTransactionCount(keeperFactory.address)) + nonceOffset,
-    })
+    const oracleAddress =
+      existingOracle === ethers.constants.AddressZero
+        ? utils.getContractAddress({
+            from: oracleFactory.address,
+            nonce: (await ethers.provider.getTransactionCount(oracleFactory.address)) + nonceOffset,
+          })
+        : existingOracle
+    const keeperOracleAddress =
+      existingKeeperOracle === ethers.constants.AddressZero
+        ? utils.getContractAddress({
+            from: keeperFactory.address,
+            nonce: (await ethers.provider.getTransactionCount(keeperFactory.address)) + nonceOffset,
+          })
+        : existingKeeperOracle
+
     await addPayload(
       () => marketFactory.populateTransaction.create({ token: DSU.address, oracle: oracleAddress }),
       'Create Market',
