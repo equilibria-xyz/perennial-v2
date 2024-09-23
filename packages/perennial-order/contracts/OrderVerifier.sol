@@ -13,7 +13,7 @@ import { PlaceOrderAction, PlaceOrderActionLib } from "./types/PlaceOrderAction.
 
 contract OrderVerifier is VerifierBase, IOrderVerifier {
     /// @dev market factory to check authorization
-    IMarketFactory internal marketFactory;
+    IMarketFactory internal immutable marketFactory;
 
     /// @dev Initializes the domain separator and parameter caches
     constructor(IMarketFactory _marketFactory) EIP712("Perennial V2 Trigger Orders", "1.0.0") {
