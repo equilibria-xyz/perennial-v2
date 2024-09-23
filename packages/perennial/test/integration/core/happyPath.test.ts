@@ -1997,7 +1997,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, marketFactory } = instanceVars
+    const { owner, user, userB, dsu, marketFactory } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -2014,9 +2014,13 @@ describe('Happy Path', () => {
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
-    // set user as extension for userB with signature
-    await marketFactory.connect(userB).updateExtension(user.address, true)
+    // try to update extension using incorrect owner
+    await expect(marketFactory.connect(userB).updateExtension(user.address, true))
+      .to.be.revertedWithCustomError(marketFactory, 'OwnableNotOwnerError')
+      .withArgs(userB.address)
 
+    // update extension with owner
+    await marketFactory.connect(owner).updateExtension(user.address, true)
     // user opens long position for userB
     await expect(
       market

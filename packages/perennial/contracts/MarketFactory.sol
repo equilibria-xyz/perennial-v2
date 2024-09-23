@@ -94,10 +94,10 @@ contract MarketFactory is IMarketFactory, Factory {
         emit ParameterUpdated(newParameter);
     }
 
-    /// @notice Updates the status of an operator for the caller
-    /// @param extension The operator to update to enable protocol-wide
-    /// @param newEnabled The new status of the operator
-    function updateExtension(address extension, bool newEnabled) external {
+    /// @notice Updates the status of an extension
+    /// @param extension The extension to update to enable protocol-wide
+    /// @param newEnabled The new status of the extension
+    function updateExtension(address extension, bool newEnabled) external onlyOwner {
         extensions[extension] = newEnabled;
         emit ExtensionUpdated(extension, newEnabled);
     }
