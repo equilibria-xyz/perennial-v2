@@ -580,6 +580,59 @@ describe('Controller_Arbitrum', () => {
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.equal(utils.parseEther('0.00923'))
     })
+
+    it('cannot award more keeper fees than collateral rebalanced', async () => {
+      const ethMarket = market
+
+      // create a new group with two markets
+      const message = {
+        group: 4,
+        markets: [ethMarket.address, btcMarket.address],
+        configs: [
+          { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
+          { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
+        ],
+        maxFee: DEFAULT_MAX_FEE,
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, accountVerifier, message)
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES)).to
+        .not.be.reverted
+
+      const dustAmount = parse6decimal('0.000001')
+      const iterations = 3
+      await dsu
+        .connect(keeper)
+        .approve(ethMarket.address, dustAmount.mul(1e12).mul(iterations), { maxFeePerGas: 100000000 })
+      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+
+      for (let i = 0; i < iterations; ++i) {
+        // keeper dusts one of the markets
+        await market
+          .connect(keeper)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            userA.address,
+            constants.MaxUint256,
+            constants.MaxUint256,
+            constants.MaxUint256,
+            dustAmount,
+            false,
+            { maxFeePerGas: 150000000 },
+          )
+        expect((await market.locals(userA.address)).collateral).to.equal(dustAmount)
+
+        // keeper rebalances
+        await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES))
+          .to.emit(controller, 'GroupRebalanced')
+          .withArgs(userA.address, 4)
+          .to.emit(controller, 'KeeperCall')
+          .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+      }
+
+      // FIXME: keeper should not earn more fees than what they dusted
+      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+      expect(keeperFeePaid).to.be.lessThan(dustAmount.mul(1e12).mul(iterations))
+    })
   })
 
   describe('#withdrawal', async () => {
