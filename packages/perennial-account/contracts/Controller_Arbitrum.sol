@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import { Kept_Arbitrum, Kept } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
 import { UFixed18 } from "@equilibria/root/number/types/UFixed18.sol";
 import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
+import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 import { Controller_Incentivized } from "./Controller_Incentivized.sol";
 
 /// @title Controller_Arbitrum
@@ -12,8 +13,8 @@ contract Controller_Arbitrum is Controller_Incentivized, Kept_Arbitrum {
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation Pristine collateral account contract
     /// @param keepConfig Configuration used to compensate keepers
-    constructor(address implementation, KeepConfig memory keepConfig, IVerifierBase nonceManager)
-    Controller_Incentivized(implementation, keepConfig, nonceManager) {}
+    constructor(address implementation, IMarketFactory marketFactory_, KeepConfig memory keepConfig, IVerifierBase nonceManager)
+    Controller_Incentivized(implementation, marketFactory_, keepConfig, nonceManager) {}
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(

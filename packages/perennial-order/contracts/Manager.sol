@@ -7,7 +7,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
+import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
@@ -32,9 +32,6 @@ abstract contract Manager is IManager, Kept {
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
 
-    /// @dev Contract used to validate delegated signers
-    IMarketFactory public marketFactory;
-
     /// @dev Verifies EIP712 messages for this extension
     IOrderVerifier public verifier;
 
@@ -44,18 +41,15 @@ abstract contract Manager is IManager, Kept {
 
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
-    /// @param marketFactory_ Contract used to validate delegated signers
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_,
-        IMarketFactory marketFactory_,
         IOrderVerifier verifier_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
-        marketFactory = marketFactory_;
         verifier = verifier_;
     }
 
@@ -81,7 +75,6 @@ abstract contract Manager is IManager, Kept {
     function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature) external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyPlaceOrder(request, signature);
-        _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
         _compensateKeeperAction(request.action);
         _placeOrder(request.action.market, request.action.common.account, request.action.orderId, request.order);
@@ -96,7 +89,6 @@ abstract contract Manager is IManager, Kept {
     function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature) external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyCancelOrder(request, signature);
-        _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
         _compensateKeeperAction(request.action);
         _cancelOrder(request.action.market, request.action.common.account, request.action.orderId);
@@ -146,11 +138,6 @@ abstract contract Manager is IManager, Kept {
     function _compensateKeeper(IMarket market, address account, UFixed6 maxFee) internal {
         bytes memory data = abi.encode(market, account, maxFee);
         _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
-    }
-
-    /// @notice reverts if user is not authorized to sign transactions for the account
-    function _ensureValidSigner(address account, address signer) internal view {
-        if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
     }
 
     /// @notice Transfers DSU from market to manager to compensate keeper

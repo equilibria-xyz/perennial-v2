@@ -41,24 +41,21 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation_ Pristine collateral account contract
     /// @param keepConfig_ Configuration used to compensate keepers
-    constructor(address implementation_, KeepConfig memory keepConfig_, IVerifierBase nonceManager_)
-    Controller(implementation_) {
+    constructor(address implementation_, IMarketFactory marketFactory_, KeepConfig memory keepConfig_, IVerifierBase nonceManager_)
+    Controller(implementation_, marketFactory_) {
         keepConfig = keepConfig_;
         nonceManager = nonceManager_;
     }
 
     /// @notice Configures message verification and keeper compensation
-    /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate collateral account message signatures
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     function initialize(
-        IMarketFactory marketFactory_,
         IAccountVerifier verifier_,
         AggregatorV3Interface chainlinkFeed_
     ) external initializer(1) {
         __Factory__initialize();
         __Kept__initialize(chainlinkFeed_, DSU);
-        marketFactory = marketFactory_;
         verifier = verifier_;
     }
 
@@ -128,7 +125,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     ) override external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedNonceCancellation(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         _compensateKeeper(message.action);
 
@@ -144,7 +140,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     ) override external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedGroupCancellation(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         _compensateKeeper(message.action);
 
@@ -160,7 +155,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     ) override external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedOperatorUpdate(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         _compensateKeeper(message.action);
 
@@ -176,7 +170,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     ) override external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedSignerUpdate(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         _compensateKeeper(message.action);
 
@@ -192,7 +185,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     ) override external {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedAccessUpdateBatch(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         _compensateKeeper(message.action);
 

@@ -37,7 +37,7 @@ contract Controller is Factory, IController {
     Token18 public DSU; // solhint-disable-line var-name-mixedcase
 
     /// @inheritdoc IController
-    IMarketFactory public marketFactory;
+    IMarketFactory public immutable marketFactory;
 
     /// @inheritdoc IController
     IAccountVerifier public verifier;
@@ -59,18 +59,17 @@ contract Controller is Factory, IController {
 
     /// @dev Creates instance of Controller
     /// @param implementation_ Collateral account contract initialized with stablecoin addresses
-    constructor(address implementation_) Factory(implementation_) {
+    constructor(address implementation_, IMarketFactory marketFactory_) Factory(implementation_) {
         USDC = Account(implementation_).USDC();
         DSU = Account(implementation_).DSU();
+        marketFactory = marketFactory_;
     }
 
     /// @inheritdoc IController
     function initialize(
-        IMarketFactory marketFactory_,
         IAccountVerifier verifier_
     ) external initializer(1) {
         __Factory__initialize();
-        marketFactory = marketFactory_;
         verifier = verifier_;
     }
 
@@ -163,8 +162,6 @@ contract Controller is Factory, IController {
     function _changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature) internal {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRebalanceConfigChange(configChange, signature);
-        _ensureValidSigner(configChange.action.common.account, configChange.action.common.signer);
-
         // sum of the target allocations of all markets in the group
         _updateRebalanceGroup(configChange, configChange.action.common.account);
     }
@@ -174,18 +171,12 @@ contract Controller is Factory, IController {
         emit AccountDeployed(owner, account);
     }
 
-    /// @dev reverts if user is not authorized to sign transactions for the owner
-    function _ensureValidSigner(address owner, address signer) internal view {
-        if (signer != owner && !marketFactory.signers(owner, signer)) revert ControllerInvalidSignerError();
-    }
-
     function _deployAccountWithSignature(
         DeployAccount calldata deployAccount_,
         bytes calldata signature
     ) internal returns (IAccount account) {
         address owner = deployAccount_.action.common.account;
         verifier.verifyDeployAccount(deployAccount_, signature);
-        _ensureValidSigner(owner, deployAccount_.action.common.signer);
 
         // create the account
         account = _createAccount(owner);
@@ -198,7 +189,6 @@ contract Controller is Factory, IController {
     ) internal {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyMarketTransfer(marketTransfer, signature);
-        _ensureValidSigner(marketTransfer.action.common.account, marketTransfer.action.common.signer);
 
         // only Markets with DSU collateral are supported
         IMarket market = IMarket(marketTransfer.market);
@@ -214,7 +204,6 @@ contract Controller is Factory, IController {
     ) internal {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyWithdrawal(withdrawal, signature);
-        _ensureValidSigner(withdrawal.action.common.account, withdrawal.action.common.signer);
 
         // call the account's implementation to push to owner
         account.withdraw(withdrawal.amount, withdrawal.unwrap);

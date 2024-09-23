@@ -82,7 +82,7 @@ describe('Verifier', () => {
 
       await expect(verifier.connect(caller2).verifyCommon(commonMessage, signature)).to.be.revertedWithCustomError(
         verifier,
-        'VerifierInvalidOperatorError',
+        'VerifierInvalidSignerError',
       )
 
       expect(await verifier.nonces(caller.address, 0)).to.eq(false)

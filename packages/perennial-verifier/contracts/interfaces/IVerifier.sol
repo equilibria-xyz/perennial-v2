@@ -11,7 +11,6 @@ import { AccessUpdateBatch } from "../types/AccessUpdateBatch.sol";
 
 interface IVerifier is IVerifierBase {
     error VerifierMarketFactoryZeroAddressError();
-    error VerifierInvalidOperatorError();
 
     function verifyIntent(Intent calldata intent, bytes calldata signature) external;
     function verifyOperatorUpdate(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external;

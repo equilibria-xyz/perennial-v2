@@ -103,18 +103,11 @@ contract Verifier is VerifierBase, IVerifier, Ownable {
         marketFactory = _marketFactory;
     }
 
-    /// @dev Validates the common data of a message
-    modifier validateAndCancel(Common calldata common, bytes calldata signature) override {
-        (bool isOperator, bool isSigner, ) = marketFactory.authorization(common.account, address(0), common.signer, address(0));
-        if (!isSigner && !isOperator) revert VerifierInvalidOperatorError();
-        if (common.domain != msg.sender) revert VerifierInvalidDomainError();
-        if (signature.length != 65) revert VerifierInvalidSignatureError();
-        if (nonces[common.account][common.nonce]) revert VerifierInvalidNonceError();
-        if (groups[common.account][common.group]) revert VerifierInvalidGroupError();
-        if (block.timestamp >= common.expiry) revert VerifierInvalidExpiryError();
-
-        _cancelNonce(common.account, common.nonce);
-
-        _;
+    /// @notice Checks account authorization
+    /// @param account the account to check authorization for
+    /// @param signer the signer of the account
+    function _authorized(address account, address signer) internal override {
+        (bool isOperator, bool isSigner, ) = marketFactory.authorization(account, address(0), signer, address(0));
+        if (!isSigner && !isOperator) revert VerifierInvalidSignerError();
     }
 }
