@@ -675,10 +675,51 @@ describe('Manager_Arbitrum', () => {
       checkKeeperCompensation = true
     })
 
+    it('prevents user from changing maxFee upon execution', async () => {
+      // user places order
+      const orderId = await placeOrderWithSignature(
+        userA,
+        Side.MAKER,
+        Compare.GTE,
+        parse6decimal('2802'),
+        parse6decimal('3'),
+      )
+      expect(orderId).to.equal(BigNumber.from(509))
+      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+
+      // order becomes executable 5 minutes later
+      await increase(60 * 5)
+      advanceBlock()
+      await setNextBlockBaseFee()
+      await commitPrice(parse6decimal('2802.2'), currentTime.add(60 * 5))
+
+      // user zeros the maxFee just before keeper executes
+      const order = {
+        side: Side.MAKER,
+        comparison: Compare.GTE,
+        price: parse6decimal('2802'),
+        delta: parse6decimal('3'),
+        maxFee: parse6decimal('0'),
+        isSpent: false,
+        referrer: constants.AddressZero,
+        ...NO_INTERFACE_FEE,
+      }
+      await expect(manager.connect(userA).placeOrder(market.address, orderId, order, TX_OVERRIDES))
+        .to.emit(manager, 'TriggerOrderPlaced')
+        .withArgs(market.address, userA.address, order, orderId)
+
+      // keeper executes
+      await executeOrder(userA, 509)
+      expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('88'))
+      expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('7'))
+
+      checkKeeperCompensation = true
+    })
+
     it('users can close positions', async () => {
       // can close directly
       let orderId = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, MAGIC_VALUE_CLOSE_POSITION)
-      expect(orderId).to.equal(BigNumber.from(509))
+      expect(orderId).to.equal(BigNumber.from(510))
 
       // can close using a signed message
       orderId = await placeOrderWithSignature(
@@ -693,7 +734,7 @@ describe('Manager_Arbitrum', () => {
       // keeper closes the taker position before removing liquidity
       await executeOrder(userB, 504)
       await commitPrice()
-      await executeOrder(userA, 509)
+      await executeOrder(userA, 510)
       await commitPrice()
 
       // settle and confirm positions are closed
@@ -886,7 +927,7 @@ describe('Manager_Arbitrum', () => {
       checkKeeperCompensation = true
     })
 
-    it('charges notional interface on whole position when closing', async () => {
+    it('charges notional interface fee on whole position when closing', async () => {
       const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
       // userD closes their long position
