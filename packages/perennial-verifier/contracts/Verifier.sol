@@ -3,7 +3,6 @@ pragma solidity ^0.8.13;
 
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 
@@ -23,12 +22,15 @@ import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBat
 ///      Messages verification request must come from the domain address if it is set.
 ///       - In the case of intent / fills, this means that the market should be set as the domain.
 ///
-contract Verifier is VerifierBase, IVerifier, Ownable {
+contract Verifier is VerifierBase, IVerifier {
     /// @dev market factory to check authorization
-    IMarketFactory internal marketFactory;
+    IMarketFactory public immutable marketFactory;
 
     /// @dev Initializes the domain separator and parameter caches
-    constructor() EIP712("Perennial", "1.0.0") { }
+    /// @param _marketFactory Address of market factory contract
+    constructor(IMarketFactory _marketFactory) EIP712("Perennial", "1.0.0") {
+        marketFactory = _marketFactory;
+    }
 
     /// @notice Verifies the signature of an intent order type
     /// @dev Cancels the nonce after verifying the signature
@@ -94,19 +96,10 @@ contract Verifier is VerifierBase, IVerifier, Ownable {
         )) revert VerifierInvalidSignerError();
     }
 
-    /// @notice Updates market factory contract
-    /// @param _marketFactory address of market factory contract
-    function updateMarketFactory(IMarketFactory _marketFactory) external onlyOwner {
-        if (address(_marketFactory) == address(0)) {
-            revert VerifierMarketFactoryZeroAddressError();
-        }
-        marketFactory = _marketFactory;
-    }
-
     /// @notice Checks account authorization
     /// @param account the account to check authorization for
     /// @param signer the signer of the account
-    function _authorized(address account, address signer) internal override {
+    function _authorized(address account, address signer) internal view override {
         (bool isOperator, bool isSigner, ) = marketFactory.authorization(account, address(0), signer, address(0));
         if (!isSigner && !isOperator) revert VerifierInvalidSignerError();
     }
