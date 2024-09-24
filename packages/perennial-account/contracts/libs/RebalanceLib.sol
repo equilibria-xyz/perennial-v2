@@ -21,7 +21,7 @@ library RebalanceLib {
         UFixed6 maxFee,
         Fixed6 groupCollateral,
         Fixed6 marketCollateral
-    ) internal view returns (bool canRebalance, Fixed6 imbalance) {
+    ) internal pure returns (bool canRebalance, Fixed6 imbalance) {
         // determine how much collateral the market should have
         Fixed6 targetCollateral = groupCollateral.mul(Fixed6Lib.from(marketConfig.target));
 
