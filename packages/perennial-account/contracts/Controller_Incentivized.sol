@@ -36,14 +36,12 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     KeepConfig public keepConfig;
 
     /// @dev Handles relayed messages for nonce cancellation
-    IVerifierBase public nonceManager;
+    IVerifierBase public immutable nonceManager;
 
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation_ Pristine collateral account contract
-    /// @param keepConfig_ Configuration used to compensate keepers
-    constructor(address implementation_, KeepConfig memory keepConfig_, IVerifierBase nonceManager_)
+    constructor(address implementation_, IVerifierBase nonceManager_)
     Controller(implementation_) {
-        keepConfig = keepConfig_;
         nonceManager = nonceManager_;
     }
 
@@ -51,15 +49,18 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate collateral account message signatures
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
+    /// @param keepConfig_ Configuration used to compensate keepers
     function initialize(
         IMarketFactory marketFactory_,
         IAccountVerifier verifier_,
-        AggregatorV3Interface chainlinkFeed_
+        AggregatorV3Interface chainlinkFeed_,
+        KeepConfig memory keepConfig_
     ) external initializer(1) {
         __Factory__initialize();
         __Kept__initialize(chainlinkFeed_, DSU);
         marketFactory = marketFactory_;
         verifier = verifier_;
+        keepConfig = keepConfig_;
     }
 
     /// @inheritdoc IController
