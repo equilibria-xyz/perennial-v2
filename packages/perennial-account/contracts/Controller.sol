@@ -103,10 +103,11 @@ contract Controller is Factory, IController {
         for (uint256 i; i < actualCollateral.length; i++) {
             IMarket market = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketRebalanceConfig = _rebalanceConfigs[owner][group][address(market)];
+            UFixed6 minMargin = market.riskParameter().minMargin;
             (bool canMarketRebalance, Fixed6 imbalance) =
                 RebalanceLib.checkMarket(
                     marketRebalanceConfig,
-                    groupToMaxRebalanceFee[owner][group],
+                    minMargin,
                     groupCollateral,
                     actualCollateral[i]
                 );
