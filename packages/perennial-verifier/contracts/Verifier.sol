@@ -24,12 +24,15 @@ import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBat
 ///
 contract Verifier is VerifierBase, IVerifier {
     /// @dev market factory to check authorization
-    IMarketFactory public immutable marketFactory;
+    IMarketFactory public marketFactory;
 
     /// @dev Initializes the domain separator and parameter caches
-    /// @param _marketFactory Address of market factory contract
-    constructor(IMarketFactory _marketFactory) EIP712("Perennial", "1.0.0") {
-        marketFactory = _marketFactory;
+    constructor() EIP712("Perennial", "1.0.0") { }
+
+    /// @notice Initializes the contract state
+    /// @param marketFactory_ The market factory
+    function initialize(IMarketFactory marketFactory_) external {
+        marketFactory = marketFactory_;
     }
 
     /// @notice Verifies the signature of an intent order type
@@ -99,8 +102,9 @@ contract Verifier is VerifierBase, IVerifier {
     /// @notice Checks account authorization
     /// @param account the account to check authorization for
     /// @param signer the signer of the account
-    function _authorized(address account, address signer) internal view override {
+    /// @return whether signer is authorized
+    function _authorized(address account, address signer) internal view override returns (bool) {
         (bool isOperator, bool isSigner, ) = marketFactory.authorization(account, address(0), signer, address(0));
-        if (!isSigner && !isOperator) revert VerifierInvalidSignerError();
+        return (isOperator || isSigner);
     }
 }

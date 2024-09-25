@@ -55,8 +55,9 @@ contract OrderVerifier is VerifierBase, IOrderVerifier {
     /// @notice Checks account authorization
     /// @param account the account to check authorization for
     /// @param signer the signer of the account
-    function _authorized(address account, address signer) internal override {
+    /// @return whether signer is authorized
+    function _authorized(address account, address signer) internal view override returns (bool) {
         (bool isOperator, bool isSigner, ) = marketFactory.authorization(account, address(0), signer, address(0));
-        if (!isSigner && !isOperator) revert VerifierInvalidSignerError();
+        return (isOperator || isSigner);
     }
 }
