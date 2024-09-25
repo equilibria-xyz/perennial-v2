@@ -213,20 +213,17 @@ describe('Controller_Arbitrum', () => {
       bufferCalldata: 35_200,
     }
     const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
-    controller = await deployControllerArbitrum(
-      owner,
-      keepConfig,
-      keepConfigBuffered,
-      keepConfigWithdrawal,
-      marketVerifier,
-      { maxFeePerGas: 100000000 },
-    )
+    controller = await deployControllerArbitrum(owner, marketVerifier, { maxFeePerGas: 100000000 })
     accountVerifier = await new AccountVerifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
-    await controller['initialize(address,address,address)'](
+    const KeepConfig = '(uint256,uint256,uint256,uint256)'
+    await controller[`initialize(address,address,address,${KeepConfig},${KeepConfig},${KeepConfig})`](
       marketFactory.address,
       accountVerifier.address,
       CHAINLINK_ETH_USD_FEED,
+      keepConfig,
+      keepConfigBuffered,
+      keepConfigWithdrawal,
     )
     // fund userA
     await fundWallet(userA)

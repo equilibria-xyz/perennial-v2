@@ -42,24 +42,15 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     KeepConfig public keepConfigWithdrawal;
 
     /// @dev Handles relayed messages for nonce cancellation
-    IVerifierBase public nonceManager;
+    IVerifierBase public immutable nonceManager;
 
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation_ Pristine collateral account contract
-    /// @param keepConfig_ Configuration used for unbuffered keeper compensation
-    /// @param keepConfigBuffered_ Configuration used for buffered keeper compensation
-    /// @param keepConfigWithdrawal_ Configuration used to compensate keepers for withdrawals
     /// @param nonceManager_ Verifier contract to which nonce and group cancellations are relayed
     constructor(
         address implementation_,
-        KeepConfig memory keepConfig_,
-        KeepConfig memory keepConfigBuffered_,
-        KeepConfig memory keepConfigWithdrawal_,
         IVerifierBase nonceManager_
     ) Controller(implementation_) {
-        keepConfig = keepConfig_;
-        keepConfigBuffered = keepConfigBuffered_;
-        keepConfigWithdrawal = keepConfigWithdrawal_;
         nonceManager = nonceManager_;
     }
 
@@ -67,15 +58,24 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate collateral account message signatures
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
+    /// @param keepConfig_ Configuration used for unbuffered keeper compensation
+    /// @param keepConfigBuffered_ Configuration used for buffered keeper compensation
+    /// @param keepConfigWithdrawal_ Configuration used to compensate keepers for withdrawals
     function initialize(
         IMarketFactory marketFactory_,
         IAccountVerifier verifier_,
-        AggregatorV3Interface chainlinkFeed_
+        AggregatorV3Interface chainlinkFeed_,
+        KeepConfig memory keepConfig_,
+        KeepConfig memory keepConfigBuffered_,
+        KeepConfig memory keepConfigWithdrawal_
     ) external initializer(1) {
         __Factory__initialize();
         __Kept__initialize(chainlinkFeed_, DSU);
         marketFactory = marketFactory_;
         verifier = verifier_;
+        keepConfig = keepConfig_;
+        keepConfigBuffered = keepConfigBuffered_;
+        keepConfigWithdrawal = keepConfigWithdrawal_;
     }
 
     /// @inheritdoc IController
