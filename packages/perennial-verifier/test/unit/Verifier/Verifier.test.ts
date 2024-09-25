@@ -41,7 +41,7 @@ describe('Verifier', () => {
 
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     verifier = await new Verifier__factory(owner).deploy()
-    verifier.updateMarketFactory(marketFactory.address)
+    verifier.initialize(marketFactory.address)
     scSigner = await smock.fake<IERC1271>('IERC1271')
 
     marketFactory.authorization.returns([true, true, BigNumber.from(0)])
