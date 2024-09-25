@@ -153,10 +153,11 @@ export async function deployController(
   usdcAddress: Address,
   dsuAddress: Address,
   reserveAddress: Address,
+  marketFactoryAddress: Address,
 ): Promise<Controller> {
   const accountImpl = await new Account__factory(owner).deploy(usdcAddress, dsuAddress, reserveAddress)
   accountImpl.initialize(constants.AddressZero)
-  const controller = await new Controller__factory(owner).deploy(accountImpl.address)
+  const controller = await new Controller__factory(owner).deploy(accountImpl.address, marketFactoryAddress)
   return controller
 }
 

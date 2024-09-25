@@ -5,6 +5,7 @@ import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
+import { Initializable } from "@equilibria/root/attribute/Initializable.sol";
 
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
@@ -22,7 +23,7 @@ import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBat
 ///      Messages verification request must come from the domain address if it is set.
 ///       - In the case of intent / fills, this means that the market should be set as the domain.
 ///
-contract Verifier is VerifierBase, IVerifier {
+contract Verifier is VerifierBase, IVerifier, Initializable {
     /// @dev market factory to check authorization
     IMarketFactory public marketFactory;
 
@@ -31,7 +32,7 @@ contract Verifier is VerifierBase, IVerifier {
 
     /// @notice Initializes the contract state
     /// @param marketFactory_ The market factory
-    function initialize(IMarketFactory marketFactory_) external {
+    function initialize(IMarketFactory marketFactory_) external initializer(1) {
         marketFactory = marketFactory_;
     }
 
