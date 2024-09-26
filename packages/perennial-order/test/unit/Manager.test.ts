@@ -183,8 +183,8 @@ describe('Manager', () => {
       await manager.connect(userB).placeOrder(market.address, nextOrderId, longOrder)
 
       // execute the orders
-      await manager.connect(keeper).executeOrder(market.address, userA.address, nonce1)
-      await manager.connect(keeper).executeOrder(market.address, userB.address, nonce2)
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nonce1, MAKER_ORDER.maxFee)
+      await manager.connect(keeper).executeOrder(market.address, userB.address, nonce2, longOrder.maxFee)
     })
 
     it('cannot cancel an executed maker order', async () => {
@@ -193,7 +193,7 @@ describe('Manager', () => {
       await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
 
       // execute the order
-      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId)
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId, MAX_FEE)
 
       await expect(manager.connect(userA).cancelOrder(market.address, nextOrderId)).to.be.revertedWithCustomError(
         manager,
@@ -230,7 +230,7 @@ describe('Manager', () => {
       // place and execute an order, invalidating the order nonce
       advanceOrderId()
       await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
-      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId)
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId, MAX_FEE)
 
       await expect(
         manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER),
@@ -424,7 +424,7 @@ describe('Manager', () => {
       // directly place and execute a maker order
       advanceOrderId()
       await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
-      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId)
+      await manager.connect(keeper).executeOrder(market.address, userA.address, nextOrderId, MAX_FEE)
 
       // place a short order using a signed message
       // different user can use the same order nonce
@@ -447,7 +447,7 @@ describe('Manager', () => {
         .withArgs(market.address, userB.address, message.order, nextOrderId)
 
       // keeper executes the short order
-      await manager.connect(keeper).executeOrder(market.address, userB.address, nextOrderId)
+      await manager.connect(keeper).executeOrder(market.address, userB.address, nextOrderId, message.order.maxFee)
     })
   })
 })

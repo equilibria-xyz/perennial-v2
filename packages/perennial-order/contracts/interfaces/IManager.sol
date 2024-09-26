@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket, UFixed6 } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
 
 import { CancelOrderAction } from "../types/CancelOrderAction.sol";
 import { InterfaceFee } from "../types/InterfaceFee.sol";
@@ -56,6 +56,10 @@ interface IManager {
     /// @custom:error Signer is not authorized to interact with markets for the specified user
     error ManagerInvalidSignerError();
 
+    // sig: 0xe1eb4c38
+    /// @custom:error MaxFee on order was reduced below what the keeper expected
+    error ManagerUnexpectedMaxFee();
+
     /// @notice Store a new trigger order or replace an existing trigger order
     /// @param market Perennial market in which user wants to change their position
     /// @param orderId Client-specific order identifier
@@ -99,5 +103,6 @@ interface IManager {
     /// @param market Perennial market for which the order is intended
     /// @param account Actor whose position is to be changed
     /// @param orderId Uniquely identifies the order for an account
-    function executeOrder(IMarket market, address account, uint256 orderId) external;
+    /// @param expectedMaxFee MaxFee on the order as seen by keeper, used to prevent frontrunning
+    function executeOrder(IMarket market, address account, uint256 orderId, UFixed6 expectedMaxFee) external;
 }

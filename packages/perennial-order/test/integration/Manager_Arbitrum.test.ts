@@ -187,14 +187,19 @@ describe('Manager_Arbitrum', () => {
   async function executeOrder(
     user: SignerWithAddress,
     orderId: BigNumberish,
+    expectedMaxFee: BigNumber | undefined = undefined,
     expectedInterfaceFee: BigNumber | undefined = undefined,
   ): Promise<BigNumber> {
     // ensure order is executable
     const [order, canExecute] = await manager.checkOrder(market.address, user.address, orderId)
     expect(canExecute).to.be.true
 
+    if (!expectedMaxFee) expectedMaxFee = order.maxFee
+
     // validate event
-    const tx = await manager.connect(keeper).executeOrder(market.address, user.address, orderId, TX_OVERRIDES)
+    const tx = await manager
+      .connect(keeper)
+      .executeOrder(market.address, user.address, orderId, expectedMaxFee, TX_OVERRIDES)
     // set the order's spent flag true to validate event
     const spentOrder = { ...orderFromStructOutput(order), isSpent: true }
     await expect(tx)
@@ -424,7 +429,7 @@ describe('Manager_Arbitrum', () => {
       expect(canExecute).to.be.false
 
       await expect(
-        manager.connect(keeper).executeOrder(market.address, userA.address, 501),
+        manager.connect(keeper).executeOrder(market.address, userA.address, 501, MAX_FEE),
       ).to.be.revertedWithCustomError(manager, 'ManagerCannotExecuteError')
     })
 
@@ -664,7 +669,7 @@ describe('Manager_Arbitrum', () => {
       expect((await oracle.latest()).price).to.equal(parse6decimal('2801'))
       // delta * price * fee amount = 3 * 2801 * 0.0055
       const expectedInterfaceFee = parse6decimal('46.2165')
-      await executeOrder(userB, orderId, expectedInterfaceFee)
+      await executeOrder(userB, orderId, undefined, expectedInterfaceFee)
       expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('85'))
       expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('7')) // 4 + 3
       await commitPrice()
@@ -708,12 +713,10 @@ describe('Manager_Arbitrum', () => {
         .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, userA.address, order, orderId)
 
-      // keeper executes
-      await executeOrder(userA, 509)
-      expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('88'))
-      expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('7'))
-
-      checkKeeperCompensation = true
+      // keeper executes and gets revert because maxFee was manipulated
+      await expect(
+        manager.connect(keeper).executeOrder(market.address, userA.address, 509, MAX_FEE, TX_OVERRIDES),
+      ).to.be.revertedWithCustomError(manager, 'ManagerUnexpectedMaxFee')
     })
 
     it('users can close positions', async () => {
@@ -916,7 +919,7 @@ describe('Manager_Arbitrum', () => {
       expect(orderId).to.equal(BigNumber.from(603))
 
       await expect(
-        manager.connect(keeper).executeOrder(market.address, userD.address, orderId, TX_OVERRIDES),
+        manager.connect(keeper).executeOrder(market.address, userD.address, orderId, MAX_FEE, TX_OVERRIDES),
       ).to.be.revertedWithCustomError(market, 'MarketOverCloseError')
 
       // keeper commits price, settle the long order
@@ -952,7 +955,7 @@ describe('Manager_Arbitrum', () => {
       expect(orderId).to.equal(BigNumber.from(604))
 
       const expectedInterfaceFee = parse6decimal('58.865886') // position * price * fee
-      await executeOrder(userD, orderId, expectedInterfaceFee)
+      await executeOrder(userD, orderId, undefined, expectedInterfaceFee)
       expect(await getPendingPosition(userD, Side.LONG)).to.equal(constants.Zero)
 
       // ensure fees were paid

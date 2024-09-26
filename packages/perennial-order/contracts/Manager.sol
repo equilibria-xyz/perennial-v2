@@ -120,10 +120,11 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address account, uint256 orderId) external {
+    function executeOrder(IMarket market, address account, uint256 orderId, UFixed6 expectedMaxFee) external {
         // check conditions to ensure order is executable
         (TriggerOrder memory order, bool canExecute) = checkOrder(market, account, orderId);
         if (!canExecute) revert ManagerCannotExecuteError();
+        if (order.maxFee.lt(expectedMaxFee)) revert ManagerUnexpectedMaxFee();
 
         _compensateKeeper(market, account, order.maxFee);
         order.execute(market, account);
