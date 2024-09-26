@@ -678,7 +678,7 @@ describe('Manager_Arbitrum', () => {
     it('users can close positions', async () => {
       // can close directly
       let orderId = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, MAGIC_VALUE_CLOSE_POSITION)
-      expect(orderId).to.equal(BigNumber.from(510))
+      expect(orderId).to.equal(BigNumber.from(509))
 
       // can close using a signed message
       orderId = await placeOrderWithSignature(
@@ -693,7 +693,7 @@ describe('Manager_Arbitrum', () => {
       // keeper closes the taker position before removing liquidity
       await executeOrder(userB, 504)
       await commitPrice()
-      await executeOrder(userA, 510)
+      await executeOrder(userA, 509)
       await commitPrice()
 
       // settle and confirm positions are closed
