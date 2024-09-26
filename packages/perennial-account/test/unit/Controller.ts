@@ -84,11 +84,17 @@ describe('Controller', () => {
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    controller = await deployController(owner, usdc.address, dsu.address, reserve.address)
-
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    verifier = await new AccountVerifier__factory(owner).deploy()
-    await controller.initialize(marketFactory.address, verifier.address)
+
+    controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
+    verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
+    await controller.initialize(verifier.address)
+    marketFactory.authorization
+      .whenCalledWith(userA.address, constants.AddressZero, userA.address, constants.AddressZero)
+      .returns([false, true, BigNumber.from(0)])
+    marketFactory.authorization
+      .whenCalledWith(userB.address, constants.AddressZero, userB.address, constants.AddressZero)
+      .returns([false, true, BigNumber.from(0)])
   }
 
   beforeEach(async () => {
@@ -135,7 +141,9 @@ describe('Controller', () => {
 
     it('creates collateral accounts from a delegated signer', async () => {
       // delegate userB to sign for userA
-      marketFactory.signers.whenCalledWith(userA.address, userB.address).returns(true)
+      marketFactory.authorization
+        .whenCalledWith(userA.address, constants.AddressZero, userB.address, constants.AddressZero)
+        .returns([false, true, BigNumber.from(0)])
 
       // create a message to create collateral account for userA but sign it as userB
       const deployAccountMessage = {
@@ -148,11 +156,16 @@ describe('Controller', () => {
       await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature))
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
+      marketFactory.authorization
+        .whenCalledWith(userA.address, constants.AddressZero, userB.address, constants.AddressZero)
+        .returns([false, false, BigNumber.from(0)])
     })
 
     it('third party cannot create account on owners behalf', async () => {
       // tell mock that userB is not a delegate
-      marketFactory.signers.whenCalledWith(userA.address, userB.address).returns(false)
+      marketFactory.authorization
+        .whenCalledWith([userA.address, constants.AddressZero, userB.address, constants.AddressZero])
+        .returns([false, false, BigNumber.from(0)])
 
       // create a message to create collateral account for userA but sign it as userB
       const deployAccountMessage = {
@@ -170,7 +183,7 @@ describe('Controller', () => {
 
       await expect(
         controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
     })
 
     it('account implementation cannot be initialized', async () => {
@@ -691,7 +704,12 @@ describe('Controller', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: utils.parseEther('4'),
-        ...(await createAction(userA.address, userA.address, utils.parseEther('0.3'), 24)),
+        ...(await createAction(
+          userA.address,
+          userA.address,
+          utils.parseEther('0.3'),
+          (await currentBlockTimestamp()) + 12,
+        )),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
       await expect(
@@ -712,7 +730,7 @@ describe('Controller', () => {
       // controller should revert
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
     })
   })
 })

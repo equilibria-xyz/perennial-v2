@@ -142,16 +142,17 @@ export async function deployAndInitializeController(
   marketFactory: IMarketFactory,
 ): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const [dsu, usdc] = await getStablecoins(owner)
-  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
+  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE, marketFactory.address)
 
-  const verifier = await new AccountVerifier__factory(owner).deploy()
-  await controller.initialize(marketFactory.address, verifier.address)
+  const verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
+  await controller.initialize(verifier.address)
   return [dsu, usdc, controller]
 }
 
 // deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
 export async function deployControllerArbitrum(
   owner: SignerWithAddress,
+  marketFactory: IMarketFactory,
   keepConfig: IKept.KeepConfigStruct,
   nonceManager: IVerifier,
   overrides?: CallOverrides,
@@ -160,6 +161,7 @@ export async function deployControllerArbitrum(
   accountImpl.initialize(constants.AddressZero)
   const controller = await new Controller_Arbitrum__factory(owner).deploy(
     accountImpl.address,
+    marketFactory.address,
     keepConfig,
     nonceManager.address,
     overrides ?? {},
