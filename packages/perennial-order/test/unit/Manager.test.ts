@@ -78,14 +78,13 @@ describe('Manager', () => {
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
-    verifier = await new OrderVerifier__factory(owner).deploy()
+    verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
 
     // deploy the order manager
     manager = await new Manager_Arbitrum__factory(owner).deploy(
       usdc.address,
       dsu.address,
       reserve.address,
-      marketFactory.address,
       verifier.address,
     )
 
@@ -128,7 +127,6 @@ describe('Manager', () => {
   describe('#direct-interaction', () => {
     it('constructs and initializes', async () => {
       expect(await manager.DSU()).to.equal(dsu.address)
-      expect(await manager.marketFactory()).to.equal(marketFactory.address)
       expect(await manager.verifier()).to.equal(verifier.address)
     })
 
@@ -319,6 +317,12 @@ describe('Manager', () => {
 
     beforeEach(async () => {
       currentTime = BigNumber.from(await currentBlockTimestamp())
+      marketFactory.authorization
+        .whenCalledWith(userA.address, constants.AddressZero, userA.address, constants.AddressZero)
+        .returns([false, true, BigNumber.from(0)])
+      marketFactory.authorization
+        .whenCalledWith(userB.address, constants.AddressZero, userB.address, constants.AddressZero)
+        .returns([false, true, BigNumber.from(0)])
     })
 
     function createActionMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 18) {

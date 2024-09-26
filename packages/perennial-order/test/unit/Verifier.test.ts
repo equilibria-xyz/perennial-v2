@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { BigNumber, constants, utils } from 'ethers'
+import { BigNumber, ContractTransaction, constants, utils } from 'ethers'
 import HRE from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
@@ -12,7 +12,7 @@ import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
 import { DEFAULT_TRIGGER_ORDER } from '../helpers/order'
 import { IMarket } from '@equilibria/perennial-v2/types/generated'
-import { IManager, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../types/generated'
+import { IManager, IMarketFactory, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../types/generated'
 
 const { ethers } = HRE
 
@@ -22,6 +22,7 @@ describe('Verifier', () => {
   let orderVerifier: OrderVerifier
   let manager: FakeContract<IManager>
   let market: FakeContract<IMarket>
+  let marketFactory: FakeContract<IMarketFactory>
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
@@ -102,10 +103,14 @@ describe('Verifier', () => {
     ;[owner, userA, userB, userC] = await ethers.getSigners()
 
     // deploy a verifier
-    orderVerifier = await new OrderVerifier__factory(owner).deploy()
     manager = await smock.fake<IManager>('IManager')
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    orderVerifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
 
     orderVerifierSigner = await impersonate.impersonateWithBalance(orderVerifier.address, utils.parseEther('10'))
+    marketFactory.authorization
+      .whenCalledWith(userA.address, constants.AddressZero, userA.address, constants.AddressZero)
+      .returns([false, true, BigNumber.from(0)])
     market = await smock.fake<IMarket>('IMarket')
   }
 
@@ -115,7 +120,7 @@ describe('Verifier', () => {
   })
 
   let signFunctionPrototype: (signer: SignerWithAddress, verifier: IOrderVerifier, action: any) => Promise<string>
-  let verifyFunctionPrototype: (action: any, signature: string) => Promise<undefined>
+  let verifyFunctionPrototype: (action: any, signature: string) => Promise<ContractTransaction>
 
   describe('#positive', () => {
     async function check(
