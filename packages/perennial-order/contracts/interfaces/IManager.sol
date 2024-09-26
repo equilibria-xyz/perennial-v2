@@ -48,6 +48,10 @@ interface IManager {
     /// @custom:error Conditions required for order execution are not currently met
     error ManagerCannotExecuteError();
 
+    // sig: 0x170dda16
+    /// @custom:error Replacement order may not reduce maxFee; must cancel and resubmit with new orderId
+    error ManagerCannotReduceMaxFee();
+
     // sig: 0xd0cfc108
     /// @custom:error Order nonce has already been used
     error ManagerInvalidOrderNonceError();
