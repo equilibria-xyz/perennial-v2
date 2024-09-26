@@ -25,7 +25,6 @@ import {
   IOracleProvider,
   GasOracle__factory,
 } from '../../types/generated'
-import { IKept } from '../../types/generated/contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
 import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 
