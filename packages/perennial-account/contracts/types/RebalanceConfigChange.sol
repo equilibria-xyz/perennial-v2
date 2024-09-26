@@ -35,7 +35,6 @@ library RebalanceConfigChangeLib {
 
     /// @dev Used to create a signed message
     function hash(RebalanceConfigChange memory self) internal pure returns (bytes32) {
-        bytes32[] memory encodedAddresses = new bytes32[](self.markets.length);
         bytes32[] memory encodedConfigs = new bytes32[](self.configs.length);
 
         // ensure consistent error for length mismatch
@@ -43,7 +42,6 @@ library RebalanceConfigChangeLib {
             revert IController.ControllerInvalidRebalanceConfigError();
 
         for (uint256 i = 0; i < self.markets.length; ++i) {
-            encodedAddresses[i] = keccak256(abi.encode(self.markets[i]));
             encodedConfigs[i] = RebalanceConfigLib.hash(self.configs[i]);
         }
         return keccak256(abi.encode(
