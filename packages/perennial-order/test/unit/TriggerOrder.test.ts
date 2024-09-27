@@ -133,12 +133,12 @@ describe('TriggerOrder', () => {
         timestamp: now(),
         orders: constants.One,
         collateral: constants.Zero,
-        makerPos: Side.MAKER && pending.gt(0) ? pending : constants.Zero,
-        makerNeg: Side.MAKER && pending.lt(0) ? pending.mul(-1) : constants.Zero,
-        longPos: Side.LONG && pending.gt(0) ? pending : constants.Zero,
-        longNeg: Side.LONG && pending.lt(0) ? pending.mul(-1) : constants.Zero,
-        shortPos: Side.SHORT && pending.gt(0) ? pending : constants.Zero,
-        shortNeg: Side.SHORT && pending.lt(0) ? pending.mul(-1) : constants.Zero,
+        makerPos: side === Side.MAKER && pending.gt(0) ? pending : constants.Zero,
+        makerNeg: side === Side.MAKER && pending.lt(0) ? pending.mul(-1) : constants.Zero,
+        longPos: side === Side.LONG && pending.gt(0) ? pending : constants.Zero,
+        longNeg: side === Side.LONG && pending.lt(0) ? pending.mul(-1) : constants.Zero,
+        shortPos: side === Side.SHORT && pending.gt(0) ? pending : constants.Zero,
+        shortNeg: side === Side.SHORT && pending.lt(0) ? pending.mul(-1) : constants.Zero,
         protection: constants.Zero,
         makerReferral: constants.Zero,
         takerReferral: constants.Zero,
@@ -185,6 +185,40 @@ describe('TriggerOrder', () => {
         },
       }
       const expectedNotional = parse6decimal('24400') // price * position
+      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
+    })
+
+    it('calculates notional to close position with pending open', async () => {
+      mockPrice(parse6decimal('2000'))
+      mockPosition(Side.MAKER, parse6decimal('12.2'), parse6decimal('0.3'))
+      const order = {
+        ...ORDER_MAKER,
+        delta: MAGIC_VALUE_CLOSE_POSITION,
+        interfaceFee: {
+          amount: parse6decimal('0.0111'),
+          receiver: recipient.address,
+          fixedFee: false,
+          unwrap: true,
+        },
+      }
+      const expectedNotional = parse6decimal('25000') // price * position
+      expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
+    })
+
+    it('calculates national to close position with pending close', async () => {
+      mockPrice(parse6decimal('2000'))
+      mockPosition(Side.MAKER, parse6decimal('12.2'), parse6decimal('-0.2'))
+      const order = {
+        ...ORDER_MAKER,
+        delta: MAGIC_VALUE_CLOSE_POSITION,
+        interfaceFee: {
+          amount: parse6decimal('0.0111'),
+          receiver: recipient.address,
+          fixedFee: false,
+          unwrap: true,
+        },
+      }
+      const expectedNotional = parse6decimal('24000') // price * position
       expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
     })
 
