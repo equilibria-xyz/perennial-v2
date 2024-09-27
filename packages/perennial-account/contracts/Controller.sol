@@ -100,15 +100,18 @@ contract Controller is Factory, IController {
         imbalances = new Fixed6[](actualCollateral.length);
 
         // determine if anything is outside the rebalance threshold
+        UFixed6 minImbalance = actualCollateral.length == 0 ?
+            UFixed6Lib.ZERO : 
+            groupToMaxRebalanceFee[owner][group].div(UFixed6Lib.from(actualCollateral.length));
         for (uint256 i; i < actualCollateral.length; i++) {
             IMarket market = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketRebalanceConfig = _rebalanceConfigs[owner][group][address(market)];
             (bool canMarketRebalance, Fixed6 imbalance) =
                 RebalanceLib.checkMarket(
                     marketRebalanceConfig,
-                    groupToMaxRebalanceFee[owner][group],
                     groupCollateral,
-                    actualCollateral[i]
+                    actualCollateral[i],
+                    minImbalance
                 );
             imbalances[i] = imbalance;
             canRebalance = canRebalance || canMarketRebalance;

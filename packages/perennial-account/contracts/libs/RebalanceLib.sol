@@ -11,16 +11,16 @@ import { RebalanceConfig } from "../types/RebalanceConfig.sol";
 library RebalanceLib {
     /// @dev Compares actual market collateral for owner with their account's target
     /// @param marketConfig Rebalance group configuration for this market
-    /// @param maxFee Maximum fee paid to keeper for rebalancing the group
     /// @param groupCollateral Owner's collateral across all markets in the group
     /// @param marketCollateral Owner's actual amount of collateral in this market
+    /// @param minImbalance Protects against rebalancing dust amounts
     /// @return canRebalance True if actual collateral in this market is outside of configured threshold
     /// @return imbalance Amount which needs to be transferred to balance the market
     function checkMarket(
         RebalanceConfig memory marketConfig,
-        UFixed6 maxFee,
         Fixed6 groupCollateral,
-        Fixed6 marketCollateral
+        Fixed6 marketCollateral,
+        UFixed6 minImbalance
     ) internal pure returns (bool canRebalance, Fixed6 imbalance) {
         // determine how much collateral the market should have
         Fixed6 targetCollateral = groupCollateral.mul(Fixed6Lib.from(marketConfig.target));
@@ -29,7 +29,7 @@ library RebalanceLib {
         if (targetCollateral.eq(Fixed6Lib.ZERO)) {
             imbalance = marketCollateral.mul(Fixed6Lib.NEG_ONE);
             // can rebalance if market is not empty and imbalance exceeds max fee paid to keeper
-            canRebalance = !marketCollateral.eq(Fixed6Lib.ZERO) && imbalance.abs().gt(maxFee);
+            canRebalance = !marketCollateral.eq(Fixed6Lib.ZERO) && imbalance.abs().gt(minImbalance);
             return (canRebalance, imbalance);
         }
         // calculate percentage difference between actual and target collateral
@@ -41,6 +41,6 @@ library RebalanceLib {
         // if this percentage exceeds the configured threshold,
         // and the amount to rebalance exceeds max fee paid to keeper, the market may be rebalanced
         canRebalance = pctFromTarget.abs().gt(marketConfig.threshold)
-            && imbalance.abs().gt(maxFee);
+            && imbalance.abs().gt(minImbalance);
     }
 }
