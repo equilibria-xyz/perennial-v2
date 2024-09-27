@@ -113,6 +113,8 @@ contract Controller is Factory, IController {
             imbalances[i] = imbalance;
             canRebalance = canRebalance || canMarketRebalance;
         }
+
+        // if group does not exist or was deleted, arrays will be empty and function will return (0, false, 0)
     }
 
     /// @inheritdoc IController
