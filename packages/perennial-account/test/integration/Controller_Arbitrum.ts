@@ -670,14 +670,14 @@ describe('Controller_Arbitrum', () => {
     beforeEach(async () => {
       await createCollateralAccount(userA, parse6decimal('6'))
       downstreamVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
-      downstreamVerifier.initialize(marketFactory.address)
+      downstreamVerifier.initialize(marketFactory.address, TX_OVERRIDES)
       keeperBalanceBefore = await dsu.balanceOf(keeper.address)
     })
 
     afterEach(async () => {
       // confirm keeper earned their fee
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0'), DEFAULT_MAX_FEE)
+      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
     it('relays nonce cancellation messages', async () => {
