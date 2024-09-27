@@ -318,10 +318,10 @@ describe('Manager', () => {
     beforeEach(async () => {
       currentTime = BigNumber.from(await currentBlockTimestamp())
       marketFactory.authorization
-        .whenCalledWith(userA.address, constants.AddressZero, userA.address, constants.AddressZero)
+        .whenCalledWith(userA.address, userA.address, userA.address, constants.AddressZero)
         .returns([false, true, BigNumber.from(0)])
       marketFactory.authorization
-        .whenCalledWith(userB.address, constants.AddressZero, userB.address, constants.AddressZero)
+        .whenCalledWith(userB.address, userB.address, userB.address, constants.AddressZero)
         .returns([false, true, BigNumber.from(0)])
     })
 

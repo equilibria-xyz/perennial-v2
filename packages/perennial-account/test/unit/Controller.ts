@@ -90,10 +90,10 @@ describe('Controller', () => {
     verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
     await controller.initialize(verifier.address)
     marketFactory.authorization
-      .whenCalledWith(userA.address, constants.AddressZero, userA.address, constants.AddressZero)
+      .whenCalledWith(userA.address, userA.address, userA.address, constants.AddressZero)
       .returns([false, true, BigNumber.from(0)])
     marketFactory.authorization
-      .whenCalledWith(userB.address, constants.AddressZero, userB.address, constants.AddressZero)
+      .whenCalledWith(userB.address, userA.address, userB.address, constants.AddressZero)
       .returns([false, true, BigNumber.from(0)])
   }
 
@@ -142,7 +142,7 @@ describe('Controller', () => {
     it('creates collateral accounts from a delegated signer', async () => {
       // delegate userB to sign for userA
       marketFactory.authorization
-        .whenCalledWith(userA.address, constants.AddressZero, userB.address, constants.AddressZero)
+        .whenCalledWith(userA.address, userB.address, userB.address, constants.AddressZero)
         .returns([false, true, BigNumber.from(0)])
 
       // create a message to create collateral account for userA but sign it as userB
@@ -157,14 +157,14 @@ describe('Controller', () => {
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressCalculated)
       marketFactory.authorization
-        .whenCalledWith(userA.address, constants.AddressZero, userB.address, constants.AddressZero)
+        .whenCalledWith(userA.address, userB.address, userB.address, constants.AddressZero)
         .returns([false, false, BigNumber.from(0)])
     })
 
     it('third party cannot create account on owners behalf', async () => {
       // tell mock that userB is not a delegate
       marketFactory.authorization
-        .whenCalledWith([userA.address, constants.AddressZero, userB.address, constants.AddressZero])
+        .whenCalledWith([userA.address, userB.address, userB.address, constants.AddressZero])
         .returns([false, false, BigNumber.from(0)])
 
       // create a message to create collateral account for userA but sign it as userB
@@ -435,6 +435,9 @@ describe('Controller', () => {
       })
 
       it('allows multiple users to have groups with the same index', async () => {
+        marketFactory.authorization
+          .whenCalledWith(userB.address, userB.address, userB.address, constants.AddressZero)
+          .returns([false, true, BigNumber.from(0)])
         const group = 4
         // userA creates an ETH,BTC group
         const configGroupUserA = [
@@ -468,6 +471,11 @@ describe('Controller', () => {
         expect(marketsGroupA).to.eql([ethMarket.address, btcMarket.address])
         const marketsGroupB = await controller.rebalanceGroupMarkets(userB.address, group)
         expect(marketsGroupB).to.eql([solMarket.address, ethMarket.address])
+
+        // reset
+        marketFactory.authorization
+          .whenCalledWith(userB.address, userB.address, userB.address, constants.AddressZero)
+          .returns([false, false, BigNumber.from(0)])
       })
     })
 
