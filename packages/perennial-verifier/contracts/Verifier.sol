@@ -105,7 +105,8 @@ contract Verifier is VerifierBase, IVerifier, Initializable {
     /// @param signer the signer of the account
     /// @return whether signer is authorized
     function _authorized(address account, address signer) internal view override returns (bool) {
-        (bool isOperator, bool isSigner, ) = marketFactory.authorization(account, address(0), signer, address(0));
+        // check if given signer is approved as signer or operator
+        (bool isOperator, bool isSigner, ) = marketFactory.authorization(account, signer, signer, address(0));
         return (isOperator || isSigner);
     }
 }
