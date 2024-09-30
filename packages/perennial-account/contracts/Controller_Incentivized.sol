@@ -32,31 +32,34 @@ import { Withdrawal } from "./types/Withdrawal.sol";
 /// @notice Controller which compensates keepers for handling or relaying messages. Subclass to handle differences in
 /// gas calculations on different chains.
 abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
+    /// @dev Handles relayed messages for nonce cancellation
+    IVerifierBase public immutable nonceManager;
+    
     /// @dev Configuration used to calculate keeper compensation
     KeepConfig public keepConfig;
 
-    /// @dev Handles relayed messages for nonce cancellation
-    IVerifierBase public nonceManager;
-
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation_ Pristine collateral account contract
-    /// @param keepConfig_ Configuration used to compensate keepers
-    constructor(address implementation_, IMarketFactory marketFactory_, KeepConfig memory keepConfig_, IVerifierBase nonceManager_)
+    /// @param marketFactory_ Market factory contract
+    /// @param nonceManager_ Nonce manager contract for relayed messages
+    constructor(address implementation_, IMarketFactory marketFactory_, IVerifierBase nonceManager_)
     Controller(implementation_, marketFactory_) {
-        keepConfig = keepConfig_;
         nonceManager = nonceManager_;
     }
 
     /// @notice Configures message verification and keeper compensation
     /// @param verifier_ Contract used to validate collateral account message signatures
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
+    /// @param keepConfig_ Configuration used to compensate keepers
     function initialize(
         IAccountVerifier verifier_,
-        AggregatorV3Interface chainlinkFeed_
+        AggregatorV3Interface chainlinkFeed_,
+        KeepConfig memory keepConfig_
     ) external initializer(1) {
         __Factory__initialize();
         __Kept__initialize(chainlinkFeed_, DSU);
         verifier = verifier_;
+        keepConfig = keepConfig_;
     }
 
     /// @inheritdoc IController

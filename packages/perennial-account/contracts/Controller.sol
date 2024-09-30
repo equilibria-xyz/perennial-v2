@@ -31,10 +31,10 @@ contract Controller is Factory, IController {
     uint256 constant MAX_MARKETS_PER_GROUP = 4;
 
     /// @dev USDC stablecoin address
-    Token6 public USDC; // solhint-disable-line var-name-mixedcase
+    Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
 
     /// @dev DSU address
-    Token18 public DSU; // solhint-disable-line var-name-mixedcase
+    Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @inheritdoc IController
     IMarketFactory public immutable marketFactory;
