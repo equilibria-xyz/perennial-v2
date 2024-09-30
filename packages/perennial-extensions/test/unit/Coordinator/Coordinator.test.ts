@@ -110,7 +110,7 @@ describe('Coordinator', () => {
     it('should call claimFee on the market', async () => {
       await coordinatorContract.setComptroller(comptroller.address)
       await coordinatorContract.connect(comptroller).claimFee(market.address)
-      expect(market.claimFee).to.have.been.calledWith(comptroller.address)
+      expect(market.claimFee).to.have.been.calledWith(coordinatorContract.address)
       expect(token.transfer).to.have.been.calledWith(comptroller.address, 0)
     })
   })
