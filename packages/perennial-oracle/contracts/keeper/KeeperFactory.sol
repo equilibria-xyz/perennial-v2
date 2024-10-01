@@ -164,8 +164,12 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
         if (oracleIds.length == 0 || oracleIds.length != versions.length || oracleIds.length != maxCounts.length)
             revert KeeperFactoryInvalidSettleError();
 
-        for (uint256 i; i < oracleIds.length; i++)
+        for (uint256 i; i < oracleIds.length; i++) {
+            Token18 rewardToken = IKeeperOracle(address(oracles[oracleIds[i]])).oracle().market().token();
+            UFixed18 balanceBefore = rewardToken.balanceOf(address(this));
             IKeeperOracle(address(oracles[oracleIds[i]])).settle(versions[i], maxCounts[i]);
+            rewardToken.push(msg.sender, (rewardToken.balanceOf(address(this))).sub(balanceBefore));
+        }
     }
 
     /// @notice Returns the oracle parameter set
