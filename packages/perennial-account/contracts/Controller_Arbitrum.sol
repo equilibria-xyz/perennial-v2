@@ -15,8 +15,7 @@ contract Controller_Arbitrum is Controller_Incentivized, Kept_Arbitrum {
     constructor(
         address implementation,
         IVerifierBase nonceManager
-    )
-    Controller_Incentivized(implementation, nonceManager) {}
+    ) Controller_Incentivized(implementation, nonceManager) {}
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(

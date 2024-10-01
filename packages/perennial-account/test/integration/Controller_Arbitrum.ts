@@ -201,9 +201,9 @@ describe('Controller_Arbitrum', () => {
       bufferCalldata: 0,
     }
     const keepConfigBuffered = {
-      multiplierBase: ethers.utils.parseEther('1.085'),
+      multiplierBase: ethers.utils.parseEther('1.08'),
       bufferBase: 1_500_000, // for price commitment
-      multiplierCalldata: ethers.utils.parseEther('1.085'),
+      multiplierCalldata: ethers.utils.parseEther('1.08'),
       bufferCalldata: 35_200,
     }
     const keepConfigWithdrawal = {

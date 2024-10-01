@@ -32,6 +32,9 @@ import { Withdrawal } from "./types/Withdrawal.sol";
 /// @notice Controller which compensates keepers for handling or relaying messages. Subclass to handle differences in
 /// gas calculations on different chains.
 abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
+    /// @dev Handles relayed messages for nonce cancellation
+    IVerifierBase public immutable nonceManager;
+
     /// @dev Configuration used to calculate keeper compensation
     KeepConfig public keepConfig;
 
@@ -40,9 +43,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
 
     /// @dev Configuration used to calculate keeper compensation to withdraw from a collateral account
     KeepConfig public keepConfigWithdrawal;
-
-    /// @dev Handles relayed messages for nonce cancellation
-    IVerifierBase public immutable nonceManager;
 
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation_ Pristine collateral account contract

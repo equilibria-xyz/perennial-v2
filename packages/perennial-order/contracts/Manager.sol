@@ -29,17 +29,17 @@ abstract contract Manager is IManager, Kept {
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
+    /// @dev Contract used to validate delegated signers
+    IMarketFactory public immutable marketFactory;
+
+    /// @dev Verifies EIP712 messages for this extension
+    IOrderVerifier public immutable verifier;
+
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
 
     /// @dev Configuration used to compensate keepers for price commitments
     KeepConfig public keepConfigBuffered;
-
-    /// @dev Contract used to validate delegated signers
-    IMarketFactory public marketFactory;
-
-    /// @dev Verifies EIP712 messages for this extension
-    IOrderVerifier public verifier;
 
     /// @dev Stores trigger orders while awaiting their conditions to become true
     /// Market => Account => Nonce => Order
