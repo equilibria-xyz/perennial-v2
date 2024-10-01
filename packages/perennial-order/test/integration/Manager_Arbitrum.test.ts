@@ -853,7 +853,7 @@ describe('Manager_Arbitrum', () => {
       checkKeeperCompensation = true
     })
 
-    it('market reverts when attempting to close an unsettled position', async () => {
+    it('market reverts when attempting to close an unsettled positive position', async () => {
       // userD submits order extending their long position, which keeper executes
       let orderId = await placeOrder(
         userD,
@@ -878,7 +878,7 @@ describe('Manager_Arbitrum', () => {
         manager.connect(keeper).executeOrder(market.address, userD.address, orderId, TX_OVERRIDES),
       ).to.be.revertedWithCustomError(market, 'MarketOverCloseError')
 
-      // keeper commits price, settle the long order
+      // keeper commits price, settles the long order
       await commitPrice(parse6decimal('2000.2'), longOrderTimestamp)
       await market.settle(userD.address, TX_OVERRIDES)
       expect((await market.positions(userD.address)).long).to.equal(parse6decimal('4.5'))
@@ -886,8 +886,50 @@ describe('Manager_Arbitrum', () => {
       checkKeeperCompensation = true
     })
 
-    it('charges notional interface on whole position when closing', async () => {
+    it('market handles attempt to close an unsettled negative position', async () => {
+      // userD submits order reducing their long position, which keeper executes
+      let orderId = await placeOrder(
+        userD,
+        Side.LONG,
+        Compare.GTE,
+        parse6decimal('0.01'),
+        parse6decimal('-0.5'),
+        MAX_FEE,
+        constants.AddressZero,
+        NO_INTERFACE_FEE,
+      )
+      expect(orderId).to.equal(BigNumber.from(604))
+      const reduceOrderTimestamp = await executeOrder(userD, orderId)
+      expect((await market.positions(userD.address)).long).to.equal(parse6decimal('4.5'))
+      expect(await getPendingPosition(userD, Side.LONG)).to.equal(parse6decimal('4'))
+
+      // before settling, userD attempts to close their long position
+      orderId = await placeOrder(userD, Side.LONG, Compare.LTE, parse6decimal('9999'), MAGIC_VALUE_CLOSE_POSITION)
+      expect(orderId).to.equal(BigNumber.from(605))
+      const closeOrderTimestamp = await executeOrder(userD, orderId)
+
+      // keeper commits price, settles the long order
+      await commitPrice(parse6decimal('2000.31'), reduceOrderTimestamp)
+      await market.settle(userD.address, TX_OVERRIDES)
+      expect((await market.positions(userD.address)).long).to.equal(parse6decimal('4'))
+
+      // keeper commits another price, settles the close order
+      await commitPrice(parse6decimal('2000.32'), closeOrderTimestamp)
+      await market.settle(userD.address, TX_OVERRIDES)
+      expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
+
+      checkKeeperCompensation = true
+    })
+
+    it('charges notional interface fee on whole position when closing', async () => {
       const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
+
+      // userD starts with a long 3 position
+      await changePosition(userD, 0, parse6decimal('3'), 0)
+      await commitPrice(parse6decimal('2000.4'))
+      await market.settle(userD.address, TX_OVERRIDES)
+      expect((await market.positions(userD.address)).long).to.equal(parse6decimal('3'))
+      expect(await getPendingPosition(userD, Side.LONG)).to.equal(parse6decimal('3'))
 
       // userD closes their long position
       const interfaceFee = {
@@ -908,11 +950,60 @@ describe('Manager_Arbitrum', () => {
         constants.AddressZero,
         interfaceFee,
       )
-      expect(orderId).to.equal(BigNumber.from(604))
+      expect(orderId).to.equal(BigNumber.from(606))
 
-      const expectedInterfaceFee = parse6decimal('58.865886') // position * price * fee
+      const expectedInterfaceFee = parse6decimal('39.247848') // position * price * fee
       await executeOrder(userD, orderId, expectedInterfaceFee)
       expect(await getPendingPosition(userD, Side.LONG)).to.equal(constants.Zero)
+
+      // ensure fees were paid
+      expect(await dsu.balanceOf(userB.address)).to.equal(interfaceBalanceBefore.add(expectedInterfaceFee.mul(1e12)))
+      checkKeeperCompensation = true
+
+      // settle before next test
+      await commitPrice(parse6decimal('2000.4'))
+      await market.settle(userD.address, TX_OVERRIDES)
+      expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
+    })
+
+    it('charges notional interface fee when closing with a pending negative position', async () => {
+      const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
+
+      // userD starts with a short 2 position
+      await changePosition(userD, 0, 0, parse6decimal('2'))
+      await commitPrice(parse6decimal('2000.5'))
+      await market.settle(userD.address, TX_OVERRIDES)
+      expect((await market.positions(userD.address)).short).to.equal(parse6decimal('2'))
+
+      // userD reduces their position by 0.35 but does not settle
+      await changePosition(userD, 0, 0, parse6decimal('1.65'))
+      expect(await getPendingPosition(userD, Side.SHORT)).to.equal(parse6decimal('1.65'))
+
+      // userD closes their short position
+      const interfaceFee = {
+        interfaceFee: {
+          amount: parse6decimal('0.0051'),
+          receiver: userB.address,
+          fixedFee: false,
+          unwrap: false,
+        },
+      }
+      const orderId = await placeOrder(
+        userD,
+        Side.SHORT,
+        Compare.LTE,
+        parse6decimal('9999'),
+        MAGIC_VALUE_CLOSE_POSITION,
+        MAX_FEE,
+        constants.AddressZero,
+        interfaceFee,
+      )
+      expect(orderId).to.equal(BigNumber.from(607))
+
+      // position * price * fee = 1.65 * 2000.5 * 0.0051
+      const expectedInterfaceFee = parse6decimal('16.8342075')
+      await executeOrder(userD, orderId, expectedInterfaceFee)
+      expect(await getPendingPosition(userD, Side.SHORT)).to.equal(constants.Zero)
 
       // ensure fees were paid
       expect(await dsu.balanceOf(userB.address)).to.equal(interfaceBalanceBefore.add(expectedInterfaceFee.mul(1e12)))
