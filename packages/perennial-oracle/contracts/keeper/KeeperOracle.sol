@@ -154,7 +154,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev Distribution of keeper incentive is consolidated in the oracle's factory
     /// @param version The version to settle
     /// @param maxCount The maximum number of settlement callbacks to perform before exiting
-    function settle(uint256 version, uint256 maxCount) external onlyFactory {
+    /// @param receiver The receiver of the async fee
+    function settle(uint256 version, uint256 maxCount, address receiver) external onlyFactory {
         EnumerableSet.AddressSet storage callbacks = _localCallbacks[version];
 
         if (_global.latestVersion < version) revert KeeperOracleVersionOutsideRangeError();
@@ -171,7 +172,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
             // full settlement fee already cleamed in commit
             PriceResponse memory priceResponse = _responses[version].read();
-            market.token().push(msg.sender, UFixed18Lib.from(priceResponse.asyncFee));
+            market.token().push(receiver, UFixed18Lib.from(priceResponse.asyncFee));
         }
     }
 
