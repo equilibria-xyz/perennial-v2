@@ -108,7 +108,7 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.maxFee).to.equal(0)
-      expect(parameter.maxFeeAbsolute).to.equal(0)
+      expect(parameter.maxLiquidationFeeMultiplier).to.equal(0)
       expect(parameter.maxCut).to.equal(0)
       expect(parameter.maxRate).to.equal(0)
       expect(parameter.minMaintenance).to.equal(0)
@@ -332,7 +332,7 @@ describe('MarketFactory', () => {
   describe('#updateParameter', async () => {
     const newParameter = {
       maxFee: parse6decimal('0.01'),
-      maxFeeAbsolute: parse6decimal('1000'),
+      maxLiquidationFeeMultiplier: parse6decimal('1000'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
@@ -346,7 +346,7 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.maxFee).to.equal(newParameter.maxFee)
-      expect(parameter.maxFeeAbsolute).to.equal(newParameter.maxFeeAbsolute)
+      expect(parameter.maxLiquidationFeeMultiplier).to.equal(newParameter.maxLiquidationFeeMultiplier)
       expect(parameter.maxCut).to.equal(newParameter.maxCut)
       expect(parameter.maxRate).to.equal(newParameter.maxRate)
       expect(parameter.minMaintenance).to.equal(newParameter.minMaintenance)
@@ -366,7 +366,7 @@ describe('MarketFactory', () => {
   describe('#updateReferralFee', async () => {
     const newParameter = {
       maxFee: parse6decimal('0.01'),
-      maxFeeAbsolute: parse6decimal('1000'),
+      maxLiquidationFeeMultiplier: parse6decimal('1000'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),

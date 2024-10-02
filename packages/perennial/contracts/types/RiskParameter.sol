@@ -136,7 +136,7 @@ library RiskParameterStorageLib {
                 .gt(protocolParameter.maxFee)
         ) revert RiskParameterStorageInvalidError();
 
-        if (self.liquidationFee.gt(protocolParameter.maxFeeAbsolute)) revert RiskParameterStorageInvalidError();
+        if (self.liquidationFee.gt(protocolParameter.maxLiquidationFeeMultiplier)) revert RiskParameterStorageInvalidError();
 
         if (
             self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate)
@@ -151,8 +151,6 @@ library RiskParameterStorageLib {
         if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert RiskParameterStorageInvalidError();
 
         if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
-
-        if (self.minMaintenance.lt(self.liquidationFee)) revert RiskParameterStorageInvalidError();
 
         if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();
 
