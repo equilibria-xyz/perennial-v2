@@ -50,6 +50,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Mapping of allowed operators for each account
     mapping(address => mapping(address => bool)) public operators;
 
+    /// @dev Mapping of claimable DSU for each account
+    mapping(address => UFixed6) public claimable; 
+
     /// @notice Constructs the MultiInvoker contract
     /// @param usdc_ USDC stablecoin address
     /// @param dsu_ DSU address
@@ -134,6 +137,18 @@ contract MultiInvoker is IMultiInvoker, Kept {
         _invoke(account, invocations);
     }
 
+    /// @notice withdraw DSU or unwrap DSU to withdraw USDC from this address to `account`
+    /// @param account Account to claim fees for
+    /// @param unwrap Wheather to wrap/unwrap collateral on withdrawal
+    function withdrawClaimable(address account, bool unwrap) external {
+        if (msg.sender != account && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
+
+        UFixed6 claimableAmount = claimable[account];
+        claimable[account] = UFixed6Lib.ZERO;
+
+        _withdraw(account, claimableAmount, unwrap);
+    }
+
     /// @notice Performs a batch of invocations for an account
     /// @param account Account to perform invocations for
     /// @param invocations List of actions to execute in order
@@ -189,9 +204,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _approve(target);
             } else if (invocation.action == PerennialAction.CLAIM_FEE) {
-                (IMarket market, bool unwrap) = abi.decode(invocation.args, (IMarket, bool));
-
-                _claimFee(account, market, unwrap);
+                (IMarket market) = abi.decode(invocation.args, (IMarket));
+                _claimFee(account, market);
             }
         }
         // ETH must not remain in this contract at rest
@@ -205,7 +219,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newLong New long position for account in `market`
     /// @param newShort New short position for account in `market`
     /// @param collateral Net change in collateral for account in `market`
-    /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
+    /// @param wrap Wheather to wrap/unwrap collateral on deposit
     /// @param interfaceFee1 Primary interface fee to charge
     /// @param interfaceFee2 Secondary interface fee to charge
     function _update(
@@ -235,7 +249,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         );
 
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-        if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
+        if (!withdrawAmount.isZero()) claimable[account] = claimable[account].add(withdrawAmount.abs());
 
         // charge interface fee
         _chargeFee(account, market, interfaceFee1);
@@ -284,7 +298,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
 
         if (!claimAmount.isZero()) {
-            _withdraw(account, claimAmount, wrap);
+            claimable[account] = claimable[account].add(claimAmount);
         }
     }
 
@@ -307,19 +321,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (interfaceFee.amount.isZero()) return;
         _marketWithdraw(market, account, interfaceFee.amount);
 
-        if (interfaceFee.unwrap) _unwrap(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
-        else DSU.push(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
+        claimable[interfaceFee.receiver] = claimable[interfaceFee.receiver].add(interfaceFee.amount);
 
         emit InterfaceFeeCharged(account, market, interfaceFee);
     }
 
-    /// @notice Claims market fees, unwraps DSU, and pushes USDC to fee earner
+    /// @notice Claims market fees
     /// @param market Market from which fees should be claimed
     /// @param account Address of the user who earned fees
-    /// @param unwrap Set true to unwrap DSU to USDC when withdrawing
-    function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
+    function _claimFee(address account, IMarket market) internal isMarketInstance(market) {
         UFixed6 claimAmount = market.claimFee(account);
-        _withdraw(account, claimAmount, unwrap);
+        claimable[account] = claimable[account].add(claimAmount);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from `account` to this address for market usage

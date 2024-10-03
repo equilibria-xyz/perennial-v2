@@ -42,6 +42,10 @@ abstract contract Manager is IManager, Kept {
     /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
+    /// @dev Mapping of claimable DSU for each account
+    /// Account => Amount
+    mapping(address => UFixed6) public claimable;
+
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
     /// @param marketFactory_ Contract used to validate delegated signers
@@ -137,6 +141,17 @@ abstract contract Manager is IManager, Kept {
         if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
     }
 
+    /// @inheritdoc IManager
+    function withdrawClaimable(address account, bool unwrap) external {
+        _ensureValidOperator(account, msg.sender);
+
+        UFixed6 claimableAmount = claimable[account];
+        claimable[account] = UFixed6Lib.ZERO;
+
+        if (unwrap) _unwrapAndWithdaw(account, UFixed18Lib.from(claimableAmount));
+        else DSU.push(account, UFixed18Lib.from(claimableAmount));
+    }
+
     /// @notice reads keeper compensation parameters from an action message
     function _compensateKeeperAction(Action calldata action) internal {
         _compensateKeeper(action.market, action.common.account, action.maxFee);
@@ -151,6 +166,10 @@ abstract contract Manager is IManager, Kept {
     /// @notice reverts if user is not authorized to sign transactions for the account
     function _ensureValidSigner(address account, address signer) internal view {
         if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
+    }
+
+    function _ensureValidOperator(address account, address operator) internal view {
+        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerInvalidOperatorError();
     }
 
     /// @notice Transfers DSU from market to manager to compensate keeper
@@ -193,8 +212,7 @@ abstract contract Manager is IManager, Kept {
 
         _marketWithdraw(market, account, feeAmount);
 
-        if (order.interfaceFee.unwrap) _unwrapAndWithdaw(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
-        else DSU.push(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+        claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
         return true;
     }
