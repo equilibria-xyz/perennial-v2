@@ -886,7 +886,7 @@ describe('Manager_Arbitrum', () => {
       checkKeeperCompensation = true
     })
 
-    it('charges notional interface on whole position when closing', async () => {
+    it('charges notional interface fee on whole position when closing', async () => {
       const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
       // userD closes their long position
