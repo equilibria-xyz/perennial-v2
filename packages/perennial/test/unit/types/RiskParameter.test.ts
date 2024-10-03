@@ -849,7 +849,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              liquidationFee: parse6decimal('0.9').add(1),
+              liquidationFee: BigNumber.from(PROTOCOL_PARAMETER.maxLiquidationFeeMultiplier).add(1),
             },
             PROTOCOL_PARAMETER,
           ),
