@@ -1235,7 +1235,7 @@ testOracles.forEach(testOracle => {
 
           expect((await market.positions(user.address)).timestamp).to.equal(STARTING_TIME)
 
-          const reward = utils.parseEther('0.370586')
+          const reward = utils.parseEther('0.499741')
           expect(await dsu.balanceOf(user.address)).to.be.equal(
             utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
           )

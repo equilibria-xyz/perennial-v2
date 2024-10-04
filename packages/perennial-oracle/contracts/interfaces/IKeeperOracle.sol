@@ -48,7 +48,7 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     function initialize() external;
     function register(IOracle newOracle) external;
     function commit(OracleVersion memory version, address receiver, uint256 value) external;
-    function settle(uint256 version, uint256 maxCount) external;
+    function settle(uint256 version, uint256 maxCount, address receiver) external;
     function next() external view returns (uint256);
     function localCallbacks(uint256 version) external view returns (address[] memory);
 
