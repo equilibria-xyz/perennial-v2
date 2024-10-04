@@ -29,14 +29,14 @@ abstract contract Manager is IManager, Kept {
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev Configuration used for keeper compensation
-    KeepConfig public keepConfig;
-
     /// @dev Contract used to validate delegated signers
-    IMarketFactory public marketFactory;
+    IMarketFactory public immutable marketFactory;
 
     /// @dev Verifies EIP712 messages for this extension
-    IOrderVerifier public verifier;
+    IOrderVerifier public immutable verifier;
+
+    /// @dev Configuration used for keeper compensation
+    KeepConfig public keepConfig;
 
     /// @dev Stores trigger orders while awaiting their conditions to become true
     /// Market => Account => Nonce => Order
@@ -208,6 +208,8 @@ abstract contract Manager is IManager, Kept {
         // prevent user from reusing an order identifier
         TriggerOrder memory old = _orders[market][account][orderId].read();
         if (old.isSpent) revert ManagerInvalidOrderNonceError();
+        // prevent user from frontrunning keeper compensation
+        if (!old.isEmpty() && old.maxFee.gt(order.maxFee)) revert ManagerCannotReduceMaxFee();
 
         _orders[market][account][orderId].store(order);
         emit TriggerOrderPlaced(market, account, order, orderId);

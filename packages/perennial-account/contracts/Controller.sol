@@ -31,10 +31,10 @@ contract Controller is Factory, IController {
     uint256 constant MAX_MARKETS_PER_GROUP = 4;
 
     /// @dev USDC stablecoin address
-    Token6 public USDC; // solhint-disable-line var-name-mixedcase
+    Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
 
     /// @dev DSU address
-    Token18 public DSU; // solhint-disable-line var-name-mixedcase
+    Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @inheritdoc IController
     IMarketFactory public marketFactory;
@@ -104,10 +104,17 @@ contract Controller is Factory, IController {
             IMarket market = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketRebalanceConfig = _rebalanceConfigs[owner][group][address(market)];
             (bool canMarketRebalance, Fixed6 imbalance) =
-                RebalanceLib.checkMarket(marketRebalanceConfig, groupCollateral, actualCollateral[i]);
+                RebalanceLib.checkMarket(
+                    marketRebalanceConfig,
+                    groupToMaxRebalanceFee[owner][group],
+                    groupCollateral,
+                    actualCollateral[i]
+                );
             imbalances[i] = imbalance;
             canRebalance = canRebalance || canMarketRebalance;
         }
+
+        // if group does not exist or was deleted, arrays will be empty and function will return (0, false, 0)
     }
 
     /// @inheritdoc IController

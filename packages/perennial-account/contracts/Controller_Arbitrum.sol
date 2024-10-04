@@ -11,9 +11,8 @@ import { Controller_Incentivized } from "./Controller_Incentivized.sol";
 contract Controller_Arbitrum is Controller_Incentivized, Kept_Arbitrum {
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation Pristine collateral account contract
-    /// @param keepConfig Configuration used to compensate keepers
-    constructor(address implementation, KeepConfig memory keepConfig, IVerifierBase nonceManager)
-    Controller_Incentivized(implementation, keepConfig, nonceManager) {}
+    constructor(address implementation, IVerifierBase nonceManager)
+    Controller_Incentivized(implementation, nonceManager) {}
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(

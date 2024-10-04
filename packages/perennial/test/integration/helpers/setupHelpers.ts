@@ -261,13 +261,11 @@ export async function createMarket(
   const marketParameter = {
     fundingFee: parse6decimal('0.1'),
     interestFee: parse6decimal('0.1'),
-    oracleFee: 0,
     riskFee: 0,
     makerFee: 0,
     takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    settlementFee: 0,
     closed: false,
     settle: false,
     ...marketParamOverrides,
