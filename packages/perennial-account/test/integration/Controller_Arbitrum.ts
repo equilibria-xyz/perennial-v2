@@ -58,11 +58,10 @@ import { IKeeperOracle, IOracleFactory, PythFactory } from '@equilibria/perennia
 const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
-const DEFAULT_MAX_FEE_6 = parse6decimal('0.5')
-const DEFAULT_MAX_FEE = DEFAULT_MAX_FEE_6.mul(1e12)
+const DEFAULT_MAX_FEE = parse6decimal('0.5')
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
-const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
+const TX_OVERRIDES = { gasLimit: 3_000_000, maxPriorityFeePerGas: 0, maxFeePerGas: 100_000_000 }
 
 describe('Controller_Arbitrum', () => {
   let dsu: IERC20Metadata
@@ -84,12 +83,14 @@ describe('Controller_Arbitrum', () => {
   let receiver: SignerWithAddress
   let lastNonce = 0
   let currentTime: BigNumber
+  let keeperBalanceBefore: BigNumber
+  let keeperEthBalanceBefore: BigNumber
 
   // create a default action for the specified user with reasonable fee and expiry
   function createAction(
     userAddress: Address,
     signerAddress = userAddress,
-    maxFee = DEFAULT_MAX_FEE_6,
+    maxFee = DEFAULT_MAX_FEE,
     expiresInSeconds = 45,
   ) {
     return {
@@ -118,6 +119,7 @@ describe('Controller_Arbitrum', () => {
     const tx = await controller
       .connect(keeper)
       .deployAccountWithSignature(deployAccountMessage, signatureCreate, TX_OVERRIDES)
+
     // verify the address from event arguments
     const creationArgs = await getEventArguments(tx, 'AccountDeployed')
     expect(creationArgs.account).to.equal(accountAddress)
@@ -131,6 +133,19 @@ describe('Controller_Arbitrum', () => {
   // funds specified wallet with 50k USDC
   async function fundWallet(wallet: SignerWithAddress): Promise<undefined> {
     await fundWalletUSDC(wallet, parse6decimal('50000'), { maxFeePerGas: 100000000 })
+  }
+
+  async function checkCompensation(priceCommitments = 0) {
+    const keeperFeesPaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+    let keeperEthSpentOnGas = keeperEthBalanceBefore.sub(await keeper.getBalance())
+
+    // if TXes in test required outside price commitments, compensate the keeper for them
+    keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306').mul(priceCommitments))
+
+    // cost of transaction
+    const keeperGasCostInUSD = keeperEthSpentOnGas.mul(3413)
+    // keeper should be compensated between 100-125% of actual gas cost
+    expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
   }
 
   // create a serial nonce for testing purposes; real users may choose a nonce however they please
@@ -180,20 +195,35 @@ describe('Controller_Arbitrum', () => {
 
     // set up users and deploy artifacts
     const keepConfig = {
-      multiplierBase: 0,
-      bufferBase: 1_000_000,
-      multiplierCalldata: 0,
-      bufferCalldata: 500_000,
+      multiplierBase: ethers.utils.parseEther('1'),
+      bufferBase: 275_000, // buffer for handling the keeper fee
+      multiplierCalldata: ethers.utils.parseEther('1'),
+      bufferCalldata: 0,
+    }
+    const keepConfigBuffered = {
+      multiplierBase: ethers.utils.parseEther('1.08'),
+      bufferBase: 1_500_000, // for price commitment
+      multiplierCalldata: ethers.utils.parseEther('1.08'),
+      bufferCalldata: 35_200,
+    }
+    const keepConfigWithdrawal = {
+      multiplierBase: ethers.utils.parseEther('1.05'),
+      bufferBase: 1_500_000,
+      multiplierCalldata: ethers.utils.parseEther('1.05'),
+      bufferCalldata: 35_200,
     }
     const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
     controller = await deployControllerArbitrum(owner, marketVerifier, { maxFeePerGas: 100000000 })
     accountVerifier = await new AccountVerifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
     // chainlink feed is used by Kept for keeper compensation
-    await controller['initialize(address,address,address,(uint256,uint256,uint256,uint256))'](
+    const KeepConfig = '(uint256,uint256,uint256,uint256)'
+    await controller[`initialize(address,address,address,${KeepConfig},${KeepConfig},${KeepConfig})`](
       marketFactory.address,
       accountVerifier.address,
       CHAINLINK_ETH_USD_FEED,
       keepConfig,
+      keepConfigBuffered,
+      keepConfigWithdrawal,
     )
     // fund userA
     await fundWallet(userA)
@@ -211,12 +241,13 @@ describe('Controller_Arbitrum', () => {
   beforeEach(async () => {
     // update the timestamp used for calculating expiry and adjusting oracle price
     currentTime = BigNumber.from(await currentBlockTimestamp())
-
     await loadFixture(fixture)
 
     // set a realistic base gas fee
     await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
 
+    keeperBalanceBefore = await dsu.balanceOf(keeper.address)
+    keeperEthBalanceBefore = await keeper.getBalance()
     currentTime = BigNumber.from(await currentBlockTimestamp())
   })
 
@@ -238,7 +269,7 @@ describe('Controller_Arbitrum', () => {
 
     it('can create an account', async () => {
       // pre-fund the address where the account will be deployed
-      await usdc.connect(userA).transfer(accountAddressA, parse6decimal('15000'), { maxFeePerGas: 100000000 })
+      await usdc.connect(userA).transfer(accountAddressA, parse6decimal('15000'), TX_OVERRIDES)
 
       // sign a message to deploy the account
       const deployAccountMessage = {
@@ -247,37 +278,26 @@ describe('Controller_Arbitrum', () => {
       const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
 
       // keeper executes deployment of the account and is compensated
-      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
-      await expect(
-        controller
-          .connect(keeper)
-          .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
-      )
+      await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature, TX_OVERRIDES))
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressA)
 
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      await checkCompensation()
     })
 
     it('keeper fee is limited by maxFee', async () => {
       // pre-fund the address where the account will be deployed
-      await usdc.connect(userA).transfer(accountAddressA, parse6decimal('15000'), { maxFeePerGas: 100000000 })
+      await usdc.connect(userA).transfer(accountAddressA, parse6decimal('15000'), TX_OVERRIDES)
 
       // sign a message with maxFee smaller than the calculated keeper fee (~0.0033215)
-      const maxFee = parse6decimal('0.000789')
+      const maxFee = parse6decimal('0.0789')
       const deployAccountMessage = {
         ...createAction(userA.address, userA.address, maxFee),
       }
       const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
 
       // keeper executes deployment of the account and is compensated
-      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
-      await expect(
-        controller
-          .connect(keeper)
-          .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
-      )
+      await expect(controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature, TX_OVERRIDES))
         .to.emit(controller, 'AccountDeployed')
         .withArgs(userA.address, accountAddressA)
 
@@ -308,18 +328,10 @@ describe('Controller_Arbitrum', () => {
   describe('#transfer', async () => {
     const INITIAL_DEPOSIT_6 = parse6decimal('13000')
     let accountA: Account
-    let keeperBalanceBefore: BigNumber
 
     beforeEach(async () => {
       // deploy collateral account for userA
       accountA = await createCollateralAccount(userA, INITIAL_DEPOSIT_6)
-      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
-    })
-
-    afterEach(async () => {
-      // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
     })
 
     it('collects fee for depositing some funds to market', async () => {
@@ -350,6 +362,8 @@ describe('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(transferAmount)
+
+      await checkCompensation(1)
     })
 
     it('collects fee for withdrawing some funds from market', async () => {
@@ -384,6 +398,8 @@ describe('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(parse6decimal('10000')) // 12k-2k
+
+      await checkCompensation(2)
     })
 
     it('collects fee for withdrawing native deposit from market', async () => {
@@ -429,6 +445,8 @@ describe('Controller_Arbitrum', () => {
         .to.emit(controller, 'KeeperCall')
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
       expect((await market.locals(userA.address)).collateral).to.equal(0)
+
+      await checkCompensation(1)
     })
 
     it('collects fee for withdrawing funds into empty collateral account', async () => {
@@ -468,6 +486,8 @@ describe('Controller_Arbitrum', () => {
         parse6decimal('9999'),
         parse6decimal('10000'),
       ) // 12k-2k
+
+      await checkCompensation(2)
     })
   })
 
@@ -479,14 +499,12 @@ describe('Controller_Arbitrum', () => {
     })
 
     it('collects fee for changing rebalance configuration', async () => {
-      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
-
       // sign message to create a new group
       const message = {
         group: 5,
         markets: [market.address],
         configs: [{ target: parse6decimal('1'), threshold: parse6decimal('0.0901') }],
-        maxFee: DEFAULT_MAX_FEE_6,
+        maxFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, accountVerifier, message)
@@ -499,8 +517,7 @@ describe('Controller_Arbitrum', () => {
         .withArgs(userA.address, message.group, 1)
 
       // ensure keeper was compensated
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.01'), DEFAULT_MAX_FEE)
+      await checkCompensation()
     })
 
     it('collects fee for rebalancing a group', async () => {
@@ -514,7 +531,7 @@ describe('Controller_Arbitrum', () => {
           { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
           { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
         ],
-        maxFee: DEFAULT_MAX_FEE_6,
+        maxFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, accountVerifier, message)
@@ -525,9 +542,6 @@ describe('Controller_Arbitrum', () => {
       await deposit(parse6decimal('10000'), accountA)
       expect((await ethMarket.locals(userA.address)).collateral).to.equal(parse6decimal('10000'))
       expect((await btcMarket.locals(userA.address)).collateral).to.equal(0)
-
-      // now that test setup is complete, record keeper balance
-      const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
 
       // rebalance the group
       await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES))
@@ -541,8 +555,7 @@ describe('Controller_Arbitrum', () => {
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
 
       // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.01'), DEFAULT_MAX_FEE)
+      await checkCompensation(2)
     })
 
     it('honors max rebalance fee when rebalancing a group', async () => {
@@ -563,7 +576,7 @@ describe('Controller_Arbitrum', () => {
       await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES)).to
         .not.be.reverted
 
-      // transfer some collateral to ethMarket and record keeper balance
+      // transfer some collateral to ethMarket and record keeper balance after account creation
       await deposit(parse6decimal('5000'), accountA)
       const keeperBalanceBefore = await dsu.balanceOf(keeper.address)
 
@@ -594,7 +607,7 @@ describe('Controller_Arbitrum', () => {
           { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
           { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
         ],
-        maxFee: DEFAULT_MAX_FEE_6,
+        maxFee: DEFAULT_MAX_FEE,
         ...(await createAction(userA.address)),
       }
       const signature = await signRebalanceConfigChange(userA, accountVerifier, message)
@@ -649,19 +662,16 @@ describe('Controller_Arbitrum', () => {
   describe('#withdrawal', async () => {
     let accountA: Account
     let userBalanceBefore: BigNumber
-    let keeperBalanceBefore: BigNumber
 
     beforeEach(async () => {
       // deploy collateral account for userA
       accountA = await createCollateralAccount(userA, parse6decimal('17000'))
       userBalanceBefore = await usdc.balanceOf(userA.address)
-      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
     })
 
     afterEach(async () => {
       // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), DEFAULT_MAX_FEE)
+      await checkCompensation(1)
     })
 
     it('collects fee for partial withdrawal from a delegated signer', async () => {
@@ -716,7 +726,6 @@ describe('Controller_Arbitrum', () => {
 
   describe('#relay', async () => {
     let downstreamVerifier: Verifier
-    let keeperBalanceBefore: BigNumber
 
     function createCommon(domain: Address) {
       return {
@@ -734,13 +743,11 @@ describe('Controller_Arbitrum', () => {
     beforeEach(async () => {
       await createCollateralAccount(userA, parse6decimal('6'))
       downstreamVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
-      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
     })
 
     afterEach(async () => {
       // confirm keeper earned their fee
-      const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
-      expect(keeperFeePaid).to.be.within(utils.parseEther('0'), DEFAULT_MAX_FEE)
+      await checkCompensation()
     })
 
     it('relays nonce cancellation messages', async () => {
