@@ -168,6 +168,24 @@ describe('Manager', () => {
       compareOrders(order, replacement)
     })
 
+    it('prevents user from reducing maxFee', async () => {
+      // submit the original order
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+
+      // user cannot reduce maxFee
+      const replacement = { ...MAKER_ORDER }
+      replacement.maxFee = MAKER_ORDER.maxFee.sub(1)
+      await expect(
+        manager.connect(userA).placeOrder(market.address, nextOrderId, replacement),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotReduceMaxFee')
+
+      // user cannot zero maxFee
+      replacement.maxFee = constants.Zero
+      await expect(
+        manager.connect(userA).placeOrder(market.address, nextOrderId, replacement),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotReduceMaxFee')
+    })
+
     it('keeper can execute orders', async () => {
       // place a maker and long order
       const nonce1 = advanceOrderId()

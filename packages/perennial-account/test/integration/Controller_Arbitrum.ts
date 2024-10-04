@@ -58,7 +58,7 @@ import { IKeeperOracle, IOracleFactory, PythFactory } from '@equilibria/perennia
 const { ethers } = HRE
 
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
-const DEFAULT_MAX_FEE = parse6decimal('2')
+const DEFAULT_MAX_FEE = parse6decimal('0.5')
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxPriorityFeePerGas: 0, maxFeePerGas: 100_000_000 }
@@ -555,7 +555,7 @@ describe('Controller_Arbitrum', () => {
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
 
       // confirm keeper earned their fee
-      await checkCompensation(4)
+      await checkCompensation(2)
     })
 
     it('honors max rebalance fee when rebalancing a group', async () => {
@@ -594,6 +594,68 @@ describe('Controller_Arbitrum', () => {
       // confirm keeper fee was limited as configured
       const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.equal(utils.parseEther('0.00923'))
+    })
+
+    it('cannot award more keeper fees than collateral rebalanced', async () => {
+      const ethMarket = market
+
+      // create a new group with two markets
+      const message = {
+        group: 4,
+        markets: [ethMarket.address, btcMarket.address],
+        configs: [
+          { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
+          { target: parse6decimal('0.5'), threshold: parse6decimal('0.05') },
+        ],
+        maxFee: DEFAULT_MAX_FEE,
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, accountVerifier, message)
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature, TX_OVERRIDES)).to
+        .not.be.reverted
+
+      let dustAmount = parse6decimal('0.000001')
+      await dsu.connect(keeper).approve(ethMarket.address, dustAmount.mul(1e12), TX_OVERRIDES)
+
+      // keeper dusts one of the markets
+      await ethMarket
+        .connect(keeper)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](
+          userA.address,
+          constants.MaxUint256,
+          constants.MaxUint256,
+          constants.MaxUint256,
+          dustAmount,
+          false,
+          { maxFeePerGas: 150000000 },
+        )
+      expect((await ethMarket.locals(userA.address)).collateral).to.equal(dustAmount)
+
+      // keeper cannot rebalance because dust did not exceed maxFee
+      await expect(
+        controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES),
+      ).to.be.revertedWithCustomError(controller, 'ControllerGroupBalancedError')
+
+      // keeper dusts the other market, such that target is nonzero, and percentage exceeded
+      dustAmount = parse6decimal('0.000003')
+      await dsu.connect(keeper).approve(btcMarket.address, dustAmount.mul(1e12), TX_OVERRIDES)
+      await btcMarket
+        .connect(keeper)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](
+          userA.address,
+          constants.MaxUint256,
+          constants.MaxUint256,
+          constants.MaxUint256,
+          dustAmount,
+          false,
+          { maxFeePerGas: 150000000 },
+        )
+      expect((await btcMarket.locals(userA.address)).collateral).to.equal(dustAmount)
+
+      // keeper still cannot rebalance because dust did not exceed maxFee
+      await expect(
+        controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES),
+      ).to.be.revertedWithCustomError(controller, 'ControllerGroupBalancedError')
     })
   })
 

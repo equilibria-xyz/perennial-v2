@@ -15,7 +15,8 @@ struct RebalanceConfigChange {
     address[] markets;
     /// @dev Target allocation for markets in the aforementioned array
     RebalanceConfig[] configs;
-    /// @dev Largest amount to compensate a relayer/keeper for rebalancing the group in DSU
+    /// @dev Largest amount to compensate a relayer/keeper for rebalancing the group in DSU.
+    /// This amount also prevents keepers from rebalancing imbalances smaller than the keeper fee.
     UFixed6 maxFee;
     /// @dev Common information for collateral account actions
     Action action;
