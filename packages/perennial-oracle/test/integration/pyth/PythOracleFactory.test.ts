@@ -1200,7 +1200,7 @@ testOracles.forEach(testOracle => {
       })
 
       describe('#settle', async () => {
-        it.only('settles successfully and incentivizes the keeper', async () => {
+        it('settles successfully and incentivizes the keeper', async () => {
           await time.includeAt(
             async () =>
               await market
