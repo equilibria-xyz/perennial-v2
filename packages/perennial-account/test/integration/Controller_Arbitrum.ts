@@ -747,7 +747,6 @@ describe('Controller_Arbitrum', () => {
       await createCollateralAccount(userA, parse6decimal('6'))
       downstreamVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
       downstreamVerifier.initialize(marketFactory.address, TX_OVERRIDES)
-      keeperBalanceBefore = await dsu.balanceOf(keeper.address)
     })
 
     afterEach(async () => {
