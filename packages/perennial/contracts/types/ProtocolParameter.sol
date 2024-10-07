@@ -42,7 +42,7 @@ struct StoredProtocolParameter {
     uint24 minEfficiency;           // <= 1677%
     uint24 referralFee;             // <= 1677%
     uint24 minScale;                // <= 1677%
-    uint24 maxStaleAfter;           // <= 18.2 hours
+    uint24 maxStaleAfter;           // <= 4660 hours
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; } // SECURITY: must remain at (1) slots
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
