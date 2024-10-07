@@ -14711,6 +14711,122 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
+        it('reverts if under margin (intent maker)', async () => {
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('1250'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const LOWER_COLLATERAL = parse6decimal('500')
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              POSITION,
+              0,
+              0,
+              LOWER_COLLATERAL,
+              false,
+            )
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, LOWER_COLLATERAL, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, LOWER_COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+        })
+
+        it('reverts if under margin (intent taker)', async () => {
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('25'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const LOWER_COLLATERAL = parse6decimal('500')
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              POSITION,
+              0,
+              0,
+              LOWER_COLLATERAL,
+              false,
+            )
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, LOWER_COLLATERAL, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, LOWER_COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+        })
+
         it('reverts if paused (market)', async () => {
           factory.paused.returns(true)
           await expect(
