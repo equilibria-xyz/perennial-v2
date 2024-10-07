@@ -62,6 +62,7 @@ function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameter
     minEfficiency: 0,
     referralFee: 0,
     minScale: 0,
+    maxStaleAfter: 172800, // 2 days
   }
 }
 
