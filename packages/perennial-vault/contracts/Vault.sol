@@ -387,7 +387,7 @@ contract Vault is IVault, Instance {
             .allocate(
                 deposit,
                 withdrawal,
-                _ineligible(context, withdrawal)
+                _ineligible(context, deposit, withdrawal)
             );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
@@ -400,15 +400,16 @@ contract Vault is IVault, Instance {
 
     /// @notice Returns the amount of collateral is ineligible for allocation
     /// @param context The context to use
+    /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
     /// @return The amount of assets that are ineligible from being allocated
-    function _ineligible(Context memory context, UFixed6 withdrawal) private pure returns (UFixed6) {
+    function _ineligible(Context memory context, UFixed6 deposit, UFixed6 withdrawal) private pure returns (UFixed6) {
         // assets eligible for redemption
         UFixed6 redemptionEligible = UFixed6Lib.unsafeFrom(context.totalCollateral)
             // assets pending claim (use latest global assets before withdrawal for redeemability)
             .unsafeSub(context.global.assets.add(withdrawal))
             // assets pending deposit
-            .unsafeSub(context.global.deposit);
+            .unsafeSub(context.global.deposit.sub(deposit));
 
         return redemptionEligible
             // approximate assets up for redemption
