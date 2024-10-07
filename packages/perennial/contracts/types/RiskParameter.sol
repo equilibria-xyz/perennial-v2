@@ -144,6 +144,8 @@ library RiskParameterStorageLib {
                 .gt(protocolParameter.maxRate)
         ) revert RiskParameterStorageInvalidError();
 
+        if (self.staleAfter > protocolParameter.maxStaleAfter) revert RiskParameterStorageInvalidError();
+
         if (self.maintenance.lt(protocolParameter.minMaintenance)) revert RiskParameterStorageInvalidError();
 
         if (self.margin.lt(self.maintenance)) revert RiskParameterStorageInvalidError();

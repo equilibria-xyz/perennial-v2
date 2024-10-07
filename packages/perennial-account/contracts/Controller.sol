@@ -103,10 +103,17 @@ contract Controller is Factory, IController {
             IMarket market = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketRebalanceConfig = _rebalanceConfigs[owner][group][address(market)];
             (bool canMarketRebalance, Fixed6 imbalance) =
-                RebalanceLib.checkMarket(marketRebalanceConfig, groupCollateral, actualCollateral[i]);
+                RebalanceLib.checkMarket(
+                    marketRebalanceConfig,
+                    groupToMaxRebalanceFee[owner][group],
+                    groupCollateral,
+                    actualCollateral[i]
+                );
             imbalances[i] = imbalance;
             canRebalance = canRebalance || canMarketRebalance;
         }
+
+        // if group does not exist or was deleted, arrays will be empty and function will return (0, false, 0)
     }
 
     /// @inheritdoc IController

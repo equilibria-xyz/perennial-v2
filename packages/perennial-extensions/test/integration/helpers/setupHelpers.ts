@@ -202,6 +202,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
     minScale: parse6decimal('0.001'),
+    maxStaleAfter: 7200,
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   const oracle = IOracle__factory.connect(

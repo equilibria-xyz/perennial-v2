@@ -695,6 +695,12 @@ describe('Controller', () => {
           .withArgs(userA.address, group, 0)
 
         await verifyConfigAgainstMessage(userA, message, group)
+
+        // cannot rebalance a deleted group
+        await expect(controller.connect(keeper).rebalanceGroup(userA.address, group)).to.be.revertedWithCustomError(
+          controller,
+          'ControllerGroupBalancedError',
+        )
       })
     })
   })
