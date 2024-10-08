@@ -215,7 +215,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newLong New long position for account in `market`
     /// @param newShort New short position for account in `market`
     /// @param collateral Net change in collateral for account in `market`
-    /// @param wrap Whether to wrap/unwrap collateral on deposit
+    /// @param wrap Whether to wrap/unwrap collateral on deposit/withdrawal
     /// @param interfaceFee1 Primary interface fee to charge
     /// @param interfaceFee2 Secondary interface fee to charge
     function _update(
@@ -322,7 +322,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         emit InterfaceFeeCharged(account, market, interfaceFee);
     }
 
-    /// @notice Claims market fees
+    /// @notice Claims market fees, unwraps DSU, and pushes USDC to fee earner
     /// @param market Market from which fees should be claimed
     /// @param account Address of the user who earned fees
     function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
