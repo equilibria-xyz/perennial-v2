@@ -214,16 +214,10 @@ describe('Manager_Arbitrum', () => {
           await expect(tx)
             .to.emit(dsu, 'Transfer')
             .withArgs(market.address, manager.address, expectedInterfaceFee.mul(1e12))
-            .to.emit(reserve, 'Redeem')
-            .withArgs(manager.address, expectedInterfaceFee.mul(1e12), expectedInterfaceFee.mul(1e12))
-            .to.emit(usdc, 'Transfer')
-            .withArgs(manager.address, order.interfaceFee.receiver, expectedInterfaceFee)
         } else {
           await expect(tx)
             .to.emit(dsu, 'Transfer')
             .withArgs(market.address, manager.address, expectedInterfaceFee.mul(1e12))
-            .to.emit(dsu, 'Transfer')
-            .withArgs(manager.address, order.interfaceFee.receiver, expectedInterfaceFee.mul(1e12))
         }
       }
     }
@@ -361,6 +355,7 @@ describe('Manager_Arbitrum', () => {
   afterEach(async () => {
     // ensure keeper was paid for their transaction
     if (checkKeeperCompensation) {
+      await manager.connect(keeper).claim(keeper.address, false)
       const keeperBalanceAfter = await dsu.balanceOf(keeper.address)
       const keeperFeePaid = keeperBalanceAfter.sub(keeperBalanceBefore)
       expect(keeperFeePaid).to.be.within(utils.parseEther('0.001'), MAX_FEE)
@@ -596,6 +591,7 @@ describe('Manager_Arbitrum', () => {
       expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('2.5'))
 
       // ensure fees were paid
+      await manager.connect(userC).claim(userC.address, false)
       expect(await dsu.balanceOf(userC.address)).to.equal(interfaceBalanceBefore.add(feeAmount.mul(1e12)))
       checkKeeperCompensation = true
     })
@@ -632,6 +628,7 @@ describe('Manager_Arbitrum', () => {
       await market.connect(userC).settle(userB.address, TX_OVERRIDES)
 
       // ensure fees were paid
+      await manager.connect(userC).claim(userC.address, true)
       expect(await usdc.balanceOf(userC.address)).to.equal(feeAmount)
       checkKeeperCompensation = true
     })
@@ -671,6 +668,7 @@ describe('Manager_Arbitrum', () => {
       await market.connect(userB).settle(userB.address, TX_OVERRIDES)
 
       // ensure fees were paid
+      await manager.connect(userC).claim(userC.address, true)
       expect(await usdc.balanceOf(userC.address)).to.equal(interfaceBalanceBefore.add(expectedInterfaceFee))
       checkKeeperCompensation = true
     })
@@ -915,6 +913,7 @@ describe('Manager_Arbitrum', () => {
       expect(await getPendingPosition(userD, Side.LONG)).to.equal(constants.Zero)
 
       // ensure fees were paid
+      await manager.connect(userB).claim(userB.address, false)
       expect(await dsu.balanceOf(userB.address)).to.equal(interfaceBalanceBefore.add(expectedInterfaceFee.mul(1e12)))
       checkKeeperCompensation = true
     })
