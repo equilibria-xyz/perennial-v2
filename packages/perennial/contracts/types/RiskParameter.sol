@@ -147,8 +147,10 @@ library RiskParameterStorageLib {
         if (self.staleAfter > protocolParameter.maxStaleAfter) revert RiskParameterStorageInvalidError();
 
         if (self.maintenance.lt(protocolParameter.minMaintenance)) revert RiskParameterStorageInvalidError();
+        if (self.maintenance.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
         if (self.margin.lt(self.maintenance)) revert RiskParameterStorageInvalidError();
+        if (self.margin.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
         if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert RiskParameterStorageInvalidError();
 

@@ -314,12 +314,12 @@ describe('RiskParameter', () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            margin: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            margin: parse6decimal('1').sub(1),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.margin).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.margin).to.equal(parse6decimal('1').sub(1))
       })
 
       it('reverts if invalid (below)', async () => {
@@ -339,7 +339,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              margin: BigNumber.from(2).pow(STORAGE_SIZE),
+              margin: parse6decimal('1').add(1),
             },
             PROTOCOL_PARAMETER,
           ),
@@ -366,13 +366,13 @@ describe('RiskParameter', () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            maintenance: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-            margin: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            maintenance: parse6decimal('1').sub(1),
+            margin: parse6decimal('1').sub(1),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.maintenance).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maintenance).to.equal(parse6decimal('1').sub(1))
       })
 
       it('reverts if invalid (below)', async () => {
@@ -393,8 +393,8 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              maintenance: BigNumber.from(2).pow(STORAGE_SIZE),
-              margin: BigNumber.from(2).pow(STORAGE_SIZE),
+              maintenance: parse6decimal('1').add(1),
+              margin: parse6decimal('1').add(1),
             },
             PROTOCOL_PARAMETER,
           ),
