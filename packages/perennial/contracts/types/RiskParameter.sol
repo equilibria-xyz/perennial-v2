@@ -156,8 +156,13 @@ library RiskParameterStorageLib {
 
         if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();
 
-        UFixed6 scaleLimit = UFixed6Lib.from(self.makerLimit.truncate()).div(self.efficiencyLimit).mul(protocolParameter.minScale);
-        if (UFixed6Lib.from(self.takerFee.scale.truncate()).lt(scaleLimit) || UFixed6Lib.from(self.makerFee.scale.truncate()).lt(scaleLimit))
+        (UFixed6 makerLimitTruncated, UFixed6 takerFeeScaleTruncated, UFixed6 makerFeeScaleTruncated) = (
+            UFixed6Lib.from(self.makerLimit.truncate()),
+            UFixed6Lib.from(self.takerFee.scale.truncate()),
+            UFixed6Lib.from(self.makerFee.scale.truncate())
+        );
+        UFixed6 scaleLimit = makerLimitTruncated.div(self.efficiencyLimit).mul(protocolParameter.minScale);
+        if (takerFeeScaleTruncated.lt(scaleLimit) || makerFeeScaleTruncated.lt(scaleLimit))
             revert RiskParameterStorageInvalidError();
     }
 
