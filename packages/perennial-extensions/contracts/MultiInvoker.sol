@@ -215,7 +215,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newLong New long position for account in `market`
     /// @param newShort New short position for account in `market`
     /// @param collateral Net change in collateral for account in `market`
-    /// @param wrap Wheather to wrap/unwrap collateral on deposit
+    /// @param wrap Whether to wrap/unwrap collateral on deposit
     /// @param interfaceFee1 Primary interface fee to charge
     /// @param interfaceFee2 Secondary interface fee to charge
     function _update(
@@ -245,7 +245,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         );
 
         Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-        if (!withdrawAmount.isZero()) claimable[account] = claimable[account].add(withdrawAmount.abs());
+        if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
 
         // charge interface fee
         _chargeFee(account, market, interfaceFee1);
@@ -294,7 +294,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
             UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
 
         if (!claimAmount.isZero()) {
-            claimable[account] = claimable[account].add(claimAmount);
+            _withdraw(account, claimAmount, wrap);
         }
     }
 
