@@ -141,8 +141,8 @@ abstract contract Manager is IManager, Kept {
 
         if (!canExecute) revert ManagerCannotExecuteError();
 
-        order.execute(market, account);
         bool interfaceFeeCharged = _chargeInterfaceFee(market, account, order);
+        order.execute(market, account);
 
         // invalidate the order nonce
         order.isSpent = true;
