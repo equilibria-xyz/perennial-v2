@@ -142,7 +142,7 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function withdrawClaimable(address account, bool unwrap) external {
+    function claim(address account, bool unwrap) external {
         _ensureValidOperator(account, msg.sender);
 
         UFixed6 claimableAmount = claimable[account];

@@ -51,7 +51,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     mapping(address => mapping(address => bool)) public operators;
 
     /// @dev Mapping of claimable DSU for each account
-    mapping(address => UFixed6) public claimable; 
+    mapping(address => UFixed6) public claimable;
 
     /// @notice Constructs the MultiInvoker contract
     /// @param usdc_ USDC stablecoin address
@@ -140,7 +140,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice withdraw DSU or unwrap DSU to withdraw USDC from this address to `account`
     /// @param account Account to claim fees for
     /// @param unwrap Wheather to wrap/unwrap collateral on withdrawal
-    function withdrawClaimable(address account, bool unwrap) external {
+    function claim(address account, bool unwrap) external {
         if (msg.sender != account && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
 
         UFixed6 claimableAmount = claimable[account];
