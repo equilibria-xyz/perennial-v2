@@ -200,8 +200,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _approve(target);
             } else if (invocation.action == PerennialAction.CLAIM_FEE) {
-                (IMarket market) = abi.decode(invocation.args, (IMarket));
-                _claimFee(account, market);
+                (IMarket market, bool unwrap) = abi.decode(invocation.args, (IMarket, bool));
+                _claimFee(account, market, unwrap);
             }
         }
         // ETH must not remain in this contract at rest
@@ -248,8 +248,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
 
         // charge interface fee
-        _chargeFee(account, market, interfaceFee1);
-        _chargeFee(account, market, interfaceFee2);
+        _chargeInterfaceFee(account, market, interfaceFee1);
+        _chargeInterfaceFee(account, market, interfaceFee2);
     }
 
     /// @notice Fills an intent update on behalf of account
@@ -309,11 +309,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
-    /// @notice Charges an interface fee from collateral in this address during an update to a receiver
+    /// @notice Charges an additive interface fee from collateral in this address during an update to a receiver
     /// @param account Account to charge fee from
     /// @param market Market to charge fee from
     /// @param interfaceFee Interface fee to charge
-    function _chargeFee(address account, IMarket market, InterfaceFee memory interfaceFee) internal {
+    function _chargeInterfaceFee(address account, IMarket market, InterfaceFee memory interfaceFee) internal {
         if (interfaceFee.amount.isZero()) return;
         _marketWithdraw(market, account, interfaceFee.amount);
 
@@ -325,9 +325,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Claims market fees
     /// @param market Market from which fees should be claimed
     /// @param account Address of the user who earned fees
-    function _claimFee(address account, IMarket market) internal isMarketInstance(market) {
+    function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
         UFixed6 claimAmount = market.claimFee(account);
-        claimable[account] = claimable[account].add(claimAmount);
+        _withdraw(account, claimAmount, unwrap);
     }
 
     /// @notice Pull DSU or wrap and deposit USDC from `account` to this address for market usage
