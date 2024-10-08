@@ -140,9 +140,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice withdraw DSU or unwrap DSU to withdraw USDC from this address to `account`
     /// @param account Account to claim fees for
     /// @param unwrap Wheather to wrap/unwrap collateral on withdrawal
-    function claim(address account, bool unwrap) external {
-        if (msg.sender != account && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
-
+    function claim(address account, bool unwrap) external onlyOperator(account, msg.sender) {
         UFixed6 claimableAmount = claimable[account];
         claimable[account] = UFixed6Lib.ZERO;
 
@@ -152,9 +150,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Performs a batch of invocations for an account
     /// @param account Account to perform invocations for
     /// @param invocations List of actions to execute in order
-    function _invoke(address account, Invocation[] calldata invocations) private {
-        if (msg.sender != account && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
-
+    function _invoke(address account, Invocation[] calldata invocations) private onlyOperator(account, msg.sender) {
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
@@ -524,6 +520,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
     modifier isVaultInstance(IVault vault) {
         if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
+        _;
+    }
+
+    /// @notice Only the account or an operator can call
+    modifier onlyOperator(address account, address operator) {
+        if (account != operator && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
         _;
     }
 }

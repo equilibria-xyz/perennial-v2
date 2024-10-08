@@ -142,9 +142,7 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function claim(address account, bool unwrap) external {
-        _ensureValidOperator(account, msg.sender);
-
+    function claim(address account, bool unwrap) external onlyOperator(account, msg.sender) {
         UFixed6 claimableAmount = claimable[account];
         claimable[account] = UFixed6Lib.ZERO;
 
@@ -166,10 +164,6 @@ abstract contract Manager is IManager, Kept {
     /// @notice reverts if user is not authorized to sign transactions for the account
     function _ensureValidSigner(address account, address signer) internal view {
         if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
-    }
-
-    function _ensureValidOperator(address account, address operator) internal view {
-        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerInvalidOperatorError();
     }
 
     /// @notice Transfers DSU from market to manager to compensate keeper
@@ -235,5 +229,11 @@ abstract contract Manager is IManager, Kept {
     function _unwrapAndWithdaw(address receiver, UFixed18 amount) private {
         reserve.redeem(amount);
         USDC.push(receiver, UFixed6Lib.from(amount));
+    }
+
+    /// @notice Only the account or an operator can call
+    modifier onlyOperator(address account, address operator) {
+        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerInvalidOperatorError();
+        _;
     }
 }
