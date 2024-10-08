@@ -148,8 +148,8 @@ abstract contract Manager is IManager, Kept {
         UFixed6 claimableAmount = claimable[account];
         claimable[account] = UFixed6Lib.ZERO;
 
-        if (unwrap) _unwrapAndWithdaw(account, UFixed18Lib.from(claimableAmount));
-        else DSU.push(account, UFixed18Lib.from(claimableAmount));
+        if (unwrap) _unwrapAndWithdaw(msg.sender, UFixed18Lib.from(claimableAmount));
+        else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
     }
 
     /// @notice reads keeper compensation parameters from an action message

@@ -146,7 +146,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed6 claimableAmount = claimable[account];
         claimable[account] = UFixed6Lib.ZERO;
 
-        _withdraw(account, claimableAmount, unwrap);
+        _withdraw(msg.sender, claimableAmount, unwrap);
     }
 
     /// @notice Performs a batch of invocations for an account
