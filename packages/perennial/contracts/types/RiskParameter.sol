@@ -77,12 +77,12 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 ///        uint24 utilizationCurveTargetUtilization;   // <= 1677%
 ///        int32 pControllerMin;                       // <= 214748%
 ///
-///        /* slot 2 */ (32)
+///        /* slot 2 */ (30)
 ///        uint48 pControllerK;                        // <= 281m
 ///        int32 pControllerMax;                       // <= 214748%
 ///        uint48 minMargin;                           // <= 281m
 ///        uint48 minMaintenance;                      // <= 281m
-///        uint48 liquidationFee;                      // <= 281m
+///        uint32 liquidationFee;                      // <= 4294
 ///        uint24 staleAfter;                          // <= 16m s
 ///        bool makerReceiveOnly;
 ///    }
@@ -109,7 +109,7 @@ library RiskParameterStorageLib {
             UFixed6Lib.from(uint256(    slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48 - 24)) >> (256 - 24)),
 
-            UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32)) >> (256 - 32)),
             UJumpRateUtilizationCurve6(
                 UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 48 - 24)) >> (256 - 24)),
                 UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 48 - 24 - 24)) >> (256 - 24)),
@@ -124,8 +124,8 @@ library RiskParameterStorageLib {
             ),
             UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48)) >> (256 - 48)),
-                         uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 48 - 24)) >> (256 - 24),
-            0 !=        (uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 48 - 24 - 8)) >> (256 - 8))
+                         uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24)) >> (256 - 24),
+            0 !=        (uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8)) >> (256 - 8))
         );
     }
 
@@ -200,9 +200,9 @@ library RiskParameterStorageLib {
             uint256(Fixed6.unwrap(newValue.pController.max)                 << (256 - 32)) >> (256 - 48 - 32) |
             uint256(UFixed6.unwrap(newValue.minMargin)                      << (256 - 48)) >> (256 - 48 - 32 - 48) |
             uint256(UFixed6.unwrap(newValue.minMaintenance)                 << (256 - 48)) >> (256 - 48 - 32 - 48 - 48) |
-            uint256(UFixed6.unwrap(newValue.liquidationFee)                 << (256 - 48)) >> (256 - 48 - 32 - 48 - 48 - 48) |
-            uint256(newValue.staleAfter                                     << (256 - 24)) >> (256 - 48 - 32 - 48 - 48 - 48 - 24) |
-            uint256((newValue.makerReceiveOnly ? uint256(1) : uint256(0))   << (256 - 8))  >> (256 - 48 - 32 - 48 - 48 - 48 - 24 - 8);
+            uint256(UFixed6.unwrap(newValue.liquidationFee)                 << (256 - 32)) >> (256 - 48 - 32 - 48 - 48 - 32) |
+            uint256(newValue.staleAfter                                     << (256 - 24)) >> (256 - 48 - 32 - 48 - 48 - 32 - 24) |
+            uint256((newValue.makerReceiveOnly ? uint256(1) : uint256(0))   << (256 - 8))  >> (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8);
 
         assembly {
             sstore(self.slot, encoded0)

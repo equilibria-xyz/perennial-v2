@@ -30,9 +30,9 @@ struct ProtocolParameter {
     UFixed6 minScale;
 }
 struct StoredProtocolParameter {
-    /* slot 0 (28) */
+    /* slot 0 (26) */
     uint24 maxFee;                  // <= 1677%
-    uint48 maxLiquidationFee;       // <= 281m
+    uint32 maxLiquidationFee;       // <= 4294
     uint24 maxCut;                  // <= 1677%
     uint32 maxRate;                 // <= 214748% (capped at 31 bits to accommodate int32 rates)
     uint24 minMaintenance;          // <= 1677%
@@ -72,14 +72,14 @@ library ProtocolParameterStorageLib {
         validate(newValue);
 
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
-        if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint32).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max / 2))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.maxFee)),
-            uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
+            uint32(UFixed6.unwrap(newValue.maxLiquidationFee)),
             uint24(UFixed6.unwrap(newValue.maxCut)),
             uint32(UFixed6.unwrap(newValue.maxRate)),
             uint24(UFixed6.unwrap(newValue.minMaintenance)),

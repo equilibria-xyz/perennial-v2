@@ -70,7 +70,7 @@ describe('ProtocolParameter', () => {
     })
 
     context('.maxLiquidationFee', async () => {
-      const STORAGE_SIZE = 48
+      const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await protocolParameter.validateAndStore({
           ...VALID_PROTOCOL_PARAMETER,
