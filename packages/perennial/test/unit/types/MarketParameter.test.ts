@@ -39,6 +39,7 @@ const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   minEfficiency: 0,
   referralFee: 0,
   minScale: parse6decimal('0.1'),
+  maxStaleAfter: 172800, // 2 days
 }
 
 describe('MarketParameter', () => {

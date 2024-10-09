@@ -529,6 +529,84 @@ describe('Guarantee', () => {
         ).to.equal(7)
       })
     })
+
+    describe('#priceAdjustment', () => {
+      it('long / higher price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('1230'),
+              takerPos: parse6decimal('10'),
+            },
+            parse6decimal('125'),
+          ),
+        ).to.equal(parse6decimal('20'))
+      })
+
+      it('short / lower price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('-1230'),
+              takerNeg: parse6decimal('10'),
+            },
+            parse6decimal('121'),
+          ),
+        ).to.equal(parse6decimal('20'))
+      })
+
+      it('long / lower price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('1230'),
+              takerPos: parse6decimal('10'),
+            },
+            parse6decimal('121'),
+          ),
+        ).to.equal(parse6decimal('-20'))
+      })
+
+      it('short / higher price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('-1230'),
+              takerNeg: parse6decimal('10'),
+            },
+            parse6decimal('125'),
+          ),
+        ).to.equal(parse6decimal('-20'))
+      })
+
+      it('zero price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('0'),
+              takerNeg: parse6decimal('10'),
+            },
+            parse6decimal('121'),
+          ),
+        ).to.equal(parse6decimal('-1210'))
+      })
+
+      it('zero size', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+            },
+            parse6decimal('121'),
+          ),
+        ).to.equal(parse6decimal('0'))
+      })
+    })
   })
 
   function shouldBehaveLike(

@@ -144,9 +144,13 @@ library RiskParameterStorageLib {
                 .gt(protocolParameter.maxRate)
         ) revert RiskParameterStorageInvalidError();
 
+        if (self.staleAfter > protocolParameter.maxStaleAfter) revert RiskParameterStorageInvalidError();
+
         if (self.maintenance.lt(protocolParameter.minMaintenance)) revert RiskParameterStorageInvalidError();
+        if (self.maintenance.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
         if (self.margin.lt(self.maintenance)) revert RiskParameterStorageInvalidError();
+        if (self.margin.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
         if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert RiskParameterStorageInvalidError();
 
@@ -154,8 +158,13 @@ library RiskParameterStorageLib {
 
         if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();
 
-        UFixed6 scaleLimit = self.makerLimit.div(self.efficiencyLimit).mul(protocolParameter.minScale);
-        if (self.takerFee.scale.lt(scaleLimit) || self.makerFee.scale.lt(scaleLimit))
+        (UFixed6 makerLimitTruncated, UFixed6 takerFeeScaleTruncated, UFixed6 makerFeeScaleTruncated) = (
+            UFixed6Lib.from(self.makerLimit.truncate()),
+            UFixed6Lib.from(self.takerFee.scale.truncate()),
+            UFixed6Lib.from(self.makerFee.scale.truncate())
+        );
+        UFixed6 scaleLimit = makerLimitTruncated.div(self.efficiencyLimit).mul(protocolParameter.minScale);
+        if (takerFeeScaleTruncated.lt(scaleLimit) || makerFeeScaleTruncated.lt(scaleLimit))
             revert RiskParameterStorageInvalidError();
     }
 

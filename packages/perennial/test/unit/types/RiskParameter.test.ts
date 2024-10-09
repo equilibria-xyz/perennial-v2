@@ -60,6 +60,7 @@ const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   minEfficiency: parse6decimal('0.5'),
   referralFee: 0,
   minScale: parse6decimal('0.10'),
+  maxStaleAfter: 3600,
 }
 
 describe('RiskParameter', () => {
@@ -141,6 +142,31 @@ describe('RiskParameter', () => {
             },
             PROTOCOL_PARAMETER,
           ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+
+      it('reverts if truncation would violate protocol limits', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              makerLimit: parse6decimal('3.9'),
+              efficiencyLimit: parse6decimal('1'),
+              takerFee: {
+                linearFee: 2,
+                proportionalFee: 3,
+                adiabaticFee: 18,
+                scale: parse6decimal('1.95'),
+              },
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              minScale: parse6decimal('0.50'),
+              minEfficiency: parse6decimal('1'),
+            },
+          ),
+          // truncation of makerLimit and takerFee.scale leave makerLimit=3, takerFee.scale=1,
+          // exceeding protocol efficiency limit
         ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
     })
@@ -312,12 +338,12 @@ describe('RiskParameter', () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            margin: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            margin: parse6decimal('1').sub(1),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.margin).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.margin).to.equal(parse6decimal('1').sub(1))
       })
 
       it('reverts if invalid (below)', async () => {
@@ -337,7 +363,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              margin: BigNumber.from(2).pow(STORAGE_SIZE),
+              margin: parse6decimal('1').add(1),
             },
             PROTOCOL_PARAMETER,
           ),
@@ -364,13 +390,13 @@ describe('RiskParameter', () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            maintenance: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-            margin: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            maintenance: parse6decimal('1').sub(1),
+            margin: parse6decimal('1').sub(1),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.maintenance).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maintenance).to.equal(parse6decimal('1').sub(1))
       })
 
       it('reverts if invalid (below)', async () => {
@@ -391,8 +417,8 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              maintenance: BigNumber.from(2).pow(STORAGE_SIZE),
-              margin: BigNumber.from(2).pow(STORAGE_SIZE),
+              maintenance: parse6decimal('1').add(1),
+              margin: parse6decimal('1').add(1),
             },
             PROTOCOL_PARAMETER,
           ),
@@ -807,12 +833,12 @@ describe('RiskParameter', () => {
         await riskParameter.validateAndStore(
           {
             ...VALID_RISK_PARAMETER,
-            staleAfter: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            staleAfter: BigNumber.from(1800),
           },
           PROTOCOL_PARAMETER,
         )
         const value = await riskParameter.read()
-        expect(value.staleAfter).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.staleAfter).to.equal(BigNumber.from(1800))
       })
 
       it('reverts if out of range', async () => {
@@ -821,6 +847,18 @@ describe('RiskParameter', () => {
             {
               ...VALID_RISK_PARAMETER,
               staleAfter: BigNumber.from(2).pow(STORAGE_SIZE),
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+
+      it('reverts if invalid', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              staleAfter: BigNumber.from(PROTOCOL_PARAMETER.maxStaleAfter).add(1),
             },
             PROTOCOL_PARAMETER,
           ),

@@ -576,4 +576,5 @@ export const NewProtocolParameter: ProtocolParameterStruct = {
   minMaintenance: 4000,
   minEfficiency: 250000,
   referralFee: 0,
+  maxStaleAfter: 172800, // 2 days
 }
