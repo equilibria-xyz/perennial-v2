@@ -38,6 +38,9 @@ abstract contract Manager is IManager, Kept {
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
 
+    /// @dev Configuration used to compensate keepers for price commitments
+    KeepConfig public keepConfigBuffered;
+
     /// @dev Stores trigger orders while awaiting their conditions to become true
     /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
@@ -66,12 +69,15 @@ abstract contract Manager is IManager, Kept {
     /// @notice Initialize the contract
     /// @param ethOracle_ Chainlink ETH/USD oracle used for keeper compensation
     /// @param keepConfig_ Keeper compensation configuration
+    /// @param keepConfigBuffered_ Configuration used for price commitments
     function initialize(
         AggregatorV3Interface ethOracle_,
-        KeepConfig memory keepConfig_
+        KeepConfig memory keepConfig_,
+        KeepConfig memory keepConfigBuffered_
     ) external initializer(1) {
         __Kept__initialize(ethOracle_, DSU);
         keepConfig = keepConfig_;
+        keepConfigBuffered = keepConfigBuffered_;
         // allows DSU to unwrap to USDC
         DSU.approve(address(reserve));
     }
@@ -82,12 +88,14 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature) external {
+    function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature)
+        external
+        keepAction(request.action, abi.encode(request, signature))
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyPlaceOrder(request, signature);
         _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _compensateKeeperAction(request.action);
         _placeOrder(request.action.market, request.action.common.account, request.action.orderId, request.order);
     }
 
@@ -97,12 +105,14 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature) external {
+    function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature)
+        external
+        keepAction(request.action, abi.encode(request, signature))
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyCancelOrder(request, signature);
         _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _compensateKeeperAction(request.action);
         _cancelOrder(request.action.market, request.action.common.account, request.action.orderId);
     }
 
@@ -124,14 +134,19 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address account, uint256 orderId) external {
+    function executeOrder(IMarket market, address account, uint256 orderId) external
+    {
+        // Using a modifier to measure gas would require us reading order from storage twice.
+        // Instead, measure gas within the method itself.
+        uint256 startGas = gasleft();
+
         // check conditions to ensure order is executable
         (TriggerOrder memory order, bool canExecute) = checkOrder(market, account, orderId);
+
         if (!canExecute) revert ManagerCannotExecuteError();
 
-        _compensateKeeper(market, account, order.maxFee);
-        order.execute(market, account);
         bool interfaceFeeCharged = _chargeInterfaceFee(market, account, order);
+        order.execute(market, account);
 
         // invalidate the order nonce
         order.isSpent = true;
@@ -139,6 +154,11 @@ abstract contract Manager is IManager, Kept {
 
         emit TriggerOrderExecuted(market, account, order, orderId);
         if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
+
+        // compensate keeper
+        uint256 applicableGas = startGas - gasleft();
+        bytes memory data = abi.encode(market, account, order.maxFee);
+        _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(market, account, orderId), 0, data);
     }
 
     /// @inheritdoc IManager
@@ -146,7 +166,7 @@ abstract contract Manager is IManager, Kept {
         UFixed6 claimableAmount = claimable[account];
         claimable[account] = UFixed6Lib.ZERO;
 
-        if (unwrap) _unwrapAndWithdaw(msg.sender, UFixed18Lib.from(claimableAmount));
+        if (unwrap) _unwrapAndWithdraw(msg.sender, UFixed18Lib.from(claimableAmount));
         else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
     }
 
@@ -220,15 +240,27 @@ abstract contract Manager is IManager, Kept {
         // prevent user from reusing an order identifier
         TriggerOrder memory old = _orders[market][account][orderId].read();
         if (old.isSpent) revert ManagerInvalidOrderNonceError();
+        // prevent user from frontrunning keeper compensation
+        if (!old.isEmpty() && old.maxFee.gt(order.maxFee)) revert ManagerCannotReduceMaxFee();
 
         _orders[market][account][orderId].store(order);
         emit TriggerOrderPlaced(market, account, order, orderId);
     }
 
     /// @notice Unwraps DSU to USDC and pushes to interface fee receiver
-    function _unwrapAndWithdaw(address receiver, UFixed18 amount) private {
+    function _unwrapAndWithdraw(address receiver, UFixed18 amount) private {
         reserve.redeem(amount);
         USDC.push(receiver, UFixed6Lib.from(amount));
+    }
+
+    modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
+        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
+
+        uint256 startGas = gasleft();
+        _;
+        uint256 applicableGas = startGas - gasleft();
+
+        _handleKeeperFee(keepConfig, applicableGas, applicableCalldata, 0, data);
     }
 
     /// @notice Only the account or an operator can call

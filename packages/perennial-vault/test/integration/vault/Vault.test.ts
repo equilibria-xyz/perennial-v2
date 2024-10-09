@@ -1409,6 +1409,36 @@ describe('Vault', () => {
       await vault.rebalance(user.address)
     })
 
+    it('deposit correctly calculates funds eligible for allocation', async () => {
+      const ONE = parse6decimal('1')
+      // two users deposit funds, vault is balanced
+      await vault.connect(user).update(user.address, parse6decimal('50000'), 0, 0)
+      await vault.connect(user2).update(user2.address, parse6decimal('25000'), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+      await vault.settle(user.address)
+      await vault.settle(user2.address)
+      const btcCollateral = await btcCollateralInVault()
+      expect(await collateralInVault()).to.be.closeTo(btcCollateral.mul(4), ONE)
+
+      // price drops from 38838 to 25535 while vault's maker position has short exposure
+      await updateOracle(undefined, parse6decimal('25535'))
+
+      // user2 converts all shares to assets
+      await vault.connect(user2).update(user2.address, 0, ethers.constants.MaxUint256, 0)
+
+      // in same version, user makes another deposit
+      await vault.connect(user).update(user.address, parse6decimal('50000'), 0, 0)
+
+      // settle and confirm positions did not exclude assets from the second deposit
+      await updateOracle()
+      await vault.settle(user.address)
+      // position = assets * leverage / price = 85088.172487 * 4 / 2620.237388
+      expect(await position()).to.be.closeTo(parse6decimal('129.893837'), ONE)
+      // position = assets * leverage / price = 21272.043121 * 4 / 25535
+      expect(await btcPosition()).to.be.closeTo(parse6decimal('3.332217'), ONE)
+    })
+
     it('product closing closes all positions', async () => {
       const largeDeposit = parse6decimal('10000')
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
