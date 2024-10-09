@@ -332,7 +332,7 @@ describe('MarketFactory', () => {
   describe('#updateParameter', async () => {
     const newParameter = {
       maxFee: parse6decimal('0.01'),
-      maxLiquidationFee: parse6decimal('1000'),
+      maxLiquidationFee: parse6decimal('20'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
@@ -366,7 +366,7 @@ describe('MarketFactory', () => {
   describe('#updateReferralFee', async () => {
     const newParameter = {
       maxFee: parse6decimal('0.01'),
-      maxLiquidationFee: parse6decimal('1000'),
+      maxLiquidationFee: parse6decimal('20'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),

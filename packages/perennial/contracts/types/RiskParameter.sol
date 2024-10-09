@@ -29,7 +29,7 @@ struct RiskParameter {
     /// @dev The minimum limit of the efficiency metric
     UFixed6 efficiencyLimit;
 
-    /// @dev The percentage fee on the notional that is charged when a position is liquidated
+    /// @dev Multiple of the settlement fee charged when a position is liquidated
     UFixed6 liquidationFee;
 
     /// @dev The utilization curve that is used to compute maker interest

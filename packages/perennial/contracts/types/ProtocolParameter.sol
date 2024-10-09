@@ -8,7 +8,7 @@ struct ProtocolParameter {
     /// @dev The maximum for market fee parameters
     UFixed6 maxFee;
 
-    /// @dev The maximum percentage fee a market may be configured to charge when a position is liquidated
+    /// @dev The maximum for liquidationFee market parameter
     UFixed6 maxLiquidationFee;
 
     /// @dev The maximum for market cut parameters
@@ -32,7 +32,7 @@ struct ProtocolParameter {
 struct StoredProtocolParameter {
     /* slot 0 (28) */
     uint24 maxFee;                  // <= 1677%
-    uint48 maxLiquidationFee;          // <= 281m
+    uint48 maxLiquidationFee;       // <= 281m
     uint24 maxCut;                  // <= 1677%
     uint32 maxRate;                 // <= 214748% (capped at 31 bits to accommodate int32 rates)
     uint24 minMaintenance;          // <= 1677%
