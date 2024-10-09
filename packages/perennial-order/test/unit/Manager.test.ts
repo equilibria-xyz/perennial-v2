@@ -30,9 +30,9 @@ const MAX_FEE = utils.parseEther('3.8')
 
 const KEEP_CONFIG = {
   multiplierBase: 0,
-  bufferBase: 1_000_000,
+  bufferBase: 0,
   multiplierCalldata: 0,
-  bufferCalldata: 500_000,
+  bufferCalldata: 0,
 }
 
 const MAKER_ORDER = {
@@ -110,7 +110,8 @@ describe('Manager', () => {
       updatedAt: 0,
       answeredInRound: 0,
     })
-    await manager.initialize(ethOracle.address, KEEP_CONFIG)
+    // no need for meaningful keep configs, as keeper compensation is not tested here
+    await manager.initialize(ethOracle.address, KEEP_CONFIG, KEEP_CONFIG)
   }
 
   before(async () => {
@@ -165,6 +166,24 @@ describe('Manager', () => {
 
       const order = await manager.orders(market.address, userA.address, nextOrderId)
       compareOrders(order, replacement)
+    })
+
+    it('prevents user from reducing maxFee', async () => {
+      // submit the original order
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+
+      // user cannot reduce maxFee
+      const replacement = { ...MAKER_ORDER }
+      replacement.maxFee = MAKER_ORDER.maxFee.sub(1)
+      await expect(
+        manager.connect(userA).placeOrder(market.address, nextOrderId, replacement),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotReduceMaxFee')
+
+      // user cannot zero maxFee
+      replacement.maxFee = constants.Zero
+      await expect(
+        manager.connect(userA).placeOrder(market.address, nextOrderId, replacement),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotReduceMaxFee')
     })
 
     it('keeper can execute orders', async () => {
