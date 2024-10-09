@@ -680,6 +680,21 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             expect(usdc.transfer).to.have.been.calledWith(user.address, fee)
           })
 
+          it('claims fee from a market when DSU reserve redeemPrice is not 1', async () => {
+            const fee = parse6decimal('0.123')
+            const unwrappedFee = parse6decimal('0.121')
+            usdc.transfer.returns(true)
+            market.claimFee.returns(fee)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, unwrappedFee)
+
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: true }))).to.not.be.reverted
+            expect(market.claimFee).to.have.been.calledWith(user.address)
+            expect(reserve.redeem).to.have.been.calledWith(fee.mul(1e12))
+            expect(usdc.transfer).to.have.been.calledWith(user.address, unwrappedFee)
+          })
+
           it('claims fee from a market without unwrapping', async () => {
             const fee = parse6decimal('0.0654')
             dsu.transfer.returns(true)
