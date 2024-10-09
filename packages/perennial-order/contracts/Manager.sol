@@ -170,17 +170,6 @@ abstract contract Manager is IManager, Kept {
         else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
     }
 
-    /// @notice reads keeper compensation parameters from an action message
-    function _compensateKeeperAction(Action calldata action) internal {
-        _compensateKeeper(action.market, action.common.account, action.maxFee);
-    }
-
-    /// @notice encodes data needed to pull DSU from market to pay keeper for fulfilling requests
-    function _compensateKeeper(IMarket market, address account, UFixed6 maxFee) internal {
-        bytes memory data = abi.encode(market, account, maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
-    }
-
     /// @notice reverts if user is not authorized to sign transactions for the account
     function _ensureValidSigner(address account, address signer) internal view {
         if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
