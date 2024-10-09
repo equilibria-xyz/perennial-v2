@@ -145,6 +145,31 @@ describe('RiskParameter', () => {
           ),
         ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
+
+      it('reverts if truncation would violate protocol limits', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              makerLimit: parse6decimal('3.9'),
+              efficiencyLimit: parse6decimal('1'),
+              takerFee: {
+                linearFee: 2,
+                proportionalFee: 3,
+                adiabaticFee: 18,
+                scale: parse6decimal('1.95'),
+              },
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              minScale: parse6decimal('0.50'),
+              minEfficiency: parse6decimal('1'),
+            },
+          ),
+          // truncation of makerLimit and takerFee.scale leave makerLimit=3, takerFee.scale=1,
+          // exceeding protocol efficiency limit
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
     })
 
     describe('.pController_k', () => {
