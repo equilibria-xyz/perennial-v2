@@ -16,7 +16,7 @@
 
 ## 🔗 Resources
 
-- Read the protocol [Documentation](https://docs-v2.perennial.finance/).
+- Read the protocol [Documentation](https://docs.perennial.finance/).
 
 ## 👨‍💻 Usage
 
