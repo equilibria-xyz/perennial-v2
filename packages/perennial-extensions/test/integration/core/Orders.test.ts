@@ -648,9 +648,9 @@ describe('Orders', () => {
             constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
-          .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
+          .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6 })
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
-          .withArgs(user.address, market.address, { receiver: userD.address, amount: 100e6, unwrap: false })
+          .withArgs(user.address, market.address, { receiver: userD.address, amount: 100e6 })
 
         await expect(multiInvoker.connect(userB).claim(userB.address, true)).to.not.be.reverted
         expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(50e6))
