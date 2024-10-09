@@ -6,7 +6,7 @@ export const msqBTCOracleID = utils.id('oracle-msq-btc') // 0x403d2f23c2015aee67
 export const DEFAULT_PROTOCOL_PARAMETER = {
   protocolFee: 0,
   maxFee: utils.parseUnits('0.002', 6), // 0.2%
-  maxLiquidationFeeMultiplier: utils.parseUnits('50', 6), // $50
+  maxLiquidationFee: utils.parseUnits('50', 6), // $50
   maxCut: utils.parseUnits('0.1', 6), // 10%
   maxRate: utils.parseUnits('5.00', 6), // 500%
   minMaintenance: utils.parseUnits('0.004', 6), // 0.4%

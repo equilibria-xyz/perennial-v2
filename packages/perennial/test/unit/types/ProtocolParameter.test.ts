@@ -13,7 +13,7 @@ use(smock.matchers)
 
 export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   maxFee: 3,
-  maxLiquidationFeeMultiplier: 4,
+  maxLiquidationFee: 4,
   maxCut: 5,
   maxRate: 6,
   minMaintenance: 7,
@@ -39,7 +39,7 @@ describe('ProtocolParameter', () => {
 
       const value = await protocolParameter.read()
       expect(value.maxFee).to.equal(3)
-      expect(value.maxLiquidationFeeMultiplier).to.equal(4)
+      expect(value.maxLiquidationFee).to.equal(4)
       expect(value.maxCut).to.equal(5)
       expect(value.maxRate).to.equal(6)
       expect(value.minMaintenance).to.equal(7)
@@ -69,22 +69,22 @@ describe('ProtocolParameter', () => {
       })
     })
 
-    context('.maxLiquidationFeeMultiplier', async () => {
+    context('.maxLiquidationFee', async () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await protocolParameter.validateAndStore({
           ...VALID_PROTOCOL_PARAMETER,
-          maxLiquidationFeeMultiplier: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          maxLiquidationFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await protocolParameter.read()
-        expect(value.maxLiquidationFeeMultiplier).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxLiquidationFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
         await expect(
           protocolParameter.validateAndStore({
             ...VALID_PROTOCOL_PARAMETER,
-            maxLiquidationFeeMultiplier: BigNumber.from(2).pow(STORAGE_SIZE),
+            maxLiquidationFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })

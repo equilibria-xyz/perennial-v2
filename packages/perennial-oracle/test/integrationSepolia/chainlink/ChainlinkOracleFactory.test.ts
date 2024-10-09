@@ -315,7 +315,7 @@ testOracles.forEach(testOracle => {
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
-        maxLiquidationFeeMultiplier: parse6decimal('1000'),
+        maxLiquidationFee: parse6decimal('1000'),
         maxCut: parse6decimal('0.50'),
         maxRate: parse6decimal('10.00'),
         minMaintenance: parse6decimal('0.01'),

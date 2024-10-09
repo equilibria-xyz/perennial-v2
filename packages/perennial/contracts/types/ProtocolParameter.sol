@@ -8,8 +8,8 @@ struct ProtocolParameter {
     /// @dev The maximum for market fee parameters
     UFixed6 maxFee;
 
-    /// @dev The maximum for liquidation fee parameters
-    UFixed6 maxLiquidationFeeMultiplier;
+    /// @dev The maximum percentage fee a market may be configured to charge when a position is liquidated
+    UFixed6 maxLiquidationFee;
 
     /// @dev The maximum for market cut parameters
     UFixed6 maxCut;
@@ -32,7 +32,7 @@ struct ProtocolParameter {
 struct StoredProtocolParameter {
     /* slot 0 (28) */
     uint24 maxFee;                  // <= 1677%
-    uint48 maxLiquidationFeeMultiplier;          // <= 281m
+    uint48 maxLiquidationFee;          // <= 281m
     uint24 maxCut;                  // <= 1677%
     uint32 maxRate;                 // <= 214748% (capped at 31 bits to accommodate int32 rates)
     uint24 minMaintenance;          // <= 1677%
@@ -52,7 +52,7 @@ library ProtocolParameterStorageLib {
         StoredProtocolParameter memory value = self.value;
         return ProtocolParameter(
             UFixed6.wrap(uint256(value.maxFee)),
-            UFixed6.wrap(uint256(value.maxLiquidationFeeMultiplier)),
+            UFixed6.wrap(uint256(value.maxLiquidationFee)),
             UFixed6.wrap(uint256(value.maxCut)),
             UFixed6.wrap(uint256(value.maxRate)),
             UFixed6.wrap(uint256(value.minMaintenance)),
@@ -72,14 +72,14 @@ library ProtocolParameterStorageLib {
         validate(newValue);
 
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
-        if (newValue.maxLiquidationFeeMultiplier.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max / 2))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.maxFee)),
-            uint48(UFixed6.unwrap(newValue.maxLiquidationFeeMultiplier)),
+            uint48(UFixed6.unwrap(newValue.maxLiquidationFee)),
             uint24(UFixed6.unwrap(newValue.maxCut)),
             uint32(UFixed6.unwrap(newValue.maxRate)),
             uint24(UFixed6.unwrap(newValue.minMaintenance)),
