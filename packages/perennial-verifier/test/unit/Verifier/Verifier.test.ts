@@ -44,7 +44,7 @@ describe('Verifier', () => {
     verifier.initialize(marketFactory.address)
     scSigner = await smock.fake<IERC1271>('IERC1271')
 
-    marketFactory.authorization.returns([true, true, BigNumber.from(0)])
+    marketFactory.signers.whenCalledWith(caller.address, scSigner.address).returns(true)
   })
 
   describe('#verifyCommon', () => {
@@ -78,15 +78,12 @@ describe('Verifier', () => {
       }
       const signature = await signCommon(caller2, verifier, commonMessage)
 
-      marketFactory.authorization.returns([false, false, BigNumber.from(0)])
-
       await expect(verifier.connect(caller2).verifyCommon(commonMessage, signature)).to.be.revertedWithCustomError(
         verifier,
         'VerifierInvalidSignerError',
       )
 
       expect(await verifier.nonces(caller.address, 0)).to.eq(false)
-      marketFactory.authorization.reset()
     })
   })
 
