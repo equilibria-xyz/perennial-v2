@@ -511,6 +511,7 @@ describe('Market', () => {
       takerFee: 0,
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
+      maxPriceDeviation: parse6decimal('0.1'),
       closed: false,
       settle: false,
     }
@@ -690,6 +691,7 @@ describe('Market', () => {
         riskFee: parse6decimal('0.05'),
         maxPendingGlobal: 5,
         maxPendingLocal: 3,
+        maxPriceDeviation: parse6decimal('0.1'),
         closed: true,
         settle: true,
       }
@@ -706,6 +708,7 @@ describe('Market', () => {
         expect(marketParameter.takerFee).to.equal(defaultMarketParameter.takerFee)
         expect(marketParameter.maxPendingGlobal).to.equal(defaultMarketParameter.maxPendingGlobal)
         expect(marketParameter.maxPendingLocal).to.equal(defaultMarketParameter.maxPendingLocal)
+        expect(marketParameter.maxPriceDeviation).to.equal(defaultMarketParameter.maxPriceDeviation)
         expect(marketParameter.closed).to.equal(defaultMarketParameter.closed)
         expect(marketParameter.settle).to.equal(defaultMarketParameter.settle)
       })
