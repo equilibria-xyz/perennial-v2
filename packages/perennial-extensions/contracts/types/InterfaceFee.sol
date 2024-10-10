@@ -9,7 +9,4 @@ struct InterfaceFee {
 
     /// @dev The address to send the fee to
     address receiver;
-
-    /// @dev Whether or not to unwrap the fee
-    bool unwrap;
 }

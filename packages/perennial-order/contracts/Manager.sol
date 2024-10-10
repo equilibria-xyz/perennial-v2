@@ -45,6 +45,10 @@ abstract contract Manager is IManager, Kept {
     /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
+    /// @dev Mapping of claimable DSU for each account
+    /// Account => Amount
+    mapping(address => UFixed6) public claimable;
+
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
     /// @param marketFactory_ Contract used to validate delegated signers
@@ -157,6 +161,15 @@ abstract contract Manager is IManager, Kept {
         _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(market, account, orderId), 0, data);
     }
 
+    /// @inheritdoc IManager
+    function claim(address account, bool unwrap) external onlyOperator(account, msg.sender) {
+        UFixed6 claimableAmount = claimable[account];
+        claimable[account] = UFixed6Lib.ZERO;
+
+        if (unwrap) _unwrapAndWithdraw(msg.sender, UFixed18Lib.from(claimableAmount));
+        else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
+    }
+
     /// @notice reverts if user is not authorized to sign transactions for the account
     function _ensureValidSigner(address account, address signer) internal view {
         if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
@@ -202,8 +215,7 @@ abstract contract Manager is IManager, Kept {
 
         _marketWithdraw(market, account, feeAmount);
 
-        if (order.interfaceFee.unwrap) _unwrapAndWithdraw(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
-        else DSU.push(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+        claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
         return true;
     }
@@ -239,5 +251,11 @@ abstract contract Manager is IManager, Kept {
         uint256 applicableGas = startGas - gasleft();
 
         _handleKeeperFee(keepConfig, applicableGas, applicableCalldata, 0, data);
+    }
+
+    /// @notice Only the account or an operator can call
+    modifier onlyOperator(address account, address operator) {
+        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerInvalidOperatorError();
+        _;
     }
 }
