@@ -110,6 +110,24 @@ describe('Verifier', () => {
       expect(await accountVerifier.nonces(userA.address, nonce)).to.eq(true)
     })
 
+    it('rejects common w/ invalid signer or operator', async () => {
+      const commonMessage = {
+        account: userA.address,
+        signer: userB.address,
+        domain: accountVerifier.address,
+        nonce: nextNonce(),
+        group: 0,
+        expiry: constants.MaxUint256,
+      }
+      const signature = await signCommon(userB, accountVerifier, commonMessage)
+
+      await expect(
+        accountVerifier.connect(accountVerifierSigner).verifyCommon(commonMessage, signature),
+      ).to.be.revertedWithCustomError(accountVerifier, 'VerifierInvalidSignerError')
+
+      expect(await accountVerifier.nonces(userA.address, commonMessage.nonce)).to.eq(false)
+    })
+
     it('verifies actions', async () => {
       // ensures any problems with message encoding are not caused by a common data type
       const nonce = nextNonce()

@@ -147,6 +147,17 @@ describe('Verifier', () => {
       expect(await orderVerifier.nonces(userA.address, message.nonce)).to.eq(true)
     })
 
+    it('rejects common w/ invalid signer or operator', async () => {
+      const message = createCommonMessage(userA.address, userB.address).common
+      const signature = await signCommon(userB, orderVerifier, message)
+
+      await expect(
+        orderVerifier.connect(orderVerifierSigner).verifyCommon(message, signature),
+      ).to.be.revertedWithCustomError(orderVerifier, 'VerifierInvalidSignerError')
+
+      expect(await orderVerifier.nonces(userA.address, message.nonce)).to.eq(false)
+    })
+
     it('verifies actions', async () => {
       // ensures any problems with message encoding are not caused by a common data type
       const message = createActionMessage().action
