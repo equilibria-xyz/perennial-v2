@@ -50,6 +50,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Mapping of allowed operators for each account
     mapping(address => mapping(address => bool)) public operators;
 
+    /// @dev Mapping of claimable DSU for each account
+    mapping(address => UFixed6) public claimable;
+
     /// @notice Constructs the MultiInvoker contract
     /// @param usdc_ USDC stablecoin address
     /// @param dsu_ DSU address
@@ -134,12 +137,20 @@ contract MultiInvoker is IMultiInvoker, Kept {
         _invoke(account, invocations);
     }
 
+    /// @notice withdraw DSU or unwrap DSU to withdraw USDC from this address to `account`
+    /// @param account Account to claim fees for
+    /// @param unwrap Wheather to wrap/unwrap collateral on withdrawal
+    function claim(address account, bool unwrap) external onlyOperator(account, msg.sender) {
+        UFixed6 claimableAmount = claimable[account];
+        claimable[account] = UFixed6Lib.ZERO;
+
+        _withdraw(msg.sender, claimableAmount, unwrap);
+    }
+
     /// @notice Performs a batch of invocations for an account
     /// @param account Account to perform invocations for
     /// @param invocations List of actions to execute in order
-    function _invoke(address account, Invocation[] calldata invocations) private {
-        if (msg.sender != account && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
-
+    function _invoke(address account, Invocation[] calldata invocations) private onlyOperator(account, msg.sender) {
         for(uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
@@ -190,7 +201,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
                 _approve(target);
             } else if (invocation.action == PerennialAction.CLAIM_FEE) {
                 (IMarket market, bool unwrap) = abi.decode(invocation.args, (IMarket, bool));
-
                 _claimFee(account, market, unwrap);
             }
         }
@@ -205,7 +215,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param newLong New long position for account in `market`
     /// @param newShort New short position for account in `market`
     /// @param collateral Net change in collateral for account in `market`
-    /// @param wrap Wheather to wrap/unwrap collateral on deposit/withdrawal
+    /// @param wrap Whether to wrap/unwrap collateral on deposit/withdrawal
     /// @param interfaceFee1 Primary interface fee to charge
     /// @param interfaceFee2 Secondary interface fee to charge
     function _update(
@@ -238,8 +248,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
 
         // charge interface fee
-        _chargeFee(account, market, interfaceFee1);
-        _chargeFee(account, market, interfaceFee2);
+        _chargeInterfaceFee(account, market, interfaceFee1);
+        _chargeInterfaceFee(account, market, interfaceFee2);
     }
 
     /// @notice Fills an intent update on behalf of account
@@ -299,16 +309,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
         DSU.approve(target);
     }
 
-    /// @notice Charges an interface fee from collateral in this address during an update to a receiver
+    /// @notice Charges an additive interface fee from collateral in this address during an update to a receiver
     /// @param account Account to charge fee from
     /// @param market Market to charge fee from
     /// @param interfaceFee Interface fee to charge
-    function _chargeFee(address account, IMarket market, InterfaceFee memory interfaceFee) internal {
+    function _chargeInterfaceFee(address account, IMarket market, InterfaceFee memory interfaceFee) internal {
         if (interfaceFee.amount.isZero()) return;
         _marketWithdraw(market, account, interfaceFee.amount);
 
-        if (interfaceFee.unwrap) _unwrap(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
-        else DSU.push(interfaceFee.receiver, UFixed18Lib.from(interfaceFee.amount));
+        claimable[interfaceFee.receiver] = claimable[interfaceFee.receiver].add(interfaceFee.amount);
 
         emit InterfaceFeeCharged(account, market, interfaceFee);
     }
@@ -316,7 +325,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Claims market fees, unwraps DSU, and pushes USDC to fee earner
     /// @param market Market from which fees should be claimed
     /// @param account Address of the user who earned fees
-    /// @param unwrap Set true to unwrap DSU to USDC when withdrawing
     function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
         UFixed6 claimAmount = market.claimFee(account);
         _withdraw(account, claimAmount, unwrap);
@@ -367,8 +375,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _unwrap(address receiver, UFixed18 amount) internal {
         // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
+            UFixed6 balanceBefore = USDC.balanceOf(address(this));
             reserve.redeem(amount);
-            if (receiver != address(this)) USDC.push(receiver, UFixed6Lib.from(amount));
+            if (receiver != address(this)) USDC.push(receiver, USDC.balanceOf(address(this)).sub(balanceBefore));
         } else {
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, receiver);
@@ -512,6 +521,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
     modifier isVaultInstance(IVault vault) {
         if (!vaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
+        _;
+    }
+
+    /// @notice Only the account or an operator can call
+    modifier onlyOperator(address account, address operator) {
+        if (account != operator && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
         _;
     }
 }

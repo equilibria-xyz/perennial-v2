@@ -7,7 +7,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket, IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
 
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
@@ -29,6 +29,9 @@ abstract contract Manager is IManager, Kept {
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
+    /// @dev Contract used to validate fee claims
+    IMarketFactory public immutable marketFactory;
+
     /// @dev Verifies EIP712 messages for this extension
     IOrderVerifier public immutable verifier;
 
@@ -42,17 +45,27 @@ abstract contract Manager is IManager, Kept {
     /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
+    /// @dev Mapping of claimable DSU for each account
+    /// Account => Amount
+    mapping(address => UFixed6) public claimable;
+
     /// @dev Creates an instance
+    /// @param usdc_ USDC stablecoin
     /// @param dsu_ Digital Standard Unit stablecoin
+    /// @param reserve_ DSU reserve contract used for unwrapping
+    /// @param marketFactory_ Contract used to validate fee claims
+    /// @param verifier_ Used to validate EIP712 signatures
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_,
+        IMarketFactory marketFactory_,
         IOrderVerifier verifier_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
+        marketFactory = marketFactory_;
         verifier = verifier_;
     }
 
@@ -133,8 +146,8 @@ abstract contract Manager is IManager, Kept {
 
         if (!canExecute) revert ManagerCannotExecuteError();
 
-        order.execute(market, account);
         bool interfaceFeeCharged = _chargeInterfaceFee(market, account, order);
+        order.execute(market, account);
 
         // invalidate the order nonce
         order.isSpent = true;
@@ -147,6 +160,15 @@ abstract contract Manager is IManager, Kept {
         uint256 applicableGas = startGas - gasleft();
         bytes memory data = abi.encode(market, account, order.maxFee);
         _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(market, account, orderId), 0, data);
+    }
+
+    /// @inheritdoc IManager
+    function claim(address account, bool unwrap) external onlyOperator(account, msg.sender) {
+        UFixed6 claimableAmount = claimable[account];
+        claimable[account] = UFixed6Lib.ZERO;
+
+        if (unwrap) _unwrapAndWithdraw(msg.sender, UFixed18Lib.from(claimableAmount));
+        else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
     }
 
     /// @notice Transfers DSU from market to manager to compensate keeper
@@ -189,8 +211,7 @@ abstract contract Manager is IManager, Kept {
 
         _marketWithdraw(market, account, feeAmount);
 
-        if (order.interfaceFee.unwrap) _unwrapAndWithdraw(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
-        else DSU.push(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+        claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
         return true;
     }
@@ -213,8 +234,9 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Unwraps DSU to USDC and pushes to interface fee receiver
     function _unwrapAndWithdraw(address receiver, UFixed18 amount) private {
+        UFixed6 balanceBefore = USDC.balanceOf(address(this));
         reserve.redeem(amount);
-        USDC.push(receiver, UFixed6Lib.from(amount));
+        USDC.push(receiver, USDC.balanceOf(address(this)).sub(balanceBefore));
     }
 
     modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
@@ -225,5 +247,11 @@ abstract contract Manager is IManager, Kept {
         uint256 applicableGas = startGas - gasleft();
 
         _handleKeeperFee(keepConfig, applicableGas, applicableCalldata, 0, data);
+    }
+
+    /// @notice Only the account or an operator can call
+    modifier onlyOperator(address account, address operator) {
+        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerInvalidOperatorError();
+        _;
     }
 }

@@ -86,6 +86,14 @@ library GuaranteeLib {
         return self.takerPos.add(self.takerNeg);
     }
 
+    /// @notice Returns the collateral adjusted due to the price override
+    /// @param self The guarantee object to check
+    /// @param price The oracle price to compare to the price override
+    /// @return The collateral adjusted due to the price override
+    function priceAdjustment(Guarantee memory self, Fixed6 price) internal pure returns (Fixed6) {
+        return self.taker().mul(price).sub(self.notional);
+    }
+
     /// @notice Updates the current global guarantee with a new local guarantee
     /// @param self The guarantee object to update
     /// @param guarantee The new guarantee

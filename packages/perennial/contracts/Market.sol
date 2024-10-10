@@ -208,8 +208,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the account's position and collateral
     /// @param account The account to operate on
     /// @param newMaker The new maker position for the account
-    /// @param newMaker The new long position for the account
-    /// @param newMaker The new short position for the account
+    /// @param newLong The new long position for the account
+    /// @param newShort The new short position for the account
     /// @param collateral The collateral amount to add or remove from the account
     /// @param protect Whether to put the account into a protected status for liquidations
     /// @param referrer The referrer of the order

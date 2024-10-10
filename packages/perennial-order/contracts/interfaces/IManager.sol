@@ -60,6 +60,10 @@ interface IManager {
     /// @custom:error Signer is not authorized to interact with markets for the specified user
     error ManagerInvalidSignerError();
 
+    // sig: 0x63c7e7fd
+    /// @custom:error Operator is not authorized to interact with markets for the specified user
+    error ManagerInvalidOperatorError();
+
     /// @notice Store a new trigger order or replace an existing trigger order
     /// @param market Perennial market in which user wants to change their position
     /// @param orderId Client-specific order identifier
@@ -104,4 +108,9 @@ interface IManager {
     /// @param account Actor whose position is to be changed
     /// @param orderId Uniquely identifies the order for an account
     function executeOrder(IMarket market, address account, uint256 orderId) external;
+
+    /// @notice withdraw DSU or unwrap DSU to withdraw USDC from this address to `account`
+    /// @param account Account to claim fees for
+    /// @param unwrap Wheather to wrap/unwrap collateral on withdrawal
+    function claim(address account, bool unwrap) external;
 }
