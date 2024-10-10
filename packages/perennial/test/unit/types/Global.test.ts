@@ -55,7 +55,7 @@ function generateMarketParameter(riskFee: BigNumberish): MarketParameterStruct {
 function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameterStruct {
   return {
     maxFee: 0,
-    maxFeeAbsolute: 0,
+    maxLiquidationFee: 0,
     maxCut: 0,
     maxRate: 0,
     minMaintenance: 0,

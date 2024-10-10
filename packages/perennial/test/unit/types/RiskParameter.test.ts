@@ -52,9 +52,8 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
-  protocolFee: 0,
   maxFee: parse6decimal('1'),
-  maxFeeAbsolute: BigNumber.from(2).pow(48).sub(1),
+  maxLiquidationFee: BigNumber.from(2).pow(32).sub(1),
   maxCut: parse6decimal('0.9'),
   maxRate: parse6decimal('0.8'),
   minMaintenance: 1,
@@ -887,7 +886,7 @@ describe('RiskParameter', () => {
           riskParameter.validateAndStore(
             {
               ...VALID_RISK_PARAMETER,
-              liquidationFee: parse6decimal('0.9').add(1),
+              liquidationFee: BigNumber.from(PROTOCOL_PARAMETER.maxLiquidationFee).add(1),
             },
             PROTOCOL_PARAMETER,
           ),
