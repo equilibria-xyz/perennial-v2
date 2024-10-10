@@ -9,8 +9,6 @@ import { SignerUpdate } from "../types/SignerUpdate.sol";
 import { AccessUpdateBatch } from "../types/AccessUpdateBatch.sol";
 
 interface IVerifier is IVerifierBase {
-    error VerifierMarketFactoryZeroAddressError();
-
     function verifyIntent(Intent calldata intent, bytes calldata signature) external;
     function verifyOperatorUpdate(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external;
     function verifySignerUpdate(SignerUpdate calldata signerUpdate, bytes calldata signature) external;
