@@ -108,9 +108,6 @@ describe('Verifier', () => {
     orderVerifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
 
     orderVerifierSigner = await impersonate.impersonateWithBalance(orderVerifier.address, utils.parseEther('10'))
-    marketFactory.authorization
-      .whenCalledWith(userA.address, userA.address, userA.address, constants.AddressZero)
-      .returns([false, true, BigNumber.from(0)])
     market = await smock.fake<IMarket>('IMarket')
   }
 

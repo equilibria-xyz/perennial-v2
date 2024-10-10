@@ -81,12 +81,6 @@ describe('Verifier', () => {
     accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
     accountVerifierSigner = await impersonate.impersonateWithBalance(accountVerifier.address, utils.parseEther('10'))
     controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
-    marketFactory.authorization
-      .whenCalledWith(userA.address, userA.address, userA.address, constants.AddressZero)
-      .returns([false, true, BigNumber.from(0)])
-    marketFactory.authorization
-      .whenCalledWith(userB.address, userB.address, userB.address, constants.AddressZero)
-      .returns([false, true, BigNumber.from(0)])
   }
 
   beforeEach(async () => {
