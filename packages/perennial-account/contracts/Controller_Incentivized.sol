@@ -46,23 +46,23 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
 
     /// @dev Creates instance of Controller which compensates keepers
     /// @param implementation_ Pristine collateral account contract
+    /// @param marketFactory_ Market factory contract
     /// @param nonceManager_ Verifier contract to which nonce and group cancellations are relayed
     constructor(
         address implementation_,
+        IMarketFactory marketFactory_,
         IVerifierBase nonceManager_
-    ) Controller(implementation_) {
+    ) Controller(implementation_, marketFactory_) {
         nonceManager = nonceManager_;
     }
 
     /// @notice Configures message verification and keeper compensation
-    /// @param marketFactory_ Contract used to validate delegated signers
     /// @param verifier_ Contract used to validate collateral account message signatures
     /// @param chainlinkFeed_ ETH-USD price feed used for calculating keeper compensation
     /// @param keepConfig_ Configuration used for unbuffered keeper compensation
     /// @param keepConfigBuffered_ Configuration used for buffered keeper compensation
     /// @param keepConfigWithdrawal_ Configuration used to compensate keepers for withdrawals
     function initialize(
-        IMarketFactory marketFactory_,
         IAccountVerifier verifier_,
         AggregatorV3Interface chainlinkFeed_,
         KeepConfig memory keepConfig_,
@@ -71,7 +71,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     ) external initializer(1) {
         __Factory__initialize();
         __Kept__initialize(chainlinkFeed_, DSU);
-        marketFactory = marketFactory_;
         verifier = verifier_;
         keepConfig = keepConfig_;
         keepConfigBuffered = keepConfigBuffered_;
@@ -182,7 +181,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedNonceCancellation(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         // relay the message to Verifier
         nonceManager.cancelNonceWithSignature(message.nonceCancellation, innerSignature);
@@ -205,7 +203,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedGroupCancellation(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         // relay the message to Verifier
         nonceManager.cancelGroupWithSignature(message.groupCancellation, innerSignature);
@@ -228,7 +225,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedOperatorUpdate(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         // relay the message to MarketFactory
         marketFactory.updateOperatorWithSignature(message.operatorUpdate, innerSignature);
@@ -251,7 +247,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedSignerUpdate(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         // relay the message to MarketFactory
         marketFactory.updateSignerWithSignature(message.signerUpdate, innerSignature);
@@ -274,7 +269,6 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRelayedAccessUpdateBatch(message, outerSignature);
-        _ensureValidSigner(message.action.common.account, message.action.common.signer);
 
         // relay the message to MarketFactory
         marketFactory.updateAccessBatchWithSignature(message.accessUpdateBatch, innerSignature);

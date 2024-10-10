@@ -5,7 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { AccountVerifier, AccountVerifier__factory, IController } from '../../types/generated'
+import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../types/generated'
 import {
   signAction,
   signCommon,
@@ -37,6 +37,7 @@ describe('Verifier', () => {
   let accountVerifier: AccountVerifier
   let accountVerifierSigner: SignerWithAddress
   let controller: FakeContract<IController>
+  let marketFactory: FakeContract<IMarketFactory>
   let controllerSigner: SignerWithAddress
   let owner: SignerWithAddress
   let userA: SignerWithAddress
@@ -76,7 +77,8 @@ describe('Verifier', () => {
   const fixture = async () => {
     ;[owner, userA, userB, userC] = await ethers.getSigners()
     controller = await smock.fake<IController>('IController')
-    accountVerifier = await new AccountVerifier__factory(owner).deploy()
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
     accountVerifierSigner = await impersonate.impersonateWithBalance(accountVerifier.address, utils.parseEther('10'))
     controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
   }
@@ -106,6 +108,24 @@ describe('Verifier', () => {
         .withArgs(userA.address, nonce)
 
       expect(await accountVerifier.nonces(userA.address, nonce)).to.eq(true)
+    })
+
+    it('rejects common w/ invalid signer or operator', async () => {
+      const commonMessage = {
+        account: userA.address,
+        signer: userB.address,
+        domain: accountVerifier.address,
+        nonce: nextNonce(),
+        group: 0,
+        expiry: constants.MaxUint256,
+      }
+      const signature = await signCommon(userB, accountVerifier, commonMessage)
+
+      await expect(
+        accountVerifier.connect(accountVerifierSigner).verifyCommon(commonMessage, signature),
+      ).to.be.revertedWithCustomError(accountVerifier, 'VerifierInvalidSignerError')
+
+      expect(await accountVerifier.nonces(userA.address, commonMessage.nonce)).to.eq(false)
     })
 
     it('verifies actions', async () => {
@@ -274,6 +294,7 @@ describe('Verifier', () => {
 
     beforeEach(async () => {
       downstreamVerifier = await new Verifier__factory(owner).deploy()
+      await downstreamVerifier.initialize(marketFactory.address)
     })
 
     it('verifies relayedNonceCancellation messages', async () => {

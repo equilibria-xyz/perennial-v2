@@ -99,7 +99,7 @@ describe('Manager_Arbitrum', () => {
     ;[market, oracle, keeperOracle] = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
 
     // deploy the order manager
-    verifier = await new OrderVerifier__factory(owner).deploy()
+    verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
     manager = await new Manager_Arbitrum__factory(owner).deploy(
       USDC_ADDRESS,
       dsu.address,
@@ -532,7 +532,7 @@ describe('Manager_Arbitrum', () => {
 
       await expect(
         manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES),
-      ).to.be.revertedWithCustomError(manager, 'ManagerInvalidSignerError')
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
     })
 
     it('delegated signer can interact', async () => {

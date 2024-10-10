@@ -1483,7 +1483,7 @@ describe('Happy Path', () => {
   })
 
   it('opens intent order w/ signer', async () => {
-    const { owner, user, userB, userC, marketFactory, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
 
     // userC allowed to sign messages for user
     await marketFactory.connect(user).updateSigner(userC.address, true)
@@ -1533,8 +1533,6 @@ describe('Happy Path', () => {
       },
     }
 
-    const verifier = Verifier__factory.connect(await market.verifier(), owner)
-
     let signature = await signIntent(userC, verifier, intent)
 
     // revert when fee is greater than 1
@@ -1569,7 +1567,7 @@ describe('Happy Path', () => {
         [
           'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature),
-    ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
@@ -1606,6 +1604,9 @@ describe('Happy Path', () => {
     intent.solver = userB.address
     signature = await signIntent(userC, verifier, intent)
 
+    // userC is allowed to sign messages for user
+    await marketFactory.connect(user).updateSigner(userC.address, true)
+
     await expect(
       market
         .connect(userC)
@@ -1616,7 +1617,7 @@ describe('Happy Path', () => {
   })
 
   it('updates signer w/ signature and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
 
     const signerUpdate = {
       access: {
@@ -1633,18 +1634,16 @@ describe('Happy Path', () => {
       },
     }
 
-    const marketFactoryVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
-
-    let signerSignature = await signSignerUpdate(user, marketFactoryVerifier, signerUpdate)
+    let signerSignature = await signSignerUpdate(user, verifier, signerUpdate)
 
     // update signer with incorrect account
     await expect(
       marketFactory.connect(user).updateSignerWithSignature(signerUpdate, signerSignature),
-    ).to.be.revertedWithCustomError(marketFactory, 'MarketFactoryInvalidSignerError')
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
     // set correct account
     signerUpdate.common.account = user.address
-    signerSignature = await signSignerUpdate(user, marketFactoryVerifier, signerUpdate)
+    signerSignature = await signSignerUpdate(user, verifier, signerUpdate)
 
     // update signer with correct account
     await marketFactory.connect(user).updateSignerWithSignature(signerUpdate, signerSignature)
@@ -1688,15 +1687,13 @@ describe('Happy Path', () => {
         account: user.address,
         signer: userC.address,
         domain: market.address,
-        nonce: 0,
+        nonce: 1,
         group: 0,
         expiry: constants.MaxUint256,
       },
     }
 
-    const marketVerifier = Verifier__factory.connect(await market.verifier(), owner)
-
-    const intentSignature = await signIntent(userC, marketVerifier, intent)
+    const intentSignature = await signIntent(userC, verifier, intent)
 
     await market
       .connect(userC)
@@ -1737,10 +1734,10 @@ describe('Happy Path', () => {
   })
 
   it('opens intent order w/ operator', async () => {
-    const { owner, user, userB, userC, marketFactory, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
 
     // userC allowed to interact with user's account
-    await marketFactory.connect(user).updateOperator(userC.address, true)
+    await marketFactory.connect(user).updateSigner(userC.address, true)
 
     const market = await createMarket(instanceVars)
 
@@ -1787,8 +1784,6 @@ describe('Happy Path', () => {
       },
     }
 
-    const verifier = Verifier__factory.connect(await market.verifier(), owner)
-
     let signature = await signIntent(userC, verifier, intent)
 
     await market
@@ -1798,7 +1793,7 @@ describe('Happy Path', () => {
       ](userC.address, intent, signature)
 
     // disable userC as operator for user
-    await marketFactory.connect(user).updateOperator(userC.address, false)
+    await marketFactory.connect(user).updateSigner(userC.address, false)
 
     intent.common.nonce = 1
     signature = await signIntent(userC, verifier, intent)
@@ -1810,7 +1805,7 @@ describe('Happy Path', () => {
         [
           'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature),
-    ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
@@ -1848,7 +1843,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, marketFactory } = instanceVars
+    const { owner, user, userB, dsu, marketFactory, verifier } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1880,18 +1875,16 @@ describe('Happy Path', () => {
       },
     }
 
-    const marketFactoryVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
-
-    let operatorUpdateSignature = await signOperatorUpdate(userB, marketFactoryVerifier, operatorUpdate)
+    let operatorUpdateSignature = await signOperatorUpdate(userB, verifier, operatorUpdate)
 
     // update operator with incorrect account
     await expect(
       marketFactory.updateOperatorWithSignature(operatorUpdate, operatorUpdateSignature),
-    ).to.be.revertedWithCustomError(marketFactory, 'MarketFactoryInvalidSignerError')
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
     // set correct account
     operatorUpdate.common.account = userB.address
-    operatorUpdateSignature = await signOperatorUpdate(userB, marketFactoryVerifier, operatorUpdate)
+    operatorUpdateSignature = await signOperatorUpdate(userB, verifier, operatorUpdate)
 
     // update operator for userB
     await marketFactory.connect(userB).updateOperatorWithSignature(operatorUpdate, operatorUpdateSignature)
@@ -2103,7 +2096,7 @@ describe('Happy Path', () => {
   })
 
   it('updates account access and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
 
     // userC allowed to sign messages and interact with user account
     await marketFactory
@@ -2153,8 +2146,6 @@ describe('Happy Path', () => {
       },
     }
 
-    const verifier = Verifier__factory.connect(await market.verifier(), owner)
-
     const signature = await signIntent(userC, verifier, intent)
 
     await market
@@ -2196,7 +2187,7 @@ describe('Happy Path', () => {
   })
 
   it('updates account access with signature and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
 
     const accessUpdateBatch = {
       operators: [{ accessor: userC.address, approved: true }],
@@ -2211,18 +2202,16 @@ describe('Happy Path', () => {
       },
     }
 
-    const marketFactoryVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
-
-    let accessUpdateSignature = await signAccessUpdateBatch(user, marketFactoryVerifier, accessUpdateBatch)
+    let accessUpdateSignature = await signAccessUpdateBatch(user, verifier, accessUpdateBatch)
 
     // update access for user with incorrect account
     await expect(
       marketFactory.connect(user).updateAccessBatchWithSignature(accessUpdateBatch, accessUpdateSignature),
-    ).to.be.revertedWithCustomError(marketFactory, 'MarketFactoryInvalidSignerError')
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
     // set correct account
     accessUpdateBatch.common.account = user.address
-    accessUpdateSignature = await signAccessUpdateBatch(user, marketFactoryVerifier, accessUpdateBatch)
+    accessUpdateSignature = await signAccessUpdateBatch(user, verifier, accessUpdateBatch)
 
     // userC allowed to sign messages and interact with user account
     await marketFactory.connect(user).updateAccessBatchWithSignature(accessUpdateBatch, accessUpdateSignature)
@@ -2264,13 +2253,11 @@ describe('Happy Path', () => {
         account: user.address,
         signer: userC.address,
         domain: market.address,
-        nonce: 0,
+        nonce: 1,
         group: 0,
         expiry: constants.MaxUint256,
       },
     }
-
-    const verifier = Verifier__factory.connect(await market.verifier(), owner)
 
     const signature = await signIntent(userC, verifier, intent)
 

@@ -40,7 +40,7 @@ import {
   IPayoffProvider,
   IPayoffProvider__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
-import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
+import { Verifier, Verifier__factory } from '../../../../perennial-verifier/types/generated'
 const { deployments, ethers } = HRE
 
 export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'
@@ -65,6 +65,7 @@ export interface InstanceVars {
   chainlink: ChainlinkContext
   oracle: IOracleProvider
   marketImpl: Market
+  verifier: Verifier
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
@@ -132,7 +133,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
-    verifierImpl.address,
+    verifierProxy.address,
     marketImpl.address,
   )
 
@@ -143,10 +144,12 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
 
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
+  const verifier = new Verifier__factory(owner).attach(verifierProxy.address)
 
   // Init
   await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
+  await verifier.connect(owner).initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
@@ -199,6 +202,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     marketFactory,
     oracle,
     marketImpl,
+    verifier,
   }
 }
 

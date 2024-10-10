@@ -78,7 +78,7 @@ describe('Manager', () => {
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
-    verifier = await new OrderVerifier__factory(owner).deploy()
+    verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
 
     // deploy the order manager
     manager = await new Manager_Arbitrum__factory(owner).deploy(

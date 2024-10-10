@@ -51,7 +51,7 @@ import {
   signOperatorUpdate,
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
-import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
+import { Verifier, Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
 import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
 import { IKeeperOracle, IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
 
@@ -213,12 +213,15 @@ describe('Controller_Arbitrum', () => {
       bufferCalldata: 35_200,
     }
     const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
-    controller = await deployControllerArbitrum(owner, marketVerifier, { maxFeePerGas: 100000000 })
-    accountVerifier = await new AccountVerifier__factory(owner).deploy({ maxFeePerGas: 100000000 })
+    controller = await deployControllerArbitrum(owner, marketFactory, marketVerifier, {
+      maxFeePerGas: 100000000,
+    })
+    accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address, {
+      maxFeePerGas: 100000000,
+    })
     // chainlink feed is used by Kept for keeper compensation
     const KeepConfig = '(uint256,uint256,uint256,uint256)'
-    await controller[`initialize(address,address,address,${KeepConfig},${KeepConfig},${KeepConfig})`](
-      marketFactory.address,
+    await controller[`initialize(address,address,${KeepConfig},${KeepConfig},${KeepConfig})`](
       accountVerifier.address,
       CHAINLINK_ETH_USD_FEED,
       keepConfig,
@@ -743,6 +746,7 @@ describe('Controller_Arbitrum', () => {
     beforeEach(async () => {
       await createCollateralAccount(userA, parse6decimal('6'))
       downstreamVerifier = Verifier__factory.connect(await marketFactory.verifier(), owner)
+      downstreamVerifier.initialize(marketFactory.address, TX_OVERRIDES)
     })
 
     afterEach(async () => {

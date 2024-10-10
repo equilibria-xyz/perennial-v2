@@ -131,7 +131,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     proxyAdmin.address,
     [],
   )
-  const verifier = IVerifier__factory.connect(verifierProxy.address, owner)
+  const verifier = Verifier__factory.connect(verifierProxy.address, owner)
 
   const marketImpl = await new Market__factory(
     {
@@ -189,6 +189,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   // Init
   await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
+  await verifier.connect(owner).initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
