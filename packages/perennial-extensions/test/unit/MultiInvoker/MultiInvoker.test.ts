@@ -257,6 +257,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             dsu.balanceOf.returnsAtCall(0, 0)
             dsu.balanceOf.returnsAtCall(1, dsuCollateral)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, collateral)
+
             await expect(
               invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })),
             ).to.not.be.reverted
@@ -317,6 +320,10 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             dsu.balanceOf.returnsAtCall(0, 0)
             dsu.balanceOf.returnsAtCall(1, dsuCollateral)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, collateral)
+
             await expect(invoke(v)).to.not.be.reverted
 
             expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
@@ -408,6 +415,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             const feeAmt = collateral.div(10)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
             await expect(
               invoke(
                 buildUpdateMarket({
@@ -434,6 +444,12 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             const feeAmt = collateral.div(10)
             const feeAmt2 = collateral.div(20)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
+            usdc.balanceOf.returnsAtCall(2, 0)
+            usdc.balanceOf.returnsAtCall(3, feeAmt2)
 
             await expect(
               invoke(
@@ -469,6 +485,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             const feeAmt = collateral.div(10)
             const feeAmt2 = collateral.div(20)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
 
             await expect(
               invoke(
@@ -533,6 +552,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             const feeAmt = collateral.div(10)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
             await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
               .reverted
 
@@ -562,6 +584,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             usdc.transfer.returns(true)
 
             const feeAmt = collateral.div(10)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
 
             await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
               .reverted
@@ -601,6 +626,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             usdc.transfer.returns(true)
 
             const feeAmt = collateral.div(10)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
 
             await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
               .reverted
@@ -643,10 +671,28 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             usdc.transfer.returns(true)
             market.claimFee.returns(fee)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, fee)
+
             await expect(invoke(buildClaimFee({ market: market.address, unwrap: true }))).to.not.be.reverted
             expect(market.claimFee).to.have.been.calledWith(user.address)
             expect(reserve.redeem).to.have.been.calledWith(fee.mul(1e12))
             expect(usdc.transfer).to.have.been.calledWith(user.address, fee)
+          })
+
+          it('claims fee from a market when DSU reserve redeemPrice is not 1', async () => {
+            const fee = parse6decimal('0.123')
+            const unwrappedFee = parse6decimal('0.121')
+            usdc.transfer.returns(true)
+            market.claimFee.returns(fee)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, unwrappedFee)
+
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: true }))).to.not.be.reverted
+            expect(market.claimFee).to.have.been.calledWith(user.address)
+            expect(reserve.redeem).to.have.been.calledWith(fee.mul(1e12))
+            expect(usdc.transfer).to.have.been.calledWith(user.address, unwrappedFee)
           })
 
           it('claims fee from a market without unwrapping', async () => {

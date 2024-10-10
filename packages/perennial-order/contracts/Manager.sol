@@ -226,8 +226,9 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Unwraps DSU to USDC and pushes to interface fee receiver
     function _unwrapAndWithdraw(address receiver, UFixed18 amount) private {
+        UFixed6 balanceBefore = USDC.balanceOf(address(this));
         reserve.redeem(amount);
-        USDC.push(receiver, UFixed6Lib.from(amount));
+        USDC.push(receiver, USDC.balanceOf(address(this)).sub(balanceBefore));
     }
 
     modifier keepAction(Action calldata action, bytes memory applicableCalldata) {

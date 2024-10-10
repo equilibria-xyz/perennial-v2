@@ -367,8 +367,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     function _unwrap(address receiver, UFixed18 amount) internal {
         // If the batcher is 0 or doesn't have enough for this unwrap, go directly to the reserve
         if (address(batcher) == address(0) || amount.gt(UFixed18Lib.from(USDC.balanceOf(address(batcher))))) {
+            UFixed6 balanceBefore = USDC.balanceOf(address(this));
             reserve.redeem(amount);
-            if (receiver != address(this)) USDC.push(receiver, UFixed6Lib.from(amount));
+            if (receiver != address(this)) USDC.push(receiver, USDC.balanceOf(address(this)).sub(balanceBefore));
         } else {
             // Unwrap the DSU into USDC and return to the receiver
             batcher.unwrap(amount, receiver);
