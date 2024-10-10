@@ -165,7 +165,6 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
             revert KeeperFactoryInvalidSettleError();
 
         for (uint256 i; i < oracleIds.length; i++) {
-            Token18 rewardToken = IKeeperOracle(address(oracles[oracleIds[i]])).oracle().market().token();
             IKeeperOracle(address(oracles[oracleIds[i]])).settle(versions[i], maxCounts[i], msg.sender);
         }
     }
