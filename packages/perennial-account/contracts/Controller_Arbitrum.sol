@@ -15,7 +15,8 @@ contract Controller_Arbitrum is Controller_Incentivized, Kept_Arbitrum {
     /// @param marketFactory Market Factory contract
     /// @param nonceManager Verifier contract to which nonce and group cancellations are relayed
     constructor(
-        address implementation, IMarketFactory marketFactory,
+        address implementation,
+        IMarketFactory marketFactory,
         IVerifierBase nonceManager
     ) Controller_Incentivized(implementation, marketFactory, nonceManager) {}
 

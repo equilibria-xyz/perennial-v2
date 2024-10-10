@@ -49,7 +49,8 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @param marketFactory_ Market factory contract
     /// @param nonceManager_ Verifier contract to which nonce and group cancellations are relayed
     constructor(
-        address implementation_, IMarketFactory marketFactory_,
+        address implementation_,
+        IMarketFactory marketFactory_,
         IVerifierBase nonceManager_
     ) Controller(implementation_, marketFactory_) {
         nonceManager = nonceManager_;

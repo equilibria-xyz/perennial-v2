@@ -155,13 +155,11 @@ contract AccountVerifier is VerifierBase, IAccountVerifier {
         )) revert VerifierInvalidSignerError();
     }
 
-    /// @notice Checks account authorization
-    /// @param account the account to check authorization for
-    /// @param signer the signer of the account
-    /// @return whether signer is authorized
+    /// @notice Checks whether signer is allowed to sign a message for account
+    /// @param account user to check authorization for (not the collateral account)
+    /// @param signer address which signed a message for the account
+    /// @return true if signer is authorized, otherwise false
     function _authorized(address account, address signer) internal view override returns (bool) {
-        // check if given signer is approved as signer or operator
-        (bool isOperator, bool isSigner, ) = marketFactory.authorization(account, signer, signer, address(0));
-        return (isOperator || isSigner);
+        return super._authorized(account, signer) || marketFactory.signers(account, signer);
     }
 }
