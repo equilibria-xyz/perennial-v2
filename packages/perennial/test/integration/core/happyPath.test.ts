@@ -1739,7 +1739,7 @@ describe('Happy Path', () => {
     const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
 
     // userC allowed to interact with user's account
-    await marketFactory.connect(user).updateOperator(userC.address, true)
+    await marketFactory.connect(user).updateSigner(userC.address, true)
 
     const market = await createMarket(instanceVars)
 
@@ -1795,7 +1795,7 @@ describe('Happy Path', () => {
       ](userC.address, intent, signature)
 
     // disable userC as operator for user
-    await marketFactory.connect(user).updateOperator(userC.address, false)
+    await marketFactory.connect(user).updateSigner(userC.address, false)
 
     intent.common.nonce = 1
     signature = await signIntent(userC, verifier, intent)
