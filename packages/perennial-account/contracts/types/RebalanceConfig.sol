@@ -7,7 +7,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 struct RebalanceConfig {
     /// @dev Percentage of collateral from the group to deposit into the market
     UFixed6 target;
-    /// @dev Percentage away from the target at which keepers may rebalance
+    /// @dev Ratio of market collateral to target at which keepers may rebalance
     UFixed6 threshold;
 }
 

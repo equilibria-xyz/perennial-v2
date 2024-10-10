@@ -111,6 +111,9 @@ library TriggerOrderLib {
     /// @notice Returns user's position for the side of the order they placed
     function _position(IMarket market, address account, uint8 side) private view returns (UFixed6) {
         Position memory current = market.positions(account);
+        Order memory pending = market.pendings(account);
+        current.update(pending);
+
         if (side == 4) return current.maker;
         else if (side == 5) return current.long;
         else if (side == 6) return current.short;

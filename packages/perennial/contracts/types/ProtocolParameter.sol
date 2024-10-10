@@ -8,8 +8,8 @@ struct ProtocolParameter {
     /// @dev The maximum for market fee parameters
     UFixed6 maxFee;
 
-    /// @dev The maximum for market absolute fee parameters
-    UFixed6 maxFeeAbsolute;
+    /// @dev The maximum for liquidationFee market parameter
+    UFixed6 maxLiquidationFee;
 
     /// @dev The maximum for market cut parameters
     UFixed6 maxCut;
@@ -28,17 +28,21 @@ struct ProtocolParameter {
 
     /// @dev The minimum ratio between scale vs makerLimit / efficiencyLimit
     UFixed6 minScale;
+
+    /// @dev The maximum for parameter restricting maximum time between oracle version and update
+    uint256 maxStaleAfter;
 }
 struct StoredProtocolParameter {
-    /* slot 0 (28) */
+    /* slot 0 (29) */
     uint24 maxFee;                  // <= 1677%
-    uint48 maxFeeAbsolute;          // <= 281m
+    uint32 maxLiquidationFee;       // <= 4294
     uint24 maxCut;                  // <= 1677%
     uint32 maxRate;                 // <= 214748% (capped at 31 bits to accommodate int32 rates)
     uint24 minMaintenance;          // <= 1677%
     uint24 minEfficiency;           // <= 1677%
     uint24 referralFee;             // <= 1677%
     uint24 minScale;                // <= 1677%
+    uint24 maxStaleAfter;           // <= 4660 hours
 }
 struct ProtocolParameterStorage { StoredProtocolParameter value; } // SECURITY: must remain at (1) slots
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
@@ -52,13 +56,14 @@ library ProtocolParameterStorageLib {
         StoredProtocolParameter memory value = self.value;
         return ProtocolParameter(
             UFixed6.wrap(uint256(value.maxFee)),
-            UFixed6.wrap(uint256(value.maxFeeAbsolute)),
+            UFixed6.wrap(uint256(value.maxLiquidationFee)),
             UFixed6.wrap(uint256(value.maxCut)),
             UFixed6.wrap(uint256(value.maxRate)),
             UFixed6.wrap(uint256(value.minMaintenance)),
             UFixed6.wrap(uint256(value.minEfficiency)),
             UFixed6.wrap(uint256(value.referralFee)),
-            UFixed6.wrap(uint256(value.minScale))
+            UFixed6.wrap(uint256(value.minScale)),
+            uint24(value.maxStaleAfter)
         );
     }
 
@@ -72,20 +77,22 @@ library ProtocolParameterStorageLib {
         validate(newValue);
 
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
-        if (newValue.maxFeeAbsolute.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint32).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxRate.gt(UFixed6.wrap(type(uint32).max / 2))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
+        if (newValue.maxStaleAfter > uint256(type(uint24).max)) revert ProtocolParameterStorageInvalidError();
 
         self.value = StoredProtocolParameter(
             uint24(UFixed6.unwrap(newValue.maxFee)),
-            uint48(UFixed6.unwrap(newValue.maxFeeAbsolute)),
+            uint32(UFixed6.unwrap(newValue.maxLiquidationFee)),
             uint24(UFixed6.unwrap(newValue.maxCut)),
             uint32(UFixed6.unwrap(newValue.maxRate)),
             uint24(UFixed6.unwrap(newValue.minMaintenance)),
             uint24(UFixed6.unwrap(newValue.minEfficiency)),
             uint24(UFixed6.unwrap(newValue.referralFee)),
-            uint24(UFixed6.unwrap(newValue.minScale))
+            uint24(UFixed6.unwrap(newValue.minScale)),
+            uint24(newValue.maxStaleAfter)
         );
     }
 }

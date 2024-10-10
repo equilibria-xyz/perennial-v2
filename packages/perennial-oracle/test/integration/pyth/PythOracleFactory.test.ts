@@ -303,13 +303,14 @@ testOracles.forEach(testOracle => {
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
-        maxFeeAbsolute: parse6decimal('1000'),
+        maxLiquidationFee: parse6decimal('5'),
         maxCut: parse6decimal('0.50'),
         maxRate: parse6decimal('10.00'),
         minMaintenance: parse6decimal('0.01'),
         minEfficiency: parse6decimal('0.1'),
         referralFee: 0,
         minScale: parse6decimal('0.001'),
+        maxStaleAfter: 7200,
       })
 
       const riskParameter = {
@@ -331,7 +332,7 @@ testOracles.forEach(testOracle => {
         efficiencyLimit: parse6decimal('0.2'),
         liquidationFee: parse6decimal('0.50'),
         minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
+        maxLiquidationFee: parse6decimal('5'),
         utilizationCurve: {
           minRate: 0,
           maxRate: parse6decimal('5.00'),

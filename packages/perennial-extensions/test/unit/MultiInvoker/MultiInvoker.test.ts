@@ -257,6 +257,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             dsu.balanceOf.returnsAtCall(0, 0)
             dsu.balanceOf.returnsAtCall(1, dsuCollateral)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, collateral)
+
             await expect(
               invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })),
             ).to.not.be.reverted
@@ -317,6 +320,10 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             dsu.balanceOf.returnsAtCall(0, 0)
             dsu.balanceOf.returnsAtCall(1, dsuCollateral)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, collateral)
+
             await expect(invoke(v)).to.not.be.reverted
 
             expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
@@ -356,14 +363,14 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: owner.address,
                     amount: feeAmt,
-                    unwrap: false,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+              .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+            await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
             expect(dsu.transfer).to.have.been.calledWith(owner.address, dsuCollateral.div(10))
           })
 
@@ -382,22 +389,22 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: owner.address,
                     amount: feeAmt,
-                    unwrap: false,
                   },
                   interfaceFee2: {
                     receiver: user2.address,
                     amount: feeAmt2,
-                    unwrap: false,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+              .withArgs(user.address, market.address, [feeAmt, owner.address])
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt2, user2.address, false])
+              .withArgs(user.address, market.address, [feeAmt2, user2.address])
 
+            await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
             expect(dsu.transfer).to.have.been.calledWith(owner.address, dsuCollateral.div(10))
+            await expect(multiInvoker.connect(user2).claim(user2.address, false)).to.not.be.reverted
             expect(dsu.transfer).to.have.been.calledWith(user2.address, dsuCollateral.div(20))
           })
 
@@ -408,6 +415,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             const feeAmt = collateral.div(10)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
             await expect(
               invoke(
                 buildUpdateMarket({
@@ -416,14 +426,14 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: owner.address,
                     amount: feeAmt,
-                    unwrap: true,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+              .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+            await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
           })
 
@@ -435,6 +445,12 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const feeAmt = collateral.div(10)
             const feeAmt2 = collateral.div(20)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
+            usdc.balanceOf.returnsAtCall(2, 0)
+            usdc.balanceOf.returnsAtCall(3, feeAmt2)
+
             await expect(
               invoke(
                 buildUpdateMarket({
@@ -443,22 +459,22 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: owner.address,
                     amount: feeAmt,
-                    unwrap: true,
                   },
                   interfaceFee2: {
                     receiver: user2.address,
                     amount: feeAmt2,
-                    unwrap: true,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+              .withArgs(user.address, market.address, [feeAmt, owner.address])
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt2, user2.address, true])
+              .withArgs(user.address, market.address, [feeAmt2, user2.address])
 
+            await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
+            await expect(multiInvoker.connect(user2).claim(user2.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(user2.address, collateral.div(20))
           })
 
@@ -470,6 +486,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const feeAmt = collateral.div(10)
             const feeAmt2 = collateral.div(20)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
             await expect(
               invoke(
                 buildUpdateMarket({
@@ -478,22 +497,22 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: owner.address,
                     amount: feeAmt,
-                    unwrap: true,
                   },
                   interfaceFee2: {
                     receiver: user2.address,
                     amount: feeAmt2,
-                    unwrap: false,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+              .withArgs(user.address, market.address, [feeAmt, owner.address])
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt2, user2.address, false])
+              .withArgs(user.address, market.address, [feeAmt2, user2.address])
 
+            await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
+            await expect(multiInvoker.connect(user2).claim(user2.address, false)).to.not.be.reverted
             expect(dsu.transfer).to.have.been.calledWith(user2.address, dsuCollateral.div(20))
           })
 
@@ -514,14 +533,14 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: owner.address,
                     amount: feeAmt,
-                    unwrap: false,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+              .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+            await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
             expect(dsu.transfer).to.have.been.calledWith(owner.address, feeAmt.mul(1e12))
           })
 
@@ -533,6 +552,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             const feeAmt = collateral.div(10)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
             await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
               .reverted
 
@@ -544,14 +566,14 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: owner.address,
                     amount: feeAmt,
-                    unwrap: true,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+              .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+            await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(owner.address, feeAmt)
           })
 
@@ -563,6 +585,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             const feeAmt = collateral.div(10)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
             await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
               .reverted
 
@@ -574,14 +599,14 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: owner.address,
                     amount: feeAmt,
-                    unwrap: true,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+              .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+            await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(owner.address, feeAmt)
             expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
               user.address,
@@ -602,6 +627,9 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             const feeAmt = collateral.div(10)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
+
             await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
               .reverted
 
@@ -613,19 +641,18 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                   interfaceFee1: {
                     receiver: constants.AddressZero,
                     amount: 0,
-                    unwrap: false,
                   },
                   interfaceFee2: {
                     receiver: user2.address,
                     amount: feeAmt,
-                    unwrap: true,
                   },
                 }),
               ),
             )
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
-              .withArgs(user.address, market.address, [feeAmt, user2.address, true])
+              .withArgs(user.address, market.address, [feeAmt, user2.address])
 
+            await expect(multiInvoker.connect(user2).claim(user2.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(user2.address, feeAmt)
             expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
               user.address,
@@ -643,10 +670,28 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             usdc.transfer.returns(true)
             market.claimFee.returns(fee)
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, fee)
+
             await expect(invoke(buildClaimFee({ market: market.address, unwrap: true }))).to.not.be.reverted
             expect(market.claimFee).to.have.been.calledWith(user.address)
             expect(reserve.redeem).to.have.been.calledWith(fee.mul(1e12))
             expect(usdc.transfer).to.have.been.calledWith(user.address, fee)
+          })
+
+          it('claims fee from a market when DSU reserve redeemPrice is not 1', async () => {
+            const fee = parse6decimal('0.123')
+            const unwrappedFee = parse6decimal('0.121')
+            usdc.transfer.returns(true)
+            market.claimFee.returns(fee)
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, unwrappedFee)
+
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: true }))).to.not.be.reverted
+            expect(market.claimFee).to.have.been.calledWith(user.address)
+            expect(reserve.redeem).to.have.been.calledWith(fee.mul(1e12))
+            expect(usdc.transfer).to.have.been.calledWith(user.address, unwrappedFee)
           })
 
           it('claims fee from a market without unwrapping', async () => {
@@ -724,8 +769,8 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                 fee: 10e6,
                 price: trigger.price,
                 delta: position,
-                interfaceFee1: { amount: 0, receiver: constants.AddressZero, unwrap: false },
-                interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: false },
+                interfaceFee1: { amount: 0, receiver: constants.AddressZero },
+                interfaceFee2: { amount: 0, receiver: constants.AddressZero },
               })
 
             expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -749,7 +794,6 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               interfaceFee1: {
                 receiver: owner.address,
                 amount: 100e6,
-                unwrap: false,
               },
             })
 
@@ -771,8 +815,8 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                 fee: 10e6,
                 price: trigger.price,
                 delta: position,
-                interfaceFee1: { amount: 100e6, receiver: owner.address, unwrap: false },
-                interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: false },
+                interfaceFee1: { amount: 100e6, receiver: owner.address },
+                interfaceFee2: { amount: 0, receiver: constants.AddressZero },
               })
 
             expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -785,10 +829,8 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             expect(orderState.delta).to.equal(trigger.delta)
             expect(orderState.interfaceFee1.amount).to.equal(100e6)
             expect(orderState.interfaceFee1.receiver).to.equal(owner.address)
-            expect(orderState.interfaceFee1.unwrap).to.equal(false)
             expect(orderState.interfaceFee2.amount).to.equal(0)
             expect(orderState.interfaceFee2.receiver).to.equal(constants.AddressZero)
-            expect(orderState.interfaceFee2.unwrap).to.equal(false)
           })
 
           it('places a limit order w/ multiple interface fees', async () => {
@@ -800,12 +842,10 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               interfaceFee1: {
                 receiver: owner.address,
                 amount: 100e6,
-                unwrap: false,
               },
               interfaceFee2: {
                 receiver: user2.address,
                 amount: 50e6,
-                unwrap: true,
               },
             })
 
@@ -827,8 +867,8 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                 fee: 10e6,
                 price: trigger.price,
                 delta: position,
-                interfaceFee1: { amount: 100e6, receiver: owner.address, unwrap: false },
-                interfaceFee2: { amount: 50e6, receiver: user2.address, unwrap: true },
+                interfaceFee1: { amount: 100e6, receiver: owner.address },
+                interfaceFee2: { amount: 50e6, receiver: user2.address },
               })
 
             expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -841,10 +881,8 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             expect(orderState.delta).to.equal(trigger.delta)
             expect(orderState.interfaceFee1.amount).to.equal(100e6)
             expect(orderState.interfaceFee1.receiver).to.equal(owner.address)
-            expect(orderState.interfaceFee1.unwrap).to.equal(false)
             expect(orderState.interfaceFee2.amount).to.equal(50e6)
             expect(orderState.interfaceFee2.receiver).to.equal(user2.address)
-            expect(orderState.interfaceFee2.unwrap).to.equal(true)
           })
 
           it('places a limit order w/ interface fee (unwrap)', async () => {
@@ -856,12 +894,10 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               interfaceFee1: {
                 receiver: owner.address,
                 amount: 100e6,
-                unwrap: true,
               },
               interfaceFee2: {
                 receiver: constants.AddressZero,
                 amount: 0,
-                unwrap: true,
               },
             })
 
@@ -883,8 +919,8 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                 fee: 10e6,
                 price: trigger.price,
                 delta: position,
-                interfaceFee1: { amount: 100e6, receiver: owner.address, unwrap: true },
-                interfaceFee2: { amount: 0, receiver: constants.AddressZero, unwrap: true },
+                interfaceFee1: { amount: 100e6, receiver: owner.address },
+                interfaceFee2: { amount: 0, receiver: constants.AddressZero },
               })
 
             expect(await multiInvoker.latestNonce()).to.eq(1)
@@ -897,10 +933,8 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             expect(orderState.delta).to.equal(trigger.delta)
             expect(orderState.interfaceFee1.amount).to.equal(100e6)
             expect(orderState.interfaceFee1.receiver).to.equal(owner.address)
-            expect(orderState.interfaceFee1.unwrap).to.equal(true)
             expect(orderState.interfaceFee2.amount).to.equal(0)
             expect(orderState.interfaceFee2.receiver).to.equal(constants.AddressZero)
-            expect(orderState.interfaceFee2.unwrap).to.equal(true)
           })
 
           it('places a tp order', async () => {
@@ -1297,7 +1331,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
                 price: BigNumber.from(1200e6),
                 side: Dir.L,
                 comparison: Compare.ABOVE_MARKET,
-                interfaceFee1: { receiver: owner.address, amount: 100e6, unwrap: false },
+                interfaceFee1: { receiver: owner.address, amount: 100e6 },
               })
 
               const placeOrder = buildPlaceOrder({

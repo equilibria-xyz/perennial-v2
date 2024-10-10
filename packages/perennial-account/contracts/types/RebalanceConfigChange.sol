@@ -15,7 +15,8 @@ struct RebalanceConfigChange {
     address[] markets;
     /// @dev Target allocation for markets in the aforementioned array
     RebalanceConfig[] configs;
-    /// @dev Largest amount to compensate a relayer/keeper for rebalancing the group in DSU
+    /// @dev Largest amount to compensate a relayer/keeper for rebalancing the group in DSU.
+    /// This amount also prevents keepers from rebalancing imbalances smaller than the keeper fee.
     UFixed6 maxFee;
     /// @dev Common information for collateral account actions
     Action action;
@@ -35,7 +36,6 @@ library RebalanceConfigChangeLib {
 
     /// @dev Used to create a signed message
     function hash(RebalanceConfigChange memory self) internal pure returns (bytes32) {
-        bytes32[] memory encodedAddresses = new bytes32[](self.markets.length);
         bytes32[] memory encodedConfigs = new bytes32[](self.configs.length);
 
         // ensure consistent error for length mismatch
@@ -43,7 +43,6 @@ library RebalanceConfigChangeLib {
             revert IController.ControllerInvalidRebalanceConfigError();
 
         for (uint256 i = 0; i < self.markets.length; ++i) {
-            encodedAddresses[i] = keccak256(abi.encode(self.markets[i]));
             encodedConfigs[i] = RebalanceConfigLib.hash(self.configs[i]);
         }
         return keccak256(abi.encode(

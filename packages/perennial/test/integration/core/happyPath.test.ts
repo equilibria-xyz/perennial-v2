@@ -110,13 +110,11 @@ describe('Happy Path', () => {
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
-      oracleFee: 0,
       riskFee: 0,
       makerFee: 0,
       takerFee: 0,
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
-      settlementFee: 0,
       closed: false,
       settle: false,
     }
@@ -1266,8 +1264,6 @@ describe('Happy Path', () => {
       makerLimit: parse6decimal('100000'),
       efficiencyLimit: parse6decimal('0.2'),
       liquidationFee: parse6decimal('0.50'),
-      minLiquidationFee: parse6decimal('0'),
-      maxLiquidationFee: parse6decimal('1000'),
       utilizationCurve: {
         minRate: 0,
         maxRate: parse6decimal('5.00'),
@@ -1287,9 +1283,7 @@ describe('Happy Path', () => {
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
-      oracleFee: 0,
       riskFee: 0,
-      settlementFee: 0,
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       makerFee: positionFeesOn ? parse6decimal('0.2') : 0,
@@ -1452,9 +1446,7 @@ describe('Happy Path', () => {
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
-      oracleFee: 0,
       riskFee: 0,
-      settlementFee: 0,
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       makerFee: parse6decimal('0.2'),
@@ -1997,7 +1989,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, marketFactory } = instanceVars
+    const { owner, user, userB, dsu, marketFactory } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -2014,9 +2006,13 @@ describe('Happy Path', () => {
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
 
-    // set user as extension for userB with signature
-    await marketFactory.connect(userB).updateExtension(user.address, true)
+    // try to update extension using incorrect owner
+    await expect(marketFactory.connect(userB).updateExtension(user.address, true))
+      .to.be.revertedWithCustomError(marketFactory, 'OwnableNotOwnerError')
+      .withArgs(userB.address)
 
+    // update extension with owner
+    await marketFactory.connect(owner).updateExtension(user.address, true)
     // user opens long position for userB
     await expect(
       market
@@ -2526,9 +2522,7 @@ describe('Happy Path', () => {
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
-      oracleFee: 0,
       riskFee: 0,
-      settlementFee: 0,
       maxPendingGlobal: 8,
       maxPendingLocal: 8,
       makerFee: positionFeesOn ? parse6decimal('0.2') : 0,

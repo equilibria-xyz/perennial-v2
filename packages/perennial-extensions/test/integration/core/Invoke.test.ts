@@ -537,14 +537,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
         })
 
@@ -565,14 +565,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
         })
 
@@ -595,14 +595,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
         })
 
@@ -625,14 +625,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
         })
 
@@ -655,22 +655,22 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
                 interfaceFee2: {
                   amount: feeAmt2,
                   receiver: userB.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt2, userB.address, false])
+            .withArgs(user.address, market.address, [feeAmt2, userB.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
+          await expect(multiInvoker.connect(userB).claim(userB.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(userB.address)).sub(balanceBefore2)).to.eq(feeAmt2.mul(1e12))
         })
 
@@ -693,7 +693,6 @@ describe('Invoke', () => {
               interfaceFee1: {
                 amount: 0,
                 receiver: owner.address,
-                unwrap: true,
               },
             }),
           )
@@ -722,12 +721,10 @@ describe('Invoke', () => {
               interfaceFee1: {
                 amount: 0,
                 receiver: ethers.constants.AddressZero,
-                unwrap: false,
               },
               interfaceFee2: {
                 amount: 0,
                 receiver: userB.address,
-                unwrap: false,
               },
             }),
           )

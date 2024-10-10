@@ -469,7 +469,7 @@ describe('Orders', () => {
           price: triggerPrice,
           side: Dir.L,
           comparison: Compare.ABOVE_MARKET,
-          interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: false },
+          interfaceFee1: { amount: 50e6, receiver: userB.address },
         })
 
         const placeOrder = buildPlaceOrder({
@@ -517,8 +517,9 @@ describe('Orders', () => {
             constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
-          .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: false })
+          .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6 })
 
+        await expect(multiInvoker.connect(userB).claim(userB.address, false)).to.not.be.reverted
         expect(await dsu.balanceOf(userB.address)).to.eq(balanceBefore.add(utils.parseEther('50')))
         expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
           userB.address,
@@ -539,7 +540,7 @@ describe('Orders', () => {
           price: triggerPrice,
           side: Dir.L,
           comparison: Compare.ABOVE_MARKET,
-          interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: true },
+          interfaceFee1: { amount: 50e6, receiver: userB.address },
         })
 
         const placeOrder = buildPlaceOrder({
@@ -581,8 +582,9 @@ describe('Orders', () => {
             constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
-          .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
+          .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6 })
 
+        await expect(multiInvoker.connect(userB).claim(userB.address, true)).to.not.be.reverted
         expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(50e6))
         expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
           userB.address,
@@ -603,8 +605,8 @@ describe('Orders', () => {
           price: triggerPrice,
           side: Dir.L,
           comparison: Compare.ABOVE_MARKET,
-          interfaceFee1: { amount: 50e6, receiver: userB.address, unwrap: true },
-          interfaceFee2: { amount: 100e6, receiver: userD.address, unwrap: false },
+          interfaceFee1: { amount: 50e6, receiver: userB.address },
+          interfaceFee2: { amount: 100e6, receiver: userD.address },
         })
 
         const placeOrder = buildPlaceOrder({
@@ -646,11 +648,13 @@ describe('Orders', () => {
             constants.AddressZero,
           )
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
-          .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6, unwrap: true })
+          .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6 })
           .to.emit(multiInvoker, 'InterfaceFeeCharged')
-          .withArgs(user.address, market.address, { receiver: userD.address, amount: 100e6, unwrap: false })
+          .withArgs(user.address, market.address, { receiver: userD.address, amount: 100e6 })
 
+        await expect(multiInvoker.connect(userB).claim(userB.address, true)).to.not.be.reverted
         expect(await usdc.balanceOf(userB.address)).to.eq(balanceBefore.add(50e6))
+        await expect(multiInvoker.connect(userD).claim(userD.address, false)).to.not.be.reverted
         expect(await dsu.balanceOf(userD.address)).to.eq(balanceBefore2.add(utils.parseEther('100')))
         expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
           userB.address,

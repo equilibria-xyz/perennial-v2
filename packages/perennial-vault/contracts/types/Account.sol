@@ -12,10 +12,10 @@ struct Account {
     /// @dev The latest position id
     uint256 latest;
 
-    /// @dev The total shares
+    /// @dev Measures ownership of the vault, convertable to assets
     UFixed6 shares;
 
-    /// @dev The total assets
+    /// @dev Redeemed shares converted to funds set aside to be claimed
     UFixed6 assets;
 
     /// @dev The amount of pending deposits

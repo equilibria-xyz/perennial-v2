@@ -219,6 +219,6 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (Fixed6) {
         if (!toVersion.valid) return Fixed6Lib.ZERO;
-        return guarantee.taker().mul(toVersion.price).sub(guarantee.notional);
+        return guarantee.priceAdjustment(toVersion.price);
     }
 }
