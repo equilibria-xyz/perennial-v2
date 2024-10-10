@@ -5884,6 +5884,7 @@ describe('Market', () => {
                 minEfficiency: parse6decimal('0.1'),
                 referralFee: 0,
                 minScale: parse6decimal('0.001'),
+                maxStaleAfter: 14400,
               })
 
               const riskParameter = { ...(await market.riskParameter()) }
