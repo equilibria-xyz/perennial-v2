@@ -73,6 +73,9 @@ library InvariantLib {
             )
         ) revert IMarket.MarketNotSingleSidedError();
 
+        if (newGuarantee.priceDeviation(context.latestOracleVersion.price).gt(context.marketParameter.maxPriceDeviation))
+            revert IMarket.MarketIntentPriceDeviationError();
+
         if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (

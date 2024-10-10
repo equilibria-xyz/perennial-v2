@@ -105,6 +105,7 @@ export interface MarketParameter {
   riskFee: BigNumberish
   maxPendingGlobal: number
   maxPendingLocal: number
+  maxPriceDeviation: BigNumberish
   closed: boolean
   settle: boolean
 }
@@ -356,6 +357,7 @@ export const DEFAULT_MARKET_PARAMETER: MarketParameter = {
   riskFee: 0,
   maxPendingGlobal: 0,
   maxPendingLocal: 0,
+  maxPriceDeviation: 0,
   closed: false,
   settle: false,
 }

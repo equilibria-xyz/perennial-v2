@@ -94,6 +94,19 @@ library GuaranteeLib {
         return self.taker().mul(price).sub(self.notional);
     }
 
+    /// @notice Returns the price deviation of the guarantee from the oracle price
+    /// @dev The price deviation is (intent price - oracle price) / min(intent price, oracle price)
+    ///      Only supports new guarantees for updates, does not work for aggregated guarantees (local / global)
+    /// @param self The guarantee object to check
+    /// @param price The oracle price to compare
+    /// @return The price deviation of the guarantee from the oracle price
+    function priceDeviation(Guarantee memory self, Fixed6 price) internal pure returns (UFixed6) {
+        if (takerTotal(self).isZero()) return UFixed6Lib.ZERO;
+
+        Fixed6 guarenteePrice = self.notional.div(taker(self));
+        return guarenteePrice.sub(price).div(guarenteePrice.min(price)).abs();
+    }
+
     /// @notice Updates the current global guarantee with a new local guarantee
     /// @param self The guarantee object to update
     /// @param guarantee The new guarantee

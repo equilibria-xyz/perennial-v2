@@ -84,6 +84,7 @@ export async function createMarket(
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
     settlementFee: 0,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
     ...marketParamOverrides,

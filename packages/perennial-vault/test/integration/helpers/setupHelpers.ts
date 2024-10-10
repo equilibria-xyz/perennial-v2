@@ -84,6 +84,7 @@ export async function deployProductOnMainnetFork({
     settlementFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
   }

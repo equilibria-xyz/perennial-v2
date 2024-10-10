@@ -120,6 +120,8 @@ interface IMarket is IInstance {
     error MarketSettleOnlyError();
     // sig: 0x1e9d2296
     error MarketInvalidIntentFeeError();
+    // sig: 0xaf5dfc8f
+    error MarketIntentPriceDeviationError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();

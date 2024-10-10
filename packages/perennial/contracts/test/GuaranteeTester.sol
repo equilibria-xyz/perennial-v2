@@ -20,6 +20,10 @@ abstract contract GuaranteeTester {
     function priceAdjustment(Guarantee memory guarantee, Fixed6 price) public pure returns (Fixed6) {
         return GuaranteeLib.priceAdjustment(guarantee, price);
     }
+
+    function priceDeviation(Guarantee memory guarantee, Fixed6 price) public pure returns (UFixed6) {
+        return GuaranteeLib.priceDeviation(guarantee, price);
+    }
 }
 
 contract GuaranteeGlobalTester is GuaranteeTester {
