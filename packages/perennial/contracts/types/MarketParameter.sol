@@ -52,7 +52,7 @@ using MarketParameterStorageLib for MarketParameterStorage global;
 ///        uint24 riskFee;             // <= 1677%
 ///        uint16 maxPendingGlobal;    // <= 65k
 ///        uint16 maxPendingLocal;     // <= 65k
-///        uint24 maxPriceDeviation;   // <= 16.77x
+///        uint24 maxPriceDeviation;   // <= 1677%
 ///        uint24 __unallocated__;
 ///        uint8 flags;
 ///    }

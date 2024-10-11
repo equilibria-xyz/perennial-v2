@@ -663,7 +663,7 @@ describe('Guarantee', () => {
 
       it('zero price', async () => {
         await expect(
-          guaranteeLocal.priceDeviation(
+          await guaranteeLocal.priceDeviation(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('0'),
@@ -671,7 +671,33 @@ describe('Guarantee', () => {
             },
             parse6decimal('121'),
           ),
-        ).to.revertedWithPanic('0x12')
+        ).to.equal(ethers.constants.MaxUint256)
+      })
+
+      it('negative oracle price', async () => {
+        await expect(
+          await guaranteeLocal.priceDeviation(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('1230'),
+              takerPos: parse6decimal('10'),
+            },
+            parse6decimal('-125'),
+          ),
+        ).to.equal(parse6decimal('2.016260'))
+      })
+
+      it('negative guarantee price', async () => {
+        await expect(
+          await guaranteeLocal.priceDeviation(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('-1230'),
+              takerPos: parse6decimal('10'),
+            },
+            parse6decimal('125'),
+          ),
+        ).to.equal(parse6decimal('2.016260'))
       })
 
       it('zero size', async () => {
