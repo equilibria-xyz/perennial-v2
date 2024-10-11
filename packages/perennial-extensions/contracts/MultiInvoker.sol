@@ -139,7 +139,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice withdraw DSU or unwrap DSU to withdraw USDC from this address to `account`
     /// @param account Account to claim fees for
-    /// @param unwrap Wheather to wrap/unwrap collateral on withdrawal
+    /// @param unwrap Whether to wrap/unwrap collateral on withdrawal
     function claim(address account, bool unwrap) external onlyOperator(account, msg.sender) {
         UFixed6 claimableAmount = claimable[account];
         claimable[account] = UFixed6Lib.ZERO;
@@ -325,6 +325,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Claims market fees, unwraps DSU, and pushes USDC to fee earner
     /// @param market Market from which fees should be claimed
     /// @param account Address of the user who earned fees
+    /// @param unwrap Set true to unwrap DSU to USDC when withdrawing
     function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
         UFixed6 claimAmount = market.claimFee(account);
         _withdraw(account, claimAmount, unwrap);
