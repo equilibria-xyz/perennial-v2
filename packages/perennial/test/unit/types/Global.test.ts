@@ -46,6 +46,7 @@ function generateMarketParameter(riskFee: BigNumberish): MarketParameterStruct {
     takerFee: 0,
     maxPendingGlobal: 0,
     maxPendingLocal: 0,
+    maxPriceDeviation: 0,
     riskFee,
     closed: false,
     settle: false,

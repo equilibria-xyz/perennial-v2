@@ -271,6 +271,7 @@ export async function createMarket(
     takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
     ...marketParamOverrides,
