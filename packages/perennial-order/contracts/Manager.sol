@@ -29,7 +29,7 @@ abstract contract Manager is IManager, Kept {
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev Contract used to validate delegated signers
+    /// @dev Contract used to validate fee claims
     IMarketFactory public immutable marketFactory;
 
     /// @dev Verifies EIP712 messages for this extension
@@ -50,8 +50,11 @@ abstract contract Manager is IManager, Kept {
     mapping(address => UFixed6) public claimable;
 
     /// @dev Creates an instance
+    /// @param usdc_ USDC stablecoin
     /// @param dsu_ Digital Standard Unit stablecoin
-    /// @param marketFactory_ Contract used to validate delegated signers
+    /// @param reserve_ DSU reserve contract used for unwrapping
+    /// @param marketFactory_ Contract used to validate fee claims
+    /// @param verifier_ Used to validate EIP712 signatures
     constructor(
         Token6 usdc_,
         Token18 dsu_,
@@ -94,7 +97,6 @@ abstract contract Manager is IManager, Kept {
     {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyPlaceOrder(request, signature);
-        _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
         _placeOrder(request.action.market, request.action.common.account, request.action.orderId, request.order);
     }
@@ -111,7 +113,6 @@ abstract contract Manager is IManager, Kept {
     {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyCancelOrder(request, signature);
-        _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
         _cancelOrder(request.action.market, request.action.common.account, request.action.orderId);
     }
@@ -168,11 +169,6 @@ abstract contract Manager is IManager, Kept {
 
         if (unwrap) _unwrapAndWithdraw(msg.sender, UFixed18Lib.from(claimableAmount));
         else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
-    }
-
-    /// @notice reverts if user is not authorized to sign transactions for the account
-    function _ensureValidSigner(address account, address signer) internal view {
-        if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
     }
 
     /// @notice Transfers DSU from market to manager to compensate keeper

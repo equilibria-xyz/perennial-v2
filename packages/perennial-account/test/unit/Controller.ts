@@ -84,11 +84,11 @@ describe('Controller', () => {
     const usdc = await smock.fake<IERC20>('IERC20')
     const dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
-    controller = await deployController(owner, usdc.address, dsu.address, reserve.address)
-
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-    verifier = await new AccountVerifier__factory(owner).deploy()
-    await controller.initialize(marketFactory.address, verifier.address)
+
+    controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
+    verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
+    await controller.initialize(verifier.address)
   }
 
   beforeEach(async () => {
@@ -170,7 +170,7 @@ describe('Controller', () => {
 
       await expect(
         controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
     })
 
     it('account implementation cannot be initialized', async () => {
@@ -697,7 +697,12 @@ describe('Controller', () => {
       const marketTransferMessage = {
         market: market.address,
         amount: utils.parseEther('4'),
-        ...(await createAction(userA.address, userA.address, utils.parseEther('0.3'), 24)),
+        ...(await createAction(
+          userA.address,
+          userA.address,
+          utils.parseEther('0.3'),
+          (await currentBlockTimestamp()) + 12,
+        )),
       }
       const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)
       await expect(
@@ -718,7 +723,7 @@ describe('Controller', () => {
       // controller should revert
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
     })
   })
 })

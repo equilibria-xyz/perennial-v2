@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.24;
 
-import "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
+import { IVerifier } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
 import "@equilibria/root/attribute/Factory.sol";
 import "./interfaces/IOracleProvider.sol";
 import "./interfaces/IMarketFactory.sol";
