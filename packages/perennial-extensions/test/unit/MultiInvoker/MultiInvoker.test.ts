@@ -445,12 +445,6 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const feeAmt = collateral.div(10)
             const feeAmt2 = collateral.div(20)
 
-            usdc.balanceOf.returnsAtCall(0, 0)
-            usdc.balanceOf.returnsAtCall(1, feeAmt)
-
-            usdc.balanceOf.returnsAtCall(2, 0)
-            usdc.balanceOf.returnsAtCall(3, feeAmt2)
-
             await expect(
               invoke(
                 buildUpdateMarket({
@@ -472,10 +466,19 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               .to.emit(multiInvoker, 'InterfaceFeeCharged')
               .withArgs(user.address, market.address, [feeAmt2, user2.address])
 
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt)
             await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
+            expect(reserve.redeem).to.have.been.calledWith(collateral.div(10).mul(1e12))
             expect(usdc.transfer).to.have.been.calledWith(owner.address, collateral.div(10))
+            usdc.balanceOf.reset()
+
+            usdc.balanceOf.returnsAtCall(0, 0)
+            usdc.balanceOf.returnsAtCall(1, feeAmt2)
             await expect(multiInvoker.connect(user2).claim(user2.address, true)).to.not.be.reverted
+            expect(reserve.redeem).to.have.been.calledWith(collateral.div(20).mul(1e12))
             expect(usdc.transfer).to.have.been.calledWith(user2.address, collateral.div(20))
+            usdc.balanceOf.reset()
           })
 
           it('charges multiple interface fees on deposit, unwraps one to USDC, and pushes to receive', async () => {
