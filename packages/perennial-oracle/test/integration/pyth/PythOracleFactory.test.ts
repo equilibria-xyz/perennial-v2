@@ -1220,12 +1220,15 @@ testOracles.forEach(testOracle => {
           await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
           expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
           expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
+          const balanceBeforeCommit = await dsu.balanceOf(user.address)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
             maxFeePerGas: 100000000,
           })
-
           expect((await market.position()).timestamp).to.equal(STARTING_TIME)
+          // ensure keeper was compensated for committing a price
+          const balanceBeforeSettle = await dsu.balanceOf(user.address)
+          expect(balanceBeforeSettle.sub(balanceBeforeCommit)).to.equal(utils.parseEther('0.370586'))
 
           await expect(
             pythOracleFactory.connect(user).settle([PYTH_ETH_USD_PRICE_FEED], [STARTING_TIME], [1], {
@@ -1235,11 +1238,8 @@ testOracles.forEach(testOracle => {
           // .withArgs([market.address, user.address, STARTING_TIME]) cannot parse indexed tuples in events
 
           expect((await market.positions(user.address)).timestamp).to.equal(STARTING_TIME)
-
-          const reward = utils.parseEther('0.370586')
-          expect(await dsu.balanceOf(user.address)).to.be.equal(
-            utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
-          )
+          // ensure keeper was compensated for settling
+          expect((await dsu.balanceOf(user.address)).sub(balanceBeforeSettle)).to.equal(utils.parseEther('0.129155'))
         })
 
         it('reverts if array lengths mismatch', async () => {

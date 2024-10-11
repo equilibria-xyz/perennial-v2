@@ -35,5 +35,5 @@ contract KeeperOracle_Migration is KeeperOracle {
     function latest() public pure override returns (OracleVersion memory) { revert NotImplementedError(); }
     function current() public pure override returns (uint256) { revert NotImplementedError(); }
     function commit(OracleVersion memory, address, uint256) external pure override { revert NotImplementedError(); }
-    function settle(uint256, uint256) external pure override { revert NotImplementedError(); }
+    function settle(uint256, uint256, address) external pure override { revert NotImplementedError(); }
 }
