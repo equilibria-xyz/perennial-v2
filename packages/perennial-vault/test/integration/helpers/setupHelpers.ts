@@ -93,7 +93,7 @@ export async function deployProductOnMainnetFork({
   }
 
   const protocolParameter = { ...(await factory.parameter()) }
-  protocolParameter.maxFeeAbsolute = parse6decimal('25000')
+  protocolParameter.maxLiquidationFee = parse6decimal('25')
   await factory.connect(owner).updateParameter(protocolParameter)
 
   const productAddress = await factory.connect(owner).callStatic.create(marketDefinition)

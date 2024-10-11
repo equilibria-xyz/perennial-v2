@@ -32,13 +32,14 @@ export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   protocolFee: 0,
   maxFee: parse6decimal('1'),
-  maxFeeAbsolute: BigNumber.from(2).pow(48).sub(1),
+  maxLiquidationFee: BigNumber.from(2).pow(32).sub(1),
   maxCut: parse6decimal('1'),
   maxRate: parse6decimal('1'),
   minMaintenance: 0,
   minEfficiency: 0,
   referralFee: 0,
   minScale: parse6decimal('0.1'),
+  maxStaleAfter: 172800, // 2 days
 }
 
 describe('MarketParameter', () => {

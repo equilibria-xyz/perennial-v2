@@ -108,7 +108,7 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.maxFee).to.equal(0)
-      expect(parameter.maxFeeAbsolute).to.equal(0)
+      expect(parameter.maxLiquidationFee).to.equal(0)
       expect(parameter.maxCut).to.equal(0)
       expect(parameter.maxRate).to.equal(0)
       expect(parameter.minMaintenance).to.equal(0)
@@ -332,13 +332,14 @@ describe('MarketFactory', () => {
   describe('#updateParameter', async () => {
     const newParameter = {
       maxFee: parse6decimal('0.01'),
-      maxFeeAbsolute: parse6decimal('1000'),
+      maxLiquidationFee: parse6decimal('20'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
       minEfficiency: parse6decimal('0.1'),
       referralFee: parse6decimal('0.2'),
       minScale: parse6decimal('0.001'),
+      maxStaleAfter: 3600,
     }
 
     it('updates the parameters', async () => {
@@ -346,13 +347,14 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.maxFee).to.equal(newParameter.maxFee)
-      expect(parameter.maxFeeAbsolute).to.equal(newParameter.maxFeeAbsolute)
+      expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
       expect(parameter.maxCut).to.equal(newParameter.maxCut)
       expect(parameter.maxRate).to.equal(newParameter.maxRate)
       expect(parameter.minMaintenance).to.equal(newParameter.minMaintenance)
       expect(parameter.minEfficiency).to.equal(newParameter.minEfficiency)
       expect(parameter.referralFee).to.equal(newParameter.referralFee)
       expect(parameter.minScale).to.equal(newParameter.minScale)
+      expect(parameter.maxStaleAfter).to.equal(newParameter.maxStaleAfter)
     })
 
     it('reverts if not owner', async () => {
@@ -366,7 +368,7 @@ describe('MarketFactory', () => {
   describe('#updateReferralFee', async () => {
     const newParameter = {
       maxFee: parse6decimal('0.01'),
-      maxFeeAbsolute: parse6decimal('1000'),
+      maxLiquidationFee: parse6decimal('20'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
