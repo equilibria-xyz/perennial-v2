@@ -66,7 +66,7 @@ export const DEFAULT_RISK_PARAMETERS = {
 
 export const KeeperFactoryParameter = {
   granularity: 10,
-  oracleFee: 0,
+  oracleFee: 0, // TODO: Determine this value
   validFrom: 4,
   validTo: 12,
 }

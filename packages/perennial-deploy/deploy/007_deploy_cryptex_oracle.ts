@@ -29,7 +29,7 @@ const ORACLES: { [key: string]: { [asset: string]: OracleDefinition } } = {
   },
 }
 
-const SIGNERS: { [key: string]: string } = {
+export const SIGNERS: { [key: string]: string } = {
   arbitrum: '0xd24b631031524A2be9825D2Bb1b22416b0a254D8',
   arbitrumSepolia: '0x6B9d43F52C7d49C298c69d2e4C26f58D20886256',
 }

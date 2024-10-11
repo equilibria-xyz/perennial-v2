@@ -1,9 +1,10 @@
 import { HardhatRuntimeEnvironment, Libraries } from 'hardhat/types'
 import { DeployFunction } from 'hardhat-deploy/types'
-import { isArbitrum, isMainnet } from '../../common/testutil/network'
+import { forkNetwork, isArbitrum, isFork, isMainnet } from '../../common/testutil/network'
 import { INITIAL_AMOUNT } from './005_deploy_vault'
 import { DEFAULT_KEEPER_ORACLE_TIMEOUT, L1_GAS_BUFFERS } from './003_deploy_oracle'
 import { MARKET_LIBRARIES } from './004_deploy_market'
+import { SIGNERS as CryptexSigners } from './007_deploy_cryptex_oracle'
 import {
   Account__factory,
   Controller_Arbitrum__factory,
@@ -17,12 +18,10 @@ import {
   OracleFactory__factory,
   ProxyAdmin__factory,
   PythFactory__factory,
-  RebalanceLib__factory,
   TransparentUpgradeableProxy__factory,
   VaultFactory__factory,
 } from '../types/generated'
 import { PAYOFFS } from './002_deploy_payoff'
-import { KeeperFactoryParameter } from '../util/constants'
 
 const SkipIfAlreadyDeployed = false
 
@@ -170,7 +169,7 @@ async function deployVault(hre: HardhatRuntimeEnvironment) {
 
 async function deployOracles(hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get, getOrNull } = deployments
+  const { deploy, get, getOrNull, getNetworkName } = deployments
   const { deployer } = await getNamedAccounts()
   const deployerSigner = await ethers.getSigner(deployer)
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
@@ -358,9 +357,38 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
 
   // Cryptex keepers for arb sepolia
   if (await getOrNull('CryptexFactory')) {
+    const signer = isFork() ? CryptexSigners[forkNetwork()] : CryptexSigners[getNetworkName()]
+    log('   Deploying CryptexFactoryMigration Impl...')
+    await deploy('CryptexFactoryMigrationImpl', {
+      contract: 'MetaQuantsFactoryV2_2',
+      args: [
+        signer,
+        (await get('KeeperOracle_MigrationImpl')).address,
+        4,
+        12,
+        {
+          multiplierBase: 0, // Unused
+          bufferBase: 788_000, // Each Call uses approx 750k gas
+          multiplierCalldata: 0,
+          bufferCalldata: 31_000,
+        },
+        {
+          multiplierBase: ethers.utils.parseEther('1.05'), // Gas usage tracks full call
+          bufferBase: 100_000, // Initial Fee + Transfers
+          multiplierCalldata: ethers.utils.parseEther('1.05'), // Gas usage tracks full L1 calldata,
+          bufferCalldata: 0,
+        },
+        4_200,
+      ],
+      from: deployer,
+      skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+      log: true,
+      autoMine: true,
+    })
+
     log('  Deploying CryptexFactory Impl...')
     const cryptexFactoryArgs: Parameters<MetaQuantsFactory__factory['deploy']> = [
-      '0x6B9d43F52C7d49C298c69d2e4C26f58D20886256',
+      signer,
       (await get('CommitmentGasOracle')).address,
       (await get('SettlementGasOracle')).address,
       'CryptexFactory',
@@ -375,7 +403,7 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
       autoMine: true,
     })
     const previousCryptexFactory = new MetaQuantsFactory__factory(deployerSigner).attach(
-      (await get('CryptexFactory')).address,
+      (await get('PreviousCryptexFactory')).address,
     )
     const cryptexFactoryInterface = MetaQuantsFactory__factory.createInterface()
     const cryptexFactoryProxyArgs: TransparentUpgradeableProxyArgs = [

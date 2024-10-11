@@ -96,7 +96,6 @@ export default task('check-solvency', 'Check the solvency of all markets')
         const globalFees = global.protocolFee
           .add(global.oracleFee)
           .add(global.riskFee)
-          .add(global.donation)
           .add(global.exposure)
           .add(totalClaimable)
           .toBigInt()

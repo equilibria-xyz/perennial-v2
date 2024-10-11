@@ -77,22 +77,19 @@ export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 
       await addPayload(async () => {
         const v2_2Market = await ethers.getContractAt((await getArtifact('MarketV2_2')).abi, market.address)
         const v2_2RiskParam = (await v2_2Market.callStatic.riskParameter()) as V2_2RiskParameterStructOutput
-        const scaleLimit = v2_2RiskParam.makerLimit
-          .div(v2_2RiskParam.efficiencyLimit)
-          .mul(NewProtocolParameter.minScale as BigNumberish) // TODO: Determine the right value for this
 
         return market.populateTransaction.updateRiskParameter({
           ...v2_2RiskParam,
           makerFee: {
             linearFee: v2_2RiskParam.makerFee.linearFee,
             proportionalFee: v2_2RiskParam.makerFee.proportionalFee,
-            scale: scaleLimit,
+            scale: v2_2RiskParam.makerFee.scale,
           },
           takerFee: {
             linearFee: v2_2RiskParam.takerFee.linearFee,
             proportionalFee: v2_2RiskParam.takerFee.proportionalFee,
             adiabaticFee: v2_2RiskParam.takerFee.adiabaticFee,
-            scale: scaleLimit,
+            scale: v2_2RiskParam.takerFee.scale,
           },
         })
       }, `Update Market ${market.address} Risk Parameter`)

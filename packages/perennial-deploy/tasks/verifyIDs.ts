@@ -38,11 +38,11 @@ export default task('verify-ids', 'Verifies that all markets and users have equa
         ? ((await ethers.getContractAt((await getArtifact('MarketV2_2')).abi, marketAddress)) as IMarket)
         : await ethers.getContractAt('IMarket', marketAddress)
 
+      console.log('[Verify IDs] Verifying IDs for market', marketAddress)
       const global = await market.global()
       const users = [...marketUsers[marketAddress].values()]
       const allLocals: { address: string; latestId: BigNumber; currentId: BigNumber }[] = []
 
-      console.log('[Verify IDs] Verifying IDs for market', marketAddress)
       while (users.length > 0) {
         // batch multicalls to handle markets with large numbers of users
         const batchedUsers = users.splice(0, args.batchsize)

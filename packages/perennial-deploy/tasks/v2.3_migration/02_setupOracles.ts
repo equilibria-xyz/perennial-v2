@@ -87,6 +87,9 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
 
     if (await getOrNull('CryptexFactory')) {
       const cryptexFactory = await ethers.getContractAt('IMetaQuantsFactory', (await get('CryptexFactory')).address)
+      if ((await cryptexFactory.owner()) !== owner) {
+        await addPayload(() => cryptexFactory.populateTransaction.acceptOwner(), 'Accept CryptexFactory Ownership')
+      }
       await addPayload(
         () => oracleFactory.populateTransaction.register(cryptexFactory.address),
         'Register CryptexFactory with OracleFactory',
@@ -126,6 +129,21 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
         ),
       `Upgrade previousPythFactory`,
     )
+
+    if (await getOrNull('CryptexFactory')) {
+      await addPayload(
+        async () =>
+          proxyAdmin.populateTransaction.upgrade(
+            (
+              await get('PreviousCryptexFactory')
+            ).address,
+            (
+              await get('CryptexFactoryMigrationImpl')
+            ).address,
+          ),
+        `Upgrade previousCryptexFactory`,
+      )
+    }
 
     if (args.timelock) {
       console.log('[v2.3 Setup Oracles]  Timelock payload:')

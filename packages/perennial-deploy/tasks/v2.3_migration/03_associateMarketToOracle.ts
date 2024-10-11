@@ -3,6 +3,7 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PopulatedTransaction } from 'ethers'
 import { ChainMarkets, MarketMetadata, SupportedChainId, SupportedMarket } from '@perennial/sdk'
+import { forkNetwork, isFork, getChainId } from '../../../common/testutil/network'
 
 export default task(
   '03_v2_3_associate_market_to_oracle',
@@ -14,10 +15,10 @@ export default task(
     console.log('[v2.3 Associate Market to Oracle] Running Associate Market to Oracles Task')
     const {
       ethers,
-      getChainId,
-      deployments: { get },
+      deployments: { get, getNetworkName },
     } = HRE
 
+    const chainId = getChainId(isFork() ? forkNetwork() : getNetworkName()) as SupportedChainId
     const marketFactoryAddress = (await get('MarketFactory')).address
     const marketFactory = await ethers.getContractAt('IMarketFactory', marketFactoryAddress)
     const owner = await marketFactory.owner()
@@ -39,6 +40,11 @@ export default task(
       })
     }
 
+    addPayload(
+      async () => marketFactory.populateTransaction.updateExtension((await get('MultiInvoker')).address, true),
+      'Enable MultiInvoker Extension',
+    )
+
     // Update oracle names and IDs, register markets
     const oracles = await oracleFactory.queryFilter(oracleFactory.filters.OracleCreated())
     for (const oracle of oracles) {
@@ -56,7 +62,7 @@ export default task(
         () => oracleContract.populateTransaction.updateName(name),
         `Associate ${oracle.args.id} to ${name}`,
       )
-      const marketAddress = ChainMarkets[Number(await getChainId()) as SupportedChainId][name as SupportedMarket]
+      const marketAddress = ChainMarkets[chainId][name as SupportedMarket]
       if (!marketAddress) {
         console.warn(`No market address for ${name}. Skipping...`)
         continue

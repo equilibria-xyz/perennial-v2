@@ -2038,9 +2038,31 @@
   resolved "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-4.8.0.tgz"
   integrity sha512-AGuwhRRL+NaKx73WKRNzeCxOCOCxpaqF+kp8TJ89QzAipSwZy/NoflkWaL9bywXFRhIzXt8j38sfF7KBKCPWLw==
 
-"@perennial/sdk@link:../perennial-v2-sdk-ts":
-  version "0.0.0"
-  uid ""
+"@perennial/sdk-0.0.2@npm:@perennial/sdk@0.0.2-beta27":
+  version "0.0.2-beta27"
+  resolved "https://registry.yarnpkg.com/@perennial/sdk/-/sdk-0.0.2-beta27.tgz#19e818daed375233a73a8b4e420984904bd5835b"
+  integrity sha512-hYiOfN1wPoDW7IwlLi2sWR/4lpa4/XplQUaW5ttb4SriDjOgstoscH+MeJLjkvghtzawTh6q+9biWEwdwYZ6lA==
+  dependencies:
+    "@microsoft/tsdoc" "^0.14.2"
+    "@pythnetwork/hermes-client" "^1.0.4"
+    axios "^1.7.2"
+    date-fns "^2.30.0"
+    graphql "^16.6.0"
+    graphql-request "^6.0.0"
+    viem "2.9.9"
+
+"@perennial/sdk@0.0.3-alpha.1":
+  version "0.0.3-alpha.1"
+  resolved "https://registry.yarnpkg.com/@perennial/sdk/-/sdk-0.0.3-alpha.1.tgz#0b1f51d612ae4260cda478a495f76ada6798ea35"
+  integrity sha512-HhEQnewpPASDAZthFdItKbNxfQq+46htAs8XTGEAR9LjJ8Ef976cdPplHuw7eH9oYPojHA+r3nSFpN4QrgHiKw==
+  dependencies:
+    "@microsoft/tsdoc" "^0.14.2"
+    "@pythnetwork/hermes-client" "^1.0.4"
+    axios "^1.7.2"
+    date-fns "^2.30.0"
+    graphql "^16.6.0"
+    graphql-request "^6.0.0"
+    viem "2.9.9"
 
 "@pythnetwork/hermes-client@^1.0.4":
   version "1.0.4"

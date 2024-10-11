@@ -36,7 +36,7 @@ export default task('change-markets-mode', 'Opens or closes all markets; must be
     }
     for (const marketAddress of markets) {
       const market = args.prevabi
-        ? ((await ethers.getContractAt((await getArtifact('MarketV2_2')).abi, marketAddress)) as IMarket)
+        ? await ethers.getContractAt((await getArtifact('MarketV2_2')).abi, marketAddress)
         : await ethers.getContractAt('IMarket', marketAddress)
 
       let parameter = await market.parameter()
@@ -47,16 +47,19 @@ export default task('change-markets-mode', 'Opens or closes all markets; must be
       console.log('[Change Markets Mode]    Updating market parameter')
 
       parameter = { ...parameter, closed: false, settle: args.settle }
+      const updateArgs = args.prevabi
+        ? [ethers.constants.AddressZero, ethers.constants.AddressZero, parameter]
+        : [parameter]
       if (args.dry || args.timelock) {
-        await market.connect(owner).callStatic.updateParameter(parameter)
+        await market.connect(owner).callStatic.updateParameter.apply(null, updateArgs)
         console.log('[Change Markets Mode]  Dry run successful')
-        const txData = await market.populateTransaction.updateParameter(parameter)
+        const txData = await market.populateTransaction.updateParameter.apply(null, updateArgs)
         timelockPayloads.targets.push(txData.to)
         timelockPayloads.values.push(txData.value?.toString() ?? '0')
         timelockPayloads.payloads.push(txData.data)
       } else {
         process.stdout.write('[Change Markets Mode]    Sending Transaction...')
-        const tx = await market.connect(signer).updateParameter(parameter)
+        const tx = await market.connect(signer).updateParameter.apply(null, updateArgs)
         await tx.wait()
         process.stdout.write(`complete. Hash: ${tx.hash}\n`)
       }
