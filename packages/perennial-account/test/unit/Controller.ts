@@ -89,12 +89,6 @@ describe('Controller', () => {
     controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
     verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
     await controller.initialize(verifier.address)
-    marketFactory.authorization
-      .whenCalledWith(userA.address, userA.address, userA.address, constants.AddressZero)
-      .returns([false, true, BigNumber.from(0)])
-    marketFactory.authorization
-      .whenCalledWith(userB.address, userA.address, userB.address, constants.AddressZero)
-      .returns([false, true, BigNumber.from(0)])
   }
 
   beforeEach(async () => {
