@@ -19,11 +19,9 @@ import {
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
-import { advanceToPrice } from '../helpers/setupHelpers'
+import { advanceToPrice, createMarketBTC, createMarketETH } from '../helpers/setupHelpers'
 import {
-  createFactories,
-  createMarketBTC,
-  createMarketETH,
+  createFactoriesForChain,
   deployAndInitializeController,
   fundWalletDSU,
   fundWalletUSDC,
@@ -174,7 +172,7 @@ describe('ControllerBase', () => {
     ;[owner, userA, userB, keeper, receiver] = await ethers.getSigners()
 
     // deploy controller
-    ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
+    ;[oracleFactory, marketFactory, pythOracleFactory] = await createFactoriesForChain(owner)
     ;[dsu, usdc, controller] = await deployAndInitializeController(owner, marketFactory)
     verifier = IAccountVerifier__factory.connect(await controller.verifier(), owner)
 

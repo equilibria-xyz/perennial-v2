@@ -6,7 +6,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, IController, IERC20Metadata } from '../../types/generated'
 import {
-  createFactories,
+  createFactoriesForChain,
   deployAndInitializeController,
   fundWalletDSU,
   fundWalletUSDC,
@@ -33,7 +33,7 @@ describe('Account', () => {
 
   const fixture = async () => {
     ;[owner, userA, userB] = await ethers.getSigners()
-    const [, marketFactory] = await createFactories(owner)
+    const [, marketFactory] = await createFactoriesForChain(owner)
     ;[dsu, usdc, controller] = await deployAndInitializeController(owner, marketFactory)
 
     // fund users with some DSU and USDC

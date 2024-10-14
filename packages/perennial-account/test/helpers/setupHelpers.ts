@@ -40,9 +40,18 @@ import {
   Oracle__factory,
   IOracleFactory,
   IOracle,
+  PythFactory,
+  GasOracle__factory,
+  KeeperOracle__factory,
+  PythFactory__factory,
+  KeeperOracle,
+  Oracle,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
+
+const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
+const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
 
 // Simulates an oracle update from KeeperOracle.
 // If timestamp matches a requested version, callbacks implicitly settle the market.
@@ -74,6 +83,52 @@ export async function advanceToPrice(
 
   // inform the caller of the current timestamp
   return await getTimestamp(tx)
+}
+
+// deploys market and oracle factories
+export async function createFactories(
+  owner: SignerWithAddress,
+  pythAddress: Address,
+  chainLinkFeedAddress: Address,
+): Promise<[IOracleFactory, IMarketFactory, PythFactory]> {
+  // Deploy the oracle factory, which markets created by the market factory will query
+  const oracleFactory = await deployOracleFactory(owner)
+  // Deploy the market factory and authorize it with the oracle factory
+  const marketFactory = await deployProtocolForOracle(owner, oracleFactory)
+
+  // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
+  const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+    chainLinkFeedAddress,
+    8,
+    1_000_000,
+    utils.parseEther('1.02'),
+    1_000_000,
+    0,
+    0,
+    0,
+  )
+  const settlementGasOracle = await new GasOracle__factory(owner).deploy(
+    chainLinkFeedAddress,
+    8,
+    200_000,
+    utils.parseEther('1.02'),
+    500_000,
+    0,
+    0,
+    0,
+  )
+  const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
+  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
+    pythAddress,
+    commitmentGasOracle.address,
+    settlementGasOracle.address,
+    keeperOracleImpl.address,
+  )
+  await pythOracleFactory.initialize(oracleFactory.address)
+  await pythOracleFactory.updateParameter(1, 0, 4, 10)
+  await oracleFactory.register(pythOracleFactory.address)
+
+  return [oracleFactory, marketFactory, pythOracleFactory]
 }
 
 // Using a provided factory, create a new market and set some reasonable initial parameters
@@ -147,6 +202,88 @@ export async function createMarket(
   await market.updateParameter(marketParameter, overrides ?? {})
 
   return market
+}
+
+// creates an ETH market using a locally deployed factory and oracle
+export async function createMarketETH(
+  owner: SignerWithAddress,
+  oracleFactory: IOracleFactory,
+  pythOracleFactory: PythFactory,
+  marketFactory: IMarketFactory,
+  dsu: IERC20Metadata,
+  overrides?: CallOverrides,
+): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
+  // Create oracles needed to support the market
+  const [keeperOracle, oracle] = await createPythOracle(
+    owner,
+    oracleFactory,
+    pythOracleFactory,
+    PYTH_ETH_USD_PRICE_FEED,
+    'ETH-USD',
+    overrides,
+  )
+  // Create the market in which user or collateral account may interact
+  const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  await keeperOracle.register(oracle.address)
+  await oracle.register(market.address)
+  return [market, oracle, keeperOracle]
+}
+
+// creates a BTC market using a locally deployed factory and oracle
+export async function createMarketBTC(
+  owner: SignerWithAddress,
+  oracleFactory: IOracleFactory,
+  pythOracleFactory: PythFactory,
+  marketFactory: IMarketFactory,
+  dsu: IERC20Metadata,
+  overrides?: CallOverrides,
+): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
+  // Create oracles needed to support the market
+  const [keeperOracle, oracle] = await createPythOracle(
+    owner,
+    oracleFactory,
+    pythOracleFactory,
+    PYTH_BTC_USD_PRICE_FEED,
+    'BTC-USD',
+    overrides,
+  )
+  // Create the market in which user or collateral account may interact
+  const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  await keeperOracle.register(oracle.address)
+  await oracle.register(market.address)
+  return [market, oracle, keeperOracle]
+}
+
+export async function createPythOracle(
+  owner: SignerWithAddress,
+  oracleFactory: IOracleFactory,
+  pythOracleFactory: PythFactory,
+  pythFeedId: string,
+  name: string,
+  overrides?: CallOverrides,
+): Promise<[KeeperOracle, Oracle]> {
+  // Create the keeper oracle, which tests may use to meddle with prices
+  const keeperOracle = KeeperOracle__factory.connect(
+    await pythOracleFactory.callStatic.create(pythFeedId, pythFeedId, {
+      provider: constants.AddressZero,
+      decimals: 0,
+    }),
+    owner,
+  )
+  await pythOracleFactory.create(
+    pythFeedId,
+    pythFeedId,
+    { provider: constants.AddressZero, decimals: 0 },
+    overrides ?? {},
+  )
+
+  // Create the oracle, which markets created by the market factory will query
+  const oracle = Oracle__factory.connect(
+    await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address, name),
+    owner,
+  )
+  await oracleFactory.create(pythFeedId, pythOracleFactory.address, name, overrides ?? {})
+  return [keeperOracle, oracle]
 }
 
 export async function deployController(

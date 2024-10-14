@@ -1,17 +1,16 @@
 import { smock } from '@defi-wonderland/smock'
 import { use } from 'chai'
-import { CallOverrides, Signer } from 'ethers'
+import { CallOverrides } from 'ethers'
 
-import { ArbGasInfo } from '../../../types/generated'
+import { ArbGasInfo } from '../../types/generated'
 import {
-  createMarketBTC,
-  createMarketETH,
-  createFactories,
+  createFactoriesForChain,
   deployControllerArbitrum,
   fundWalletDSU,
   fundWalletUSDC,
   getStablecoins,
 } from '../helpers/arbitrumHelpers'
+import { createMarketBTC, createMarketETH } from '../helpers/setupHelpers'
 import { DeploymentVars, RunCollateralAccountTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Controller_Incentivized, IMarketFactory, IVerifier } from '../../types/generated'
@@ -19,7 +18,7 @@ import { Controller_Incentivized, IMarketFactory, IVerifier } from '../../types/
 use(smock.matchers)
 
 async function deployProtocol(owner: SignerWithAddress, overrides?: CallOverrides): Promise<DeploymentVars> {
-  const [oracleFactory, marketFactory, pythOracleFactory] = await createFactories(owner)
+  const [oracleFactory, marketFactory, pythOracleFactory] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
   const [ethMarket, , ethKeeperOracle] = await createMarketETH(
     owner,
