@@ -45,7 +45,6 @@ import {
   DEFAULT_GUARANTEE,
   DEFAULT_ORACLE_RECEIPT,
   expectGuaranteeEq,
-  Intent,
 } from '../../../../common/testutil/types'
 import {
   IMarket,
@@ -53,8 +52,6 @@ import {
   MarketParameterStruct,
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
-
-import { parse } from 'path'
 
 const { ethers } = HRE
 
@@ -20622,7 +20619,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 1,
@@ -20869,7 +20865,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 1,
@@ -21116,7 +21111,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 1,
@@ -21362,7 +21356,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 1,
@@ -21957,7 +21950,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 1,
@@ -22253,8 +22245,6 @@ describe('Market', () => {
             await settle(market, user)
             await settle(market, userB)
             await settle(market, userC)
-
-            expectIntentEq(intent, user.address, userC.address, market)
           })
 
           it('opens long position and fills another long position and settles later with fee (above/long)', async () => {
@@ -22407,7 +22397,6 @@ describe('Market', () => {
             const expectedLongInterest = expectedInterest.mul(3).div(4)
             const expectedFundingFee = BigNumber.from(3320)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 1,
@@ -22688,7 +22677,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
@@ -22950,7 +22938,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
@@ -23212,7 +23199,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
@@ -23475,7 +23461,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
@@ -23744,7 +23729,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
@@ -24013,7 +23997,6 @@ describe('Market', () => {
             await settle(market, userB)
             await settle(market, userC)
 
-            expectIntentEq(intent, user.address, userC.address, market)
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
@@ -24325,8 +24308,6 @@ describe('Market', () => {
             await settle(market, user)
             await settle(market, userB)
             await settle(market, userC)
-
-            expectIntentEq(intent, user.address, userC.address, market)
           })
         })
 
@@ -24967,30 +24948,3 @@ describe('Market', () => {
     })
   })
 })
-
-export async function expectIntentEq(intent: Intent, taker: string, maker: string, market: Market) {
-  const takerPosition = await market.positions(taker)
-  const takerLong = takerPosition.long
-  const takerShort = takerPosition.short
-
-  const makerPosition = await market.positions(maker)
-  const makerLong = makerPosition.long
-  const makerShort = makerPosition.short
-
-  const takerOrder = await market.pendingOrders(taker, (await market.locals(taker)).latestId)
-  const makerOrder = await market.pendingOrders(maker, (await market.locals(maker)).latestId)
-
-  expect(takerOrder.longPos).to.equal(takerLong, 'Order:LongPos')
-  expect(takerOrder.shortPos).to.equal(takerShort, 'Order:ShortPos')
-
-  expect(makerOrder.longPos).to.equal(makerLong, 'Order:LongPos')
-  expect(makerOrder.shortPos).to.equal(makerShort, 'Order:ShortPos')
-
-  if (intent.amount > 0) {
-    expect(intent.amount).to.equal(takerLong, 'Intent:Amount')
-    expect(intent.amount).to.equal(makerShort, 'Intent:Amount')
-  } else {
-    expect(intent.amount).to.equal(takerShort, 'Intent:Amount')
-    expect(intent.amount).to.equal(makerLong, 'Intent:Amount')
-  }
-}

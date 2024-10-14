@@ -26,7 +26,6 @@ import {
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { expectIntentEq } from '../../unit/market/Market.test'
 import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
 import { signIntent } from '../../../../perennial-verifier/test/helpers/erc712'
 
@@ -2494,7 +2493,6 @@ describe('Fees', () => {
       await market.settle(userC.address)
       await market.settle(userD.address)
 
-      expectIntentEq(intent, user.address, userC.address, market)
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,

@@ -165,25 +165,6 @@ export interface SettlementContext {
   orderOracleVersion: OracleVersion
 }
 
-export interface Common {
-  account: string
-  signer: string
-  domain: string
-  nonce: BigNumberish
-  group: BigNumberish
-  expiry: BigNumberish
-}
-
-export interface Intent {
-  amount: BigNumberish
-  price: BigNumberish
-  fee: BigNumberish
-  originator: string
-  solver: string
-  collateralization: BigNumberish
-  common: Common
-}
-
 export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
   expect(a.tradeFee).to.equal(b.tradeFee, 'Checkpoint:TradeFee')
   expect(a.settlementFee).to.equal(b.settlementFee, 'Checkpoint:SettlementFee')
