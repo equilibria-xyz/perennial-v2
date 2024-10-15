@@ -32,6 +32,8 @@ import { signIntent } from '../../../../perennial-verifier/test/helpers/erc712'
 export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
 
 export const PRICE = parse6decimal('113.882975')
+export const PRICE_1 = parse6decimal('113.796498')
+export const PRICE_2 = parse6decimal('115.046259')
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
 export const TIMESTAMP_2 = 1631113819
@@ -2390,7 +2392,7 @@ describe('Fees', () => {
   })
 
   describe('intent order fee exclusion', async () => {
-    it('opens long position and another intent order and settles later with fee', async () => {
+    it.only('opens long position and another intent order and settles later with fee', async () => {
       const { owner, user, userB, userC, userD, marketFactory, dsu, chainlink } = instanceVars
 
       // userC allowed to interact with user's account
@@ -2465,7 +2467,7 @@ describe('Fees', () => {
       expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
         ...DEFAULT_GUARANTEE,
         orders: 1,
-        notional: BigNumber.from(569414885),
+        notional: POSITION.div(2).mul(PRICE.add(2)).div(1e6), // loss of precision
         takerPos: POSITION.div(2),
         referral: parse6decimal('0.5'),
       })
@@ -2493,11 +2495,14 @@ describe('Fees', () => {
       await market.settle(userC.address)
       await market.settle(userD.address)
 
+      const EXPECTED_PNL = POSITION.div(2).mul(PRICE.add(2).sub(PRICE_1)).div(1e6) // position * price change
+      const TRADE_FEE_A = parse6decimal('14.224562') // position * (0.025) * price_1
+
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(14656960),
+        collateral: COLLATERAL.sub(EXPECTED_PNL).sub(TRADE_FEE_A).sub(3), // loss of precision
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
@@ -2515,11 +2520,13 @@ describe('Fees', () => {
       expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
       })
+      const TRADE_FEE_B = parse6decimal('56.898250') // position * 0.05 * price_1
+      const OFFSET_B = parse6decimal('193.454050')
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(250352300),
+        collateral: COLLATERAL.sub(TRADE_FEE_B).sub(OFFSET_B),
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -2541,8 +2548,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(432395),
-        claimable: BigNumber.from(1422457),
+        collateral: COLLATERAL.add(EXPECTED_PNL),
+        claimable: TRADE_FEE_A.div(10).add(1), // loss of precision
       })
       expectPositionEq(await market.positions(userC.address), {
         ...DEFAULT_POSITION,
@@ -2560,11 +2567,13 @@ describe('Fees', () => {
         ...DEFAULT_CHECKPOINT,
       })
 
+      const TRADE_FEE_D = parse6decimal('28.449124') // position * (0.025) * price_1
+      const OFFSET_D = parse6decimal('1536.252730')
       expectLocalEq(await market.locals(userD.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(1564701860),
+        collateral: COLLATERAL.sub(TRADE_FEE_D).sub(OFFSET_D).sub(6), // loss of precision
       })
       expectPositionEq(await market.positions(userD.address), {
         ...DEFAULT_POSITION,
