@@ -67,7 +67,7 @@ export interface DeploymentVars {
   fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
 }
 
-export function RunCollateralAccountTests(
+export function RunIncentivizedTests(
   name: string,
   deployProtocol: (owner: SignerWithAddress, overrides?: CallOverrides) => Promise<DeploymentVars>,
   deployInstance: (
@@ -195,6 +195,7 @@ export function RunCollateralAccountTests(
     const fixture = async () => {
       // deploy the protocol
       ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
+      console.log('deployProtocol')
       deployment = await deployProtocol(owner, TX_OVERRIDES)
       // TODO: consider replacing these 8 member variables with an instance of DeploymentVars
       dsu = deployment.dsu
@@ -205,6 +206,7 @@ export function RunCollateralAccountTests(
       ethKeeperOracle = deployment.ethKeeperOracle
       btcKeeperOracle = deployment.btcKeeperOracle
 
+      console.log('set initial prices')
       await advanceToPrice(ethKeeperOracle, receiver, currentTime, parse6decimal('3113.7128'), TX_OVERRIDES)
       await advanceToPrice(btcKeeperOracle, receiver, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
 

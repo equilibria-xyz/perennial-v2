@@ -214,6 +214,7 @@ export async function createMarketETH(
   overrides?: CallOverrides,
 ): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
   // Create oracles needed to support the market
+  console.log('createPythOracle')
   const [keeperOracle, oracle] = await createPythOracle(
     owner,
     oracleFactory,
@@ -223,8 +224,11 @@ export async function createMarketETH(
     overrides,
   )
   // Create the market in which user or collateral account may interact
+  console.log('createMarket')
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  console.log('keeperOracle.register')
   await keeperOracle.register(oracle.address)
+  console.log('oracle.register')
   await oracle.register(market.address)
   return [market, oracle, keeperOracle]
 }
@@ -270,6 +274,7 @@ export async function createPythOracle(
     }),
     owner,
   )
+  console.log('creating pythOracle using pythOracleFactory at', pythOracleFactory.address)
   await pythOracleFactory.create(
     pythFeedId,
     pythFeedId,
@@ -278,6 +283,7 @@ export async function createPythOracle(
   )
 
   // Create the oracle, which markets created by the market factory will query
+  console.log('connecting to oracle', name)
   const oracle = Oracle__factory.connect(
     await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address, name),
     owner,
