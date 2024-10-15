@@ -25,6 +25,8 @@ import {
   VersionStorageLib__factory,
   IVerifier,
   MagicValueLib__factory,
+  MockToken,
+  MockToken__factory,
 } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
@@ -42,6 +44,7 @@ import {
   DEFAULT_GLOBAL,
   DEFAULT_GUARANTEE,
   DEFAULT_ORACLE_RECEIPT,
+  expectGuaranteeEq,
 } from '../../../../common/testutil/types'
 import {
   IMarket,
@@ -49,6 +52,8 @@ import {
   MarketParameterStruct,
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
+
+import { parse } from 'path'
 
 const { ethers } = HRE
 
@@ -450,13 +455,14 @@ describe('Market', () => {
       maxPendingIds: 5,
       protocolFee: parse6decimal('0.50'),
       maxFee: parse6decimal('0.01'),
-      maxFeeAbsolute: parse6decimal('1000'),
+      maxLiquidationFee: parse6decimal('20'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
       minEfficiency: parse6decimal('0.1'),
       referralFee: 0,
       minScale: parse6decimal('0.001'),
+      maxStaleAfter: 14400,
     })
     factory.oracleFactory.returns(oracleFactorySigner.address)
 
@@ -505,6 +511,7 @@ describe('Market', () => {
       takerFee: 0,
       maxPendingGlobal: 5,
       maxPendingLocal: 3,
+      maxPriceDeviation: parse6decimal('0.1'),
       closed: false,
       settle: false,
     }
@@ -684,6 +691,7 @@ describe('Market', () => {
         riskFee: parse6decimal('0.05'),
         maxPendingGlobal: 5,
         maxPendingLocal: 3,
+        maxPriceDeviation: parse6decimal('0.1'),
         closed: true,
         settle: true,
       }
@@ -700,6 +708,7 @@ describe('Market', () => {
         expect(marketParameter.takerFee).to.equal(defaultMarketParameter.takerFee)
         expect(marketParameter.maxPendingGlobal).to.equal(defaultMarketParameter.maxPendingGlobal)
         expect(marketParameter.maxPendingLocal).to.equal(defaultMarketParameter.maxPendingLocal)
+        expect(marketParameter.maxPriceDeviation).to.equal(defaultMarketParameter.maxPriceDeviation)
         expect(marketParameter.closed).to.equal(defaultMarketParameter.closed)
         expect(marketParameter.settle).to.equal(defaultMarketParameter.settle)
       })
@@ -1979,6 +1988,24 @@ describe('Market', () => {
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               ...DEFAULT_VERSION,
               price: PRICE,
+            })
+            expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+              ...DEFAULT_GUARANTEE,
+            })
+            expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+              ...DEFAULT_GUARANTEE,
+            })
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
             })
           })
 
@@ -5849,9 +5876,19 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
               oracle.request.whenCalledWith(user.address).returns()
 
-              const protocolParameter = { ...(await factory.parameter()) }
-              protocolParameter.maxFeeAbsolute = parse6decimal('100')
-              await factory.connect(owner).updateParameter(protocolParameter)
+              factory.parameter.returns({
+                maxPendingIds: 5,
+                protocolFee: parse6decimal('0.50'),
+                maxFee: parse6decimal('0.01'),
+                maxLiquidationFee: parse6decimal('100'),
+                maxCut: parse6decimal('0.50'),
+                maxRate: parse6decimal('10.00'),
+                minMaintenance: parse6decimal('0.01'),
+                minEfficiency: parse6decimal('0.1'),
+                referralFee: 0,
+                minScale: parse6decimal('0.001'),
+                maxStaleAfter: 14400,
+              })
 
               const riskParameter = { ...(await market.riskParameter()) }
               riskParameter.liquidationFee = parse6decimal('100')
@@ -14688,6 +14725,228 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
+        it('reverts if under margin (intent maker)', async () => {
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.maxPriceDeviation = parse6decimal('10.00')
+          await market.updateParameter(marketParameter)
+
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('1250'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const LOWER_COLLATERAL = parse6decimal('500')
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              POSITION,
+              0,
+              0,
+              LOWER_COLLATERAL,
+              false,
+            )
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, LOWER_COLLATERAL, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, LOWER_COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+        })
+
+        it('reverts if under margin (intent taker)', async () => {
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.maxPriceDeviation = parse6decimal('10.00')
+          await market.updateParameter(marketParameter)
+
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('25'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const LOWER_COLLATERAL = parse6decimal('500')
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              POSITION,
+              0,
+              0,
+              LOWER_COLLATERAL,
+              false,
+            )
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, LOWER_COLLATERAL, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, LOWER_COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+        })
+
+        it('reverts if above price deviation (higher)', async () => {
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('136'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.be.revertedWithCustomError(market, 'MarketIntentPriceDeviationError')
+        })
+
+        it('reverts if above price deviation (lower)', async () => {
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('110'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.be.revertedWithCustomError(market, 'MarketIntentPriceDeviationError')
+        })
+
         it('reverts if paused (market)', async () => {
           factory.paused.returns(true)
           await expect(
@@ -14724,6 +14983,15 @@ describe('Market', () => {
                 'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](user.address, intent, '0x'),
           ).to.be.revertedWithCustomError(market, 'InstancePausedError')
+          factory.paused.returns(false)
+        })
+
+        it('revert if paused settle', async () => {
+          factory.paused.returns(true)
+          await expect(market.connect(user).settle(user.address)).to.be.revertedWithCustomError(
+            market,
+            'InstancePausedError',
+          )
           factory.paused.returns(false)
         })
 
@@ -16426,13 +16694,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -16487,13 +16756,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -16559,6 +16829,16 @@ describe('Market', () => {
           expect((await market.locals(user.address)).currentId).to.equal(3)
           expect(await market.liquidators(user.address, 3)).to.equal(constants.AddressZero)
           expect(await market.orderReferrers(user.address, 3)).to.equal(constants.AddressZero)
+        })
+
+        it('reverts when paused', async () => {
+          factory.paused.returns(true)
+
+          await expect(
+            market.connect(user)['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, userB.address),
+          ).to.revertedWithCustomError(market, 'InstancePausedError')
+
+          factory.paused.reset()
         })
       })
 
@@ -18043,13 +18323,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -18160,6 +18441,17 @@ describe('Market', () => {
               constants.AddressZero,
               constants.AddressZero,
             )
+
+          // update position with incorrect guarantee referrer
+          intent.solver = liquidator.address
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -19982,13 +20274,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           const riskParameter = { ...(await market.riskParameter()) }
@@ -20106,13 +20399,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           const riskParameter = { ...(await market.riskParameter()) }
@@ -20270,13 +20564,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           const riskParameter = { ...(await market.riskParameter()) }
@@ -20441,13 +20736,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -20686,13 +20982,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -20932,13 +21229,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -21178,13 +21476,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -21423,13 +21722,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -21768,13 +22068,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -22019,13 +22320,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -22280,13 +22582,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -22541,13 +22844,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -22803,13 +23107,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -23065,13 +23370,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -23333,13 +23639,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('20'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -23602,13 +23909,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -23659,13 +23967,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -23716,13 +24025,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -23790,13 +24100,14 @@ describe('Market', () => {
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
             maxFee: parse6decimal('0.01'),
-            maxFeeAbsolute: parse6decimal('1000'),
+            maxLiquidationFee: parse6decimal('20'),
             maxCut: parse6decimal('0.50'),
             maxRate: parse6decimal('10.00'),
             minMaintenance: parse6decimal('0.01'),
             minEfficiency: parse6decimal('0.1'),
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
           })
 
           const riskParameter = { ...(await market.riskParameter()) }
@@ -23836,6 +24147,17 @@ describe('Market', () => {
               liquidator.address,
               constants.AddressZero,
             )
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, userB.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          // revert with incorrect referrer
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, userB.address),
+          ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -24051,6 +24373,175 @@ describe('Market', () => {
           'MarketNotOperatorError',
         )
       })
+    })
+
+    describe('#claimExposure', async () => {
+      it('claims exposure', async () => {
+        // setup market with POSITION skew
+        await market.connect(owner).updateParameter(marketParameter)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
+
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await settle(market, userB)
+
+        const defaultRiskParameter = {
+          margin: parse6decimal('0.5'),
+          maintenance: parse6decimal('0.4'),
+          takerFee: {
+            linearFee: parse6decimal('0.01'),
+            proportionalFee: parse6decimal('0.004'),
+            adiabaticFee: parse6decimal('0.003'),
+            scale: parse6decimal('50.00'),
+          },
+          makerFee: {
+            linearFee: parse6decimal('0.005'),
+            proportionalFee: parse6decimal('0.001'),
+            scale: parse6decimal('100.00'),
+          },
+          makerLimit: parse6decimal('2000'),
+          efficiencyLimit: parse6decimal('0.2'),
+          liquidationFee: parse6decimal('5.00'),
+          utilizationCurve: {
+            minRate: parse6decimal('0.20'),
+            maxRate: parse6decimal('0.20'),
+            targetRate: parse6decimal('0.20'),
+            targetUtilization: parse6decimal('0.75'),
+          },
+          pController: {
+            k: parse6decimal('40000'),
+            min: parse6decimal('-1.20'),
+            max: parse6decimal('1.20'),
+          },
+          minMargin: parse6decimal('60'),
+          minMaintenance: parse6decimal('50'),
+          staleAfter: 9600,
+          makerReceiveOnly: true,
+        }
+
+        // test the risk parameter update
+        await market.connect(owner).updateParameter(await market.parameter())
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
+          market,
+          'RiskParameterUpdated',
+        )
+
+        // check exposure is negative
+        expect((await market.global()).exposure.lt(BigNumber.from(0))).to.equals(true)
+
+        // claim negative exposure
+        dsu.transferFrom.whenCalledWith(owner.address, market.address, 369000000000000000).returns(true)
+
+        let exposure = (await market.global()).exposure.toNumber()
+        await expect(market.connect(owner).claimExposure())
+          .to.emit(market, 'ExposureClaimed')
+          .withArgs(owner.address, exposure)
+        expect((await market.global()).exposure).to.be.eq(0)
+
+        // update adiabatic fee to get positive exposure
+        defaultRiskParameter.takerFee.adiabaticFee = BigNumber.from(0)
+        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
+          market,
+          'RiskParameterUpdated',
+        )
+
+        // check exposure is positive
+        expect((await market.global()).exposure.gt(BigNumber.from(0))).to.equals(true)
+
+        // claim positive exposure
+        dsu.transfer.whenCalledWith(owner.address, 369000000000000000).returns(true)
+
+        exposure = (await market.global()).exposure.toNumber()
+        await expect(market.connect(owner).claimExposure())
+          .to.emit(market, 'ExposureClaimed')
+          .withArgs(owner.address, exposure)
+        expect((await market.global()).exposure).to.be.eq(0)
+      })
+      it('reverts if not owner (user)', async () => {
+        await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+
+      it('reverts if not owner (coordinator)', async () => {
+        await market.connect(owner).updateParameter(await market.parameter())
+        await expect(market.connect(coordinator).claimExposure()).to.be.revertedWithCustomError(
+          market,
+          'InstanceNotOwnerError',
+        )
+      })
+    })
+  })
+
+  describe('reentrancy', async () => {
+    it('reverts if re-enter', async () => {
+      const mockToken: MockToken = await new MockToken__factory(owner).deploy()
+      marketDefinition = {
+        token: mockToken.address,
+        oracle: oracle.address,
+      }
+      await market.connect(factorySigner).initialize(marketDefinition)
+
+      await market.connect(owner).updateBeneficiary(beneficiary.address)
+      await market.connect(owner).updateCoordinator(coordinator.address)
+      await market.connect(owner).updateRiskParameter(riskParameter)
+      await market.connect(owner).updateParameter(marketParameter)
+
+      oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+      oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
+
+      oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+      oracle.request.whenCalledWith(user.address).returns()
+
+      // try to re-enter into update method with maker position
+      await mockToken.setFunctionToCall(0)
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
+
+      // try to re-enter into update method
+      await mockToken.setFunctionToCall(1)
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
+
+      // try to re-enter into update intent method
+      await mockToken.setFunctionToCall(2)
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
+
+      // try to re-enter into settle method
+      mockToken.setFunctionToCall(3)
+      await expect(
+        market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+      ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
     })
   })
 })

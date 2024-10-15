@@ -23,10 +23,8 @@ import {
   IMarket,
   IMarketFactory,
   IOracleProvider,
-  RebalanceLib__factory,
   GasOracle__factory,
 } from '../../types/generated'
-import { IKept } from '../../types/generated/contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
 import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 
@@ -143,28 +141,28 @@ export async function deployAndInitializeController(
   marketFactory: IMarketFactory,
 ): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const [dsu, usdc] = await getStablecoins(owner)
-  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
+  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE, marketFactory.address)
 
-  const verifier = await new AccountVerifier__factory(owner).deploy()
-  await controller.initialize(marketFactory.address, verifier.address)
+  const verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
+  await controller.initialize(verifier.address)
   return [dsu, usdc, controller]
 }
 
 // deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
 export async function deployControllerArbitrum(
   owner: SignerWithAddress,
-  keepConfig: IKept.KeepConfigStruct,
+  marketFactory: IMarketFactory,
   nonceManager: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
   const accountImpl = await new Account__factory(owner).deploy(USDC_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
   accountImpl.initialize(constants.AddressZero)
-  const controller = await new Controller_Arbitrum__factory(
-    {
-      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy(accountImpl.address, keepConfig, nonceManager.address, overrides ?? {})
+  const controller = await new Controller_Arbitrum__factory(owner).deploy(
+    accountImpl.address,
+    marketFactory.address,
+    nonceManager.address,
+    overrides ?? {},
+  )
   return controller
 }
 

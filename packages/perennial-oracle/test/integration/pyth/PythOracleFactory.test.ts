@@ -303,13 +303,14 @@ testOracles.forEach(testOracle => {
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
-        maxFeeAbsolute: parse6decimal('1000'),
+        maxLiquidationFee: parse6decimal('5'),
         maxCut: parse6decimal('0.50'),
         maxRate: parse6decimal('10.00'),
         minMaintenance: parse6decimal('0.01'),
         minEfficiency: parse6decimal('0.1'),
         referralFee: 0,
         minScale: parse6decimal('0.001'),
+        maxStaleAfter: 7200,
       })
 
       const riskParameter = {
@@ -331,7 +332,7 @@ testOracles.forEach(testOracle => {
         efficiencyLimit: parse6decimal('0.2'),
         liquidationFee: parse6decimal('0.50'),
         minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
+        maxLiquidationFee: parse6decimal('5'),
         utilizationCurve: {
           minRate: 0,
           maxRate: parse6decimal('5.00'),
@@ -357,7 +358,7 @@ testOracles.forEach(testOracle => {
         takerFee: 0,
         maxPendingGlobal: 8,
         maxPendingLocal: 8,
-        settlementFee: 0,
+        maxPriceDeviation: parse6decimal('0.1'),
         closed: false,
         settle: false,
       }
@@ -1219,12 +1220,15 @@ testOracles.forEach(testOracle => {
           await ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100'])
           expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
           expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
+          const balanceBeforeCommit = await dsu.balanceOf(user.address)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
             maxFeePerGas: 100000000,
           })
-
           expect((await market.position()).timestamp).to.equal(STARTING_TIME)
+          // ensure keeper was compensated for committing a price
+          const balanceBeforeSettle = await dsu.balanceOf(user.address)
+          expect(balanceBeforeSettle.sub(balanceBeforeCommit)).to.equal(utils.parseEther('0.370586'))
 
           await expect(
             pythOracleFactory.connect(user).settle([PYTH_ETH_USD_PRICE_FEED], [STARTING_TIME], [1], {
@@ -1234,11 +1238,8 @@ testOracles.forEach(testOracle => {
           // .withArgs([market.address, user.address, STARTING_TIME]) cannot parse indexed tuples in events
 
           expect((await market.positions(user.address)).timestamp).to.equal(STARTING_TIME)
-
-          const reward = utils.parseEther('0.370586')
-          expect(await dsu.balanceOf(user.address)).to.be.equal(
-            utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
-          )
+          // ensure keeper was compensated for settling
+          expect((await dsu.balanceOf(user.address)).sub(balanceBeforeSettle)).to.equal(utils.parseEther('0.129155'))
         })
 
         it('reverts if array lengths mismatch', async () => {

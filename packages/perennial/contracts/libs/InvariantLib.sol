@@ -73,6 +73,9 @@ library InvariantLib {
             )
         ) revert IMarket.MarketNotSingleSidedError();
 
+        if (newGuarantee.priceDeviation(context.latestOracleVersion.price).gt(context.marketParameter.maxPriceDeviation))
+            revert IMarket.MarketIntentPriceDeviationError();
+
         if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
@@ -92,7 +95,7 @@ library InvariantLib {
                 context.latestOracleVersion,
                 context.riskParameter,
                 updateContext.collateralization,
-                context.local.collateral
+                context.local.collateral.add(newGuarantee.priceAdjustment(context.latestOracleVersion.price)) // apply price override adjustment from intent if present
             )
         ) revert IMarket.MarketInsufficientMarginError();
 

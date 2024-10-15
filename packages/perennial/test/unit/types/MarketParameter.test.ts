@@ -25,20 +25,21 @@ export const VALID_MARKET_PARAMETER: MarketParameterStruct = {
   riskFee: 5,
   maxPendingGlobal: 10,
   maxPendingLocal: 11,
+  maxPriceDeviation: 12,
   closed: false,
   settle: false,
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
-  protocolFee: 0,
   maxFee: parse6decimal('1'),
-  maxFeeAbsolute: BigNumber.from(2).pow(48).sub(1),
+  maxLiquidationFee: BigNumber.from(2).pow(32).sub(1),
   maxCut: parse6decimal('1'),
   maxRate: parse6decimal('1'),
   minMaintenance: 0,
   minEfficiency: 0,
   referralFee: 0,
   minScale: parse6decimal('0.1'),
+  maxStaleAfter: 172800, // 2 days
 }
 
 describe('MarketParameter', () => {
@@ -71,6 +72,7 @@ describe('MarketParameter', () => {
       expect(value.riskFee).to.equal(5)
       expect(value.maxPendingGlobal).to.equal(10)
       expect(value.maxPendingLocal).to.equal(11)
+      expect(value.maxPriceDeviation).to.equal(12)
       expect(value.closed).to.equal(false)
       expect(value.settle).to.equal(false)
     })
@@ -262,6 +264,32 @@ describe('MarketParameter', () => {
             {
               ...VALID_MARKET_PARAMETER,
               maxPendingLocal: BigNumber.from(2).pow(16),
+            },
+            PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(marketParameterStorage, 'MarketParameterStorageInvalidError')
+      })
+    })
+
+    context('.maxPriceDeviation', async () => {
+      it('saves if in range', async () => {
+        await marketParameter.validateAndStore(
+          {
+            ...VALID_MARKET_PARAMETER,
+            maxPriceDeviation: BigNumber.from(2).pow(24).sub(1),
+          },
+          PROTOCOL_PARAMETER,
+        )
+        const value = await marketParameter.read()
+        expect(value.maxPriceDeviation).to.equal(BigNumber.from(2).pow(24).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          marketParameter.validateAndStore(
+            {
+              ...VALID_MARKET_PARAMETER,
+              maxPriceDeviation: BigNumber.from(2).pow(24),
             },
             PROTOCOL_PARAMETER,
           ),

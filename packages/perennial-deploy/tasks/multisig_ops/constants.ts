@@ -551,12 +551,13 @@ export const NewMarketParameter: MarketParameterStruct = {
 export const NewProtocolParameter: ProtocolParameterStruct = {
   minScale: utils.parseUnits('0.02', 6), // TODO: Determine this value
   maxFee: 14200,
-  maxFeeAbsolute: 50000000,
+  maxLiquidationFee: 50000000,
   maxCut: 100000,
   maxRate: 15000000,
   minMaintenance: 4000,
   minEfficiency: 250000,
   referralFee: 0,
+  maxStaleAfter: 172800, // 2 days
 }
 
 export const VaultMinimumDeposit = utils.parseUnits('20', 6)
