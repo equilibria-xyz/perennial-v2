@@ -7,6 +7,7 @@ import { MARKET_LIBRARIES } from './004_deploy_market'
 import { SIGNERS as CryptexSigners } from './007_deploy_cryptex_oracle'
 import {
   Account__factory,
+  AccountVerifier__factory,
   Controller_Arbitrum__factory,
   GasOracle__factory,
   KeeperOracle__factory,
@@ -16,6 +17,7 @@ import {
   MetaQuantsFactory__factory,
   MultiInvoker__factory,
   OracleFactory__factory,
+  OrderVerifier__factory,
   ProxyAdmin__factory,
   PythFactory__factory,
   TransparentUpgradeableProxy__factory,
@@ -499,9 +501,11 @@ async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
 
   log('Deploying Trigger Orders...')
   log('  Deploying Verifier Impl...')
+  const orderVerifierArgs: Parameters<OrderVerifier__factory['deploy']> = [(await get('MarketFactory')).address]
   await deploy('OrderVerifierImpl', {
     contract: 'OrderVerifier',
     from: deployer,
+    args: orderVerifierArgs,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
@@ -549,6 +553,12 @@ async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
         multiplierCalldata: 0,
         bufferCalldata: 0,
       }, // TODO: Determine keep config
+      {
+        multiplierBase: 0,
+        bufferBase: 0,
+        multiplierCalldata: 0,
+        bufferCalldata: 0,
+      }, // TODO: Determine keep config
     ]),
   ]
   await deploy('Manager', {
@@ -585,9 +595,11 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
     autoMine: true,
   })
   log('  Deploying Account Verifier Impl...')
+  const accountVerifierArgs: Parameters<AccountVerifier__factory['deploy']> = [(await get('MarketFactory')).address]
   await deploy('AccountVerifierImpl', {
     contract: 'AccountVerifier',
     from: deployer,
+    args: accountVerifierArgs,
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
@@ -609,12 +621,7 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
   log('  Deploying Controller Impl...')
   const controllerArgs: Parameters<Controller_Arbitrum__factory['deploy']> = [
     (await get('AccountImpl')).address,
-    {
-      multiplierBase: 0,
-      bufferBase: 0,
-      multiplierCalldata: 0,
-      bufferCalldata: 0,
-    }, // TODO: Determine keep config
+    (await get('MarketFactory')).address,
     (await get('Verifier')).address,
   ]
   await deploy('RebalanceLib', {
@@ -638,11 +645,31 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
   const controllerProxyArgs: TransparentUpgradeableProxyArgs = [
     (await get('ControllerImpl')).address,
     proxyAdmin.address,
-    Controller_Arbitrum__factory.createInterface().encodeFunctionData('initialize(address,address,address)', [
-      (await get('MarketFactory')).address,
-      (await get('AccountVerifier')).address,
-      (await get('ChainlinkETHUSDFeed')).address,
-    ]),
+    Controller_Arbitrum__factory.createInterface().encodeFunctionData(
+      'initialize(address,address,(uint256,uint256,uint256,uint256),(uint256,uint256,uint256,uint256),(uint256,uint256,uint256,uint256))',
+      [
+        (await get('AccountVerifier')).address,
+        (await get('ChainlinkETHUSDFeed')).address,
+        {
+          multiplierBase: 0,
+          bufferBase: 0,
+          multiplierCalldata: 0,
+          bufferCalldata: 0,
+        }, // TODO: Determine keep config
+        {
+          multiplierBase: 0,
+          bufferBase: 0,
+          multiplierCalldata: 0,
+          bufferCalldata: 0,
+        }, // TODO: Determine keep config
+        {
+          multiplierBase: 0,
+          bufferBase: 0,
+          multiplierCalldata: 0,
+          bufferCalldata: 0,
+        }, // TODO: Determine keep config
+      ],
+    ),
   ]
   await deploy('Controller', {
     contract: 'TransparentUpgradeableProxy',
