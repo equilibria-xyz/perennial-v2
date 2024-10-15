@@ -24,6 +24,7 @@ import {
   AccountPositionProcessedEventObject,
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
+import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
 export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
 
@@ -1959,7 +1960,7 @@ describe('Fees', () => {
     })
 
     it('charges user referral fee for maker position', async () => {
-      const { user, userB } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       // userB creates a maker position, referred by user
       await market
@@ -1999,6 +2000,13 @@ describe('Fees', () => {
       await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, user.address, expectedClaimable)
+
+      const userBalanceBefore = await dsu.balanceOf(user.address)
+
+      // Ensure user is not able to claim fees twice
+      await expect(market.connect(user).claimFee(user.address))
+
+      expect(await dsu.balanceOf(user.address)).to.equals(userBalanceBefore)
     })
 
     it('charges default referral fee for taker position', async () => {
@@ -2060,6 +2068,11 @@ describe('Fees', () => {
 
     it('handles a change in user referral fee', async () => {
       const { owner, user, userB, marketFactory } = instanceVars
+
+      // revert if referral fee is more than 1
+      await expect(
+        marketFactory.connect(owner).updateReferralFee(user.address, parse6decimal('1.5')),
+      ).to.be.revertedWithCustomError(marketFactory, 'MarketFactoryInvalidReferralFeeError')
 
       // increase referral fee for user
       await expect(marketFactory.connect(owner).updateReferralFee(user.address, parse6decimal('0.17')))
@@ -2303,6 +2316,73 @@ describe('Fees', () => {
         ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, 0, false)
       await nextWithConstantPrice()
       expect(await market.orderReferrers(userC.address, currentId.add(2))).to.equal(constants.AddressZero)
+    })
+  })
+
+  describe('claim fee', async () => {
+    it('claim protocol, risk and oracle fee', async () => {
+      const COLLATERAL = parse6decimal('600')
+      const POSITION = parse6decimal('3')
+      const { owner, oracle, coordinator, user, dsu } = instanceVars
+      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+          user.address,
+          POSITION,
+          0,
+          0,
+          COLLATERAL,
+          false,
+          constants.AddressZero,
+        )
+
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+
+      const expectedProtocolFee = parse6decimal('16.809150')
+      const expectedOracleFee = parse6decimal('16.809126')
+      const expectedRiskFee = parse6decimal('22.412147')
+
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 1,
+        latestId: 1,
+        protocolFee: expectedProtocolFee,
+        oracleFee: expectedOracleFee,
+        riskFee: expectedRiskFee,
+        latestPrice: parse6decimal('113.882975'),
+      })
+
+      // revert when user tries to claim protocol fee
+      await expect(market.connect(user).claimFee(owner.address)).to.be.revertedWithCustomError(
+        market,
+        'MarketNotOperatorError',
+      )
+
+      // claim protocol fee
+      await expect(market.connect(owner).claimFee(owner.address))
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(owner.address, owner.address, expectedProtocolFee)
+
+      // claim oracle fee
+      const oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
+      await expect(market.connect(oracleSigner).claimFee(oracle.address))
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(oracle.address, oracle.address, expectedOracleFee)
+
+      // claim risk fee
+      await expect(market.connect(coordinator).claimFee(coordinator.address))
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(coordinator.address, coordinator.address, expectedRiskFee)
     })
   })
 })

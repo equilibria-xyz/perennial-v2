@@ -131,7 +131,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     proxyAdmin.address,
     [],
   )
-  const verifier = IVerifier__factory.connect(verifierProxy.address, owner)
+  const verifier = Verifier__factory.connect(verifierProxy.address, owner)
 
   const marketImpl = await new Market__factory(
     {
@@ -189,18 +189,20 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   // Init
   await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
+  await verifier.connect(owner).initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
+    maxLiquidationFee: parse6decimal('5'),
     maxCut: parse6decimal('0.50'),
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
     minScale: parse6decimal('0.001'),
+    maxStaleAfter: 7200,
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   const oracle = IOracle__factory.connect(
@@ -328,6 +330,7 @@ export async function createMarket(
     takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
     ...marketParamOverrides,

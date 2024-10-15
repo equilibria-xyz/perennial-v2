@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.24;
 
-import "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
+import { IVerifier } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
 import "@equilibria/root/attribute/Factory.sol";
 import "./interfaces/IOracleProvider.sol";
 import "./interfaces/IMarketFactory.sol";
@@ -18,9 +18,6 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev The global protocol parameters
     ProtocolParameterStorage private _parameter;
 
-    /// @dev Mapping of allowed protocol-wide operators
-    mapping(address => bool) public extensions;
-
     /// @dev Mapping of allowed operators per account
     mapping(address => mapping(address => bool)) public operators;
 
@@ -33,6 +30,9 @@ contract MarketFactory is IMarketFactory, Factory {
 
     /// @dev Mapping of allowed signers for each account
     mapping(address => mapping(address => bool)) public signers;
+
+    /// @dev Mapping of allowed protocol-wide operators
+    mapping(address => bool) public extensions;
 
     /// @notice Constructs the contract
     /// @param oracleFactory_ The oracle factory
@@ -94,10 +94,10 @@ contract MarketFactory is IMarketFactory, Factory {
         emit ParameterUpdated(newParameter);
     }
 
-    /// @notice Updates the status of an operator for the caller
-    /// @param extension The operator to update to enable protocol-wide
-    /// @param newEnabled The new status of the operator
-    function updateExtension(address extension, bool newEnabled) external {
+    /// @notice Updates the status of an extension
+    /// @param extension The extension to update to enable protocol-wide
+    /// @param newEnabled The new status of the extension
+    function updateExtension(address extension, bool newEnabled) external onlyOwner {
         extensions[extension] = newEnabled;
         emit ExtensionUpdated(extension, newEnabled);
     }

@@ -357,6 +357,9 @@ library PositionStorageGlobalLib {
 
         position.maker = deprecatedMaker;
         store(self, position);
+        assembly {
+            sstore(add(self.slot, 1), 0) // Part of the v2.3 migration. Can be removed once migration is complete.
+        }
     }
 }
 
@@ -423,6 +426,7 @@ library PositionStorageLocalLib {
 
         assembly {
             sstore(self.slot, encoded0)
+            sstore(add(self.slot, 1), 0) // Part of the v2.3 migration. Can be removed once migration is complete.
         }
     }
 }

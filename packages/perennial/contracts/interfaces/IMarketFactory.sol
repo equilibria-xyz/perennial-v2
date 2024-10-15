@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import "@equilibria/root/attribute/interfaces/IFactory.sol";
-import "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
+import { IVerifier } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
 import "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdate.sol";

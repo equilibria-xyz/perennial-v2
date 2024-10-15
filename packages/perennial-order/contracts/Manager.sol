@@ -29,22 +29,32 @@ abstract contract Manager is IManager, Kept {
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
+    /// @dev Contract used to validate fee claims
+    IMarketFactory public immutable marketFactory;
+
+    /// @dev Verifies EIP712 messages for this extension
+    IOrderVerifier public immutable verifier;
+
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
 
-    /// @dev Contract used to validate delegated signers
-    IMarketFactory public marketFactory;
-
-    /// @dev Verifies EIP712 messages for this extension
-    IOrderVerifier public verifier;
+    /// @dev Configuration used to compensate keepers for price commitments
+    KeepConfig public keepConfigBuffered;
 
     /// @dev Stores trigger orders while awaiting their conditions to become true
     /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
+    /// @dev Mapping of claimable DSU for each account
+    /// Account => Amount
+    mapping(address => UFixed6) public claimable;
+
     /// @dev Creates an instance
+    /// @param usdc_ USDC stablecoin
     /// @param dsu_ Digital Standard Unit stablecoin
-    /// @param marketFactory_ Contract used to validate delegated signers
+    /// @param reserve_ DSU reserve contract used for unwrapping
+    /// @param marketFactory_ Contract used to validate fee claims
+    /// @param verifier_ Used to validate EIP712 signatures
     constructor(
         Token6 usdc_,
         Token18 dsu_,
@@ -62,12 +72,15 @@ abstract contract Manager is IManager, Kept {
     /// @notice Initialize the contract
     /// @param ethOracle_ Chainlink ETH/USD oracle used for keeper compensation
     /// @param keepConfig_ Keeper compensation configuration
+    /// @param keepConfigBuffered_ Configuration used for price commitments
     function initialize(
         AggregatorV3Interface ethOracle_,
-        KeepConfig memory keepConfig_
+        KeepConfig memory keepConfig_,
+        KeepConfig memory keepConfigBuffered_
     ) external initializer(1) {
         __Kept__initialize(ethOracle_, DSU);
         keepConfig = keepConfig_;
+        keepConfigBuffered = keepConfigBuffered_;
         // allows DSU to unwrap to USDC
         DSU.approve(address(reserve));
     }
@@ -78,12 +91,13 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature) external {
+    function placeOrderWithSignature(PlaceOrderAction calldata request, bytes calldata signature)
+        external
+        keepAction(request.action, abi.encode(request, signature))
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyPlaceOrder(request, signature);
-        _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _compensateKeeperAction(request.action);
         _placeOrder(request.action.market, request.action.common.account, request.action.orderId, request.order);
     }
 
@@ -93,12 +107,13 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature) external {
+    function cancelOrderWithSignature(CancelOrderAction calldata request, bytes calldata signature)
+        external
+        keepAction(request.action, abi.encode(request, signature))
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyCancelOrder(request, signature);
-        _ensureValidSigner(request.action.common.account, request.action.common.signer);
 
-        _compensateKeeperAction(request.action);
         _cancelOrder(request.action.market, request.action.common.account, request.action.orderId);
     }
 
@@ -120,14 +135,19 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address account, uint256 orderId) external {
+    function executeOrder(IMarket market, address account, uint256 orderId) external
+    {
+        // Using a modifier to measure gas would require us reading order from storage twice.
+        // Instead, measure gas within the method itself.
+        uint256 startGas = gasleft();
+
         // check conditions to ensure order is executable
         (TriggerOrder memory order, bool canExecute) = checkOrder(market, account, orderId);
+
         if (!canExecute) revert ManagerCannotExecuteError();
 
-        _compensateKeeper(market, account, order.maxFee);
-        order.execute(market, account);
         bool interfaceFeeCharged = _chargeInterfaceFee(market, account, order);
+        order.execute(market, account);
 
         // invalidate the order nonce
         order.isSpent = true;
@@ -135,22 +155,20 @@ abstract contract Manager is IManager, Kept {
 
         emit TriggerOrderExecuted(market, account, order, orderId);
         if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
+
+        // compensate keeper
+        uint256 applicableGas = startGas - gasleft();
+        bytes memory data = abi.encode(market, account, order.maxFee);
+        _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(market, account, orderId), 0, data);
     }
 
-    /// @notice reads keeper compensation parameters from an action message
-    function _compensateKeeperAction(Action calldata action) internal {
-        _compensateKeeper(action.market, action.common.account, action.maxFee);
-    }
+    /// @inheritdoc IManager
+    function claim(address account, bool unwrap) external onlyOperator(account, msg.sender) {
+        UFixed6 claimableAmount = claimable[account];
+        claimable[account] = UFixed6Lib.ZERO;
 
-    /// @notice encodes data needed to pull DSU from market to pay keeper for fulfilling requests
-    function _compensateKeeper(IMarket market, address account, UFixed6 maxFee) internal {
-        bytes memory data = abi.encode(market, account, maxFee);
-        _handleKeeperFee(keepConfig, 0, msg.data[0:0], 0, data);
-    }
-
-    /// @notice reverts if user is not authorized to sign transactions for the account
-    function _ensureValidSigner(address account, address signer) internal view {
-        if (account != signer && !marketFactory.signers(account, signer)) revert ManagerInvalidSignerError();
+        if (unwrap) _unwrapAndWithdraw(msg.sender, UFixed18Lib.from(claimableAmount));
+        else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
     }
 
     /// @notice Transfers DSU from market to manager to compensate keeper
@@ -193,8 +211,7 @@ abstract contract Manager is IManager, Kept {
 
         _marketWithdraw(market, account, feeAmount);
 
-        if (order.interfaceFee.unwrap) _unwrapAndWithdaw(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
-        else DSU.push(order.interfaceFee.receiver, UFixed18Lib.from(feeAmount));
+        claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
         return true;
     }
@@ -208,14 +225,33 @@ abstract contract Manager is IManager, Kept {
         // prevent user from reusing an order identifier
         TriggerOrder memory old = _orders[market][account][orderId].read();
         if (old.isSpent) revert ManagerInvalidOrderNonceError();
+        // prevent user from frontrunning keeper compensation
+        if (!old.isEmpty() && old.maxFee.gt(order.maxFee)) revert ManagerCannotReduceMaxFee();
 
         _orders[market][account][orderId].store(order);
         emit TriggerOrderPlaced(market, account, order, orderId);
     }
 
     /// @notice Unwraps DSU to USDC and pushes to interface fee receiver
-    function _unwrapAndWithdaw(address receiver, UFixed18 amount) private {
+    function _unwrapAndWithdraw(address receiver, UFixed18 amount) private {
+        UFixed6 balanceBefore = USDC.balanceOf(address(this));
         reserve.redeem(amount);
-        USDC.push(receiver, UFixed6Lib.from(amount));
+        USDC.push(receiver, USDC.balanceOf(address(this)).sub(balanceBefore));
+    }
+
+    modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
+        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
+
+        uint256 startGas = gasleft();
+        _;
+        uint256 applicableGas = startGas - gasleft();
+
+        _handleKeeperFee(keepConfig, applicableGas, applicableCalldata, 0, data);
+    }
+
+    /// @notice Only the account or an operator can call
+    modifier onlyOperator(address account, address operator) {
+        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerInvalidOperatorError();
+        _;
     }
 }
