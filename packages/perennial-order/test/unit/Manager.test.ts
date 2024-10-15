@@ -168,6 +168,24 @@ describe('Manager', () => {
       compareOrders(order, replacement)
     })
 
+    it('prevents user from replacing with an empty order', async () => {
+      // submit the original order
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+
+      // user cannot overwrite an order with an empty order (should use cancelOrder instead)
+      const replacement = {
+        ...DEFAULT_TRIGGER_ORDER,
+        side: 0,
+        comparison: 0,
+        price: 0,
+        delta: 0,
+        maxFee: MAX_FEE,
+      }
+      await expect(
+        manager.connect(userA).placeOrder(market.address, nextOrderId, replacement),
+      ).to.be.revertedWithCustomError(manager, 'TriggerOrderInvalidError')
+    })
+
     it('prevents user from reducing maxFee', async () => {
       // submit the original order
       await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
