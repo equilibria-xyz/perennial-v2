@@ -18,7 +18,7 @@ import {
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { smock } from '@defi-wonderland/smock'
-import { GlobalStruct } from '../../../../types/generated/@equilibria/perennial-v2/contracts/Market'
+import { GlobalStruct } from '../../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
 
 const RunMigrationDeployScript = true
 const SkipSettleAccounts = false
