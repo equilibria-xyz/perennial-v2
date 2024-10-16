@@ -1,18 +1,12 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
-import { BigNumber, constants } from 'ethers'
+import { constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { time } from '@nomicfoundation/hardhat-network-helpers'
 
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import {
-  Verifier,
-  Verifier__factory,
-  IERC1271,
-  IMarketFactory,
-  IMarketFactory__factory,
-} from '../../../types/generated'
+import { Verifier, Verifier__factory, IERC1271, IMarketFactorySigners } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import {
   signIntent,
@@ -33,13 +27,13 @@ describe('Verifier', () => {
   let signer: SignerWithAddress
   let operator: SignerWithAddress
   let verifier: Verifier
-  let marketFactory: FakeContract<IMarketFactory>
+  let marketFactory: FakeContract<IMarketFactorySigners>
   let scSigner: FakeContract<IERC1271>
 
   beforeEach(async () => {
     ;[owner, market, caller, caller2, signer, operator] = await ethers.getSigners()
 
-    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    marketFactory = await smock.fake<IMarketFactorySigners>('IMarketFactorySigners')
     verifier = await new Verifier__factory(owner).deploy()
     verifier.initialize(marketFactory.address)
     scSigner = await smock.fake<IERC1271>('IERC1271')
