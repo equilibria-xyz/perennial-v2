@@ -2521,12 +2521,13 @@ describe('Fees', () => {
         ...DEFAULT_CHECKPOINT,
       })
       const TRADE_FEE_B = parse6decimal('56.898250') // position * 0.05 * price_1
-      const OFFSET_B = parse6decimal('193.454050')
+      const MAKER_LINEAR_FEE = parse6decimal('102.416848') // position * 0.09 * price_1
+      const MAKER_PROPORTIONAL_FEE = parse6decimal('91.037198') // position * 0.08 * price_1
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(TRADE_FEE_B).sub(OFFSET_B),
+        collateral: COLLATERAL.sub(TRADE_FEE_B).sub(MAKER_LINEAR_FEE).sub(MAKER_PROPORTIONAL_FEE).sub(4), // loss of precision
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
@@ -2568,12 +2569,18 @@ describe('Fees', () => {
       })
 
       const TRADE_FEE_D = parse6decimal('28.449124') // position * (0.025) * price_1
-      const OFFSET_D = parse6decimal('1536.252730')
+      const TAKER_LINEAR_FEE = parse6decimal('56.898249') // position * 0.05 * price_1
+      const TAKER_PROPORITIONAL_FEE = parse6decimal('682.778988') // position * position / scale * 0.06 * price_1
+      const TAKER_ADIABATIC_FEE = parse6decimal('796.575485') // position * 0.14 * price_1 * change in position / scale
       expectLocalEq(await market.locals(userD.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(TRADE_FEE_D).sub(OFFSET_D).sub(6), // loss of precision
+        collateral: COLLATERAL.sub(TRADE_FEE_D)
+          .sub(TAKER_LINEAR_FEE)
+          .sub(TAKER_PROPORITIONAL_FEE)
+          .sub(TAKER_ADIABATIC_FEE)
+          .sub(14), // loss of precision
       })
       expectPositionEq(await market.positions(userD.address), {
         ...DEFAULT_POSITION,
