@@ -1,8 +1,8 @@
 import { BigNumber, BigNumberish, constants } from 'ethers'
-import { IMarket, PositionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
+import { IMarket, PositionStruct } from '../../types/generated/@perennial/core/contracts/interfaces/IMarket'
 import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { LocalStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import { LocalStruct } from '@perennial/core/types/generated/contracts/Market'
 import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { parse6decimal } from '../../../common/testutil/types'
 

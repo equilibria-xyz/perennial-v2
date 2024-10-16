@@ -11,7 +11,7 @@ import { currentBlockTimestamp } from '../../../common/testutil/time'
 
 import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../helpers/eip712'
 import { DEFAULT_TRIGGER_ORDER } from '../helpers/order'
-import { IMarket } from '@equilibria/perennial-v2/types/generated'
+import { IMarket } from '@perennial/core/types/generated'
 import { IManager, IMarketFactory, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../types/generated'
 
 const { ethers } = HRE

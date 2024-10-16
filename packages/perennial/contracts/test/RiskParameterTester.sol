@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/RiskParameter.sol";
+import { RiskParameter, RiskParameterStorage } from "../types/RiskParameter.sol";
+import { ProtocolParameter } from "../types/ProtocolParameter.sol";
 
 contract RiskParameterTester {
     RiskParameterStorage public riskParameter;

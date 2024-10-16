@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { IMarket, RiskParameter } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { RiskParameter } from "@perennial/core/contracts/types/RiskParameter.sol";
 
 interface ICoordinator {
     function setComptroller(address comptroller) external;

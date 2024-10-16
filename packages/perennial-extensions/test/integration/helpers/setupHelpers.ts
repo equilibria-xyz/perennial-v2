@@ -40,24 +40,21 @@ import {
   MarketFactory__factory,
   MagicValueLib__factory,
 } from '../../../types/generated'
-import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
-import { CheckpointLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
-import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
+import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@perennial/core/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
+import { CheckpointLib__factory } from '../../../types/generated/factories/@perennial/core/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
+import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chainlinkHelpers'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-import {
-  MarketParameterStruct,
-  RiskParameterStruct,
-} from '../../../types/generated/@equilibria/perennial-v2/contracts/Market'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
+import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/@perennial/core/contracts/Market'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
+import { deployProductOnMainnetFork } from '@perennial/vault/test/integration/helpers/setupHelpers'
 import {
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
   IVerifier,
   IVerifier__factory,
-} from '@equilibria/perennial-v2/types/generated'
+} from '@perennial/core/types/generated'
 import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
 
 const { ethers } = HRE
@@ -135,37 +132,37 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const marketImpl = await new Market__factory(
     {
-      '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
+      '@perennial/core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
         await new CheckpointLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/libs/InvariantLib.sol:InvariantLib': (
+      '@perennial/core/contracts/libs/InvariantLib.sol:InvariantLib': (
         await new InvariantLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/libs/VersionLib.sol:VersionLib': (
+      '@perennial/core/contracts/libs/VersionLib.sol:VersionLib': (
         await new VersionLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/libs/MagicValueLib.sol:MagicValueLib': (
+      '@perennial/core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
         await new MagicValueLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+      '@perennial/core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
         await new CheckpointStorageLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Global.sol:GlobalStorageLib': (
+      '@perennial/core/contracts/types/Global.sol:GlobalStorageLib': (
         await new GlobalStorageLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+      '@perennial/core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
         await new MarketParameterStorageLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageGlobalLib': (
+      '@perennial/core/contracts/types/Position.sol:PositionStorageGlobalLib': (
         await new PositionStorageGlobalLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageLocalLib': (
+      '@perennial/core/contracts/types/Position.sol:PositionStorageLocalLib': (
         await new PositionStorageLocalLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+      '@perennial/core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Version.sol:VersionStorageLib': (
+      '@perennial/core/contracts/types/Version.sol:VersionStorageLib': (
         await new VersionStorageLib__factory(owner).deploy()
       ).address,
     },

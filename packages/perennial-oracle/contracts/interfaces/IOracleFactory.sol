@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/token/types/Token18.sol";
-import "@equilibria/root/attribute/interfaces/IFactory.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "./IOracle.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import { IOracleProviderFactory } from "@perennial/core/contracts/interfaces/IOracleProviderFactory.sol";
+import { IOracle } from "./IOracle.sol";
 import { OracleParameter } from "../types/OracleParameter.sol";
 
 interface IOracleFactory is IOracleProviderFactory, IFactory {

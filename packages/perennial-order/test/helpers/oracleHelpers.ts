@@ -15,7 +15,7 @@ import {
   OracleFactory__factory,
   OracleVersionStruct,
   PythFactory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+} from '@perennial/oracle/types/generated'
 
 const { ethers } = HRE
 

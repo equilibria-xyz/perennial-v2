@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { RiskParameter } from "@perennial/core/contracts/types/RiskParameter.sol";
 import { Ownable } from "@equilibria/root/attribute/Ownable.sol";
-import { ICoordinator, IMarket, RiskParameter, Token18 } from "./interfaces/ICoordinator.sol";
+import { ICoordinator } from "./interfaces/ICoordinator.sol";
 
 /// @title Coordinator
 /// @notice Manages claiming fees and updating risk parameters for markets

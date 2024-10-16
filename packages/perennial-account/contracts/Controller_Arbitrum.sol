@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import { Kept_Arbitrum, Kept } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
 import { UFixed18 } from "@equilibria/root/number/types/UFixed18.sol";
 import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
-import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
+import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 import { Controller_Incentivized } from "./Controller_Incentivized.sol";
 
 /// @title Controller_Arbitrum

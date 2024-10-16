@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { constants, BigNumberish } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { IERC20Metadata, IMarket, IMarket__factory, IMarketFactory } from '../../../types/generated'
-import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
 
 export interface DeployProductParams
   extends Partial<
