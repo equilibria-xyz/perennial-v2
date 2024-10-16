@@ -1,15 +1,14 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils, BigNumber, constants } from 'ethers'
 import HRE from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { currentBlockTimestamp, increase } from '../../../../common/testutil/time'
 import {
   ArbGasInfo,
   IERC20Metadata,
   IERC20Metadata__factory,
-  IFactory,
   Market__factory,
   MarketFactory,
   MarketFactory__factory,
@@ -40,7 +39,6 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
-import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
 
 const { ethers } = HRE
 
@@ -174,19 +172,6 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
   await dsu.connect(dsuMinter).transfer(wallet.address, utils.parseEther('200000'))
 }
 
-async function includeAt(func: () => Promise<any>, timestamp: number): Promise<any> {
-  await ethers.provider.send('evm_setAutomine', [false])
-  await ethers.provider.send('evm_setIntervalMining', [0])
-
-  await time.setNextBlockTimestamp(timestamp)
-  const result = await func()
-
-  await ethers.provider.send('evm_mine', [])
-  await ethers.provider.send('evm_setAutomine', [true])
-
-  return result
-}
-
 const testOracles = [
   {
     name: 'MetaQuantsOracleFactory',
@@ -220,7 +205,8 @@ testOracles.forEach(testOracle => {
     let factorySigner: SignerWithAddress
     let powerTwoPayoff: PowerTwo
 
-    const setup = async () => {
+    const fixture = async () => {
+      await time.reset()
       ;[owner, user] = await ethers.getSigners()
 
       dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
@@ -263,6 +249,7 @@ testOracles.forEach(testOracle => {
         SIGNER,
         commitmentGasOracle.address,
         settlementGasOracle.address,
+        'SignedPriceFactory',
         keeperOracleImpl.address,
       )
       await metaquantsOracleFactory.initialize(oracleFactory.address)
@@ -295,15 +282,23 @@ testOracles.forEach(testOracle => {
       })
 
       oracle = Oracle__factory.connect(
-        await oracleFactory.callStatic.create(METAQUANTS_BAYC_ETH_PRICE_FEED, metaquantsOracleFactory.address),
+        await oracleFactory.callStatic.create(
+          METAQUANTS_BAYC_ETH_PRICE_FEED,
+          metaquantsOracleFactory.address,
+          'BAYC-USD',
+        ),
         owner,
       )
-      await oracleFactory.create(METAQUANTS_BAYC_ETH_PRICE_FEED, metaquantsOracleFactory.address)
+      await oracleFactory.create(METAQUANTS_BAYC_ETH_PRICE_FEED, metaquantsOracleFactory.address, 'BAYC-USD')
       oracleMilady = Oracle__factory.connect(
-        await oracleFactory.callStatic.create(METAQUANTS_MILADY_ETH_PRICE_FEED, metaquantsOracleFactory.address),
+        await oracleFactory.callStatic.create(
+          METAQUANTS_MILADY_ETH_PRICE_FEED,
+          metaquantsOracleFactory.address,
+          'MILADY-USD',
+        ),
         owner,
       )
-      await oracleFactory.create(METAQUANTS_MILADY_ETH_PRICE_FEED, metaquantsOracleFactory.address)
+      await oracleFactory.create(METAQUANTS_MILADY_ETH_PRICE_FEED, metaquantsOracleFactory.address, 'MILADY-USD')
 
       const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
 
@@ -353,13 +348,14 @@ testOracles.forEach(testOracle => {
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
-        maxFeeAbsolute: parse6decimal('1000'),
+        maxLiquidationFee: parse6decimal('5'),
         maxCut: parse6decimal('0.50'),
         maxRate: parse6decimal('10.00'),
         minMaintenance: parse6decimal('0.01'),
         minEfficiency: parse6decimal('0.1'),
         referralFee: 0,
         minScale: parse6decimal('0.001'),
+        maxStaleAfter: 7200,
       })
 
       const riskParameter = {
@@ -381,7 +377,7 @@ testOracles.forEach(testOracle => {
         efficiencyLimit: parse6decimal('0.2'),
         liquidationFee: parse6decimal('0.50'),
         minLiquidationFee: parse6decimal('0'),
-        maxLiquidationFee: parse6decimal('1000'),
+        maxLiquidationFee: parse6decimal('5'),
         utilizationCurve: {
           minRate: 0,
           maxRate: parse6decimal('5.00'),
@@ -407,7 +403,7 @@ testOracles.forEach(testOracle => {
         takerFee: 0,
         maxPendingGlobal: 8,
         maxPendingLocal: 8,
-        settlementFee: 0,
+        maxPriceDeviation: parse6decimal('0.1'),
         closed: false,
         settle: false,
       }
@@ -455,14 +451,13 @@ testOracles.forEach(testOracle => {
     }
 
     beforeEach(async () => {
-      await time.reset()
-      await setup()
+      await loadFixture(fixture)
       await time.increaseTo(STARTING_TIME - 2)
 
       // block.timestamp of the next call will be STARTING_TIME
 
       // set the oracle parameters at STARTING_TIME - 1
-      await includeAt(async () => {
+      await time.includeAt(async () => {
         await metaquantsOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
         await metaquantsOracleFactory.commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME - 1, listify(PAYLOAD))
       }, STARTING_TIME - 1)
@@ -475,12 +470,17 @@ testOracles.forEach(testOracle => {
     })
 
     describe('Factory', async () => {
+      it('factoryType is set', async () => {
+        expect(await metaquantsOracleFactory.factoryType()).to.equal('SignedPriceFactory')
+      })
+
       context('#initialize', async () => {
         it('reverts if already initialized', async () => {
           const metaquantsOracleFactory2 = await new MetaQuantsFactory__factory(owner).deploy(
             SIGNER,
             commitmentGasOracle.address,
             settlementGasOracle.address,
+            'SignedPriceFactory',
             await metaquantsOracleFactory.implementation(),
           )
           await metaquantsOracleFactory2.initialize(oracleFactory.address)
@@ -525,7 +525,7 @@ testOracles.forEach(testOracle => {
 
     describe('#commit', async () => {
       it('commits successfully and incentivizes the keeper', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
@@ -563,7 +563,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('does not allow committing with invalid signature', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await market
               .connect(user)
@@ -621,7 +621,7 @@ testOracles.forEach(testOracle => {
       })
 
       it('can update multiple from batched update', async () => {
-        await includeAt(
+        await time.includeAt(
           async () =>
             await metaquantsOracleFactory
               .connect(user)

@@ -15,6 +15,18 @@ abstract contract GuaranteeTester {
         Guarantee memory newGuarantee = GuaranteeLib.from(order, price, referralFee, chargeSettlementFee, chargeTradeFee);
         store(newGuarantee);
     }
+
+    function takerTotal(Guarantee memory guarantee) public pure returns (UFixed6) {
+        return GuaranteeLib.takerTotal(guarantee);
+    }
+
+    function priceAdjustment(Guarantee memory guarantee, Fixed6 price) public pure returns (Fixed6) {
+        return GuaranteeLib.priceAdjustment(guarantee, price);
+    }
+
+    function priceDeviation(Guarantee memory guarantee, Fixed6 price) public pure returns (UFixed6) {
+        return GuaranteeLib.priceDeviation(guarantee, price);
+    }
 }
 
 contract GuaranteeGlobalTester is GuaranteeTester {

@@ -1,5 +1,7 @@
 import { expect } from 'chai'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
+import { parse6decimal } from '../../../common/testutil/types'
+
 import { TriggerOrderStruct } from '../../types/generated/contracts/Manager'
 import { TriggerOrderStructOutput } from '../../types/generated/contracts/Manager'
 
@@ -14,6 +16,22 @@ export enum Compare {
   GTE = 1,
 }
 
+export const DEFAULT_TRIGGER_ORDER = {
+  side: Side.MAKER,
+  comparison: Compare.GTE,
+  price: constants.Zero,
+  delta: parse6decimal('1'),
+  maxFee: utils.parseEther('0.77'),
+  isSpent: false,
+  referrer: constants.AddressZero,
+  interfaceFee: {
+    amount: constants.Zero,
+    receiver: constants.AddressZero,
+    fixedFee: true,
+    unwrap: false,
+  },
+}
+
 export const MAGIC_VALUE_CLOSE_POSITION = BigNumber.from(2).pow(63).mul(-1)
 
 export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrderStruct) {
@@ -24,6 +42,11 @@ export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrder
   expect(actual.maxFee).to.equal(expected.maxFee)
   expect(actual.isSpent).to.equal(expected.isSpent)
   expect(actual.referrer).to.equal(expected.referrer)
+
+  expect(actual.interfaceFee.amount).to.equal(expected.interfaceFee.amount)
+  expect(actual.interfaceFee.receiver).to.equal(expected.interfaceFee.receiver)
+  expect(actual.interfaceFee.fixedFee).to.equal(expected.interfaceFee.fixedFee)
+  expect(actual.interfaceFee.unwrap).to.equal(expected.interfaceFee.unwrap)
 }
 
 export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): TriggerOrderStruct {
@@ -35,5 +58,11 @@ export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): T
     maxFee: structOutput.maxFee,
     isSpent: structOutput.isSpent,
     referrer: structOutput.referrer,
+    interfaceFee: {
+      amount: structOutput.interfaceFee.amount,
+      receiver: structOutput.interfaceFee.receiver,
+      fixedFee: structOutput.interfaceFee.fixedFee,
+      unwrap: structOutput.interfaceFee.unwrap,
+    },
   }
 }

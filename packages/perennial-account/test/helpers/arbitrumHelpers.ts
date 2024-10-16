@@ -23,10 +23,8 @@ import {
   IMarket,
   IMarketFactory,
   IOracleProvider,
-  RebalanceLib__factory,
   GasOracle__factory,
 } from '../../types/generated'
-import { IKept } from '../../types/generated/contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
 import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 
@@ -102,6 +100,7 @@ export async function createMarketETH(
     oracleFactory,
     pythOracleFactory,
     PYTH_ETH_USD_PRICE_FEED,
+    'ETH-USD',
     overrides,
   )
   // Create the market in which user or collateral account may interact
@@ -126,6 +125,7 @@ export async function createMarketBTC(
     oracleFactory,
     pythOracleFactory,
     PYTH_BTC_USD_PRICE_FEED,
+    'BTC-USD',
     overrides,
   )
   // Create the market in which user or collateral account may interact
@@ -141,28 +141,28 @@ export async function deployAndInitializeController(
   marketFactory: IMarketFactory,
 ): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const [dsu, usdc] = await getStablecoins(owner)
-  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
+  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE, marketFactory.address)
 
-  const verifier = await new AccountVerifier__factory(owner).deploy()
-  await controller.initialize(marketFactory.address, verifier.address)
+  const verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
+  await controller.initialize(verifier.address)
   return [dsu, usdc, controller]
 }
 
 // deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
 export async function deployControllerArbitrum(
   owner: SignerWithAddress,
-  keepConfig: IKept.KeepConfigStruct,
+  marketFactory: IMarketFactory,
   nonceManager: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
   const accountImpl = await new Account__factory(owner).deploy(USDC_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
   accountImpl.initialize(constants.AddressZero)
-  const controller = await new Controller_Arbitrum__factory(
-    {
-      'contracts/libs/RebalanceLib.sol:RebalanceLib': (await new RebalanceLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy(accountImpl.address, keepConfig, nonceManager.address, overrides ?? {})
+  const controller = await new Controller_Arbitrum__factory(owner).deploy(
+    accountImpl.address,
+    marketFactory.address,
+    nonceManager.address,
+    overrides ?? {},
+  )
   return controller
 }
 
@@ -211,6 +211,7 @@ async function createPythOracle(
   oracleFactory: IOracleFactory,
   pythOracleFactory: PythFactory,
   pythFeedId: string,
+  name: string,
   overrides?: CallOverrides,
 ): Promise<[KeeperOracle, Oracle]> {
   // Create the keeper oracle, which tests may use to meddle with prices
@@ -230,9 +231,9 @@ async function createPythOracle(
 
   // Create the oracle, which markets created by the market factory will query
   const oracle = Oracle__factory.connect(
-    await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address),
+    await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address, name),
     owner,
   )
-  await oracleFactory.create(pythFeedId, pythOracleFactory.address, overrides ?? {})
+  await oracleFactory.create(pythFeedId, pythOracleFactory.address, name, overrides ?? {})
   return [keeperOracle, oracle]
 }

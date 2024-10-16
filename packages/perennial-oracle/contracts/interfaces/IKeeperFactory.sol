@@ -46,6 +46,7 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory {
     error KeeperFactoryVersionOutsideRangeError();
 
     function initialize(IOracleFactory oracleFactory) external;
+    function factoryType() external view returns (string memory);
     function commitmentGasOracle() external view returns (IGasOracle);
     function settlementGasOracle() external view returns (IGasOracle);
     function updateId(IOracleProvider oracleProvider, bytes32 oracleId) external;

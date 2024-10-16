@@ -53,6 +53,7 @@ interface IMultiInvoker {
     function operators(address account, address operator) external view returns (bool);
     function invoke(address account, Invocation[] calldata invocations) external payable;
     function invoke(Invocation[] calldata invocations) external payable;
+    function claim(address account, bool unwrap) external;
     function marketFactory() external view returns (IFactory);
     function vaultFactory() external view returns (IFactory);
     function batcher() external view returns (IBatcher);

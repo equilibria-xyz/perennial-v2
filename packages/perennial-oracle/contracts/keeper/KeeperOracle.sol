@@ -27,12 +27,6 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev The oracle provider authorized to call this sub oracle
     IOracle public oracle;
 
-    /// @dev The gas oracles for pricing a commit keeper reward
-    IGasOracle public immutable commitmentGasOracle;
-
-    /// @dev The gas oracles for pricing a settle keeper reward
-    IGasOracle public immutable settlementGasOracle;
-
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 public immutable timeout;
 
@@ -74,21 +68,21 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Returns the local oracle callback set for a version and market
     /// @param version The version to lookup
     /// @return The local oracle callback set for the version and market
-    function localCallbacks(uint256 version) external view returns (address[] memory) {
+    function localCallbacks(uint256 version) external view virtual returns (address[] memory) {
         return _localCallbacks[version].values();
     }
 
     /// @notice Returns the next requested oracle version
     /// @dev Returns 0 if no next version is requested
     /// @return The next requested oracle version
-    function next() public view returns (uint256) {
+    function next() public view virtual returns (uint256) {
         return requests[_global.latestIndex + 1];
     }
 
     /// @notice Returns the response for a given oracle version
     /// @param timestamp The timestamp of the oracle version
     /// @return The response for the given oracle version
-    function responses(uint256 timestamp) external view returns (PriceResponse memory) {
+    function responses(uint256 timestamp) external view virtual returns (PriceResponse memory) {
         return _responses[timestamp].read();
     }
 
@@ -96,7 +90,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev  - If no request has been made this version, a price request will be created
     ///       - If a request has been made this version, no action will be taken
     /// @param account The account to callback to
-    function request(IMarket, address account) external onlyOracle {
+    function request(IMarket, address account) external virtual onlyOracle {
         uint256 currentTimestamp = current();
 
         _localCallbacks[currentTimestamp].add(account);
@@ -111,19 +105,19 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Returns the latest synced oracle version and the current oracle version
     /// @return The latest synced oracle version
     /// @return The current oracle version collecting new orders
-    function status() external view returns (OracleVersion memory, uint256) {
+    function status() external view virtual returns (OracleVersion memory, uint256) {
         return (latest(), current());
     }
 
     /// @notice Returns the latest synced oracle version
     /// @return latestVersion Latest oracle version
-    function latest() public view returns (OracleVersion memory latestVersion) {
+    function latest() public view virtual returns (OracleVersion memory latestVersion) {
         (latestVersion, ) = at(_global.latestVersion);
     }
 
     /// @notice Returns the current oracle version accepting new orders
     /// @return Current oracle version
-    function current() public view returns (uint256) {
+    function current() public view virtual returns (uint256) {
         return IKeeperFactory(address(factory())).current();
     }
 
@@ -131,7 +125,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param timestamp The timestamp of which to lookup
     /// @return Oracle version at version `version`
     /// @return Oracle receipt at version `version`
-    function at(uint256 timestamp) public view returns (OracleVersion memory, OracleReceipt memory) {
+    function at(uint256 timestamp) public view virtual returns (OracleVersion memory, OracleReceipt memory) {
         return (
             _responses[timestamp].read().toOracleVersion(timestamp),
             _responses[timestamp].read().toOracleReceipt(_localCallbacks[timestamp].length())
@@ -143,7 +137,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param version The oracle version to commit
     /// @param receiver The receiver of the settlement fee
     /// @param value The value charged to commit the price in ether
-    function commit(OracleVersion memory version, address receiver, uint256 value) external onlyFactory {
+    function commit(OracleVersion memory version, address receiver, uint256 value) external virtual onlyFactory {
         if (version.timestamp == 0) revert KeeperOracleVersionOutsideRangeError();
         PriceResponse memory priceResponse = (version.timestamp == next()) ?
             _commitRequested(version, value) :
@@ -152,17 +146,21 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         emit OracleProviderVersionFulfilled(version);
 
-        IMarket market = oracle.market();
-        market.settle(address(0));
-        oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
-        market.token().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
+        try oracle.market() returns (IMarket market) { // v2.3 migration -- don't callback if Oracle is still on its v2.2 implementation
+            market.settle(address(0));
+            oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
+            market.token().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
+        } catch {
+            return;
+        }
     }
 
     /// @notice Performs an asynchronous local settlement callback
     /// @dev Distribution of keeper incentive is consolidated in the oracle's factory
     /// @param version The version to settle
     /// @param maxCount The maximum number of settlement callbacks to perform before exiting
-    function settle(uint256 version, uint256 maxCount) external onlyFactory {
+    /// @param receiver The receiver of the async fee
+    function settle(uint256 version, uint256 maxCount, address receiver) external virtual onlyFactory {
         EnumerableSet.AddressSet storage callbacks = _localCallbacks[version];
 
         if (_global.latestVersion < version) revert KeeperOracleVersionOutsideRangeError();
@@ -179,7 +177,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
             // full settlement fee already cleamed in commit
             PriceResponse memory priceResponse = _responses[version].read();
-            market.token().push(msg.sender, UFixed18Lib.from(priceResponse.asyncFee));
+            market.token().push(receiver, UFixed18Lib.from(priceResponse.asyncFee));
         }
     }
 

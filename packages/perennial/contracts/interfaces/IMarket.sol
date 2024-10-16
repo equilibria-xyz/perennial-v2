@@ -63,7 +63,6 @@ interface IMarket is IInstance {
         UFixed6 collateralization;
     }
 
-    event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer);
     event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);
     event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
     event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
@@ -123,6 +122,8 @@ interface IMarket is IInstance {
     error MarketSettleOnlyError();
     // sig: 0x1e9d2296
     error MarketInvalidIntentFeeError();
+    // sig: 0xaf5dfc8f
+    error MarketIntentPriceDeviationError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();
@@ -138,6 +139,7 @@ interface IMarket is IInstance {
     error VersionStorageInvalidError();
 
     function initialize(MarketDefinition calldata definition_) external;
+    function migrate() external;
     function token() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
     function beneficiary() external view returns (address);

@@ -24,6 +24,8 @@ import {
   ZERO_ADDR,
   DSU,
   ETH_ORACLE,
+  resetEthSubOracle,
+  resetBtcSubOracle,
 } from '../helpers/setupHelpers'
 
 import {
@@ -98,11 +100,21 @@ describe('Invoke', () => {
     btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
-  beforeEach(async () => {
+  const fixture = async () => {
     instanceVars = await loadFixture(deployProtocol)
     ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
     market = await createMarket(instanceVars)
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
+    // TODO: move into fixture
     multiInvoker = await createInvoker(instanceVars, vaultFactory)
+  })
+
+  afterEach(async () => {
+    resetEthSubOracle(ethSubOracle)
+    resetBtcSubOracle(btcSubOracle)
   })
 
   it('constructs correctly', async () => {
@@ -133,7 +145,6 @@ describe('Invoke', () => {
 
   it('reverts on bad target approval', async () => {
     const { user, userB } = instanceVars
-    multiInvoker = await createInvoker(instanceVars, vaultFactory)
 
     await expect(
       multiInvoker.connect(user)['invoke((uint8,bytes)[])'](buildApproveTarget(userB.address)),
@@ -526,14 +537,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
         })
 
@@ -554,14 +565,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
         })
 
@@ -584,14 +595,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
         })
 
@@ -614,14 +625,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
         })
 
@@ -644,22 +655,22 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
                 interfaceFee2: {
                   amount: feeAmt2,
                   receiver: userB.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt2, userB.address, false])
+            .withArgs(user.address, market.address, [feeAmt2, userB.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
+          await expect(multiInvoker.connect(userB).claim(userB.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(userB.address)).sub(balanceBefore2)).to.eq(feeAmt2.mul(1e12))
         })
 
@@ -682,7 +693,6 @@ describe('Invoke', () => {
               interfaceFee1: {
                 amount: 0,
                 receiver: owner.address,
-                unwrap: true,
               },
             }),
           )
@@ -711,12 +721,10 @@ describe('Invoke', () => {
               interfaceFee1: {
                 amount: 0,
                 receiver: ethers.constants.AddressZero,
-                unwrap: false,
               },
               interfaceFee2: {
                 amount: 0,
                 receiver: userB.address,
-                unwrap: false,
               },
             }),
           )
@@ -918,14 +926,10 @@ describe('Invoke', () => {
         })
 
         describe('#batcher 0 address', async () => {
-          let instanceVars: InstanceVars
-          let market: Market
           let reserve: IEmptySetReserve
 
           beforeEach(async () => {
-            instanceVars = await loadFixture(deployProtocol)
-            ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
-            market = await createMarket(instanceVars)
+            // deploy multiinvoker with batcher == 0 address
             multiInvoker = await createInvoker(instanceVars, vaultFactory, true)
             await setup()
             reserve = IEmptySetReserve__factory.connect(RESERVE, instanceVars.owner)

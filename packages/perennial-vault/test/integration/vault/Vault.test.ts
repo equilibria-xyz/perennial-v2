@@ -18,7 +18,6 @@ import {
   IVaultFactory__factory,
   IOracleFactory,
   IMarketFactory,
-  CheckpointLib__factory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
@@ -29,7 +28,6 @@ import {
   TransparentUpgradeableProxy__factory,
 } from '@equilibria/perennial-v2/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
-import { Address } from 'hardhat-deploy/dist/types'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -214,19 +212,23 @@ describe('Vault', () => {
     vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
 
     const rootOracle = IOracle__factory.connect(
-      await instanceVars.oracleFactory.connect(owner).callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address),
+      await instanceVars.oracleFactory
+        .connect(owner)
+        .callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD'),
       owner,
     )
-    await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address)
+    await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD')
 
     leverage = parse6decimal('4.0')
     maxCollateral = parse6decimal('500000')
 
     const btcRootOracle = IOracle__factory.connect(
-      await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
+      await instanceVars.oracleFactory
+        .connect(owner)
+        .callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD'),
       owner,
     )
-    await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
+    await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD')
 
     market = await deployProductOnMainnetFork({
       factory: instanceVars.marketFactory,
@@ -444,10 +446,10 @@ describe('Vault', () => {
       vaultOracleFactory.oracles.whenCalledWith(LINK_PRICE_FEE_ID).returns(oracle3.address)
 
       rootOracle3 = IOracle__factory.connect(
-        await oracleFactory.connect(owner).callStatic.create(LINK_PRICE_FEE_ID, vaultOracleFactory.address),
+        await oracleFactory.connect(owner).callStatic.create(LINK_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK-USD'),
         owner,
       )
-      await oracleFactory.connect(owner).create(LINK_PRICE_FEE_ID, vaultOracleFactory.address)
+      await oracleFactory.connect(owner).create(LINK_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK-USD')
 
       market3 = await deployProductOnMainnetFork({
         factory: factory,
@@ -514,10 +516,12 @@ describe('Vault', () => {
       vaultOracleFactory.oracles.whenCalledWith(LINK0_PRICE_FEE_ID).returns(oracle4.address)
 
       const rootOracle4 = IOracle__factory.connect(
-        await oracleFactory.connect(owner).callStatic.create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address),
+        await oracleFactory
+          .connect(owner)
+          .callStatic.create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK0-USD'),
         owner,
       )
-      await oracleFactory.connect(owner).create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address)
+      await oracleFactory.connect(owner).create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK0-USD')
 
       const marketBadAsset = await deployProductOnMainnetFork({
         factory: factory,
@@ -1403,6 +1407,36 @@ describe('Vault', () => {
       await vault.connect(user).update(user.address, 0, redeemAvailable, 0)
       await updateOracle()
       await vault.rebalance(user.address)
+    })
+
+    it('deposit correctly calculates funds eligible for allocation', async () => {
+      const ONE = parse6decimal('1')
+      // two users deposit funds, vault is balanced
+      await vault.connect(user).update(user.address, parse6decimal('50000'), 0, 0)
+      await vault.connect(user2).update(user2.address, parse6decimal('25000'), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+      await vault.settle(user.address)
+      await vault.settle(user2.address)
+      const btcCollateral = await btcCollateralInVault()
+      expect(await collateralInVault()).to.be.closeTo(btcCollateral.mul(4), ONE)
+
+      // price drops from 38838 to 25535 while vault's maker position has short exposure
+      await updateOracle(undefined, parse6decimal('25535'))
+
+      // user2 converts all shares to assets
+      await vault.connect(user2).update(user2.address, 0, ethers.constants.MaxUint256, 0)
+
+      // in same version, user makes another deposit
+      await vault.connect(user).update(user.address, parse6decimal('50000'), 0, 0)
+
+      // settle and confirm positions did not exclude assets from the second deposit
+      await updateOracle()
+      await vault.settle(user.address)
+      // position = assets * leverage / price = 85088.172487 * 4 / 2620.237388
+      expect(await position()).to.be.closeTo(parse6decimal('129.893837'), ONE)
+      // position = assets * leverage / price = 21272.043121 * 4 / 25535
+      expect(await btcPosition()).to.be.closeTo(parse6decimal('3.332217'), ONE)
     })
 
     it('product closing closes all positions', async () => {

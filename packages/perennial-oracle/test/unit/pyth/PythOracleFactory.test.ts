@@ -130,15 +130,19 @@ describe('PythOracleFactory', () => {
     })
 
     oracle = Oracle__factory.connect(
-      await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
+      await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD'),
       owner,
     )
-    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
+    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD')
 
     await keeperOracle.register(oracle.address)
     await oracle.register(market.address)
 
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
+  })
+
+  it('factoryType is PythFactory', async () => {
+    expect(await pythOracleFactory.factoryType()).to.equal('PythFactory')
   })
 
   it('parses Pyth exponents correctly', async () => {

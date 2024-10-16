@@ -88,10 +88,8 @@ interface IController {
     function verifier() external view returns (IAccountVerifier);
 
     /// @notice Sets contract addresses used for message verification and token management
-    /// @param marketFactory Contract used to validate delegated signers
     /// @param verifier Contract used to validate collateral account message signatures
     function initialize(
-        IMarketFactory marketFactory,
         IAccountVerifier verifier
     ) external;
 

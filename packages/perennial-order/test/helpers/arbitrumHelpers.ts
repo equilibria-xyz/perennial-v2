@@ -21,7 +21,7 @@ import { createPythOracle, deployOracleFactory } from './oracleHelpers'
 import { createMarket, deployMarketImplementation } from './marketHelpers'
 
 const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
-const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
+const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 4.7mm at height 243648015
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
@@ -41,6 +41,7 @@ export async function createMarketETH(
     oracleFactory,
     pythOracleFactory,
     PYTH_ETH_USD_PRICE_FEED,
+    'ETH-USD',
     overrides,
   )
   // Create the market in which user or collateral account may interact
@@ -69,13 +70,14 @@ async function deployMarketFactory(
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
+    maxLiquidationFee: parse6decimal('20'),
     maxCut: parse6decimal('0.50'),
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
     minScale: parse6decimal('0.001'),
+    maxStaleAfter: 7200,
   })
 
   return marketFactory

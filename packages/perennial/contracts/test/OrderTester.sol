@@ -34,6 +34,10 @@ abstract contract OrderTester {
     function isEmpty() external view returns (bool) {
         return read().isEmpty();
     }
+
+    function magnitude() external view returns (Fixed6) {
+        return read().magnitude();
+    }
 }
 
 contract OrderGlobalTester is OrderTester {

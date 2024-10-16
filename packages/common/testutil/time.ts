@@ -26,11 +26,23 @@ export async function setNextBlockTimestamp(timestamp: number): Promise<void> {
   await time.setNextBlockTimestamp(timestamp)
 }
 
+export async function includeAt(func: () => Promise<any>, timestamp: number): Promise<any> {
+  await ethers.provider.send('evm_setAutomine', [false])
+  await ethers.provider.send('evm_setIntervalMining', [0])
+
+  await time.setNextBlockTimestamp(timestamp)
+  const result = await func()
+
+  await ethers.provider.send('evm_mine', [])
+  await ethers.provider.send('evm_setAutomine', [true])
+
+  return result
+}
+
 export async function increaseTo(timestamp: number): Promise<void> {
   const currentTimestamp = await currentBlockTimestamp()
   if (timestamp < currentTimestamp) {
-    await ethers.provider.send('evm_increaseTime', [timestamp - currentTimestamp])
-    await advanceBlock()
+    throw new Error('Attempting to create a block with timestamp earlier than the previous block')
   } else {
     await time.increaseTo(timestamp)
   }

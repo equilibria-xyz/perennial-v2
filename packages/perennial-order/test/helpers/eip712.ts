@@ -42,6 +42,15 @@ const actionType = {
   ],
 }
 
+const interfaceFeeType = {
+  InterfaceFee: [
+    { name: 'amount', type: 'uint64' },
+    { name: 'receiver', type: 'address' },
+    { name: 'fixedFee', type: 'bool' },
+    { name: 'unwrap', type: 'bool' },
+  ],
+}
+
 const triggerOrderType = {
   TriggerOrder: [
     { name: 'side', type: 'uint8' },
@@ -51,6 +60,7 @@ const triggerOrderType = {
     { name: 'maxFee', type: 'uint64' },
     { name: 'isSpent', type: 'bool' },
     { name: 'referrer', type: 'address' },
+    { name: 'interfaceFee', type: 'InterfaceFee' },
   ],
 }
 
@@ -86,6 +96,7 @@ export async function signPlaceOrderAction(
     ],
     ...actionType,
     ...commonType,
+    ...interfaceFeeType,
     ...triggerOrderType,
   }
   return await signer._signTypedData(eip712Domain(verifier), types, action)

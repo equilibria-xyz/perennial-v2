@@ -1,5 +1,6 @@
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils } from 'ethers'
 import HRE from 'hardhat'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
@@ -15,7 +16,6 @@ import {
   GasOracle,
   GasOracle__factory,
 } from '../../../types/generated'
-import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 
@@ -34,14 +34,13 @@ describe('OracleFactory', () => {
   let oracleFactory: OracleFactory
   let dsu: IERC20Metadata
 
-  beforeEach(async () => {
+  const fixture = async () => {
     ;[owner, user] = await ethers.getSigners()
 
     dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-
     await oracleFactory.initialize()
 
     commitmentGasOracle = await new GasOracle__factory(owner).deploy(
@@ -81,10 +80,14 @@ describe('OracleFactory', () => {
       decimals: 0,
     })
 
-    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
+    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD')
 
     const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('10000'))
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
   })
 
   describe('#withdraw', async () => {

@@ -1,4 +1,5 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import HRE from 'hardhat'
@@ -51,7 +52,7 @@ describe('MarketFactory', () => {
   let factory: MarketFactory
   let marketImpl: Market
 
-  beforeEach(async () => {
+  const fixture = async () => {
     ;[user, owner, signer, signer2, operator, operator2, extension, referrer] = await ethers.getSigners()
     oracleFactory = await smock.fake<IFactory>('IFactory')
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
@@ -90,6 +91,10 @@ describe('MarketFactory', () => {
       marketImpl.address,
     )
     await factory.initialize()
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
   })
 
   describe('#initialize', async () => {
@@ -103,7 +108,7 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.maxFee).to.equal(0)
-      expect(parameter.maxFeeAbsolute).to.equal(0)
+      expect(parameter.maxLiquidationFee).to.equal(0)
       expect(parameter.maxCut).to.equal(0)
       expect(parameter.maxRate).to.equal(0)
       expect(parameter.minMaintenance).to.equal(0)
@@ -137,6 +142,7 @@ describe('MarketFactory', () => {
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
+      expect(await factory.markets(oracle.address)).to.be.equal(marketAddress)
     })
 
     it('creates the market w/ zero payoff', async () => {
@@ -291,18 +297,49 @@ describe('MarketFactory', () => {
       expect(isSigner).to.be.equal(false)
       expect(orderReferralFee).to.be.equal(parse6decimal('0.35'))
     })
+
+    it('account is signer', async () => {
+      await factory.updateExtension(extension.address, true)
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        extension.address,
+        user.address,
+        constants.AddressZero,
+      )
+
+      expect(isOperator).to.be.equal(true)
+      expect(isSigner).to.be.equal(true)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
+    })
+
+    it('sender is operator', async () => {
+      await factory.connect(user).updateOperator(extension.address, true)
+
+      const [isOperator, isSigner, orderReferralFee] = await factory.authorization(
+        user.address,
+        extension.address,
+        user.address,
+        constants.AddressZero,
+      )
+
+      expect(isOperator).to.be.equal(true)
+      expect(isSigner).to.be.equal(true)
+      expect(orderReferralFee).to.be.equal(parse6decimal('0'))
+    })
   })
 
   describe('#updateParameter', async () => {
     const newParameter = {
       maxFee: parse6decimal('0.01'),
-      maxFeeAbsolute: parse6decimal('1000'),
+      maxLiquidationFee: parse6decimal('20'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
       minEfficiency: parse6decimal('0.1'),
       referralFee: parse6decimal('0.2'),
       minScale: parse6decimal('0.001'),
+      maxStaleAfter: 3600,
     }
 
     it('updates the parameters', async () => {
@@ -310,13 +347,14 @@ describe('MarketFactory', () => {
 
       const parameter = await factory.parameter()
       expect(parameter.maxFee).to.equal(newParameter.maxFee)
-      expect(parameter.maxFeeAbsolute).to.equal(newParameter.maxFeeAbsolute)
+      expect(parameter.maxLiquidationFee).to.equal(newParameter.maxLiquidationFee)
       expect(parameter.maxCut).to.equal(newParameter.maxCut)
       expect(parameter.maxRate).to.equal(newParameter.maxRate)
       expect(parameter.minMaintenance).to.equal(newParameter.minMaintenance)
       expect(parameter.minEfficiency).to.equal(newParameter.minEfficiency)
       expect(parameter.referralFee).to.equal(newParameter.referralFee)
       expect(parameter.minScale).to.equal(newParameter.minScale)
+      expect(parameter.maxStaleAfter).to.equal(newParameter.maxStaleAfter)
     })
 
     it('reverts if not owner', async () => {
@@ -330,7 +368,7 @@ describe('MarketFactory', () => {
   describe('#updateReferralFee', async () => {
     const newParameter = {
       maxFee: parse6decimal('0.01'),
-      maxFeeAbsolute: parse6decimal('1000'),
+      maxLiquidationFee: parse6decimal('20'),
       maxCut: parse6decimal('0.50'),
       maxRate: parse6decimal('10.00'),
       minMaintenance: parse6decimal('0.01'),
@@ -363,17 +401,23 @@ describe('MarketFactory', () => {
 
   describe('#updateExtension', async () => {
     it('updates the operator status', async () => {
-      await expect(factory.connect(user).updateExtension(owner.address, true))
+      await expect(factory.connect(owner).updateExtension(owner.address, true))
         .to.emit(factory, 'ExtensionUpdated')
         .withArgs(owner.address, true)
 
       expect(await factory.extensions(owner.address)).to.equal(true)
 
-      await expect(factory.connect(user).updateExtension(owner.address, false))
+      await expect(factory.connect(owner).updateExtension(owner.address, false))
         .to.emit(factory, 'ExtensionUpdated')
         .withArgs(owner.address, false)
 
       expect(await factory.extensions(owner.address)).to.equal(false)
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(factory.connect(user).updateExtension(user.address, true))
+        .to.be.revertedWithCustomError(factory, 'OwnableNotOwnerError')
+        .withArgs(user.address)
     })
   })
 

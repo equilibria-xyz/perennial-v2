@@ -21,7 +21,7 @@ struct CheckpointAccumulationResponse {
     /// @dev Subtractive fee accumulated from the previous position to the next position (this amount is included in the linear fee)
     UFixed6 subtractiveFee;
 
-    /// @dev TODO
+    /// @dev Solver fee accumulated the previous position to the next position (this amount is included in the linear fee)
     UFixed6 solverFee;
 }
 
@@ -47,7 +47,7 @@ struct CheckpointAccumulationResult {
     /// @dev Subtractive fee accumulated from the previous position to the next position (this amount is included in the linear fee)
     UFixed6 subtractiveFee;
 
-    /// @dev TODO
+    /// @dev Solver fee accumulated the previous position to the next position (this amount is included in the linear fee)
     UFixed6 solverFee;
 }
 
@@ -138,6 +138,7 @@ library CheckpointLib {
     ) private pure returns (UFixed6 tradeFee, UFixed6 subtractiveFee, UFixed6 solverFee) {
         UFixed6 takerTotal = order.takerTotal().sub(guarantee.takerFee);
 
+        // accumulate total trade fees on maker and taker orders
         UFixed6 makerFee = Fixed6Lib.ZERO
             .sub(toVersion.makerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
             .abs();
@@ -145,6 +146,7 @@ library CheckpointLib {
             .sub(toVersion.takerFee.accumulated(Accumulator6(Fixed6Lib.ZERO), takerTotal))
             .abs();
 
+        // compute portion of trade fees that are subtractive
         UFixed6 makerSubtractiveFee = order.makerTotal().isZero() ?
             UFixed6Lib.ZERO :
             makerFee.muldiv(order.makerReferral, order.makerTotal());
@@ -152,9 +154,10 @@ library CheckpointLib {
             UFixed6Lib.ZERO :
             takerFee.muldiv(order.takerReferral, takerTotal);
 
+        // compute portion of subtractive fees that are solver fees
         solverFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            takerFee.muldiv(guarantee.referral, takerTotal);
+            takerFee.muldiv(guarantee.referral, takerTotal); // guarantee.referral is instantiated as a subset of order.takerReferral
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
@@ -214,6 +217,6 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (Fixed6) {
         if (!toVersion.valid) return Fixed6Lib.ZERO;
-        return guarantee.taker().mul(toVersion.price).sub(guarantee.notional);
+        return guarantee.priceAdjustment(toVersion.price);
     }
 }
