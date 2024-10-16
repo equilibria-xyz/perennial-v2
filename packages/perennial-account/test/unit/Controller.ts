@@ -22,8 +22,8 @@ import { getEventArguments } from '../../../common/testutil/transaction'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { deployController, mockMarket } from '../helpers/setupHelpers'
 import { parse6decimal } from '../../../common/testutil/types'
-import { IMarket } from '@equilibria/perennial-v2-oracle/types/generated'
-import { IMarketFactory } from '@equilibria/perennial-v2/types/generated'
+import { IMarket } from '@perennial/oracle/types/generated'
+import { IMarketFactory } from '@perennial/core/types/generated'
 
 const { ethers } = HRE
 

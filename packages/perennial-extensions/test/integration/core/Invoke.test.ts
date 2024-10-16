@@ -45,7 +45,7 @@ import { BigNumber, constants } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IERC20Metadata } from '@equilibria/perennial-v2/types/generated'
+import { IERC20Metadata } from '@perennial/core/types/generated'
 
 use(smock.matchers)
 

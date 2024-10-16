@@ -1,8 +1,8 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import { Checkpoint as PerennialCheckpoint } from "@equilibria/perennial-v2/contracts/types/Checkpoint.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";

@@ -50,10 +50,10 @@ import {
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
-} from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
-import { Verifier, Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
-import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
-import { IKeeperOracle, IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+} from '@perennial/verifier/test/helpers/erc712'
+import { Verifier, Verifier__factory } from '@perennial/verifier/types/generated'
+import { IVerifier__factory } from '@perennial/core/types/generated'
+import { IKeeperOracle, IOracleFactory, PythFactory } from '@perennial/oracle/types/generated'
 
 const { ethers } = HRE
 

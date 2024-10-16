@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";

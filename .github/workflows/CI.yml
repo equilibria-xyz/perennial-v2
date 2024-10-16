@@ -62,7 +62,7 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/core run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -100,7 +100,7 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
-          yarn workspace @equilibria/perennial-v2 run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/core run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -170,7 +170,7 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @equilibria/perennial-v2-account run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/account run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -200,7 +200,7 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
         run: |
-          yarn workspace @equilibria/perennial-v2-account run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/account run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -231,7 +231,7 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -261,7 +261,7 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
-          yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -291,7 +291,7 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           ARBITRUM_SEPOLIA_NODE_URL: ${{ secrets.ARBITRUM_SEPOLIA_NODE_URL }}
         run: |
-          yarn workspace @equilibria/perennial-v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
+          yarn workspace @perennial/oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -322,7 +322,7 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @equilibria/perennial-v2-order run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/order run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -352,7 +352,7 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
         run: |
-          yarn workspace @equilibria/perennial-v2-order run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/order run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -383,7 +383,7 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -413,7 +413,7 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
-          yarn workspace @equilibria/perennial-v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -444,7 +444,7 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -474,7 +474,7 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
-          yarn workspace @equilibria/perennial-v2-extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/extensions run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
@@ -505,7 +505,7 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @equilibria/perennial-v2-verifier run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/verifier run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
