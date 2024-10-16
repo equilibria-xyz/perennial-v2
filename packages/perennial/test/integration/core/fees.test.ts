@@ -2545,6 +2545,7 @@ describe('Fees', () => {
         ...DEFAULT_CHECKPOINT,
       })
 
+      // no trade fee deducted for userC for intent order
       expectLocalEq(await market.locals(userC.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
