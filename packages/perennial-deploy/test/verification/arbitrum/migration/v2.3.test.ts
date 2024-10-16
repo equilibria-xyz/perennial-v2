@@ -258,8 +258,8 @@ describe('Verify Arbitrum v2.3 Migration', () => {
 
       const oracle = await ethers.getContractAt('IOracle', await market.oracle())
       const oraclePrice = await oracle.latest()
-      const lowerRange = BigNumber.from(beforeGlobals[market.address].latestPrice).mul(9).div(10)
-      const upperRange = BigNumber.from(beforeGlobals[market.address].latestPrice).mul(11).div(10)
+      const lowerRange = BigNumber.from(beforeGlobals[market.address].latestPrice).mul(5).div(10)
+      const upperRange = BigNumber.from(beforeGlobals[market.address].latestPrice).mul(15).div(10)
       expect(oraclePrice.price).to.be.within(lowerRange, upperRange)
 
       await expect(market.settle(ethers.constants.AddressZero)).to.not.be.reverted

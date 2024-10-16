@@ -546,6 +546,7 @@ export const NewMarketParameter: MarketParameterStruct = {
   maxPendingLocal: 6,
   closed: false,
   settle: false,
+  maxPriceDeviation: utils.parseUnits('0.15', 6), // TODO: Determine this value
 }
 
 export const NewProtocolParameter: ProtocolParameterStruct = {
