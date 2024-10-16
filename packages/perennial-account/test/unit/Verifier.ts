@@ -25,11 +25,11 @@ import {
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
-} from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
+} from '@perennial/verifier/test/helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import { Verifier, Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
+import { Verifier, Verifier__factory } from '@perennial/verifier/types/generated'
 
 const { ethers } = HRE
 

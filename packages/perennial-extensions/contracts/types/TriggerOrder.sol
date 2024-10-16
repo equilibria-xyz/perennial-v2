@@ -3,8 +3,8 @@ pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
-import { Position } from "@equilibria/perennial-v2/contracts/types/Position.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { Position } from "@perennial/core/contracts/types/Position.sol";
 import { InterfaceFee } from "./InterfaceFee.sol";
 
 struct TriggerOrder {

@@ -1,5 +1,5 @@
 {
-  "name": "@equilibria/perennial-v2-vault",
+  "name": "@perennial/vault",
   "version": "1.3.0",
   "description": "Perennial V2 Vault",
   "files": [
@@ -30,6 +30,6 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
-    "@equilibria/perennial-v2": "1.3.0"
+    "@perennial/core": "1.3.0"
   }
 }

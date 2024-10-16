@@ -20,14 +20,10 @@ import {
   IMarketFactory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
-import { deployProtocol, fundWallet, settle } from '@equilibria/perennial-v2/test/integration/helpers/setupHelpers'
+import { deployProtocol, fundWallet, settle } from '@perennial/core/test/integration/helpers/setupHelpers'
 import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
-import {
-  MarketFactory,
-  ProxyAdmin,
-  TransparentUpgradeableProxy__factory,
-} from '@equilibria/perennial-v2/types/generated'
-import { IOracle, IOracle__factory, OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { MarketFactory, ProxyAdmin, TransparentUpgradeableProxy__factory } from '@perennial/core/types/generated'
+import { IOracle, IOracle__factory, OracleFactory } from '@perennial/oracle/types/generated'
 
 const { ethers } = HRE
 use(smock.matchers)

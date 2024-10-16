@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { OperatorUpdate, OperatorUpdateLib } from "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
+import { OperatorUpdate, OperatorUpdateLib } from "@perennial/verifier/contracts/types/OperatorUpdate.sol";
 import { Action, ActionLib } from "./Action.sol";
 
 struct RelayedOperatorUpdate {

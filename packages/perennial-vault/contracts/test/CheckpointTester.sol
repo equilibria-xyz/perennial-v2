@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Checkpoint as PerennialCheckpoint } from "@equilibria/perennial-v2/contracts/types/Checkpoint.sol";
+import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
 import { Checkpoint, CheckpointStorage } from "../types/Checkpoint.sol";
 import { Account } from "../types/Account.sol";
 

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 import { PriceResponse, PriceResponseLib, PriceResponseStorage } from "../keeper/types/PriceResponse.sol";
-import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
-import { OracleReceipt } from "@equilibria/perennial-v2/contracts/types/OracleReceipt.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { OracleReceipt } from "@perennial/core/contracts/types/OracleReceipt.sol";
 
 contract PriceResponseTester {
     PriceResponseStorage public priceResponse;

@@ -14,12 +14,12 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
 import { Kept } from "@equilibria/root/attribute/Kept/Kept.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import { Order } from "@equilibria/perennial-v2/contracts/types/Order.sol";
-import { Position } from "@equilibria/perennial-v2/contracts/types/Position.sol";
-import { IPythFactory } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythFactory.sol";
-import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
-import { Intent } from "@equilibria/perennial-v2-verifier/contracts/types/Intent.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { Order } from "@perennial/core/contracts/types/Order.sol";
+import { Position } from "@perennial/core/contracts/types/Position.sol";
+import { IPythFactory } from "@perennial/oracle/contracts/interfaces/IPythFactory.sol";
+import { IVault } from "@perennial/vault/contracts/interfaces/IVault.sol";
+import { Intent } from "@perennial/verifier/contracts/types/Intent.sol";
 import { IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { InterfaceFee } from "./types/InterfaceFee.sol";
