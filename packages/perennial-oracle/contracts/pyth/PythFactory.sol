@@ -10,6 +10,7 @@ import "../keeper/KeeperFactory.sol";
 /// @notice Factory contract for creating and managing Pyth oracles
 contract PythFactory is IPythFactory, KeeperFactory {
     int32 private constant PARSE_DECIMALS = 18;
+    string public constant factoryType = "PythFactory";
 
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
