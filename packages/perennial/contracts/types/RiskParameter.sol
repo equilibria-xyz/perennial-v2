@@ -68,8 +68,9 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 ///        uint48 makerLimit;                          // <= 281t (no decimals)
 ///        uint24 efficiencyLimit;                     // <= 1677%
 ///
-///        /* slot 1 */ (28)
+///        /* slot 1 */ (31)
 ///        bytes3 __unallocated__;
+///        uint48 makerSkewScale;                      // <= 281t (no decimals) (must maintain location due to updateRiskParameter)
 ///        uint48 takerSkewScale;                      // <= 281t (no decimals) (must maintain location due to updateRiskParameter)
 ///        uint24 utilizationCurveMinRate;             // <= 1677%
 ///        uint24 utilizationCurveMaxRate;             // <= 1677%

@@ -8,7 +8,7 @@ import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
 import { Initializable } from "@equilibria/root/attribute/Initializable.sol";
 
 import { IVerifier } from "./interfaces/IVerifier.sol";
-import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import { IMarketFactorySigners } from "./interfaces/IMarketFactorySigners.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
@@ -25,14 +25,14 @@ import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBat
 ///
 contract Verifier is VerifierBase, IVerifier, Initializable {
     /// @dev market factory to check authorization
-    IMarketFactory public marketFactory;
+    IMarketFactorySigners public marketFactory;
 
     /// @dev Initializes the domain separator and parameter caches
     constructor() EIP712("Perennial", "1.0.0") { }
 
     /// @notice Initializes the contract state
     /// @param marketFactory_ The market factory
-    function initialize(IMarketFactory marketFactory_) external initializer(1) {
+    function initialize(IMarketFactorySigners marketFactory_) external initializer(1) {
         marketFactory = marketFactory_;
     }
 
