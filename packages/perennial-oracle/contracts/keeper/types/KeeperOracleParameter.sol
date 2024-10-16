@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 
 struct KeeperOracleParameter {
     /// @dev The latest granularity setting in seconds

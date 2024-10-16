@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../keeper/types/PriceResponse.sol";
+import { PriceResponse, PriceResponseLib, PriceResponseStorage } from "../keeper/types/PriceResponse.sol";
+import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { OracleReceipt } from "@equilibria/perennial-v2/contracts/types/OracleReceipt.sol";
 
 contract PriceResponseTester {
     PriceResponseStorage public priceResponse;

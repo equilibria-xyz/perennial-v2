@@ -1,13 +1,32 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.24;
 
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IVerifier } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
-import "@equilibria/root/attribute/Instance.sol";
-import "@equilibria/root/attribute/ReentrancyGuard.sol";
-import "./interfaces/IMarket.sol";
-import "./interfaces/IMarketFactory.sol";
-import "./libs/InvariantLib.sol";
-import "./libs/MagicValueLib.sol";
+import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { ReentrancyGuard } from "@equilibria/root/attribute/ReentrancyGuard.sol";
+import { Intent } from "@equilibria/perennial-v2-verifier/contracts/types/Intent.sol";
+import { IMarket } from "./interfaces/IMarket.sol";
+import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import { IOracleProvider } from "./interfaces/IOracleProvider.sol";
+import { MarketParameter, MarketParameterStorage } from "./types/MarketParameter.sol";
+import { RiskParameter, RiskParameterStorage } from "./types/RiskParameter.sol";
+import { Global, GlobalStorage } from "./types/Global.sol";
+import { Position, PositionStorageGlobal, PositionStorageLocal } from "./types/Position.sol";
+import { Local, LocalStorage } from "./types/Local.sol";
+import { Version, VersionStorage } from "./types/Version.sol";
+import { Order, OrderLib, OrderStorageGlobal, OrderStorageLocal } from "./types/Order.sol";
+import { Guarantee, GuaranteeLib, GuaranteeStorageGlobal, GuaranteeStorageLocal } from "./types/Guarantee.sol";
+import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
+import { OracleVersion } from "./types/OracleVersion.sol";
+import { OracleReceipt } from "./types/OracleReceipt.sol";
+import { InvariantLib } from "./libs/InvariantLib.sol";
+import { MagicValueLib } from "./libs/MagicValueLib.sol";
+import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
+import { CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.

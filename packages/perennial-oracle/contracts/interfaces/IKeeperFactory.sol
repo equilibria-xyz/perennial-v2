@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/token/types/Token18.sol";
-import "@equilibria/root/attribute/interfaces/IFactory.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed18 } from "@equilibria/root/number/types/Fixed18.sol";
+import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import { IOracleProvider } from "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
+import { IOracleProviderFactory } from "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
 import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
-import "./IKeeperOracle.sol";
-import "./IOracleFactory.sol";
-import "./IPayoffProvider.sol";
+import { IKeeperOracle } from "./IKeeperOracle.sol";
+import { IOracleFactory } from "./IOracleFactory.sol";
+import { IPayoffProvider } from "./IPayoffProvider.sol";
 import { KeeperOracleParameter } from "../keeper/types/KeeperOracleParameter.sol";
 
 interface IKeeperFactory is IOracleProviderFactory, IFactory {
