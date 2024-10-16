@@ -1,22 +1,19 @@
 import { smock } from '@defi-wonderland/smock'
-import { use } from 'chai'
 import { CallOverrides } from 'ethers'
-import HRE from 'hardhat'
 
-import { ArbGasInfo } from '../../types/generated'
+import { OptGasInfo } from '../../types/generated'
 import {
   createFactoriesForChain,
-  deployControllerArbitrum,
+  deployControllerOptimism,
   fundWalletDSU,
   fundWalletUSDC,
   getStablecoins,
-} from '../helpers/arbitrumHelpers'
-import { createMarketBTC, createMarketETH } from '../helpers/setupHelpers'
-import { DeploymentVars, RunIncentivizedTests } from './Controller_Incentivized.test'
+} from '../helpers/baseHelpers'
+import { createMarketBTC, createMarketETH, DeploymentVars } from '../helpers/setupHelpers'
+import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Controller_Incentivized, IMarketFactory, IVerifier } from '../../types/generated'
-
-use(smock.matchers)
+import { Controller_Incentivized, IMarketFactory } from '../../types/generated'
+import { RunAccountTests } from './Account.test'
 
 async function deployProtocol(owner: SignerWithAddress, overrides?: CallOverrides): Promise<DeploymentVars> {
   const [oracleFactory, marketFactory, pythOracleFactory] = await createFactoriesForChain(owner)
@@ -54,19 +51,23 @@ async function deployProtocol(owner: SignerWithAddress, overrides?: CallOverride
 async function deployInstance(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
-  relayVerifier: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Incentivized> {
-  return deployControllerArbitrum(owner, marketFactory, relayVerifier, overrides)
+  return deployControllerOptimism(owner, marketFactory, overrides)
 }
 
 async function mockGasInfo() {
-  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-    address: '0x000000000000000000000000000000000000006C',
+  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
+    address: '0x420000000000000000000000000000000000000F',
   })
-  gasInfo.getL1BaseFeeEstimate.returns(0)
+  gasInfo.getL1GasUsed.returns(0)
+  gasInfo.getL1GasUsed.returns(0)
+  gasInfo.l1BaseFee.returns(0)
+  gasInfo.baseFeeScalar.returns(684000)
+  gasInfo.decimals.returns(6)
 }
 
-if (process.env.FORK_NETWORK === 'arbitrum')
-  RunIncentivizedTests('Controller_Arbitrum', deployProtocol, deployInstance, mockGasInfo)
+if (process.env.FORK_NETWORK === 'base') {
+  RunAccountTests(deployProtocol, deployInstance)
+  RunIncentivizedTests('Controller_Optimism', deployProtocol, deployInstance, mockGasInfo)
+}

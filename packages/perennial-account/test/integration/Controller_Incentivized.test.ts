@@ -19,7 +19,6 @@ import {
   IERC20Metadata,
   IMarket,
   IMarketFactory,
-  IVerifier,
 } from '../../types/generated'
 
 import {
@@ -33,7 +32,7 @@ import {
   signRelayedSignerUpdate,
   signWithdrawal,
 } from '../helpers/erc712'
-import { advanceToPrice } from '../helpers/setupHelpers'
+import { advanceToPrice, DeploymentVars } from '../helpers/setupHelpers'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,
@@ -42,8 +41,7 @@ import {
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { Verifier, Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
-import { IVerifier__factory } from '@equilibria/perennial-v2/types/generated'
-import { IKeeperOracle, IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -53,27 +51,12 @@ const DEFAULT_MAX_FEE = parse6decimal('0.5')
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxPriorityFeePerGas: 0, maxFeePerGas: 100_000_000 }
 
-export interface DeploymentVars {
-  dsu: IERC20Metadata
-  usdc: IERC20Metadata
-  oracleFactory: IOracleFactory
-  pythOracleFactory: PythFactory
-  marketFactory: IMarketFactory
-  ethMarket: IMarket
-  btcMarket: IMarket
-  ethKeeperOracle: IKeeperOracle
-  btcKeeperOracle: IKeeperOracle
-  fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
-  fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
-}
-
 export function RunIncentivizedTests(
   name: string,
   deployProtocol: (owner: SignerWithAddress, overrides?: CallOverrides) => Promise<DeploymentVars>,
   deployInstance: (
     owner: SignerWithAddress,
     marketFactory: IMarketFactory,
-    relayVerifier: IVerifier,
     overrides?: CallOverrides,
   ) => Promise<Controller_Incentivized>,
   mockGasInfo: () => Promise<void>,
@@ -195,9 +178,8 @@ export function RunIncentivizedTests(
     const fixture = async () => {
       // deploy the protocol
       ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
-      console.log('deployProtocol')
       deployment = await deployProtocol(owner, TX_OVERRIDES)
-      // TODO: consider replacing these 8 member variables with an instance of DeploymentVars
+      // TODO: eliminate infrequently used member variables
       dsu = deployment.dsu
       usdc = deployment.usdc
       marketFactory = deployment.marketFactory
@@ -206,7 +188,6 @@ export function RunIncentivizedTests(
       ethKeeperOracle = deployment.ethKeeperOracle
       btcKeeperOracle = deployment.btcKeeperOracle
 
-      console.log('set initial prices')
       await advanceToPrice(ethKeeperOracle, receiver, currentTime, parse6decimal('3113.7128'), TX_OVERRIDES)
       await advanceToPrice(btcKeeperOracle, receiver, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
 
@@ -231,10 +212,7 @@ export function RunIncentivizedTests(
         multiplierCalldata: ethers.utils.parseEther('1.05'),
         bufferCalldata: 35_200,
       }
-      const marketVerifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
-      controller = await deployInstance(owner, marketFactory, marketVerifier, {
-        maxFeePerGas: 100000000,
-      })
+      controller = await deployInstance(owner, marketFactory, { maxFeePerGas: 100000000 })
       accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address, {
         maxFeePerGas: 100000000,
       })
@@ -679,12 +657,12 @@ export function RunIncentivizedTests(
 
     describe('#withdrawal', async () => {
       let accountA: Account
-      let userBalanceBefore: BigNumber
+      let usdcBalanceBefore: BigNumber
 
       beforeEach(async () => {
         // deploy collateral account for userA
         accountA = await createCollateralAccount(userA, parse6decimal('17000'))
-        userBalanceBefore = await usdc.balanceOf(userA.address)
+        usdcBalanceBefore = await usdc.balanceOf(userA.address)
       })
 
       afterEach(async () => {
@@ -714,7 +692,7 @@ export function RunIncentivizedTests(
 
         // confirm userA withdrew their funds and keeper fee was paid from the collateral account
         expect(await usdc.balanceOf(accountA.address)).to.be.within(parse6decimal('9999'), parse6decimal('10000'))
-        expect(await usdc.balanceOf(userA.address)).to.equal(userBalanceBefore.add(withdrawalAmount))
+        expect(await usdc.balanceOf(userA.address)).to.equal(usdcBalanceBefore.add(withdrawalAmount))
       })
 
       it('collects fee for full withdrawal', async () => {
@@ -738,7 +716,10 @@ export function RunIncentivizedTests(
         expect(await usdc.balanceOf(accountA.address)).to.equal(0)
 
         // user should have their initial balance, plus what was in their collateral account, minus keeper fees
-        expect(await usdc.balanceOf(userA.address)).to.be.within(parse6decimal('49999'), parse6decimal('50000'))
+        expect((await usdc.balanceOf(userA.address)).sub(usdcBalanceBefore)).to.be.within(
+          parse6decimal('16999'),
+          parse6decimal('17000'),
+        )
       })
     })
 

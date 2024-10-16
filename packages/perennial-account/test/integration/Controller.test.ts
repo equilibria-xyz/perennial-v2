@@ -20,6 +20,7 @@ import {
 import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice, createMarketBTC, createMarketETH } from '../helpers/setupHelpers'
+// TODO: replace with chain-agnostic implementations
 import {
   createFactoriesForChain,
   deployAndInitializeController,
@@ -32,7 +33,7 @@ const { ethers } = HRE
 // hack around intermittent issues estimating gas
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
 
-describe.skip('ControllerBase', () => {
+describe('ControllerBase', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller
@@ -541,6 +542,11 @@ describe.skip('ControllerBase', () => {
   })
 
   describe('#withdrawal', () => {
+    let usdcBalanceBefore: BigNumber
+    beforeEach(async () => {
+      usdcBalanceBefore = await usdc.balanceOf(userA.address)
+    })
+
     it('can unwrap and partially withdraw funds from a signed message', async () => {
       // sign message to perform a partial withdrawal
       const withdrawalAmount = parse6decimal('6000')
@@ -557,7 +563,7 @@ describe.skip('ControllerBase', () => {
         .withArgs(accountA.address, userA.address, withdrawalAmount)
 
       // ensure owner was credited the USDC and account's DSU was debited
-      expect(await usdc.balanceOf(userA.address)).to.equal(withdrawalAmount)
+      expect((await usdc.balanceOf(userA.address)).sub(usdcBalanceBefore)).to.equal(withdrawalAmount)
       expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('9000')) // 15k-9k
       expect(await usdc.balanceOf(accountA.address)).to.equal(0) // no USDC was deposited
     })
@@ -578,7 +584,7 @@ describe.skip('ControllerBase', () => {
       await expect(controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature)).to.not.be.reverted
 
       // ensure owner was credit all the USDC and account is empty
-      expect(await usdc.balanceOf(userA.address)).to.equal(parse6decimal('15000'))
+      expect((await usdc.balanceOf(userA.address)).sub(usdcBalanceBefore)).to.equal(parse6decimal('15000'))
       expect(await dsu.balanceOf(accountA.address)).to.equal(0) // all DSU was withdrawan
       expect(await usdc.balanceOf(accountA.address)).to.equal(0) // no USDC was deposited
     })

@@ -49,9 +49,25 @@ import {
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
+import { pyth } from '@equilibria/perennial-v2-oracle/types/generated/contracts'
+import { expect } from 'chai'
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
+
+export interface DeploymentVars {
+  dsu: IERC20Metadata
+  usdc: IERC20Metadata
+  oracleFactory: IOracleFactory
+  pythOracleFactory: PythFactory
+  marketFactory: IMarketFactory
+  ethMarket: IMarket
+  btcMarket: IMarket
+  ethKeeperOracle: IKeeperOracle
+  btcKeeperOracle: IKeeperOracle
+  fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
+  fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
+}
 
 // Simulates an oracle update from KeeperOracle.
 // If timestamp matches a requested version, callbacks implicitly settle the market.
@@ -124,7 +140,8 @@ export async function createFactories(
     settlementGasOracle.address,
     keeperOracleImpl.address,
   )
-  await pythOracleFactory.initialize(oracleFactory.address)
+  await pythOracleFactory.connect(owner).initialize(oracleFactory.address)
+  expect(await pythOracleFactory.owner()).to.equal(owner.address)
   await pythOracleFactory.updateParameter(1, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
 
@@ -214,7 +231,6 @@ export async function createMarketETH(
   overrides?: CallOverrides,
 ): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
   // Create oracles needed to support the market
-  console.log('createPythOracle')
   const [keeperOracle, oracle] = await createPythOracle(
     owner,
     oracleFactory,
@@ -224,11 +240,8 @@ export async function createMarketETH(
     overrides,
   )
   // Create the market in which user or collateral account may interact
-  console.log('createMarket')
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
-  console.log('keeperOracle.register')
   await keeperOracle.register(oracle.address)
-  console.log('oracle.register')
   await oracle.register(market.address)
   return [market, oracle, keeperOracle]
 }
@@ -274,7 +287,6 @@ export async function createPythOracle(
     }),
     owner,
   )
-  console.log('creating pythOracle using pythOracleFactory at', pythOracleFactory.address)
   await pythOracleFactory.create(
     pythFeedId,
     pythFeedId,
@@ -283,7 +295,6 @@ export async function createPythOracle(
   )
 
   // Create the oracle, which markets created by the market factory will query
-  console.log('connecting to oracle', name)
   const oracle = Oracle__factory.connect(
     await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address, name),
     owner,

@@ -14,7 +14,7 @@
     "gasReport": "REPORT_GAS=true OPTIMIZER_ENABLED=true yarn test:integration",
     "test": "hardhat test test/unit/*",
     "test:integration": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_BLOCK_NUMBER=233560862 hardhat test test/integration/*",
-    "test:integrationBase": "FORK_ENABLED=true FORK_NETWORK=base FORK_BLOCK_NUMBER=21067741 NODE_INTERVAL_MINING=250 hardhat test test/integration/*",
+    "test:integrationBase": "FORK_ENABLED=true FORK_NETWORK=base FORK_BLOCK_NUMBER=21067741 hardhat test test/integration/*",
     "coverage": "hardhat coverage --testfiles 'test/unit/*'",
     "coverage:integration": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_BLOCK_NUMBER=233560862 hardhat coverage --testfiles 'test/integration/*'",
     "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",

@@ -14,7 +14,6 @@ import {
   IMarketFactory,
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
-import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
@@ -50,7 +49,6 @@ export async function deployAndInitializeController(
 export async function deployControllerArbitrum(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
-  nonceManager: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
   const accountImpl = await new Account__factory(owner).deploy(USDC_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
@@ -58,7 +56,7 @@ export async function deployControllerArbitrum(
   const controller = await new Controller_Arbitrum__factory(owner).deploy(
     accountImpl.address,
     marketFactory.address,
-    nonceManager.address,
+    await marketFactory.verifier(),
     overrides ?? {},
   )
   return controller
@@ -92,14 +90,4 @@ export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20M
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
   return [dsu, usdc]
-}
-
-export async function returnUSDC(wallet: SignerWithAddress): Promise<undefined> {
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, wallet)
-  await usdc.transfer(USDC_HOLDER, await usdc.balanceOf(wallet.address))
-}
-
-export async function returnDSU(wallet: SignerWithAddress): Promise<undefined> {
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, wallet)
-  await dsu.transfer(DSU_HOLDER, await dsu.balanceOf(wallet.address))
 }

@@ -15,7 +15,6 @@ import {
   IMarketFactory,
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
-import { IVerifier } from '@equilibria/perennial-v2/types/generated'
 
 const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
 const CHAINLINK_ETH_USD_FEED = '0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1' // TODO: confirm interface is same
@@ -56,7 +55,6 @@ export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20M
 export async function deployControllerOptimism(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
-  nonceManager: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Optimism> {
   const accountImpl = await new Account__factory(owner).deploy(USDC_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
@@ -64,7 +62,7 @@ export async function deployControllerOptimism(
   const controller = await new Controller_Optimism__factory(owner).deploy(
     accountImpl.address,
     marketFactory.address,
-    nonceManager.address,
+    await marketFactory.verifier(),
     overrides ?? {},
   )
   return controller
