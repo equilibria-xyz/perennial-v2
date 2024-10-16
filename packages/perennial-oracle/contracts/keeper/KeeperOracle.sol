@@ -19,12 +19,6 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @dev The oracle provider authorized to call this sub oracle
     IOracle public oracle;
 
-    /// @dev The gas oracles for pricing a commit keeper reward
-    IGasOracle public immutable commitmentGasOracle;
-
-    /// @dev The gas oracles for pricing a settle keeper reward
-    IGasOracle public immutable settlementGasOracle;
-
     /// @dev After this amount of time has passed for a version without being committed, the version can be invalidated.
     uint256 public immutable timeout;
 
