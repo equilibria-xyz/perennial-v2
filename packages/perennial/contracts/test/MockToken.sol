@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {Intent} from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
-
-import "../interfaces/IMarket.sol";
+import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { Intent } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
+import { IMarket } from "../interfaces/IMarket.sol";
 
 contract MockToken is ERC20 {
 
-    enum Function{SETTLE, UPDATE, UPDATE_MAKER, UPDATE_INTENT}
+    enum Function{ SETTLE, UPDATE, UPDATE_MAKER, UPDATE_INTENT }
 
     Function private functionToCall;
 
@@ -26,6 +27,8 @@ contract MockToken is ERC20 {
         } else if (functionToCall == Function.SETTLE){
             IMarket(msg.sender).settle(address(0));
         }
+
+        return true;
     }
 
     function setFunctionToCall(Function _functionToCall) external {

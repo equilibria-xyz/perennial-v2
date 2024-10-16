@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Order, OrderStorageGlobal, OrderStorageLocal } from "../types/Order.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { Position } from "../types/Position.sol";
