@@ -13,13 +13,14 @@ use(smock.matchers)
 
 export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   maxFee: 3,
-  maxFeeAbsolute: 4,
+  maxLiquidationFee: 4,
   maxCut: 5,
   maxRate: 6,
   minMaintenance: 7,
   minEfficiency: 8,
   referralFee: 9,
   minScale: 10,
+  maxStaleAfter: 11,
 }
 
 describe('ProtocolParameter', () => {
@@ -39,13 +40,14 @@ describe('ProtocolParameter', () => {
 
       const value = await protocolParameter.read()
       expect(value.maxFee).to.equal(3)
-      expect(value.maxFeeAbsolute).to.equal(4)
+      expect(value.maxLiquidationFee).to.equal(4)
       expect(value.maxCut).to.equal(5)
       expect(value.maxRate).to.equal(6)
       expect(value.minMaintenance).to.equal(7)
       expect(value.minEfficiency).to.equal(8)
       expect(value.referralFee).to.equal(9)
       expect(value.minScale).to.equal(10)
+      expect(value.maxStaleAfter).to.equal(11)
     })
 
     context('.maxFee', async () => {
@@ -69,22 +71,22 @@ describe('ProtocolParameter', () => {
       })
     })
 
-    context('.maxFeeAbsolute', async () => {
-      const STORAGE_SIZE = 48
+    context('.maxLiquidationFee', async () => {
+      const STORAGE_SIZE = 32
       it('saves if in range', async () => {
         await protocolParameter.validateAndStore({
           ...VALID_PROTOCOL_PARAMETER,
-          maxFeeAbsolute: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          maxLiquidationFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await protocolParameter.read()
-        expect(value.maxFeeAbsolute).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxLiquidationFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
         await expect(
           protocolParameter.validateAndStore({
             ...VALID_PROTOCOL_PARAMETER,
-            maxFeeAbsolute: BigNumber.from(2).pow(STORAGE_SIZE),
+            maxLiquidationFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })
@@ -208,6 +210,27 @@ describe('ProtocolParameter', () => {
           protocolParameter.validateAndStore({
             ...VALID_PROTOCOL_PARAMETER,
             minScale: parse6decimal('1').add(1),
+          }),
+        ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
+      })
+    })
+
+    context('.maxStaleAfter', async () => {
+      const STORAGE_SIZE = 24
+      it('saves if in range', async () => {
+        await protocolParameter.validateAndStore({
+          ...VALID_PROTOCOL_PARAMETER,
+          maxStaleAfter: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await protocolParameter.read()
+        expect(value.maxStaleAfter).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          protocolParameter.validateAndStore({
+            ...VALID_PROTOCOL_PARAMETER,
+            maxStaleAfter: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })

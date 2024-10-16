@@ -30,9 +30,9 @@ const MAX_FEE = utils.parseEther('3.8')
 
 const KEEP_CONFIG = {
   multiplierBase: 0,
-  bufferBase: 1_000_000,
+  bufferBase: 0,
   multiplierCalldata: 0,
-  bufferCalldata: 500_000,
+  bufferCalldata: 0,
 }
 
 const MAKER_ORDER = {
@@ -78,7 +78,7 @@ describe('Manager', () => {
     reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
-    verifier = await new OrderVerifier__factory(owner).deploy()
+    verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
 
     // deploy the order manager
     manager = await new Manager_Arbitrum__factory(owner).deploy(
@@ -110,7 +110,8 @@ describe('Manager', () => {
       updatedAt: 0,
       answeredInRound: 0,
     })
-    await manager.initialize(ethOracle.address, KEEP_CONFIG)
+    // no need for meaningful keep configs, as keeper compensation is not tested here
+    await manager.initialize(ethOracle.address, KEEP_CONFIG, KEEP_CONFIG)
   }
 
   before(async () => {
@@ -165,6 +166,42 @@ describe('Manager', () => {
 
       const order = await manager.orders(market.address, userA.address, nextOrderId)
       compareOrders(order, replacement)
+    })
+
+    it('prevents user from replacing with an empty order', async () => {
+      // submit the original order
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+
+      // user cannot overwrite an order with an empty order (should use cancelOrder instead)
+      const replacement = {
+        ...DEFAULT_TRIGGER_ORDER,
+        side: 0,
+        comparison: 0,
+        price: 0,
+        delta: 0,
+        maxFee: MAX_FEE,
+      }
+      await expect(
+        manager.connect(userA).placeOrder(market.address, nextOrderId, replacement),
+      ).to.be.revertedWithCustomError(manager, 'TriggerOrderInvalidError')
+    })
+
+    it('prevents user from reducing maxFee', async () => {
+      // submit the original order
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+
+      // user cannot reduce maxFee
+      const replacement = { ...MAKER_ORDER }
+      replacement.maxFee = MAKER_ORDER.maxFee.sub(1)
+      await expect(
+        manager.connect(userA).placeOrder(market.address, nextOrderId, replacement),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotReduceMaxFee')
+
+      // user cannot zero maxFee
+      replacement.maxFee = constants.Zero
+      await expect(
+        manager.connect(userA).placeOrder(market.address, nextOrderId, replacement),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotReduceMaxFee')
     })
 
     it('keeper can execute orders', async () => {

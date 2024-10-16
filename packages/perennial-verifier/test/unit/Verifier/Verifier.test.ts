@@ -6,7 +6,7 @@ import { time } from '@nomicfoundation/hardhat-network-helpers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { Verifier, Verifier__factory, IERC1271 } from '../../../types/generated'
+import { Verifier, Verifier__factory, IERC1271, IMarketFactorySigners } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import {
   signIntent,
@@ -27,13 +27,18 @@ describe('Verifier', () => {
   let signer: SignerWithAddress
   let operator: SignerWithAddress
   let verifier: Verifier
+  let marketFactory: FakeContract<IMarketFactorySigners>
   let scSigner: FakeContract<IERC1271>
 
   beforeEach(async () => {
     ;[owner, market, caller, caller2, signer, operator] = await ethers.getSigners()
 
+    marketFactory = await smock.fake<IMarketFactorySigners>('IMarketFactorySigners')
     verifier = await new Verifier__factory(owner).deploy()
+    verifier.initialize(marketFactory.address)
     scSigner = await smock.fake<IERC1271>('IERC1271')
+
+    marketFactory.signers.whenCalledWith(caller.address, scSigner.address).returns(true)
   })
 
   describe('#verifyCommon', () => {
@@ -54,6 +59,25 @@ describe('Verifier', () => {
         .withArgs(caller.address, 0)
 
       expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject common w/ invalid signer or operator', async () => {
+      const commonMessage = {
+        account: caller.address,
+        signer: caller2.address,
+        domain: caller2.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      }
+      const signature = await signCommon(caller2, verifier, commonMessage)
+
+      await expect(verifier.connect(caller2).verifyCommon(commonMessage, signature)).to.be.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
     })
   })
 
