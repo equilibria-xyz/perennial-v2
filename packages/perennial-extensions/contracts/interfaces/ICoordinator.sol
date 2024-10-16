@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import { RiskParameter } from "@equilibria/perennial-v2/contracts/types/RiskParameter.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { RiskParameter } from "@perennial/core/contracts/types/RiskParameter.sol";
 
 interface ICoordinator {
     function setComptroller(address comptroller) external;
+
     function setCoordinator(address coordinator) external;
+
     function claimFee(IMarket market) external;
+
     function updateRiskParameter(IMarket market, RiskParameter calldata riskParameter) external;
 
     event ComptrollerSet(address comptroller);

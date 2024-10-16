@@ -3,35 +3,33 @@ pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
-import { OracleReceipt } from "@equilibria/perennial-v2/contracts/types/OracleReceipt.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { OracleReceipt } from "@perennial/core/contracts/types/OracleReceipt.sol";
 
 struct PriceResponse {
     /// @dev The oracle price of the corresponding version
     Fixed6 price;
-
     /// @dev the synchronous portion of the fixed settlement fee of the request delivered on commit
     UFixed6 syncFee;
-
     /// @dev the asynchronous portion of the fixed settlement fee of the request delivered on settlement callback
     UFixed6 asyncFee;
-
     /// @dev The relative oracle fee percentage of the request
     UFixed6 oracleFee;
-
     /// @dev Whether the version is valid
     bool valid;
 }
 using PriceResponseLib for PriceResponse global;
 struct StoredPriceResponse {
     /* slot 0 */
-    int64 price;            // <= 18t
-    uint48 syncFee;         // <= 281m
-    uint48 asyncFee;        // <= 281m
-    uint24 oracleFee;       // <= 100%
+    int64 price; // <= 18t
+    uint48 syncFee; // <= 281m
+    uint48 asyncFee; // <= 281m
+    uint24 oracleFee; // <= 100%
     bool valid;
 }
-struct PriceResponseStorage { StoredPriceResponse value; }
+struct PriceResponseStorage {
+    StoredPriceResponse value;
+}
 using PriceResponseStorageLib for PriceResponseStorage global;
 
 /// @title PriceResponseLib
@@ -42,14 +40,18 @@ library PriceResponseLib {
     /// @param oracleVersion The oracle version object
     /// @return The corresponding price response
     function fromUnrequested(OracleVersion memory oracleVersion) internal pure returns (PriceResponse memory) {
-        return PriceResponse(oracleVersion.price, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, oracleVersion.valid);
+        return
+            PriceResponse(oracleVersion.price, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, oracleVersion.valid);
     }
 
     /// @notice Returns an oracle version based on the price snapshot and timestamp
     /// @param self The price response object
     /// @param timestamp The timestamp of the price snapshot
     /// @return The corresponding oracle version
-    function toOracleVersion(PriceResponse memory self, uint256 timestamp) internal pure returns (OracleVersion memory) {
+    function toOracleVersion(
+        PriceResponse memory self,
+        uint256 timestamp
+    ) internal pure returns (OracleVersion memory) {
         return OracleVersion(timestamp, self.price, self.valid);
     }
 
@@ -57,7 +59,10 @@ library PriceResponseLib {
     /// @param self The price response object
     /// @param callbacks The number of settlement callbacks to be made
     /// @return The corresponding oracle receipt
-    function toOracleReceipt(PriceResponse memory self, uint256 callbacks) internal pure returns (OracleReceipt memory) {
+    function toOracleReceipt(
+        PriceResponse memory self,
+        uint256 callbacks
+    ) internal pure returns (OracleReceipt memory) {
         return OracleReceipt(self.syncFee.add(self.asyncFee.mul(UFixed6Lib.from(callbacks))), self.oracleFee);
     }
 }
@@ -69,13 +74,14 @@ library PriceResponseStorageLib {
 
     function read(PriceResponseStorage storage self) internal view returns (PriceResponse memory) {
         StoredPriceResponse memory storedValue = self.value;
-        return PriceResponse(
-            Fixed6.wrap(int256(storedValue.price)),
-            UFixed6.wrap(uint256(storedValue.syncFee)),
-            UFixed6.wrap(uint256(storedValue.asyncFee)),
-            UFixed6.wrap(uint256(storedValue.oracleFee)),
-            storedValue.valid
-        );
+        return
+            PriceResponse(
+                Fixed6.wrap(int256(storedValue.price)),
+                UFixed6.wrap(uint256(storedValue.syncFee)),
+                UFixed6.wrap(uint256(storedValue.asyncFee)),
+                UFixed6.wrap(uint256(storedValue.oracleFee)),
+                storedValue.valid
+            );
     }
 
     function store(PriceResponseStorage storage self, PriceResponse memory newValue) internal {

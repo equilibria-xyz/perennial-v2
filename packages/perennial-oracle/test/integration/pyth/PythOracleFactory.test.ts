@@ -259,37 +259,37 @@ testOracles.forEach(testOracle => {
 
       const marketImpl = await new Market__factory(
         {
-          '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
+          '@perennial/core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
             await new CheckpointLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/libs/InvariantLib.sol:InvariantLib': (
+          '@perennial/core/contracts/libs/InvariantLib.sol:InvariantLib': (
             await new InvariantLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/libs/VersionLib.sol:VersionLib': (
+          '@perennial/core/contracts/libs/VersionLib.sol:VersionLib': (
             await new VersionLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+          '@perennial/core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
             await new CheckpointStorageLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/types/Global.sol:GlobalStorageLib': (
+          '@perennial/core/contracts/types/Global.sol:GlobalStorageLib': (
             await new GlobalStorageLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+          '@perennial/core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
             await new MarketParameterStorageLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageGlobalLib': (
+          '@perennial/core/contracts/types/Position.sol:PositionStorageGlobalLib': (
             await new PositionStorageGlobalLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageLocalLib': (
+          '@perennial/core/contracts/types/Position.sol:PositionStorageLocalLib': (
             await new PositionStorageLocalLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+          '@perennial/core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
             await new RiskParameterStorageLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/types/Version.sol:VersionStorageLib': (
+          '@perennial/core/contracts/types/Version.sol:VersionStorageLib': (
             await new VersionStorageLib__factory(owner).deploy()
           ).address,
-          '@equilibria/perennial-v2/contracts/libs/MagicValueLib.sol:MagicValueLib': (
+          '@perennial/core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
             await new MagicValueLib__factory(owner).deploy()
           ).address,
         },

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
 import { Action, ActionLib } from "./Action.sol";
 
 /// @notice Request to cancel a persisted ("placed") order
@@ -19,11 +19,12 @@ using CancelOrderActionLib for CancelOrderAction global;
 /// @notice Library used to hash requests to cancel an existing order
 library CancelOrderActionLib {
     /// @dev Used to verify a signed message
-    bytes32 constant public STRUCT_HASH = keccak256(
-        "CancelOrderAction(Action action)"
-        "Action(address market,uint256 orderId,uint256 maxFee,Common common)"
-        "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
-    );
+    bytes32 public constant STRUCT_HASH =
+        keccak256(
+            "CancelOrderAction(Action action)"
+            "Action(address market,uint256 orderId,uint256 maxFee,Common common)"
+            "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
+        );
 
     /// @dev Used to create a signed message
     function hash(CancelOrderAction memory self) internal pure returns (bytes32) {

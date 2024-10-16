@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
 
 import { CancelOrderAction } from "../types/CancelOrderAction.sol";
 import { InterfaceFee } from "../types/InterfaceFee.sol";
@@ -14,12 +14,7 @@ interface IManager {
     /// @param account Actor who wants to change their position in the market
     /// @param order Desired change in position and conditions upon which change may be made
     /// @param orderId Client-supplied order identifier, unique to client
-    event TriggerOrderPlaced(
-        IMarket indexed market,
-        address indexed account,
-        TriggerOrder order,
-        uint256 orderId
-    );
+    event TriggerOrderPlaced(IMarket indexed market, address indexed account, TriggerOrder order, uint256 orderId);
 
     /// @notice Emitted when an order has been cancelled
     /// @param market Perennial market for which the order was intended

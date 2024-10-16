@@ -2,16 +2,16 @@
 pragma solidity 0.8.24;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IVerifier } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
+import { IVerifier } from "@perennial/verifier/contracts/interfaces/IVerifier.sol";
 import { Factory, IFactory } from "@equilibria/root/attribute/Factory.sol";
 import { IInstance } from "@equilibria/root/attribute/Instance.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
 import { IOracleProvider } from "./interfaces/IOracleProvider.sol";
 import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
-import { OperatorUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
-import { SignerUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
-import { AccessUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdate.sol";
-import { AccessUpdateBatch } from "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdateBatch.sol";
+import { OperatorUpdate } from "@perennial/verifier/contracts/types/OperatorUpdate.sol";
+import { SignerUpdate } from "@perennial/verifier/contracts/types/SignerUpdate.sol";
+import { AccessUpdate } from "@perennial/verifier/contracts/types/AccessUpdate.sol";
+import { AccessUpdateBatch } from "@perennial/verifier/contracts/types/AccessUpdateBatch.sol";
 import { ProtocolParameter, ProtocolParameterStorage } from "./types/ProtocolParameter.sol";
 
 /// @title MarketFactory
@@ -177,7 +177,8 @@ contract MarketFactory is IMarketFactory, Factory {
         bytes calldata signature
     ) external {
         verifier.verifyAccessUpdateBatch(accessUpdateBatch, signature);
-        if (accessUpdateBatch.common.signer != accessUpdateBatch.common.account) revert MarketFactoryInvalidSignerError();
+        if (accessUpdateBatch.common.signer != accessUpdateBatch.common.account)
+            revert MarketFactoryInvalidSignerError();
 
         _updateAccessBatch(accessUpdateBatch.common.account, accessUpdateBatch.operators, accessUpdateBatch.signers);
     }
@@ -215,8 +216,7 @@ contract MarketFactory is IMarketFactory, Factory {
         if (!oracleFactory.instances(IInstance(address(definition.oracle)))) revert FactoryInvalidOracleError();
 
         // verify invariants
-        if (_markets[definition.oracle][address(0)] != IMarket(address(0)))
-            revert FactoryAlreadyRegisteredError();
+        if (_markets[definition.oracle][address(0)] != IMarket(address(0))) revert FactoryAlreadyRegisteredError();
 
         // create and register market
         newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition)))));

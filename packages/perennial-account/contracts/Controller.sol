@@ -8,7 +8,7 @@ import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
+import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
 import { IAccountVerifier, IController } from "./interfaces/IController.sol";
@@ -66,9 +66,7 @@ contract Controller is Factory, IController {
     }
 
     /// @inheritdoc IController
-    function initialize(
-        IAccountVerifier verifier_
-    ) external initializer(1) {
+    function initialize(IAccountVerifier verifier_) external initializer(1) {
         __Factory__initialize();
         verifier = verifier_;
     }
@@ -83,16 +81,15 @@ contract Controller is Factory, IController {
     function changeRebalanceConfigWithSignature(
         RebalanceConfigChange calldata configChange,
         bytes calldata signature
-    ) virtual external {
+    ) external virtual {
         _changeRebalanceConfigWithSignature(configChange, signature);
     }
 
     /// @inheritdoc IController
-    function checkGroup(address owner, uint256 group) public view returns (
-        Fixed6 groupCollateral,
-        bool canRebalance,
-        Fixed6[] memory imbalances
-    ) {
+    function checkGroup(
+        address owner,
+        uint256 group
+    ) public view returns (Fixed6 groupCollateral, bool canRebalance, Fixed6[] memory imbalances) {
         // query owner's collateral in each market and calculate sum
         Fixed6[] memory actualCollateral;
         (actualCollateral, groupCollateral) = _queryMarketCollateral(owner, group);
@@ -102,13 +99,12 @@ contract Controller is Factory, IController {
         for (uint256 i; i < actualCollateral.length; i++) {
             IMarket market = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketRebalanceConfig = _rebalanceConfigs[owner][group][address(market)];
-            (bool canMarketRebalance, Fixed6 imbalance) =
-                RebalanceLib.checkMarket(
-                    marketRebalanceConfig,
-                    groupToMaxRebalanceFee[owner][group],
-                    groupCollateral,
-                    actualCollateral[i]
-                );
+            (bool canMarketRebalance, Fixed6 imbalance) = RebalanceLib.checkMarket(
+                marketRebalanceConfig,
+                groupToMaxRebalanceFee[owner][group],
+                groupCollateral,
+                actualCollateral[i]
+            );
             imbalances[i] = imbalance;
             canRebalance = canRebalance || canMarketRebalance;
         }
@@ -125,7 +121,7 @@ contract Controller is Factory, IController {
     function deployAccountWithSignature(
         DeployAccount calldata deployAccountAction,
         bytes calldata signature
-    ) virtual external {
+    ) external virtual {
         _deployAccountWithSignature(deployAccountAction, signature);
     }
 
@@ -133,7 +129,7 @@ contract Controller is Factory, IController {
     function marketTransferWithSignature(
         MarketTransfer calldata marketTransfer,
         bytes calldata signature
-    ) virtual external {
+    ) external virtual {
         IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
         _marketTransferWithSignature(account, marketTransfer, signature);
     }
@@ -148,25 +144,25 @@ contract Controller is Factory, IController {
     }
 
     /// @inheritdoc IController
-    function rebalanceGroupMarkets(
-        address owner,
-        uint256 group
-    ) external view returns (IMarket[] memory markets) {
+    function rebalanceGroupMarkets(address owner, uint256 group) external view returns (IMarket[] memory markets) {
         markets = groupToMarkets[owner][group];
     }
 
     /// @inheritdoc IController
-    function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) virtual external {
+    function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) external virtual {
         IAccount account = IAccount(getAccountAddress(withdrawal.action.common.account));
         _withdrawWithSignature(account, withdrawal, signature);
     }
 
     /// @inheritdoc IController
-    function rebalanceGroup(address owner, uint256 group) virtual external {
+    function rebalanceGroup(address owner, uint256 group) external virtual {
         _rebalanceGroup(owner, group);
     }
 
-    function _changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature) internal {
+    function _changeRebalanceConfigWithSignature(
+        RebalanceConfigChange calldata configChange,
+        bytes calldata signature
+    ) internal {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRebalanceConfigChange(configChange, signature);
         // sum of the target allocations of all markets in the group
@@ -241,10 +237,10 @@ contract Controller is Factory, IController {
     }
 
     /// @dev checks current collateral for each market in a group and aggregates collateral for the group
-    function _queryMarketCollateral(address owner, uint256 group) private view returns (
-        Fixed6[] memory actualCollateral,
-        Fixed6 groupCollateral
-    ) {
+    function _queryMarketCollateral(
+        address owner,
+        uint256 group
+    ) private view returns (Fixed6[] memory actualCollateral, Fixed6 groupCollateral) {
         actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
         for (uint256 i; i < actualCollateral.length; i++) {
             Fixed6 collateral = groupToMarkets[owner][group][i].locals(owner).collateral;
@@ -255,23 +251,17 @@ contract Controller is Factory, IController {
 
     /// @dev settles each market in a rebalancing group
     function _settleMarkets(address owner, uint256 group) private {
-        for (uint256 i; i < groupToMarkets[owner][group].length; i++)
-            groupToMarkets[owner][group][i].settle(owner);
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++) groupToMarkets[owner][group][i].settle(owner);
     }
 
     /// @dev overwrites rebalance configuration of all markets for a particular owner and group
     /// @param message already-verified message with new configuration
     /// @param owner identifies the owner of the collateral account
-    function _updateRebalanceGroup(
-        RebalanceConfigChange calldata message,
-        address owner
-    ) private {
+    function _updateRebalanceGroup(RebalanceConfigChange calldata message, address owner) private {
         // ensure group index is valid
-        if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER)
-            revert ControllerInvalidRebalanceGroupError();
+        if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER) revert ControllerInvalidRebalanceGroupError();
 
-        if (message.markets.length > MAX_MARKETS_PER_GROUP)
-            revert ControllerInvalidRebalanceMarketsError();
+        if (message.markets.length > MAX_MARKETS_PER_GROUP) revert ControllerInvalidRebalanceMarketsError();
 
         // delete the existing group
         for (uint256 i; i < groupToMarkets[owner][message.group].length; i++) {

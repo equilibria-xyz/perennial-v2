@@ -4,8 +4,8 @@ pragma solidity ^0.8.13;
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed18 } from "@equilibria/root/number/types/Fixed18.sol";
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
-import { IOracleProvider } from "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
-import { IOracleProviderFactory } from "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
+import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import { IOracleProviderFactory } from "@perennial/core/contracts/interfaces/IOracleProviderFactory.sol";
 import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
 import { IKeeperOracle } from "./IKeeperOracle.sol";
 import { IOracleFactory } from "./IOracleFactory.sol";
@@ -46,18 +46,41 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory {
     error KeeperFactoryVersionOutsideRangeError();
 
     function initialize(IOracleFactory oracleFactory) external;
+
     function factoryType() external view returns (string memory);
+
     function commitmentGasOracle() external view returns (IGasOracle);
+
     function settlementGasOracle() external view returns (IGasOracle);
+
     function updateId(IOracleProvider oracleProvider, bytes32 oracleId) external;
+
     function register(IPayoffProvider payoff) external;
+
     function toUnderlyingId(bytes32 oracleId) external view returns (bytes32);
+
     function toUnderlyingPayoff(bytes32 oracleId) external view returns (PayoffDefinition memory payoff);
+
     function fromUnderlying(bytes32 underlyingId, IPayoffProvider payoff) external view returns (bytes32);
-    function create(bytes32 oracleId, bytes32 underlyingId, PayoffDefinition memory payoff) external returns (IKeeperOracle oracle);
+
+    function create(
+        bytes32 oracleId,
+        bytes32 underlyingId,
+        PayoffDefinition memory payoff
+    ) external returns (IKeeperOracle oracle);
+
     function current() external view returns (uint256);
+
     function parameter() external view returns (KeeperOracleParameter memory);
-    function updateParameter(uint256 newGranularity, UFixed6 newOracleFee, uint256 newValidFrom, uint256 newValidTo) external;
+
+    function updateParameter(
+        uint256 newGranularity,
+        UFixed6 newOracleFee,
+        uint256 newValidFrom,
+        uint256 newValidTo
+    ) external;
+
     function commit(bytes32[] memory oracleIds, uint256 version, bytes calldata data) external payable;
+
     function settle(bytes32[] memory oracleIds, uint256[] memory versions, uint256[] memory maxCounts) external;
 }

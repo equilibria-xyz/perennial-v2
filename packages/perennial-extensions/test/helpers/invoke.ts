@@ -3,10 +3,10 @@ import { IMultiInvoker } from '../../types/generated'
 import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
-import { IntentStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/Market'
+import { IntentStruct } from '../../types/generated/@perennial/core/contracts/Market'
 import { signIntent } from '../../../perennial-verifier/test/helpers/erc712'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IVerifier } from '@equilibria/perennial-v2/types/generated'
+import { IVerifier } from '@perennial/core/types/generated'
 import { sign } from 'crypto'
 
 export const MAX_INT = ethers.constants.MaxInt256

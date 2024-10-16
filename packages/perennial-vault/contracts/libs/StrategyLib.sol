@@ -3,61 +3,47 @@ pragma solidity ^0.8.13;
 
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { MarketParameter } from "@equilibria/perennial-v2/contracts/types/MarketParameter.sol";
-import { RiskParameter } from "@equilibria/perennial-v2/contracts/types/RiskParameter.sol";
-import { Local } from "@equilibria/perennial-v2/contracts/types/Local.sol";
-import { Global } from "@equilibria/perennial-v2/contracts/types/Global.sol";
-import { Position, PositionLib } from "@equilibria/perennial-v2/contracts/types/Position.sol";
-import { Order } from "@equilibria/perennial-v2/contracts/types/Order.sol";
-import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { MarketParameter } from "@perennial/core/contracts/types/MarketParameter.sol";
+import { RiskParameter } from "@perennial/core/contracts/types/RiskParameter.sol";
+import { Local } from "@perennial/core/contracts/types/Local.sol";
+import { Global } from "@perennial/core/contracts/types/Global.sol";
+import { Position, PositionLib } from "@perennial/core/contracts/types/Position.sol";
+import { Order } from "@perennial/core/contracts/types/Order.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
 import { Registration } from "../types/Registration.sol";
 
 /// @dev The context of an underlying market
 struct MarketStrategyContext {
     /// @dev Registration of the market
     Registration registration;
-
     /// @dev The market parameter set
     MarketParameter marketParameter;
-
     /// @dev The risk parameter set
     RiskParameter riskParameter;
-
     /// @dev The local state of the vault
     Local local;
-
     /// @dev The vault's current account position
     Position currentAccountPosition;
-
     /// @dev The vault's latest account position
     Position latestAccountPosition;
-
     /// @dev The current global position
     Position currentPosition;
-
     /// @dev The latest valid price
     Fixed6 latestPrice;
-
     /// @dev The margin requirement of the vault
     UFixed6 margin;
-
     /// @dev The current closable amount of the vault
     UFixed6 closable;
-
     // @dev minimum position size before crossing the net position
     UFixed6 minPosition;
-
     // @dev maximum position size before crossing the maker limit
     UFixed6 maxPosition;
 }
 
 struct Strategy {
     UFixed6 totalMargin;
-
     Fixed6 totalCollateral;
-
     UFixed6 minAssets;
-
     MarketStrategyContext[] marketContexts;
 }
 using StrategyLib for Strategy global;
@@ -78,7 +64,6 @@ library StrategyLib {
     struct MarketTarget {
         /// @dev The amount of change in collateral
         Fixed6 collateral;
-
         /// @dev The new position
         UFixed6 position;
     }
@@ -93,9 +78,11 @@ library StrategyLib {
             strategy.totalMargin = strategy.totalMargin.add(strategy.marketContexts[marketId].margin);
             strategy.totalCollateral = strategy.totalCollateral.add(strategy.marketContexts[marketId].local.collateral);
             strategy.minAssets = strategy.minAssets.max(
-                (registrations[marketId].leverage.isZero() || registrations[marketId].weight.isZero()) ?
-                    UFixed6Lib.ZERO : // skip if no leverage or weight
-                    strategy.marketContexts[marketId].minPosition
+                (registrations[marketId].leverage.isZero() || registrations[marketId].weight.isZero())
+                    ? UFixed6Lib.ZERO // skip if no leverage or weight
+                    : strategy
+                        .marketContexts[marketId]
+                        .minPosition
                         .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
                         .div(registrations[marketId].weight)
             );
@@ -147,17 +134,15 @@ library StrategyLib {
         UFixed6 collateral,
         UFixed6 assets
     ) private pure returns (MarketTarget memory target, UFixed6 marketCollateral) {
-        marketCollateral = marketContext.margin
-            .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
+        marketCollateral = marketContext.margin.add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
 
-        UFixed6 marketAssets = assets
-            .mul(marketContext.registration.weight)
-            .min(marketCollateral.mul(LEVERAGE_BUFFER));
+        UFixed6 marketAssets = assets.mul(marketContext.registration.weight).min(marketCollateral.mul(LEVERAGE_BUFFER));
 
         target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
 
-        UFixed6 minAssets = marketContext.riskParameter.minMargin
-            .unsafeDiv(marketContext.registration.leverage.mul(marketContext.riskParameter.maintenance));
+        UFixed6 minAssets = marketContext.riskParameter.minMargin.unsafeDiv(
+            marketContext.registration.leverage.mul(marketContext.riskParameter.maintenance)
+        );
 
         if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
 
@@ -199,10 +184,13 @@ library StrategyLib {
         Order memory pendingGlobal = registration.market.pending();
         marketContext.currentPosition = registration.market.position();
         marketContext.currentPosition.update(pendingGlobal);
-        marketContext.minPosition = marketContext.currentAccountPosition.maker
-            .unsafeSub(marketContext.currentPosition.maker
-                .unsafeSub(marketContext.currentPosition.skew().abs()).min(marketContext.closable));
-        marketContext.maxPosition = marketContext.currentAccountPosition.maker
-            .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
+        marketContext.minPosition = marketContext.currentAccountPosition.maker.unsafeSub(
+            marketContext.currentPosition.maker.unsafeSub(marketContext.currentPosition.skew().abs()).min(
+                marketContext.closable
+            )
+        );
+        marketContext.maxPosition = marketContext.currentAccountPosition.maker.add(
+            marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker)
+        );
     }
 }

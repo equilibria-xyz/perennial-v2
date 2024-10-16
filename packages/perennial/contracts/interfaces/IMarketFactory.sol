@@ -3,11 +3,11 @@ pragma solidity ^0.8.13;
 
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { IVerifier } from "@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol";
-import { OperatorUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/OperatorUpdate.sol";
-import { SignerUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/SignerUpdate.sol";
-import { AccessUpdate } from "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdate.sol";
-import { AccessUpdateBatch } from "@equilibria/perennial-v2-verifier/contracts/types/AccessUpdateBatch.sol";
+import { IVerifier } from "@perennial/verifier/contracts/interfaces/IVerifier.sol";
+import { OperatorUpdate } from "@perennial/verifier/contracts/types/OperatorUpdate.sol";
+import { SignerUpdate } from "@perennial/verifier/contracts/types/SignerUpdate.sol";
+import { AccessUpdate } from "@perennial/verifier/contracts/types/AccessUpdate.sol";
+import { AccessUpdateBatch } from "@perennial/verifier/contracts/types/AccessUpdateBatch.sol";
 import { ProtocolParameter } from "../types/ProtocolParameter.sol";
 import { IMarket } from "./IMarket.sol";
 import { IOracleProvider } from "./IOracleProvider.sol";
@@ -35,23 +35,50 @@ interface IMarketFactory is IFactory {
     error ProtocolParameterStorageInvalidError();
 
     function oracleFactory() external view returns (IFactory);
+
     function verifier() external view returns (IVerifier);
+
     function parameter() external view returns (ProtocolParameter memory);
+
     function extensions(address extension) external view returns (bool);
+
     function operators(address account, address operator) external view returns (bool);
+
     function signers(address signer, address operator) external view returns (bool);
+
     function referralFees(address referrer) external view returns (UFixed6);
+
     function markets(IOracleProvider oracle) external view returns (IMarket);
-    function authorization(address account, address sender, address signer, address orderReferrer) external view returns (bool, bool, UFixed6);
+
+    function authorization(
+        address account,
+        address sender,
+        address signer,
+        address orderReferrer
+    ) external view returns (bool, bool, UFixed6);
+
     function initialize() external;
+
     function updateParameter(ProtocolParameter memory newParameter) external;
+
     function updateExtension(address extension, bool newEnabled) external;
+
     function updateOperator(address operator, bool newEnabled) external;
+
     function updateOperatorWithSignature(OperatorUpdate calldata operatorUpdate, bytes calldata signature) external;
+
     function updateSigner(address signer, bool newEnabled) external;
+
     function updateSignerWithSignature(SignerUpdate calldata signerUpdate, bytes calldata signature) external;
+
     function updateAccessBatch(AccessUpdate[] calldata operators, AccessUpdate[] calldata signers) external;
-    function updateAccessBatchWithSignature(AccessUpdateBatch calldata accessUpdateBatch, bytes calldata signature) external;
+
+    function updateAccessBatchWithSignature(
+        AccessUpdateBatch calldata accessUpdateBatch,
+        bytes calldata signature
+    ) external;
+
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external;
+
     function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);
 }

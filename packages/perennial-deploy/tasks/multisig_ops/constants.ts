@@ -1,9 +1,6 @@
 import { utils } from 'ethers'
-import {
-  MarketParameterStruct,
-  RiskParameterStruct,
-} from '../../types/generated/@equilibria/perennial-v2/contracts/Market'
-import { ProtocolParameterStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/MarketFactory'
+import { MarketParameterStruct, RiskParameterStruct } from '../../types/generated/@perennial/core/contracts/Market'
+import { ProtocolParameterStruct } from '../../types/generated/@perennial/core/contracts/MarketFactory'
 
 export const NewRiskParams: Record<string, RiskParameterStruct> = {
   XRP: {

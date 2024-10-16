@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
 
 import { Action, ActionLib } from "./Action.sol";
 import { TriggerOrder, TriggerOrderStorageLib } from "./TriggerOrder.sol";
@@ -28,13 +28,14 @@ using PlaceOrderActionLib for PlaceOrderAction global;
 /// @notice Library used to hash new trigger order requests
 library PlaceOrderActionLib {
     /// @dev Used to verify a signed message
-    bytes32 constant public STRUCT_HASH = keccak256(
-        "PlaceOrderAction(TriggerOrder order,Action action)"
-        "Action(address market,uint256 orderId,uint256 maxFee,Common common)"
-        "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
-        "InterfaceFee(uint64 amount,address receiver,bool fixedFee,bool unwrap)"
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,InterfaceFee interfaceFee)"
-    );
+    bytes32 public constant STRUCT_HASH =
+        keccak256(
+            "PlaceOrderAction(TriggerOrder order,Action action)"
+            "Action(address market,uint256 orderId,uint256 maxFee,Common common)"
+            "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
+            "InterfaceFee(uint64 amount,address receiver,bool fixedFee,bool unwrap)"
+            "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,InterfaceFee interfaceFee)"
+        );
 
     /// @dev Used to create a signed message
     function hash(PlaceOrderAction memory self) internal pure returns (bytes32) {

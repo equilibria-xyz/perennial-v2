@@ -8,8 +8,8 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
 import { Factory } from "@equilibria/root/attribute/Factory.sol";
 import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
-import { IOracleProvider } from "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
-import { OracleVersion } from "@equilibria/perennial-v2/contracts/types/OracleVersion.sol";
+import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
 import { IKeeperOracle } from "../interfaces/IKeeperOracle.sol";
 import { IKeeperFactory } from "../interfaces/IKeeperFactory.sol";
 import { IOracleFactory } from "../interfaces/IOracleFactory.sol";
@@ -101,7 +101,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
         bytes32 oracleId,
         bytes32 underlyingId,
         PayoffDefinition memory payoff
-     ) public virtual onlyOwner returns (IKeeperOracle newOracle) {
+    ) public virtual onlyOwner returns (IKeeperOracle newOracle) {
         if (oracles[oracleId] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
         if (!payoffs[payoff.provider]) revert KeeperFactoryInvalidPayoffError();
         if (fromUnderlying[underlyingId][payoff.provider] != bytes32(0)) revert KeeperFactoryAlreadyCreatedError();
@@ -122,9 +122,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     function current() public view returns (uint256) {
         KeeperOracleParameter memory keeperOracleParameter = _parameter.read();
 
-        uint256 effectiveGranularity = block.timestamp <= keeperOracleParameter.effectiveAfter ?
-            keeperOracleParameter.latestGranularity :
-            keeperOracleParameter.currentGranularity;
+        uint256 effectiveGranularity = block.timestamp <= keeperOracleParameter.effectiveAfter
+            ? keeperOracleParameter.latestGranularity
+            : keeperOracleParameter.currentGranularity;
 
         return Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity;
     }
@@ -159,8 +159,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
         (Fixed6[] memory prices, uint256[] memory costs) = _transformPrices(oracleIds, indices, dedupedPrices, valid);
 
         for (uint256 i; i < oracleIds.length; i++)
-            IKeeperOracle(address(oracles[oracleIds[i]]))
-                .commit(OracleVersion(version, prices[i], valid), msg.sender, costs[i]);
+            IKeeperOracle(address(oracles[oracleIds[i]])).commit(
+                OracleVersion(version, prices[i], valid),
+                msg.sender,
+                costs[i]
+            );
     }
 
     /// @notice Performs a list of local settlement callbacks
@@ -244,8 +247,7 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
             // apply payoff if it exists
             PayoffDefinition memory payoff = _toUnderlyingPayoff[oracleIds[i]];
-            if (payoff.provider != IPayoffProvider(address(0)))
-                price = payoff.provider.payoff(price);
+            if (payoff.provider != IPayoffProvider(address(0))) price = payoff.provider.payoff(price);
 
             // apply decimal offset
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(payoff.decimals)));

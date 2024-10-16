@@ -10,8 +10,8 @@ import { advanceBlock, currentBlockTimestamp, increase } from '../../../common/t
 import { getEventArguments, getTimestamp } from '../../../common/testutil/transaction'
 import { parse6decimal } from '../../../common/testutil/types'
 
-import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@equilibria/perennial-v2/types/generated'
-import { IKeeperOracle, IOracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/core/types/generated'
+import { IKeeperOracle, IOracleFactory } from '@perennial/oracle/types/generated'
 import {
   ArbGasInfo,
   IEmptySetReserve,

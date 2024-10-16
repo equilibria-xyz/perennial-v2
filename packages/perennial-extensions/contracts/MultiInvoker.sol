@@ -14,12 +14,12 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
 import { Kept } from "@equilibria/root/attribute/Kept/Kept.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import { Order } from "@equilibria/perennial-v2/contracts/types/Order.sol";
-import { Position } from "@equilibria/perennial-v2/contracts/types/Position.sol";
-import { IPythFactory } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythFactory.sol";
-import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
-import { Intent } from "@equilibria/perennial-v2-verifier/contracts/types/Intent.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { Order } from "@perennial/core/contracts/types/Order.sol";
+import { Position } from "@perennial/core/contracts/types/Position.sol";
+import { IPythFactory } from "@perennial/oracle/contracts/interfaces/IPythFactory.sol";
+import { IVault } from "@perennial/vault/contracts/interfaces/IVault.sol";
+import { Intent } from "@perennial/verifier/contracts/types/Intent.sol";
 import { IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { InterfaceFee } from "./types/InterfaceFee.sol";
@@ -161,7 +161,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to perform invocations for
     /// @param invocations List of actions to execute in order
     function _invoke(address account, Invocation[] calldata invocations) private onlyOperator(account, msg.sender) {
-        for(uint i = 0; i < invocations.length; ++i) {
+        for (uint i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
             if (invocation.action == PerennialAction.UPDATE_POSITION) {
@@ -175,16 +175,22 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     bool wrap,
                     InterfaceFee memory interfaceFee1,
                     InterfaceFee memory interfaceFee2
-                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
+                ) = abi.decode(
+                        invocation.args,
+                        (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee)
+                    );
 
                 _update(account, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
             } else if (invocation.action == PerennialAction.UPDATE_INTENT) {
-                (IMarket market, Intent memory intent, bytes memory signature) = abi.decode(invocation.args, (IMarket, Intent, bytes));
+                (IMarket market, Intent memory intent, bytes memory signature) = abi.decode(
+                    invocation.args,
+                    (IMarket, Intent, bytes)
+                );
 
                 _updateIntent(account, market, intent, signature);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
-                (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
-                    = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
+                (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap) = abi
+                    .decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
 
                 _vaultUpdate(account, vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
@@ -196,17 +202,25 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _cancelOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address execAccount, IMarket market, uint256 nonce)
-                    = abi.decode(invocation.args, (address, IMarket, uint256));
+                (address execAccount, IMarket market, uint256 nonce) = abi.decode(
+                    invocation.args,
+                    (address, IMarket, uint256)
+                );
 
                 _executeOrder(execAccount, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
-                    abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
+                (
+                    address oracleProviderFactory,
+                    uint256 value,
+                    bytes32[] memory ids,
+                    uint256 version,
+                    bytes memory data,
+                    bool revertOnFailure
+                ) = abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
 
                 _commitPrice(oracleProviderFactory, value, ids, version, data, revertOnFailure);
             } else if (invocation.action == PerennialAction.APPROVE) {
-                (address target) = abi.decode(invocation.args, (address));
+                address target = abi.decode(invocation.args, (address));
 
                 _approve(target);
             } else if (invocation.action == PerennialAction.CLAIM_FEE) {
@@ -239,7 +253,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         InterfaceFee memory interfaceFee1,
         InterfaceFee memory interfaceFee2
     ) internal isMarketInstance(market) {
-        Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
+        Fixed18 balanceBefore = Fixed18Lib.from(DSU.balanceOf());
 
         // collateral is transferred here as DSU then an optional interface fee is charged from it
         if (collateral.sign() == 1) _deposit(account, collateral.abs(), wrap);
@@ -299,9 +313,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
         vault.update(account, depositAssets, redeemShares, claimAssets);
 
         // handle socialization, settlement fees, and magic values
-        UFixed6 claimAmount = claimAssets.isZero() ?
-            UFixed6Lib.ZERO :
-            UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
+        UFixed6 claimAmount = claimAssets.isZero()
+            ? UFixed6Lib.ZERO
+            : UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
 
         if (!claimAmount.isZero()) {
             _withdraw(account, claimAmount, wrap);
@@ -311,10 +325,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
     /// @param target Market or Vault to approve
     function _approve(address target) internal {
-        if (
-            !marketFactory.instances(IInstance(target)) &&
-            !vaultFactory.instances(IInstance(target))
-        ) revert MultiInvokerInvalidInstanceError();
+        if (!marketFactory.instances(IInstance(target)) && !vaultFactory.instances(IInstance(target)))
+            revert MultiInvokerInvalidInstanceError();
 
         DSU.approve(target);
     }
@@ -411,7 +423,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
 
-        try IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data) {
+        try IPythFactory(oracleProviderFactory).commit{ value: value }(ids, version, data) {
             // Return through keeper fee if any
             DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
         } catch (bytes memory reason) {
@@ -429,12 +441,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         TriggerOrder memory order = orders(account, market, nonce);
 
         _handleKeeperFee(
-            KeepConfig(
-                UFixed18Lib.ZERO,
-                keepBufferBase,
-                UFixed18Lib.ZERO,
-                keepBufferCalldata
-            ),
+            KeepConfig(UFixed18Lib.ZERO, keepBufferBase, UFixed18Lib.ZERO, keepBufferCalldata),
             0,
             msg.data[0:0],
             0,
@@ -481,16 +488,12 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to place order for
     /// @param market Market to place order in
     /// @param order Order state to place
-    function _placeOrder(
-        address account,
-        IMarket market,
-        TriggerOrder memory order
-    ) internal isMarketInstance(market) {
+    function _placeOrder(address account, IMarket market, TriggerOrder memory order) internal isMarketInstance(market) {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
         if (
-            order.side > 3 ||                                       // Invalid side
-            (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO))    // Disallow placing orders that increase collateral
+            order.side > 3 || // Invalid side
+            (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO)) // Disallow placing orders that increase collateral
         ) revert MultiInvokerInvalidOrderError();
 
         _orders[account][market][++latestNonce].store(order);
@@ -523,15 +526,13 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice Target market must be created by MarketFactory
     modifier isMarketInstance(IMarket market) {
-        if (!marketFactory.instances(market))
-            revert MultiInvokerInvalidInstanceError();
+        if (!marketFactory.instances(market)) revert MultiInvokerInvalidInstanceError();
         _;
     }
 
     /// @notice Target vault must be created by VaultFactory
     modifier isVaultInstance(IVault vault) {
-        if (!vaultFactory.instances(vault))
-            revert MultiInvokerInvalidInstanceError();
+        if (!vaultFactory.instances(vault)) revert MultiInvokerInvalidInstanceError();
         _;
     }
 

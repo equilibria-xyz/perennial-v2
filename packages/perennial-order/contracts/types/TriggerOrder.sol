@@ -3,21 +3,21 @@ pragma solidity ^0.8.13;
 
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket, OracleVersion, Order, Position } from "@perennial/core/contracts/interfaces/IMarket.sol";
 import { InterfaceFee, InterfaceFeeLib } from "./InterfaceFee.sol";
 
 /// @notice Changes a user's position in a market when price reaches a trigger threshold
 struct TriggerOrder {
     /// @dev Determines the desired position type to establish or change
-    uint8 side;       // 4 = maker, 5 = long, 6 = short
+    uint8 side; // 4 = maker, 5 = long, 6 = short
     /// @dev Trigger condition; market price to be less/greater than trigger price
-    int8 comparison;  // -1 = lte, 1 = gte
+    int8 comparison; // -1 = lte, 1 = gte
     /// @dev Trigger price used on right hand side of comparison
-    Fixed6 price;     // <= 9.22t
+    Fixed6 price; // <= 9.22t
     /// @dev Amount to change position by, or type(int64).min to close position
-    Fixed6 delta;     // <= 9.22t
+    Fixed6 delta; // <= 9.22t
     /// @dev Limit on keeper compensation for executing the order
-    UFixed6 maxFee;   // < 18.45t
+    UFixed6 maxFee; // < 18.45t
     /// @dev Always leave this false; set true after execution/cancellation
     bool isSpent;
     /// @dev Passed to market for awarding referral fee
@@ -51,11 +51,7 @@ library TriggerOrderLib {
     /// @param self Trigger order
     /// @param market Market for which the trigger order was placed
     /// @param account Market participant
-    function execute(
-        TriggerOrder memory self,
-        IMarket market,
-        address account
-    ) internal {
+    function execute(TriggerOrder memory self, IMarket market, address account) internal {
         // settle and get the pending position of the account
         market.settle(account);
         Order memory pending = market.pendings(account);
@@ -68,15 +64,7 @@ library TriggerOrderLib {
         if (self.side == 6) position.short = _add(position.short, self.delta);
 
         // apply position to market
-        market.update(
-            account,
-            position.maker,
-            position.long,
-            position.short,
-            Fixed6Lib.ZERO,
-            false,
-            self.referrer
-        );
+        market.update(account, position.maker, position.long, position.short, Fixed6Lib.ZERO, false, self.referrer);
     }
 
     /// @notice Determines if the order has been deleted
@@ -103,9 +91,7 @@ library TriggerOrderLib {
 
     /// @notice Helper function to improve readability of TriggerOrderLib.execute
     function _add(UFixed6 lhs, Fixed6 rhs) private pure returns (UFixed6) {
-        return rhs.eq(MAGIC_VALUE_CLOSE_POSITION) ?
-            UFixed6Lib.ZERO :
-            UFixed6Lib.from(Fixed6Lib.from(lhs).add(rhs));
+        return rhs.eq(MAGIC_VALUE_CLOSE_POSITION) ? UFixed6Lib.ZERO : UFixed6Lib.from(Fixed6Lib.from(lhs).add(rhs));
     }
 
     /// @notice Returns user's position for the side of the order they placed
@@ -123,24 +109,26 @@ library TriggerOrderLib {
 
 struct StoredTriggerOrder {
     /* slot 0 */
-    uint8 side;                   // 4 = maker, 5 = long, 6 = short
-    int8 comparison;              // -1 = lte, 1 = gte
-    int64 price;                  // <= 9.22t
-    int64 delta;                  // <= 9.22t
-    uint64 maxFee;                // < 18.45t
+    uint8 side; // 4 = maker, 5 = long, 6 = short
+    int8 comparison; // -1 = lte, 1 = gte
+    int64 price; // <= 9.22t
+    int64 delta; // <= 9.22t
+    uint64 maxFee; // < 18.45t
     bool isSpent;
-    bytes5 __unallocated0__;      // padding for 32-byte alignment
+    bytes5 __unallocated0__; // padding for 32-byte alignment
     /* slot 1 */
     address referrer;
-    bytes12 __unallocated1__;     // padding for 32-byte alignment
+    bytes12 __unallocated1__; // padding for 32-byte alignment
     /* slot 2 */
     address interfaceFeeReceiver;
-    uint64 interfaceFeeAmount;    // < 18.45t
+    uint64 interfaceFeeAmount; // < 18.45t
     bool interfaceFeeFlat;
     bool interfaceFeeUnwrap;
     // 2 bytes left over (no need to pad trailing bytes)
 }
-struct TriggerOrderStorage { StoredTriggerOrder value; }
+struct TriggerOrderStorage {
+    StoredTriggerOrder value;
+}
 using TriggerOrderStorageLib for TriggerOrderStorage global;
 
 /// @dev Manually encodes and decodes the TriggerOrder struct to/from storage,
@@ -148,10 +136,11 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 /// (external-safe): this library is safe to externalize
 library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
-    bytes32 constant public STRUCT_HASH = keccak256(
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,InterfaceFee interfaceFee)"
-        "InterfaceFee(uint64 amount,address receiver,bool fixedFee,bool unwrap)"
-    );
+    bytes32 public constant STRUCT_HASH =
+        keccak256(
+            "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,InterfaceFee interfaceFee)"
+            "InterfaceFee(uint64 amount,address receiver,bool fixedFee,bool unwrap)"
+        );
 
     // sig: 0xf3469aa7
     /// @custom:error price, delta, maxFee, or interface fee amount is out-of-bounds
@@ -160,21 +149,22 @@ library TriggerOrderStorageLib {
     /// @notice reads a trigger order struct from storage
     function read(TriggerOrderStorage storage self) internal view returns (TriggerOrder memory) {
         StoredTriggerOrder memory storedValue = self.value;
-        return TriggerOrder(
-            uint8(storedValue.side),
-            int8(storedValue.comparison),
-            Fixed6.wrap(int256(storedValue.price)),
-            Fixed6.wrap(int256(storedValue.delta)),
-            UFixed6.wrap(uint256(storedValue.maxFee)),
-            storedValue.isSpent,
-            storedValue.referrer,
-            InterfaceFee(
-                UFixed6.wrap(uint256(storedValue.interfaceFeeAmount)),
-                storedValue.interfaceFeeReceiver,
-                storedValue.interfaceFeeFlat,
-                storedValue.interfaceFeeUnwrap
-            )
-        );
+        return
+            TriggerOrder(
+                uint8(storedValue.side),
+                int8(storedValue.comparison),
+                Fixed6.wrap(int256(storedValue.price)),
+                Fixed6.wrap(int256(storedValue.delta)),
+                UFixed6.wrap(uint256(storedValue.maxFee)),
+                storedValue.isSpent,
+                storedValue.referrer,
+                InterfaceFee(
+                    UFixed6.wrap(uint256(storedValue.interfaceFeeAmount)),
+                    storedValue.interfaceFeeReceiver,
+                    storedValue.interfaceFeeFlat,
+                    storedValue.interfaceFeeUnwrap
+                )
+            );
     }
 
     /// @notice writes a trigger order struct to storage
@@ -206,16 +196,19 @@ library TriggerOrderStorageLib {
 
     /// @notice Used to create a signed message
     function hash(TriggerOrder memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(
-            STRUCT_HASH,
-            self.side,
-            self.comparison,
-            self.price,
-            self.delta,
-            self.maxFee,
-            self.isSpent,
-            self.referrer,
-            InterfaceFeeLib.hash(self.interfaceFee)
-        ));
+        return
+            keccak256(
+                abi.encode(
+                    STRUCT_HASH,
+                    self.side,
+                    self.comparison,
+                    self.price,
+                    self.delta,
+                    self.maxFee,
+                    self.isSpent,
+                    self.referrer,
+                    InterfaceFeeLib.hash(self.interfaceFee)
+                )
+            );
     }
 }

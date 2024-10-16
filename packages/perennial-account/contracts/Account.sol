@@ -11,7 +11,7 @@ import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
-import { IMarket, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket, Position } from "@perennial/core/contracts/interfaces/IMarket.sol";
 
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets

@@ -7,7 +7,7 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@equilibria/perennial-v2/types/generated'
+import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@perennial/core/types/generated'
 
 import {
   AggregatorV3Interface,

@@ -20,13 +20,13 @@ export const MARKET_LIBRARIES: Array<{
 }> = [
   {
     name: 'CheckpointLib',
-    contract: '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib',
+    contract: '@perennial/core/contracts/libs/CheckpointLib.sol:CheckpointLib',
   },
   { name: 'InvariantLib', contract: undefined },
   { name: 'VersionLib', contract: undefined },
   {
     name: 'CheckpointStorageLib',
-    contract: '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib',
+    contract: '@perennial/core/contracts/types/Checkpoint.sol:CheckpointStorageLib',
   },
   { name: 'GlobalStorageLib', contract: undefined },
   { name: 'MarketParameterStorageLib', contract: undefined },
