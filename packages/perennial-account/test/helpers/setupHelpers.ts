@@ -8,7 +8,13 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
 import { getTimestamp } from '../../../common/testutil/transaction'
 
-import { Account__factory, Controller, Controller__factory, IERC20Metadata } from '../../types/generated'
+import {
+  Account__factory,
+  AggregatorV3Interface,
+  Controller,
+  Controller__factory,
+  IERC20Metadata,
+} from '../../types/generated'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -46,6 +52,7 @@ import {
   PythFactory__factory,
   KeeperOracle,
   Oracle,
+  AggregatorV3Interface__factory,
 } from '@equilibria/perennial-v2-oracle/types/generated'
 import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
 import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
@@ -65,6 +72,7 @@ export interface DeploymentVars {
   btcMarket: IMarket
   ethKeeperOracle: IKeeperOracle
   btcKeeperOracle: IKeeperOracle
+  chainlinkKeptFeed: AggregatorV3Interface
   fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
   fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
 }
@@ -106,11 +114,13 @@ export async function createFactories(
   owner: SignerWithAddress,
   pythAddress: Address,
   chainLinkFeedAddress: Address,
-): Promise<[IOracleFactory, IMarketFactory, PythFactory]> {
+): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
   // Deploy the oracle factory, which markets created by the market factory will query
   const oracleFactory = await deployOracleFactory(owner)
   // Deploy the market factory and authorize it with the oracle factory
   const marketFactory = await deployProtocolForOracle(owner, oracleFactory)
+  // Connect the Chainlink ETH feed used for keeper compensation
+  const chainlinkKeptFeed = AggregatorV3Interface__factory.connect(chainLinkFeedAddress, owner)
 
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
   const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
@@ -145,7 +155,7 @@ export async function createFactories(
   await pythOracleFactory.updateParameter(1, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
 
-  return [oracleFactory, marketFactory, pythOracleFactory]
+  return [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed]
 }
 
 // Using a provided factory, create a new market and set some reasonable initial parameters

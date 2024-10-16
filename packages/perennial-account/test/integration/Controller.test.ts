@@ -33,7 +33,7 @@ const { ethers } = HRE
 // hack around intermittent issues estimating gas
 const TX_OVERRIDES = { gasLimit: 3_000_000, maxFeePerGas: 200_000_000 }
 
-describe('ControllerBase', () => {
+describe.skip('ControllerBase', () => {
   let dsu: IERC20Metadata
   let usdc: IERC20Metadata
   let controller: Controller

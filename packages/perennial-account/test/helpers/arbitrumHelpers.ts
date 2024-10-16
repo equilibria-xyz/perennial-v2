@@ -14,6 +14,7 @@ import {
   IMarketFactory,
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
+import { AggregatorV3Interface } from '@equilibria/perennial-v2/types/generated'
 
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
@@ -28,7 +29,7 @@ const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid 
 // deploys protocol
 export async function createFactoriesForChain(
   owner: SignerWithAddress,
-): Promise<[IOracleFactory, IMarketFactory, PythFactory]> {
+): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
   return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
 }
 

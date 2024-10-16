@@ -6,6 +6,7 @@ import { createFactories, deployController } from './setupHelpers'
 import {
   Account__factory,
   AccountVerifier__factory,
+  AggregatorV3Interface,
   Controller,
   Controller_Optimism,
   Controller_Optimism__factory,
@@ -17,7 +18,7 @@ import {
 import { impersonate } from '../../../common/testutil'
 
 const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
-const CHAINLINK_ETH_USD_FEED = '0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1' // TODO: confirm interface is same
+const CHAINLINK_ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
 
 const DSU_ADDRESS = '0x7b4Adf64B0d60fF97D672E473420203D52562A84' // Digital Standard Unit, an 18-decimal token
 const DSU_RESERVE = '0x5FA881826AD000D010977645450292701bc2f56D'
@@ -28,7 +29,7 @@ const USDC_HOLDER = '0xF977814e90dA44bFA03b6295A0616a897441aceC' // EOA has 302m
 // deploys protocol
 export async function createFactoriesForChain(
   owner: SignerWithAddress,
-): Promise<[IOracleFactory, IMarketFactory, PythFactory]> {
+): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
   return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
 }
 
@@ -79,6 +80,8 @@ export async function fundWalletDSU(
 
   // fund wallet with USDC and then mint using reserve
   await fundWalletUSDC(wallet, amount.div(1e12), overrides)
+  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, wallet)
+  await usdc.connect(wallet).approve(reserve.address, amount.div(1e12))
   await reserve.mint(amount)
 
   expect((await dsu.balanceOf(wallet.address)).sub(balanceBefore)).to.equal(amount)

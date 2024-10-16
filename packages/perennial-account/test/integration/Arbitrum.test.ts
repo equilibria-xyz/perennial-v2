@@ -21,7 +21,7 @@ use(smock.matchers)
 // TODO: Seems inelegant using this same implementation to call methods from a chain-specific helper library.
 // But the helpers are destined to move to a common folder shareable across extensions.
 async function deployProtocol(owner: SignerWithAddress, overrides?: CallOverrides): Promise<DeploymentVars> {
-  const [oracleFactory, marketFactory, pythOracleFactory] = await createFactoriesForChain(owner)
+  const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
   const [ethMarket, , ethKeeperOracle] = await createMarketETH(
     owner,
@@ -48,6 +48,7 @@ async function deployProtocol(owner: SignerWithAddress, overrides?: CallOverride
     btcMarket,
     ethKeeperOracle,
     btcKeeperOracle,
+    chainlinkKeptFeed,
     fundWalletDSU,
     fundWalletUSDC,
   }

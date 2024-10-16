@@ -45,7 +45,6 @@ import { IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
-const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 const DEFAULT_MAX_FEE = parse6decimal('0.5')
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
@@ -220,7 +219,7 @@ export function RunIncentivizedTests(
       const KeepConfig = '(uint256,uint256,uint256,uint256)'
       await controller[`initialize(address,address,${KeepConfig},${KeepConfig},${KeepConfig})`](
         accountVerifier.address,
-        CHAINLINK_ETH_USD_FEED,
+        deployment.chainlinkKeptFeed.address,
         keepConfig,
         keepConfigBuffered,
         keepConfigWithdrawal,

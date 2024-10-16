@@ -16,7 +16,7 @@ import { Controller_Incentivized, IMarketFactory } from '../../types/generated'
 import { RunAccountTests } from './Account.test'
 
 async function deployProtocol(owner: SignerWithAddress, overrides?: CallOverrides): Promise<DeploymentVars> {
-  const [oracleFactory, marketFactory, pythOracleFactory] = await createFactoriesForChain(owner)
+  const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
   const [ethMarket, , ethKeeperOracle] = await createMarketETH(
     owner,
@@ -43,6 +43,7 @@ async function deployProtocol(owner: SignerWithAddress, overrides?: CallOverride
     btcMarket,
     ethKeeperOracle,
     btcKeeperOracle,
+    chainlinkKeptFeed,
     fundWalletDSU,
     fundWalletUSDC,
   }
