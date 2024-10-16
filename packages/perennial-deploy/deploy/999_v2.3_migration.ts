@@ -22,6 +22,7 @@ import {
   PythFactory__factory,
   TransparentUpgradeableProxy__factory,
   VaultFactory__factory,
+  Verifier__factory,
 } from '../types/generated'
 import { PAYOFFS } from './002_deploy_payoff'
 
@@ -75,10 +76,11 @@ async function deployVerifier(hre: HardhatRuntimeEnvironment) {
     autoMine: true,
   })
   log('  Deploying Verifier Proxy...')
+  const verifierInterface = Verifier__factory.createInterface()
   const verifierProxyArgs: TransparentUpgradeableProxyArgs = [
     (await get('VerifierImpl')).address,
     proxyAdmin.address,
-    '0x',
+    verifierInterface.encodeFunctionData('initialize', [(await get('MarketFactory')).address]),
   ]
   await deploy('Verifier', {
     contract: 'TransparentUpgradeableProxy',
@@ -624,12 +626,6 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
     (await get('MarketFactory')).address,
     (await get('Verifier')).address,
   ]
-  await deploy('RebalanceLib', {
-    from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
   await deploy('ControllerImpl', {
     contract: 'Controller_Arbitrum',
     from: deployer,
@@ -637,9 +633,6 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
     skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
-    libraries: {
-      RebalanceLib: (await get('RebalanceLib')).address,
-    },
   })
   log('  Deploying Controller Proxy...')
   const controllerProxyArgs: TransparentUpgradeableProxyArgs = [

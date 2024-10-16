@@ -40,6 +40,7 @@ export default task(
       })
     }
 
+    // TODO: Do we want to enable the MultiInvoker extension?
     addPayload(
       async () => marketFactory.populateTransaction.updateExtension((await get('MultiInvoker')).address, true),
       'Enable MultiInvoker Extension',
