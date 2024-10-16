@@ -11,13 +11,8 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, Controller, IERC20Metadata } from '../../types/generated'
 import { IAccountVerifier } from '../../types/generated/contracts/interfaces'
 import { IAccountVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
-import {
-  IKeeperOracle,
-  IOracleFactory,
-  IOracleProvider,
-  PythFactory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
-import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
+import { IKeeperOracle, IOracleFactory, IOracleProvider, PythFactory } from '@perennial/oracle/types/generated'
+import { IMarket, IMarketFactory } from '@perennial/core/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice } from '../helpers/setupHelpers'
 import {

@@ -29,7 +29,7 @@ import {
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
 import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import {
   OracleFactory,
@@ -39,7 +39,7 @@ import {
   PowerTwo__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+} from '@perennial/oracle/types/generated'
 import { Verifier, Verifier__factory } from '../../../../perennial-verifier/types/generated'
 const { deployments, ethers } = HRE
 

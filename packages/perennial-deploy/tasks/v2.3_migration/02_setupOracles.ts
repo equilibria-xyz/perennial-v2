@@ -57,8 +57,8 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
       () =>
         oracleFactory.populateTransaction.updateParameter({
           maxGranularity: 60,
-          maxOracleFee: ethers.utils.parseUnits('0.10', 6),
-          maxSettlementFee: ethers.utils.parseUnits('25', 6),
+          maxOracleFee: ethers.utils.parseUnits('0.10', 6), // TODO: Determine correct value
+          maxSettlementFee: ethers.utils.parseUnits('25', 6), // TODO: Determine correct value
         }),
       'Update OracleFactory parameter',
     )

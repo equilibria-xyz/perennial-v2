@@ -23,7 +23,7 @@ import {
   expectGuaranteeEq,
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'

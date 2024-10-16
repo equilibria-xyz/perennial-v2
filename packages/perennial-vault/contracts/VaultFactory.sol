@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import "@equilibria/root/attribute/Ownable.sol";
-import "@equilibria/root/attribute/Factory.sol";
-import "@equilibria/root/attribute/Pausable.sol";
-import "./interfaces/IVaultFactory.sol";
-import { VaultParameter } from "./types/VaultParameter.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { Factory } from "@equilibria/root/attribute/Factory.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import { IVault } from "./interfaces/IVault.sol";
+import { IVaultFactory } from "./interfaces/IVaultFactory.sol";
 
 /// @title VaultFactory
 /// @notice Manages creating new markets and global protocol parameters.

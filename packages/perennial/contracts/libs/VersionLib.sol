@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/accumulator/types/Accumulator6.sol";
-import "@equilibria/root/accumulator/types/UAccumulator6.sol";
-import "../interfaces/IMarket.sol";
-import "../types/ProtocolParameter.sol";
-import "../types/MarketParameter.sol";
-import "../types/RiskParameter.sol";
-import "../types/Global.sol";
-import "../types/Position.sol";
-import "../types/Version.sol";
-import "../types/OracleVersion.sol";
-import "../types/OracleReceipt.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { IMarket } from "../interfaces/IMarket.sol";
+import { MarketParameter } from "../types/MarketParameter.sol";
+import { RiskParameter } from "../types/RiskParameter.sol";
+import { Global } from "../types/Global.sol";
+import { Position } from "../types/Position.sol";
+import { Order } from "../types/Order.sol";
+import { Guarantee } from "../types/Guarantee.sol";
+import { Version } from "../types/Version.sol";
+import { OracleVersion } from "../types/OracleVersion.sol";
+import { OracleReceipt } from "../types/OracleReceipt.sol";
 
 /// @dev The response of the version accumulation
 ///      Contains only select fee information needed for the downstream market contract

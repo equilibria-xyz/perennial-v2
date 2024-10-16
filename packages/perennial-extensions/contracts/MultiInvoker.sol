@@ -1,18 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { IPythFactory } from "@equilibria/perennial-v2-oracle/contracts/interfaces/IPythFactory.sol";
-import { IVault } from "@equilibria/perennial-v2-vault/contracts/interfaces/IVault.sol";
-import "./interfaces/IMultiInvoker.sol";
-import "./types/TriggerOrder.sol";
-import "./types/InterfaceFee.sol";
-import "@equilibria/root/attribute/Kept/Kept.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
+import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import { Token6 } from "@equilibria/root/token/types/Token6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
+import { Kept } from "@equilibria/root/attribute/Kept/Kept.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { Order } from "@perennial/core/contracts/types/Order.sol";
+import { Position } from "@perennial/core/contracts/types/Position.sol";
+import { IPythFactory } from "@perennial/oracle/contracts/interfaces/IPythFactory.sol";
+import { IVault } from "@perennial/vault/contracts/interfaces/IVault.sol";
+import { Intent } from "@perennial/verifier/contracts/types/Intent.sol";
+import { IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
+import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
+import { InterfaceFee } from "./types/InterfaceFee.sol";
 
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/attribute/interfaces/IInstance.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "./IOracle.sol";
+import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { IOracle } from "./IOracle.sol";
 import { PriceResponse } from "../keeper/types/PriceResponse.sol";
 
 interface IKeeperOracle is IOracleProvider, IInstance {

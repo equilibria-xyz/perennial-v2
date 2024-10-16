@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarket, OracleVersion } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket, OracleVersion } from "@perennial/core/contracts/interfaces/IMarket.sol";
 import {
     TriggerOrder,
     TriggerOrderLib,

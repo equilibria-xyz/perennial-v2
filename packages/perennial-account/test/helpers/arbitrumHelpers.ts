@@ -9,7 +9,7 @@ import {
   Oracle__factory,
   PythFactory,
   PythFactory__factory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+} from '@perennial/oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { createMarket, deployController, deployOracleFactory, deployProtocolForOracle } from './setupHelpers'
 import {
@@ -26,7 +26,7 @@ import {
   GasOracle__factory,
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
-import { IVerifier } from '@equilibria/perennial-v2/types/generated'
+import { IVerifier } from '@perennial/core/types/generated'
 
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
