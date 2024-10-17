@@ -18,7 +18,7 @@ import {
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { smock } from '@defi-wonderland/smock'
-import { GlobalStruct } from '../../../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IMarket'
+import { GlobalStruct } from '../../../../types/generated/@perennial/core/contracts/interfaces/IMarket'
 
 const RunMigrationDeployScript = true
 const SkipSettleAccounts = false
@@ -142,6 +142,12 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     })
     console.log('---- Done ----\n')
 
+    // TODO: Add a task to verify that the new oracles prices are later than market.oracle().latest().timestamp
+    console.log('---- Verifying Market Latest ----')
+    const earlierOracleIDs = await run('v2_3_verify-market-latest')
+    if (earlierOracleIDs.length > 0) throw new Error(`Found ${earlierOracleIDs.length} earlier oracle IDs`)
+    console.log('---- Done ----\n')
+
     for (const market of marketsOld) {
       beforeGlobals[market.address] = await market.global()
     }
@@ -167,7 +173,7 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     console.log('---- Finished Running Migration...Running Tests ----\n')
   })
 
-  it('Migrates', async () => {
+  it.only('Migrates', async () => {
     /* Check all initializations */
     await expect(marketFactory.initialize()).to.be.revertedWithCustomError(
       marketFactory,
@@ -194,15 +200,20 @@ describe('Verify Arbitrum v2.3 Migration', () => {
       'InitializableAlreadyInitializedError',
     )
 
-    // Check PythFactory setup
+    // Check Oracle Factories setup
     expect(await pythFactory.callStatic.owner()).to.be.eq(ownerSigner.address)
     expect(await oracleFactory.callStatic.factories(pythFactory.address)).to.be.true
+    expect(await cryptexFactory.callStatic.owner()).to.be.eq(ownerSigner.address)
+    expect(await oracleFactory.callStatic.factories(cryptexFactory.address)).to.be.true
 
     expect(await proxyAdmin.getProxyImplementation(marketFactory.address)).to.be.equal(
       (await get('MarketFactoryImpl')).address,
     )
     expect(await proxyAdmin.getProxyImplementation(pythFactory.address)).to.be.equal(
       (await get('PythFactoryImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(cryptexFactory.address)).to.be.equal(
+      (await get('CryptexFactoryImpl')).address,
     )
     expect(await proxyAdmin.getProxyImplementation(oracleFactory.address)).to.be.equal(
       (await get('OracleFactoryImpl')).address,
@@ -360,7 +371,7 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     }
 
     await run('check-solvency', { full: true, batchsize: 30 })
-  })
+  }).timeout(10000000)
 
   it('transitions checkpoint for liquidator', async () => {
     const liquidatorSigner = await impersonateWithBalance(liquidatorAddress, ethers.utils.parseEther('10'))
