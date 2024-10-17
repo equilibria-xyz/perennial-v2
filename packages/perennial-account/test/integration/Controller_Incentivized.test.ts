@@ -40,14 +40,15 @@ import {
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { Verifier, Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
-import { AggregatorV3Interface, IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
+import { AggregatorV3Interface } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
 const DEFAULT_MAX_FEE = parse6decimal('0.5')
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
-const TX_OVERRIDES = { gasLimit: 3_000_000, maxPriorityFeePerGas: 0, maxFeePerGas: 100_000_000 }
+// also, need higher gasLimit to deploy incentivized controllers with optimizer disabled
+const TX_OVERRIDES = { gasLimit: 12_000_000, maxPriorityFeePerGas: 0, maxFeePerGas: 100_000_000 }
 
 export function RunIncentivizedTests(
   name: string,

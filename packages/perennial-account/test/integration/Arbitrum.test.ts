@@ -54,11 +54,11 @@ async function deployProtocol(
   }
 
   if (createMarketETH) {
-    deployment.ethMarket = await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+    deployment.ethMarket = await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
   }
 
   if (createMarketBTC) {
-    deployment.btcMarket = await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+    deployment.btcMarket = await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
   }
 
   return deployment
@@ -70,8 +70,7 @@ async function deployInstance(
   chainlinkKeptFeed: AggregatorV3Interface,
   overrides?: CallOverrides,
 ): Promise<[Controller_Incentivized, IAccountVerifier]> {
-  // FIXME: erroring with "trying to deploy a contract whose code is too large" when I pass empty overrides
-  const controller = await deployControllerArbitrum(owner, marketFactory /*, overrides ?? {}*/)
+  const controller = await deployControllerArbitrum(owner, marketFactory, overrides ?? {})
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
