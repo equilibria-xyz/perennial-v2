@@ -2,54 +2,60 @@ import HRE from 'hardhat'
 import { smock } from '@defi-wonderland/smock'
 import { CallOverrides } from 'ethers'
 
-import { AccountVerifier__factory, AggregatorV3Interface, OptGasInfo } from '../../types/generated'
+import { AccountVerifier__factory, AggregatorV3Interface, IAccountVerifier, OptGasInfo } from '../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerOptimism,
   fundWalletDSU,
   fundWalletUSDC,
+  getDSUReserve,
   getStablecoins,
 } from '../helpers/baseHelpers'
-import { createMarketBTC, createMarketETH, DeploymentVars } from '../helpers/setupHelpers'
+import {
+  createMarketBTC as setupMarketBTC,
+  createMarketETH as setupMarketETH,
+  DeploymentVars,
+} from '../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Controller_Incentivized, IMarketFactory } from '../../types/generated'
 import { RunAccountTests } from './Account.test'
+import { RunControllerBaseTests } from './Controller.test'
 
 const { ethers } = HRE
 
-async function deployProtocol(owner: SignerWithAddress, overrides?: CallOverrides): Promise<DeploymentVars> {
+async function deployProtocol(
+  owner: SignerWithAddress,
+  createMarketETH = false,
+  createMarketBTC = false,
+  overrides?: CallOverrides,
+): Promise<DeploymentVars> {
   const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
-  const [ethMarket, , ethKeeperOracle] = await createMarketETH(
-    owner,
-    oracleFactory,
-    pythOracleFactory,
-    marketFactory,
-    dsu,
-  )
-  const [btcMarket, , btcKeeperOracle] = await createMarketBTC(
-    owner,
-    oracleFactory,
-    pythOracleFactory,
-    marketFactory,
-    dsu,
-    overrides,
-  )
-  return {
+
+  const deployment: DeploymentVars = {
     dsu,
     usdc,
     oracleFactory,
     pythOracleFactory,
     marketFactory,
-    ethMarket,
-    btcMarket,
-    ethKeeperOracle,
-    btcKeeperOracle,
+    ethMarket: undefined, // TODO: style: inlining these was difficult to read; set below
+    btcMarket: undefined,
     chainlinkKeptFeed,
+    dsuReserve: getDSUReserve(owner),
     fundWalletDSU,
     fundWalletUSDC,
   }
+
+  if (createMarketETH) {
+    deployment.ethMarket = await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+  }
+
+  if (createMarketBTC) {
+    deployment.btcMarket = await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+  }
+
+  return deployment
 }
 
 async function deployInstance(
@@ -57,7 +63,7 @@ async function deployInstance(
   marketFactory: IMarketFactory,
   chainlinkKeptFeed: AggregatorV3Interface,
   overrides?: CallOverrides,
-): Promise<Controller_Incentivized> {
+): Promise<[Controller_Incentivized, IAccountVerifier]> {
   // FIXME: erroring with "trying to deploy a contract whose code is too large" when I pass empty overrides
   const controller = await deployControllerOptimism(owner, marketFactory /*, overrides ?? {}*/)
 
@@ -107,6 +113,8 @@ async function mockGasInfo() {
 }
 
 if (process.env.FORK_NETWORK === 'base') {
+  // TODO: Would it be faster to deploy the protocol once with both markets, and let each test suite take their own snapshots?
   RunAccountTests(deployProtocol, deployInstance)
+  RunControllerBaseTests(deployProtocol)
   RunIncentivizedTests('Controller_Optimism', deployProtocol, deployInstance, mockGasInfo)
 }

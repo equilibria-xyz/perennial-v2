@@ -46,12 +46,6 @@ export async function deployAndInitializeController(
   return [dsu, usdc, controller]
 }
 
-export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20Metadata, IERC20Metadata]> {
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
-  return [dsu, usdc]
-}
-
 // deploys an instance of the Controller with keeper compensation mechanisms for OP stack chains
 export async function deployControllerOptimism(
   owner: SignerWithAddress,
@@ -97,4 +91,14 @@ export async function fundWalletUSDC(
 
   expect(await usdc.balanceOf(USDC_HOLDER)).to.be.greaterThan(amount)
   await usdc.transfer(wallet.address, amount, overrides ?? {})
+}
+
+export function getDSUReserve(owner: SignerWithAddress) {
+  return IEmptySetReserve__factory.connect(DSU_RESERVE, owner)
+}
+
+export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20Metadata, IERC20Metadata]> {
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
+  return [dsu, usdc]
 }

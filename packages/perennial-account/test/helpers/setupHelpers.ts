@@ -13,6 +13,7 @@ import {
   AggregatorV3Interface,
   Controller,
   Controller__factory,
+  IEmptySetReserve,
   IERC20Metadata,
 } from '../../types/generated'
 import {
@@ -68,13 +69,18 @@ export interface DeploymentVars {
   oracleFactory: IOracleFactory
   pythOracleFactory: PythFactory
   marketFactory: IMarketFactory
-  ethMarket: IMarket
-  btcMarket: IMarket
-  ethKeeperOracle: IKeeperOracle
-  btcKeeperOracle: IKeeperOracle
+  ethMarket: MarketWithOracle | undefined
+  btcMarket: MarketWithOracle | undefined
   chainlinkKeptFeed: AggregatorV3Interface
+  dsuReserve: IEmptySetReserve
   fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
   fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
+}
+
+export interface MarketWithOracle {
+  market: IMarket
+  oracle: IOracleProvider
+  keeperOracle: IKeeperOracle
 }
 
 // Simulates an oracle update from KeeperOracle.
@@ -239,7 +245,7 @@ export async function createMarketETH(
   marketFactory: IMarketFactory,
   dsu: IERC20Metadata,
   overrides?: CallOverrides,
-): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
+): Promise<MarketWithOracle> {
   // Create oracles needed to support the market
   const [keeperOracle, oracle] = await createPythOracle(
     owner,
@@ -253,7 +259,7 @@ export async function createMarketETH(
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
   await keeperOracle.register(oracle.address)
   await oracle.register(market.address)
-  return [market, oracle, keeperOracle]
+  return { market, oracle, keeperOracle }
 }
 
 // creates a BTC market using a locally deployed factory and oracle
@@ -264,7 +270,7 @@ export async function createMarketBTC(
   marketFactory: IMarketFactory,
   dsu: IERC20Metadata,
   overrides?: CallOverrides,
-): Promise<[IMarket, IOracleProvider, IKeeperOracle]> {
+): Promise<MarketWithOracle> {
   // Create oracles needed to support the market
   const [keeperOracle, oracle] = await createPythOracle(
     owner,
@@ -278,7 +284,7 @@ export async function createMarketBTC(
   const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
   await keeperOracle.register(oracle.address)
   await oracle.register(market.address)
-  return [market, oracle, keeperOracle]
+  return { market, oracle, keeperOracle }
 }
 
 export async function createPythOracle(

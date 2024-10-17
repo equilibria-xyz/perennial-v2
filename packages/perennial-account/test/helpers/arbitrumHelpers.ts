@@ -9,6 +9,7 @@ import {
   Controller,
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
+  IEmptySetReserve__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarketFactory,
@@ -85,6 +86,10 @@ export async function fundWalletUSDC(
 
   expect(await usdc.balanceOf(USDC_HOLDER)).to.be.greaterThan(amount)
   await usdc.transfer(wallet.address, amount, overrides ?? {})
+}
+
+export function getDSUReserve(owner: SignerWithAddress) {
+  return IEmptySetReserve__factory.connect(DSU_RESERVE, owner)
 }
 
 export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20Metadata, IERC20Metadata]> {

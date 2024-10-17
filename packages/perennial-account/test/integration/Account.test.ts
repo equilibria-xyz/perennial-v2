@@ -19,7 +19,12 @@ import { DeploymentVars } from '../helpers/setupHelpers'
 const { ethers } = HRE
 
 export function RunAccountTests(
-  deployProtocol: (owner: SignerWithAddress, overrides?: CallOverrides) => Promise<DeploymentVars>,
+  deployProtocol: (
+    owner: SignerWithAddress,
+    createMarketETH: boolean,
+    createMarketBTC: boolean,
+    overrides?: CallOverrides,
+  ) => Promise<DeploymentVars>,
   deployInstance: (
     owner: SignerWithAddress,
     marketFactory: IMarketFactory,
@@ -45,7 +50,7 @@ export function RunAccountTests(
 
     const fixture = async () => {
       ;[owner, userA, userB] = await ethers.getSigners()
-      deployment = await deployProtocol(owner)
+      deployment = await deployProtocol(owner, false, false)
       dsu = deployment.dsu
       usdc = deployment.usdc
       ;[controller] = await deployInstance(owner, deployment.marketFactory, deployment.chainlinkKeptFeed)

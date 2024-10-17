@@ -51,7 +51,12 @@ const TX_OVERRIDES = { gasLimit: 3_000_000, maxPriorityFeePerGas: 0, maxFeePerGa
 
 export function RunIncentivizedTests(
   name: string,
-  deployProtocol: (owner: SignerWithAddress, overrides?: CallOverrides) => Promise<DeploymentVars>,
+  deployProtocol: (
+    owner: SignerWithAddress,
+    createMarketETH: boolean,
+    createMarketBTC: boolean,
+    overrides?: CallOverrides,
+  ) => Promise<DeploymentVars>,
   deployInstance: (
     owner: SignerWithAddress,
     marketFactory: IMarketFactory,
@@ -69,8 +74,6 @@ export function RunIncentivizedTests(
     let marketFactory: IMarketFactory
     let ethMarket: IMarket
     let btcMarket: IMarket
-    let ethKeeperOracle: IKeeperOracle
-    let btcKeeperOracle: IKeeperOracle
     let owner: SignerWithAddress
     let userA: SignerWithAddress
     let userB: SignerWithAddress
@@ -179,15 +182,12 @@ export function RunIncentivizedTests(
     const fixture = async () => {
       // deploy the protocol
       ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
-      deployment = await deployProtocol(owner, TX_OVERRIDES)
-      // TODO: eliminate infrequently used member variables
+      deployment = await deployProtocol(owner, true, true, TX_OVERRIDES)
       dsu = deployment.dsu
       usdc = deployment.usdc
       marketFactory = deployment.marketFactory
-      ethMarket = deployment.ethMarket
-      btcMarket = deployment.btcMarket
-      ethKeeperOracle = deployment.ethKeeperOracle
-      btcKeeperOracle = deployment.btcKeeperOracle
+      ethMarket = deployment.ethMarket!.market
+      btcMarket = deployment.btcMarket!.market
       ;[controller, accountVerifier] = await deployInstance(
         owner,
         deployment.marketFactory,
@@ -195,8 +195,20 @@ export function RunIncentivizedTests(
         TX_OVERRIDES,
       )
 
-      await advanceToPrice(ethKeeperOracle, receiver, currentTime, parse6decimal('3113.7128'), TX_OVERRIDES)
-      await advanceToPrice(btcKeeperOracle, receiver, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
+      await advanceToPrice(
+        deployment.ethMarket!.keeperOracle,
+        receiver,
+        currentTime,
+        parse6decimal('3113.7128'),
+        TX_OVERRIDES,
+      )
+      await advanceToPrice(
+        deployment.btcMarket!.keeperOracle,
+        receiver,
+        currentTime,
+        parse6decimal('57575.464'),
+        TX_OVERRIDES,
+      )
 
       // fund userA
       await dsu.connect(userA).approve(ethMarket.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
