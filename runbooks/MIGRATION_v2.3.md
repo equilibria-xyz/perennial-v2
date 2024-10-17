@@ -66,7 +66,7 @@ see: https://github.com/equilibria-xyz/perennial-v2/pull/424
 All parameter sets have a new format. Each needs to be updated for all markets.
 - Oracle
   - OracleParameter
-  - KeeperOracleParameter (per sub-oracle)
+  - KeeperOracleParameter
 - Market
   - ProtocolParameter
   - RiskParameter (per market)
@@ -84,7 +84,7 @@ Notable fields changes for reference:
 
 ### Update sub-oracles to v2.3-based oracles implementations
 
-A new PythOracle implementation will be deployed with this release. A standard sub-oracle update is required on each market's oracle to transition to the new sub-oracles.
+New PythFactory and CryptexFactory implementations will be deployed with this release. A standard sub-oracle update is required on each market's oracle to transition to the new sub-oracles.
 
 Must also register each market with its oracle via `Oracle.register(market)`. This step must be done whenever launching a new oracle going forward as well.
 
