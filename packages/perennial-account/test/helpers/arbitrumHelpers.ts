@@ -33,7 +33,7 @@ export async function createFactoriesForChain(
   return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
 }
 
-// connects to Arbitrum stablecoins and deploys a controller configured for them
+// connects to Arbitrum stablecoins and deploys a non-incentivized controller configured for them
 export async function deployAndInitializeController(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,

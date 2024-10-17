@@ -7,7 +7,9 @@ import { parse6decimal } from '../../../common/testutil/types'
 import {
   Account,
   Account__factory,
+  AggregatorV3Interface,
   Controller_Incentivized,
+  IAccountVerifier,
   IController,
   IERC20Metadata,
   IMarketFactory,
@@ -21,8 +23,9 @@ export function RunAccountTests(
   deployInstance: (
     owner: SignerWithAddress,
     marketFactory: IMarketFactory,
+    chainlinkKeptFeed: AggregatorV3Interface,
     overrides?: CallOverrides,
-  ) => Promise<Controller_Incentivized>,
+  ) => Promise<[Controller_Incentivized, IAccountVerifier]>,
 ): void {
   describe('Account', () => {
     let deployment: DeploymentVars
@@ -45,7 +48,7 @@ export function RunAccountTests(
       deployment = await deployProtocol(owner)
       dsu = deployment.dsu
       usdc = deployment.usdc
-      controller = await deployInstance(owner, deployment.marketFactory)
+      ;[controller] = await deployInstance(owner, deployment.marketFactory, deployment.chainlinkKeptFeed)
 
       // fund users with some DSU and USDC
       await fundWallet(userA)

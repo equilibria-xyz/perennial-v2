@@ -12,7 +12,6 @@ import { parse6decimal } from '../../../common/testutil/types'
 import {
   Account,
   Account__factory,
-  AccountVerifier__factory,
   Controller_Incentivized,
   IAccount,
   IAccountVerifier,
@@ -41,7 +40,7 @@ import {
   signSignerUpdate,
 } from '@equilibria/perennial-v2-verifier/test/helpers/erc712'
 import { Verifier, Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
-import { IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
+import { AggregatorV3Interface, IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -56,8 +55,9 @@ export function RunIncentivizedTests(
   deployInstance: (
     owner: SignerWithAddress,
     marketFactory: IMarketFactory,
+    chainlinkKeptFeed: AggregatorV3Interface,
     overrides?: CallOverrides,
-  ) => Promise<Controller_Incentivized>,
+  ) => Promise<[Controller_Incentivized, IAccountVerifier]>,
   mockGasInfo: () => Promise<void>,
 ): void {
   describe(name, () => {
@@ -131,6 +131,8 @@ export function RunIncentivizedTests(
       let keeperEthSpentOnGas = keeperEthBalanceBefore.sub(await keeper.getBalance())
 
       // if TXes in test required outside price commitments, compensate the keeper for them
+      // TODO: This amount is for an Arbitrum price committment; should make this chain-specific
+      // once we know the cost of a Base price committment.
       keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306').mul(priceCommitments))
 
       // cost of transaction
@@ -186,45 +188,18 @@ export function RunIncentivizedTests(
       btcMarket = deployment.btcMarket
       ethKeeperOracle = deployment.ethKeeperOracle
       btcKeeperOracle = deployment.btcKeeperOracle
+      ;[controller, accountVerifier] = await deployInstance(
+        owner,
+        deployment.marketFactory,
+        deployment.chainlinkKeptFeed,
+        TX_OVERRIDES,
+      )
 
       await advanceToPrice(ethKeeperOracle, receiver, currentTime, parse6decimal('3113.7128'), TX_OVERRIDES)
       await advanceToPrice(btcKeeperOracle, receiver, currentTime, parse6decimal('57575.464'), TX_OVERRIDES)
 
-      await dsu.connect(userA).approve(ethMarket.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
-
-      // set up users and deploy artifacts
-      const keepConfig = {
-        multiplierBase: ethers.utils.parseEther('1'),
-        bufferBase: 275_000, // buffer for handling the keeper fee
-        multiplierCalldata: ethers.utils.parseEther('1'),
-        bufferCalldata: 0,
-      }
-      const keepConfigBuffered = {
-        multiplierBase: ethers.utils.parseEther('1.08'),
-        bufferBase: 1_500_000, // for price commitment
-        multiplierCalldata: ethers.utils.parseEther('1.08'),
-        bufferCalldata: 35_200,
-      }
-      const keepConfigWithdrawal = {
-        multiplierBase: ethers.utils.parseEther('1.05'),
-        bufferBase: 1_500_000,
-        multiplierCalldata: ethers.utils.parseEther('1.05'),
-        bufferCalldata: 35_200,
-      }
-      controller = await deployInstance(owner, marketFactory, { maxFeePerGas: 100000000 })
-      accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address, {
-        maxFeePerGas: 100000000,
-      })
-      // chainlink feed is used by Kept for keeper compensation
-      const KeepConfig = '(uint256,uint256,uint256,uint256)'
-      await controller[`initialize(address,address,${KeepConfig},${KeepConfig},${KeepConfig})`](
-        accountVerifier.address,
-        deployment.chainlinkKeptFeed.address,
-        keepConfig,
-        keepConfigBuffered,
-        keepConfigWithdrawal,
-      )
       // fund userA
+      await dsu.connect(userA).approve(ethMarket.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
       await deployment.fundWalletUSDC(userA, parse6decimal('50000'), { maxFeePerGas: 100000000 })
     }
 
