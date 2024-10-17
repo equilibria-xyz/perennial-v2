@@ -5,8 +5,10 @@ import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
+import { Initializable } from "@equilibria/root/attribute/Initializable.sol";
 
 import { IVerifier } from "./interfaces/IVerifier.sol";
+import { IMarketFactorySigners } from "./interfaces/IMarketFactorySigners.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
@@ -21,9 +23,18 @@ import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBat
 ///      Messages verification request must come from the domain address if it is set.
 ///       - In the case of intent / fills, this means that the market should be set as the domain.
 ///
-contract Verifier is VerifierBase, IVerifier {
+contract Verifier is VerifierBase, IVerifier, Initializable {
+    /// @dev market factory to check authorization
+    IMarketFactorySigners public marketFactory;
+
     /// @dev Initializes the domain separator and parameter caches
     constructor() EIP712("Perennial", "1.0.0") { }
+
+    /// @notice Initializes the contract state
+    /// @param marketFactory_ The market factory
+    function initialize(IMarketFactorySigners marketFactory_) external initializer(1) {
+        marketFactory = marketFactory_;
+    }
 
     /// @notice Verifies the signature of an intent order type
     /// @dev Cancels the nonce after verifying the signature
@@ -87,5 +98,13 @@ contract Verifier is VerifierBase, IVerifier {
             _hashTypedDataV4(AccessUpdateBatchLib.hash(accessUpdateBatch)),
             signature
         )) revert VerifierInvalidSignerError();
+    }
+
+    /// @notice Checks whether signer is allowed to sign a message for account
+    /// @param account user to check authorization for
+    /// @param signer address which signed a message for the account
+    /// @return true if signer is authorized, otherwise false
+    function _authorized(address account, address signer) internal view override returns (bool) {
+        return super._authorized(account, signer) || marketFactory.signers(account, signer);
     }
 }

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/attribute/interfaces/IInstance.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IOracleProvider.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "../Oracle.sol";
+import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { IOracle } from "./IOracle.sol";
 import { PriceResponse } from "../keeper/types/PriceResponse.sol";
 
 interface IKeeperOracle is IOracleProvider, IInstance {
@@ -48,7 +49,7 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     function initialize() external;
     function register(IOracle newOracle) external;
     function commit(OracleVersion memory version, address receiver, uint256 value) external;
-    function settle(uint256 version, uint256 maxCount) external;
+    function settle(uint256 version, uint256 maxCount, address receiver) external;
     function next() external view returns (uint256);
     function localCallbacks(uint256 version) external view returns (address[] memory);
 

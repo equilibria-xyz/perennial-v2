@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import { BigNumber, CallOverrides, constants, utils } from 'ethers'
-import { IMarket, MarketFactory, MarketFactory__factory } from '@equilibria/perennial-v2/types/generated'
+import { IMarket, MarketFactory, MarketFactory__factory } from '@perennial/core/types/generated'
 import {
   IKeeperOracle,
   IOracleFactory,
@@ -10,8 +10,8 @@ import {
   PythFactory,
   PythFactory__factory,
   GasOracle__factory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
-import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
+} from '@perennial/oracle/types/generated'
+import { Verifier__factory } from '@perennial/verifier/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata, IERC20Metadata__factory, IMarketFactory, IVerifier } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
@@ -70,13 +70,14 @@ async function deployMarketFactory(
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
+    maxLiquidationFee: parse6decimal('20'),
     maxCut: parse6decimal('0.50'),
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
     minScale: parse6decimal('0.001'),
+    maxStaleAfter: 7200,
   })
 
   return marketFactory

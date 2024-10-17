@@ -1,21 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/attribute/interfaces/IInstance.sol";
-import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/root/token/types/Token18.sol";
-import "@equilibria/perennial-v2-verifier/contracts/types/Intent.sol";
-import "./IOracleProvider.sol";
-import "../types/OracleVersion.sol";
-import "../types/MarketParameter.sol";
-import "../types/RiskParameter.sol";
-import "../types/Version.sol";
-import "../types/Local.sol";
-import "../types/Global.sol";
-import "../types/Position.sol";
-import "../types/Checkpoint.sol";
-import "../types/Guarantee.sol";
-import "../libs/VersionLib.sol";
+import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { Intent } from "@perennial/verifier/contracts/types/Intent.sol";
+import { IOracleProvider } from "./IOracleProvider.sol";
+import { OracleVersion } from "../types/OracleVersion.sol";
+import { MarketParameter } from "../types/MarketParameter.sol";
+import { RiskParameter } from "../types/RiskParameter.sol";
+import { Version } from "../types/Version.sol";
+import { Local } from "../types/Local.sol";
+import { Global } from "../types/Global.sol";
+import { Position } from "../types/Position.sol";
+import { Checkpoint } from "../types/Checkpoint.sol";
+import { Order } from "../types/Order.sol";
+import { Guarantee } from "../types/Guarantee.sol";
+import { VersionAccumulationResult } from "../libs/VersionLib.sol";
+import { CheckpointAccumulationResult } from "../libs/CheckpointLib.sol";
 
 interface IMarket is IInstance {
     struct MarketDefinition {
@@ -60,7 +63,6 @@ interface IMarket is IInstance {
         UFixed6 collateralization;
     }
 
-    event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer);
     event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);
     event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
     event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
@@ -120,6 +122,8 @@ interface IMarket is IInstance {
     error MarketSettleOnlyError();
     // sig: 0x1e9d2296
     error MarketInvalidIntentFeeError();
+    // sig: 0xaf5dfc8f
+    error MarketIntentPriceDeviationError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();

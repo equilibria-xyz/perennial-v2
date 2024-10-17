@@ -11,13 +11,8 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { Account, Account__factory, Controller, IERC20Metadata } from '../../types/generated'
 import { IAccountVerifier } from '../../types/generated/contracts/interfaces'
 import { IAccountVerifier__factory } from '../../types/generated/factories/contracts/interfaces'
-import {
-  IKeeperOracle,
-  IOracleFactory,
-  IOracleProvider,
-  PythFactory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
-import { IMarket, IMarketFactory } from '@equilibria/perennial-v2/types/generated'
+import { IKeeperOracle, IOracleFactory, IOracleProvider, PythFactory } from '@perennial/oracle/types/generated'
+import { IMarket, IMarketFactory } from '@perennial/core/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice } from '../helpers/setupHelpers'
 import {
@@ -295,6 +290,10 @@ describe('ControllerBase', () => {
     })
 
     it('handles groups with no collateral', async () => {
+      const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
+      expect(groupCollateral).to.equal(0)
+      expect(canRebalance).to.be.false
+
       await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
         controller,
         'ControllerGroupBalancedError',
@@ -316,6 +315,96 @@ describe('ControllerBase', () => {
       // ensure group collateral unchanged and cannot rebalance
       const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
       expect(groupCollateral).to.equal(parse6decimal('15000'))
+      expect(canRebalance).to.be.false
+    })
+
+    it('rebalances markets with no collateral when others are within threshold', async () => {
+      // reconfigure group such that ETH market has threshold higher than it's imbalance
+      const message = {
+        group: 1,
+        markets: [ethMarket.address, btcMarket.address],
+        configs: [
+          { target: parse6decimal('0.9'), threshold: parse6decimal('0.15') },
+          { target: parse6decimal('0.1'), threshold: parse6decimal('0.03') },
+        ],
+        maxFee: constants.Zero,
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)).to.not.be.reverted
+
+      // transfer funds only to the ETH market
+      await transfer(parse6decimal('10000'), userA, ethMarket)
+
+      await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(ethMarket.address, accountA.address, utils.parseEther('1000'))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, btcMarket.address, utils.parseEther('1000'))
+        .to.emit(controller, 'GroupRebalanced')
+        .withArgs(userA.address, 1)
+
+      // ensure group collateral unchanged and cannot rebalance
+      const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
+      expect(groupCollateral).to.equal(parse6decimal('10000'))
+      expect(canRebalance).to.be.false
+    })
+
+    it('should not rebalance empty market configured to be empty', async () => {
+      // reconfigure group such that BTC market is empty
+      const message = {
+        group: 1,
+        markets: [ethMarket.address, btcMarket.address],
+        configs: [
+          { target: parse6decimal('1'), threshold: parse6decimal('0.05') },
+          { target: parse6decimal('0'), threshold: parse6decimal('0.05') },
+        ],
+        maxFee: constants.Zero,
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)).to.not.be.reverted
+
+      // transfer funds to the ETH market
+      await transfer(parse6decimal('2500'), userA, ethMarket)
+
+      // ensure group balanced
+      await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES)).to.be.revertedWithCustomError(
+        controller,
+        'ControllerGroupBalancedError',
+      )
+    })
+
+    it('should rebalance non-empty market configured to be empty', async () => {
+      // reconfigure group such that BTC market is empty
+      const message = {
+        group: 1,
+        markets: [ethMarket.address, btcMarket.address],
+        configs: [
+          { target: parse6decimal('1'), threshold: parse6decimal('0.05') },
+          { target: parse6decimal('0'), threshold: parse6decimal('0.05') },
+        ],
+        maxFee: constants.Zero,
+        ...(await createAction(userA.address)),
+      }
+      const signature = await signRebalanceConfigChange(userA, verifier, message)
+      await expect(controller.connect(keeper).changeRebalanceConfigWithSignature(message, signature)).to.not.be.reverted
+
+      // transfer funds to both markets
+      await transfer(parse6decimal('2500'), userA, ethMarket)
+      await transfer(parse6decimal('2500'), userA, btcMarket)
+
+      await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(btcMarket.address, accountA.address, utils.parseEther('2500'))
+        .to.emit(dsu, 'Transfer')
+        .withArgs(accountA.address, ethMarket.address, utils.parseEther('2500'))
+        .to.emit(controller, 'GroupRebalanced')
+        .withArgs(userA.address, 1)
+
+      // ensure group collateral unchanged and cannot rebalance
+      const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 1)
+      expect(groupCollateral).to.equal(parse6decimal('5000'))
       expect(canRebalance).to.be.false
     })
   })
@@ -444,7 +533,7 @@ describe('ControllerBase', () => {
       // ensure withdrawal fails
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
     })
   })
 
@@ -505,7 +594,7 @@ describe('ControllerBase', () => {
       // ensure withdrawal fails
       await expect(
         controller.connect(keeper).withdrawWithSignature(withdrawalMessage, signature),
-      ).to.be.revertedWithCustomError(controller, 'ControllerInvalidSignerError')
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
     })
   })
 })

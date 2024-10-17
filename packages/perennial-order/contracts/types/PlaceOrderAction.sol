@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
 
 import { Action, ActionLib } from "./Action.sol";
 import { TriggerOrder, TriggerOrderStorageLib } from "./TriggerOrder.sol";

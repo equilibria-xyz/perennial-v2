@@ -29,7 +29,7 @@ import {
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
 import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import {
   OracleFactory,
@@ -39,8 +39,8 @@ import {
   PowerTwo__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
-import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
+} from '@perennial/oracle/types/generated'
+import { Verifier, Verifier__factory } from '../../../../perennial-verifier/types/generated'
 const { deployments, ethers } = HRE
 
 export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'
@@ -65,6 +65,7 @@ export interface InstanceVars {
   chainlink: ChainlinkContext
   oracle: IOracleProvider
   marketImpl: Market
+  verifier: Verifier
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
@@ -132,7 +133,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
-    verifierImpl.address,
+    verifierProxy.address,
     marketImpl.address,
   )
 
@@ -143,22 +144,25 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
 
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
+  const verifier = new Verifier__factory(owner).attach(verifierProxy.address)
 
   // Init
   await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
+  await verifier.connect(owner).initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
+    maxLiquidationFee: parse6decimal('20'),
     maxCut: parse6decimal('0.50'),
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
     minScale: parse6decimal('0.001'),
+    maxStaleAfter: 172800, // 2 days
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).updateParameter({
@@ -198,6 +202,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     marketFactory,
     oracle,
     marketImpl,
+    verifier,
   }
 }
 
@@ -261,13 +266,12 @@ export async function createMarket(
   const marketParameter = {
     fundingFee: parse6decimal('0.1'),
     interestFee: parse6decimal('0.1'),
-    oracleFee: 0,
     riskFee: 0,
     makerFee: 0,
     takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    settlementFee: 0,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
     ...marketParamOverrides,

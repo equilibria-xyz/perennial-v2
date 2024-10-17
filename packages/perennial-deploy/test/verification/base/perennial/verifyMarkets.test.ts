@@ -10,7 +10,7 @@ import {
 } from '../../../../types/generated'
 import { utils, constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { OracleFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { OracleFactory } from '@perennial/oracle/types/generated'
 import { getLabsMultisig } from '../../../../../common/testutil/constants'
 
 const GAUNTLET_ADDRESS = '0x9B08824A87D79a65dD30Fc5c6B9e734A313E4235'
@@ -48,7 +48,7 @@ describe('Verify Markets', () => {
     expect(await marketFactory.paused()).to.be.false
     expect(param.protocolFee).to.equal(0)
     expect(param.maxFee).to.equal(utils.parseUnits('0.002', 6))
-    expect(param.maxFeeAbsolute).to.equal(utils.parseUnits('50', 6))
+    expect(param.maxLiquidationFee).to.equal(utils.parseUnits('50', 6))
     expect(param.maxCut).to.equal(utils.parseUnits('0.1', 6))
     expect(param.maxRate).to.equal(utils.parseUnits('5.00', 6))
     expect(param.minMaintenance).to.equal(utils.parseUnits('0.004', 6))

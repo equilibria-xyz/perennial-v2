@@ -1,22 +1,43 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../interfaces/IMetaQuantsFactory.sol";
-import "../keeper/KeeperFactory.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { SignedMath } from "@openzeppelin/contracts/utils/math/SignedMath.sol";
+import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
+import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
+import { IMetaQuantsFactory } from "../interfaces/IMetaQuantsFactory.sol";
+import { KeeperFactory } from "../keeper/KeeperFactory.sol";
 
 contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
     int32 private constant PARSE_DECIMALS = 18;
 
     address public immutable signer;
 
+    bytes32 private immutable _factoryType;
+
     constructor(
         address signer_,
         IGasOracle commitmentGasOracle_,
         IGasOracle settlementGasOracle_,
+        string memory factoryType_,
         address implementation_
     ) KeeperFactory(commitmentGasOracle_, settlementGasOracle_, implementation_) {
         signer = signer_;
+        bytes memory bstr = bytes(factoryType_);
+        _factoryType = bytes32(uint256(bytes32(bstr)) | bstr.length);
+    }
+
+    /// @dev Uses's OZ's short string storage util (only available in newer versions of oz/contracts)
+    ///      https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/ShortStrings.sol
+    function factoryType() external view returns (string memory) {
+        bytes32 shortString = _factoryType;
+        uint256 len = uint256(_factoryType) & 0xFF;
+        string memory str = new string(32);
+        assembly ("memory-safe") {
+            mstore(str, len)
+            mstore(add(str, 0x20), shortString)
+        }
+        return str;
     }
 
     /// @notice Validates and parses the update data payload against the specified version

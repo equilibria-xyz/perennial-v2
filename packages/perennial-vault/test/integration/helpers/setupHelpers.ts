@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { constants, BigNumberish } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { IERC20Metadata, IMarket, IMarket__factory, IMarketFactory } from '../../../types/generated'
-import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
 
 export interface DeployProductParams
   extends Partial<
@@ -84,6 +84,7 @@ export async function deployProductOnMainnetFork({
     settlementFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
   }
@@ -93,7 +94,7 @@ export async function deployProductOnMainnetFork({
   }
 
   const protocolParameter = { ...(await factory.parameter()) }
-  protocolParameter.maxFeeAbsolute = parse6decimal('25000')
+  protocolParameter.maxLiquidationFee = parse6decimal('25')
   await factory.connect(owner).updateParameter(protocolParameter)
 
   const productAddress = await factory.connect(owner).callStatic.create(marketDefinition)

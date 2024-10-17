@@ -31,8 +31,8 @@ import {
   VersionLib__factory,
   VersionStorageLib__factory,
   MagicValueLib__factory,
-} from '@equilibria/perennial-v2/types/generated'
-import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+} from '@perennial/core/types/generated'
+import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
 
 import {
   OracleFactory__factory,
@@ -40,9 +40,9 @@ import {
   Oracle__factory,
   IOracleFactory,
   IOracle,
-} from '@equilibria/perennial-v2-oracle/types/generated'
-import { OracleVersionStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/interfaces/IOracleProvider'
-import { Verifier__factory } from '@equilibria/perennial-v2-verifier/types/generated'
+} from '@perennial/oracle/types/generated'
+import { OracleVersionStruct } from '../../types/generated/@perennial/core/contracts/interfaces/IOracleProvider'
+import { Verifier__factory } from '@perennial/verifier/types/generated'
 
 // Simulates an oracle update from KeeperOracle.
 // If timestamp matches a requested version, callbacks implicitly settle the market.
@@ -134,6 +134,7 @@ export async function createMarket(
     takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
     ...marketParamOverrides,
@@ -153,10 +154,11 @@ export async function deployController(
   usdcAddress: Address,
   dsuAddress: Address,
   reserveAddress: Address,
+  marketFactoryAddress: Address,
 ): Promise<Controller> {
   const accountImpl = await new Account__factory(owner).deploy(usdcAddress, dsuAddress, reserveAddress)
   accountImpl.initialize(constants.AddressZero)
-  const controller = await new Controller__factory(owner).deploy(accountImpl.address)
+  const controller = await new Controller__factory(owner).deploy(accountImpl.address, marketFactoryAddress)
   return controller
 }
 
@@ -181,9 +183,7 @@ export async function deployProtocolForOracle(
 // Creates a market for a specified collateral token, which can't do much of anything
 export async function mockMarket(token: Address): Promise<IMarket> {
   const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  const verifier = await smock.fake<IVerifier>(
-    '@equilibria/perennial-v2-verifier/contracts/interfaces/IVerifier.sol:IVerifier',
-  )
+  const verifier = await smock.fake<IVerifier>('@perennial/verifier/contracts/interfaces/IVerifier.sol:IVerifier')
   const factory = await smock.fake<IMarketFactory>('IMarketFactory')
   const factorySigner = await impersonateWithBalance(factory.address, utils.parseEther('10'))
 
@@ -259,13 +259,14 @@ async function deployMarketFactory(
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
+    maxLiquidationFee: parse6decimal('20'),
     maxCut: parse6decimal('0.50'),
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
     minScale: parse6decimal('0.001'),
+    maxStaleAfter: 7200,
   })
 
   return marketFactory

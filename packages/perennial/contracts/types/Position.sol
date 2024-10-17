@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "./OracleVersion.sol";
-import "./RiskParameter.sol";
-import "./Global.sol";
-import "./Local.sol";
-import "./Order.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { OracleVersion } from "./OracleVersion.sol";
+import { RiskParameter } from "./RiskParameter.sol";
+import { Order } from "./Order.sol";
 
-/// @dev Order type
+/// @dev Position type
 struct Position {
     /// @dev The timestamp of the position
     uint256 timestamp;
@@ -319,12 +319,12 @@ library PositionLib {
 ///
 library PositionStorageGlobalLib {
     function read(PositionStorageGlobal storage self) internal view returns (Position memory) {
-        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
+        uint256 slot0 = self.slot0;
         return Position(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
-            UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 48 - 48 - 64 - 64)) >> (256 - 64))
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64 - 64)) >> (256 - 64))
         );
     }
 
@@ -337,14 +337,12 @@ library PositionStorageGlobalLib {
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(UFixed6.unwrap(newValue.long) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64) |
-            uint256(UFixed6.unwrap(newValue.short) << (256 - 64)) >> (256 - 32 - 48 - 48 - 64 - 64);
-        uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.maker) << (256 - 64)) >> (256 - 64);
+            uint256(UFixed6.unwrap(newValue.maker) << (256 - 64)) >> (256 - 32 - 32 - 64) |
+            uint256(UFixed6.unwrap(newValue.long) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.short) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
-            sstore(add(self.slot, 1), encoded1)
         }
     }
 
@@ -359,6 +357,9 @@ library PositionStorageGlobalLib {
 
         position.maker = deprecatedMaker;
         store(self, position);
+        assembly {
+            sstore(add(self.slot, 1), 0) // Part of the v2.3 migration. Can be removed once migration is complete.
+        }
     }
 }
 
@@ -425,6 +426,7 @@ library PositionStorageLocalLib {
 
         assembly {
             sstore(self.slot, encoded0)
+            sstore(add(self.slot, 1), 0) // Part of the v2.3 migration. Can be removed once migration is complete.
         }
     }
 }

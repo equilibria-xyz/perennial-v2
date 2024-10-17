@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import "@equilibria/root/attribute/Instance.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IOracleProviderFactory.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "./interfaces/IOracle.sol";
-import "./interfaces/IOracleFactory.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { IOracleProvider} from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { OracleReceipt } from "@perennial/core/contracts/types/OracleReceipt.sol";
+import { IOracle } from "./interfaces/IOracle.sol";
 
 /// @title Oracle
 /// @notice The top-level oracle contract that implements an oracle provider interface.

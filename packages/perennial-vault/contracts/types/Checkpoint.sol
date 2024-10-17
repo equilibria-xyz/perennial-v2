@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Checkpoint as PerennialCheckpoint } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
 import { Account } from "./Account.sol";
 
 /// @dev Checkpoint type

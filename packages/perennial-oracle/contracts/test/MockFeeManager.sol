@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../interfaces/IChainlinkFactory.sol";
+import { IFeeManager, Asset } from "../interfaces/IChainlinkFactory.sol";
 
-contract MockFeeManager is IFeeManager{
+contract MockFeeManager is IFeeManager {
     address public immutable nativeAddress;
 
     constructor(address nativeAddress_) {

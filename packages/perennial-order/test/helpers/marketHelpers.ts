@@ -18,7 +18,7 @@ import {
   VersionLib__factory,
   VersionStorageLib__factory,
   MagicValueLib__factory,
-} from '@equilibria/perennial-v2/types/generated'
+} from '@perennial/core/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
@@ -84,6 +84,7 @@ export async function createMarket(
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
     settlementFee: 0,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
     ...marketParamOverrides,

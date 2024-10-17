@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
-import "@equilibria/root/pid/types/PController6.sol";
-import "@equilibria/root/adiabatic/types/LinearAdiabatic6.sol";
-import "@equilibria/root/adiabatic/types/NoopAdiabatic6.sol";
-import "../interfaces/IOracleProvider.sol";
-import "./ProtocolParameter.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { UJumpRateUtilizationCurve6 } from "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
+import { PController6 } from "@equilibria/root/pid/types/PController6.sol";
+import { LinearAdiabatic6 } from "@equilibria/root/adiabatic/types/LinearAdiabatic6.sol";
+import { NoopAdiabatic6 } from "@equilibria/root/adiabatic/types/NoopAdiabatic6.sol";
+import { ProtocolParameter } from "./ProtocolParameter.sol";
 
 /// @dev RiskParameter type
 struct RiskParameter {
@@ -29,7 +29,7 @@ struct RiskParameter {
     /// @dev The minimum limit of the efficiency metric
     UFixed6 efficiencyLimit;
 
-    /// @dev The percentage fee on the notional that is charged when a position is liquidated
+    /// @dev Multiple of the settlement fee charged when a position is liquidated
     UFixed6 liquidationFee;
 
     /// @dev The utilization curve that is used to compute maker interest
@@ -68,8 +68,9 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 ///        uint48 makerLimit;                          // <= 281t (no decimals)
 ///        uint24 efficiencyLimit;                     // <= 1677%
 ///
-///        /* slot 1 */ (28)
+///        /* slot 1 */ (31)
 ///        bytes3 __unallocated__;
+///        uint48 makerSkewScale;                      // <= 281t (no decimals) (must maintain location due to updateRiskParameter)
 ///        uint48 takerSkewScale;                      // <= 281t (no decimals) (must maintain location due to updateRiskParameter)
 ///        uint24 utilizationCurveMinRate;             // <= 1677%
 ///        uint24 utilizationCurveMaxRate;             // <= 1677%
@@ -77,12 +78,12 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 ///        uint24 utilizationCurveTargetUtilization;   // <= 1677%
 ///        int32 pControllerMin;                       // <= 214748%
 ///
-///        /* slot 2 */ (32)
+///        /* slot 2 */ (30)
 ///        uint48 pControllerK;                        // <= 281m
 ///        int32 pControllerMax;                       // <= 214748%
 ///        uint48 minMargin;                           // <= 281m
 ///        uint48 minMaintenance;                      // <= 281m
-///        uint48 liquidationFee;                      // <= 281m
+///        uint32 liquidationFee;                      // <= 4294
 ///        uint24 staleAfter;                          // <= 16m s
 ///        bool makerReceiveOnly;
 ///    }
@@ -109,7 +110,7 @@ library RiskParameterStorageLib {
             UFixed6Lib.from(uint256(    slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48 - 24)) >> (256 - 24)),
 
-            UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32)) >> (256 - 32)),
             UJumpRateUtilizationCurve6(
                 UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 48 - 24)) >> (256 - 24)),
                 UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 48 - 24 - 24)) >> (256 - 24)),
@@ -124,8 +125,8 @@ library RiskParameterStorageLib {
             ),
             UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48)) >> (256 - 48)),
-                         uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 48 - 24)) >> (256 - 24),
-            0 !=        (uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 48 - 24 - 8)) >> (256 - 8))
+                         uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24)) >> (256 - 24),
+            0 !=        (uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8)) >> (256 - 8))
         );
     }
 
@@ -136,7 +137,7 @@ library RiskParameterStorageLib {
                 .gt(protocolParameter.maxFee)
         ) revert RiskParameterStorageInvalidError();
 
-        if (self.liquidationFee.gt(protocolParameter.maxFeeAbsolute)) revert RiskParameterStorageInvalidError();
+        if (self.liquidationFee.gt(protocolParameter.maxLiquidationFee)) revert RiskParameterStorageInvalidError();
 
         if (
             self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate)
@@ -144,20 +145,27 @@ library RiskParameterStorageLib {
                 .gt(protocolParameter.maxRate)
         ) revert RiskParameterStorageInvalidError();
 
+        if (self.staleAfter > protocolParameter.maxStaleAfter) revert RiskParameterStorageInvalidError();
+
         if (self.maintenance.lt(protocolParameter.minMaintenance)) revert RiskParameterStorageInvalidError();
+        if (self.maintenance.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
         if (self.margin.lt(self.maintenance)) revert RiskParameterStorageInvalidError();
+        if (self.margin.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
         if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert RiskParameterStorageInvalidError();
 
         if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
-        if (self.minMaintenance.lt(self.liquidationFee)) revert RiskParameterStorageInvalidError();
-
         if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();
 
-        UFixed6 scaleLimit = self.makerLimit.div(self.efficiencyLimit).mul(protocolParameter.minScale);
-        if (self.takerFee.scale.lt(scaleLimit) || self.makerFee.scale.lt(scaleLimit))
+        (UFixed6 makerLimitTruncated, UFixed6 takerFeeScaleTruncated, UFixed6 makerFeeScaleTruncated) = (
+            UFixed6Lib.from(self.makerLimit.truncate()),
+            UFixed6Lib.from(self.takerFee.scale.truncate()),
+            UFixed6Lib.from(self.makerFee.scale.truncate())
+        );
+        UFixed6 scaleLimit = makerLimitTruncated.div(self.efficiencyLimit).mul(protocolParameter.minScale);
+        if (takerFeeScaleTruncated.lt(scaleLimit) || makerFeeScaleTruncated.lt(scaleLimit))
             revert RiskParameterStorageInvalidError();
     }
 
@@ -202,9 +210,9 @@ library RiskParameterStorageLib {
             uint256(Fixed6.unwrap(newValue.pController.max)                 << (256 - 32)) >> (256 - 48 - 32) |
             uint256(UFixed6.unwrap(newValue.minMargin)                      << (256 - 48)) >> (256 - 48 - 32 - 48) |
             uint256(UFixed6.unwrap(newValue.minMaintenance)                 << (256 - 48)) >> (256 - 48 - 32 - 48 - 48) |
-            uint256(UFixed6.unwrap(newValue.liquidationFee)                 << (256 - 48)) >> (256 - 48 - 32 - 48 - 48 - 48) |
-            uint256(newValue.staleAfter                                     << (256 - 24)) >> (256 - 48 - 32 - 48 - 48 - 48 - 24) |
-            uint256((newValue.makerReceiveOnly ? uint256(1) : uint256(0))   << (256 - 8))  >> (256 - 48 - 32 - 48 - 48 - 48 - 24 - 8);
+            uint256(UFixed6.unwrap(newValue.liquidationFee)                 << (256 - 32)) >> (256 - 48 - 32 - 48 - 48 - 32) |
+            uint256(newValue.staleAfter                                     << (256 - 24)) >> (256 - 48 - 32 - 48 - 48 - 32 - 24) |
+            uint256((newValue.makerReceiveOnly ? uint256(1) : uint256(0))   << (256 - 8))  >> (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8);
 
         assembly {
             sstore(self.slot, encoded0)

@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { IMarketFactory } from "@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol";
+import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "../interfaces/IAccount.sol";
 import { IAccountVerifier } from "../interfaces/IAccountVerifier.sol";
@@ -88,10 +88,8 @@ interface IController {
     function verifier() external view returns (IAccountVerifier);
 
     /// @notice Sets contract addresses used for message verification and token management
-    /// @param marketFactory Contract used to validate delegated signers
     /// @param verifier Contract used to validate collateral account message signatures
     function initialize(
-        IMarketFactory marketFactory,
         IAccountVerifier verifier
     ) external;
 

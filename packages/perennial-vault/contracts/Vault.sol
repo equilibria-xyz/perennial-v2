@@ -1,15 +1,23 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import "@equilibria/root/attribute/Instance.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "./interfaces/IVaultFactory.sol";
-import "./types/Account.sol";
-import "./types/Checkpoint.sol";
-import "./types/Registration.sol";
-import "./types/VaultParameter.sol";
-import "./interfaces/IVault.sol";
-import "./libs/StrategyLib.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { Checkpoint as PerennialCheckpoint } from  "@perennial/core/contracts/types/Checkpoint.sol";
+import { OracleVersion } from  "@perennial/core/contracts/types/OracleVersion.sol";
+import { Local } from  "@perennial/core/contracts/types/Local.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IVault } from "./interfaces/IVault.sol";
+import { IVaultFactory } from "./interfaces/IVaultFactory.sol";
+import { Account, AccountStorage } from "./types/Account.sol";
+import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
+import { Registration, RegistrationStorage } from "./types/Registration.sol";
+import { VaultParameter, VaultParameterStorage } from "./types/VaultParameter.sol";
+import { StrategyLib } from "./libs/StrategyLib.sol";
 
 /// @title Vault
 /// @notice Deploys underlying capital by weight in maker positions across registered markets
@@ -387,7 +395,7 @@ contract Vault is IVault, Instance {
             .allocate(
                 deposit,
                 withdrawal,
-                _ineligible(context, withdrawal)
+                _ineligible(context, deposit, withdrawal)
             );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
@@ -400,15 +408,16 @@ contract Vault is IVault, Instance {
 
     /// @notice Returns the amount of collateral is ineligible for allocation
     /// @param context The context to use
+    /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
     /// @return The amount of assets that are ineligible from being allocated
-    function _ineligible(Context memory context, UFixed6 withdrawal) private pure returns (UFixed6) {
+    function _ineligible(Context memory context, UFixed6 deposit, UFixed6 withdrawal) private pure returns (UFixed6) {
         // assets eligible for redemption
         UFixed6 redemptionEligible = UFixed6Lib.unsafeFrom(context.totalCollateral)
             // assets pending claim (use latest global assets before withdrawal for redeemability)
             .unsafeSub(context.global.assets.add(withdrawal))
             // assets pending deposit
-            .unsafeSub(context.global.deposit);
+            .unsafeSub(context.global.deposit.sub(deposit));
 
         return redemptionEligible
             // approximate assets up for redemption

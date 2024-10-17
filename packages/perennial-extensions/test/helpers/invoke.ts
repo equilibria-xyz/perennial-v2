@@ -3,10 +3,10 @@ import { IMultiInvoker } from '../../types/generated'
 import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/contracts/MultiInvoker'
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
-import { IntentStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/Market'
+import { IntentStruct } from '../../types/generated/@perennial/core/contracts/Market'
 import { signIntent } from '../../../perennial-verifier/test/helpers/erc712'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IVerifier } from '@equilibria/perennial-v2/types/generated'
+import { IVerifier } from '@perennial/core/types/generated'
 import { sign } from 'crypto'
 
 export const MAX_INT = ethers.constants.MaxInt256
@@ -57,8 +57,8 @@ export const buildUpdateMarket = ({
           'uint256',
           'int256',
           'bool',
-          'tuple(uint256,address,bool)',
-          'tuple(uint256,address,bool)',
+          'tuple(uint256,address)',
+          'tuple(uint256,address)',
         ],
         [
           market,
@@ -67,16 +67,8 @@ export const buildUpdateMarket = ({
           short ?? MAX_UINT,
           collateral ?? MIN_INT,
           handleWrap ?? false,
-          [
-            interfaceFee1 ? interfaceFee1.amount : 0,
-            interfaceFee1 ? interfaceFee1.receiver : constants.AddressZero,
-            interfaceFee1 ? interfaceFee1.unwrap : false,
-          ],
-          [
-            interfaceFee2 ? interfaceFee2.amount : 0,
-            interfaceFee2 ? interfaceFee2.receiver : constants.AddressZero,
-            interfaceFee2 ? interfaceFee2.unwrap : false,
-          ],
+          [interfaceFee1 ? interfaceFee1.amount : 0, interfaceFee1 ? interfaceFee1.receiver : constants.AddressZero],
+          [interfaceFee2 ? interfaceFee2.amount : 0, interfaceFee2 ? interfaceFee2.receiver : constants.AddressZero],
         ],
       ),
     },
@@ -157,8 +149,8 @@ export const buildPlaceOrder = ({
           'uint256',
           'int256',
           'bool',
-          'tuple(uint256,address,bool)',
-          'tuple(uint256,address,bool)',
+          'tuple(uint256,address)',
+          'tuple(uint256,address)',
         ],
         [
           market,
@@ -167,15 +159,15 @@ export const buildPlaceOrder = ({
           short ?? MAX_UINT,
           collateral ?? MIN_INT,
           handleWrap ?? false,
-          [0, constants.AddressZero, false],
-          [0, constants.AddressZero, false],
+          [0, constants.AddressZero],
+          [0, constants.AddressZero],
         ],
       ),
     },
     {
       action: 3,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'tuple(uint8,int8,uint256,int256,int256,tuple(uint256,address,bool),tuple(uint256,address,bool))'],
+        ['address', 'tuple(uint8,int8,uint256,int256,int256,tuple(uint256,address),tuple(uint256,address))'],
         [
           market,
           [
@@ -184,8 +176,8 @@ export const buildPlaceOrder = ({
             order.fee,
             order.price,
             order.delta,
-            [order.interfaceFee1.amount, order.interfaceFee1.receiver, order.interfaceFee1.unwrap],
-            [order.interfaceFee2.amount, order.interfaceFee2.receiver, order.interfaceFee2.unwrap],
+            [order.interfaceFee1.amount, order.interfaceFee1.receiver],
+            [order.interfaceFee2.amount, order.interfaceFee2.receiver],
           ],
         ],
       ),

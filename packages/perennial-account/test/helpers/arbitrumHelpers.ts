@@ -9,7 +9,7 @@ import {
   Oracle__factory,
   PythFactory,
   PythFactory__factory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+} from '@perennial/oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { createMarket, deployController, deployOracleFactory, deployProtocolForOracle } from './setupHelpers'
 import {
@@ -25,9 +25,8 @@ import {
   IOracleProvider,
   GasOracle__factory,
 } from '../../types/generated'
-import { IKept } from '../../types/generated/contracts/Controller_Arbitrum'
 import { impersonate } from '../../../common/testutil'
-import { IVerifier } from '@equilibria/perennial-v2/types/generated'
+import { IVerifier } from '@perennial/core/types/generated'
 
 const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
@@ -142,17 +141,17 @@ export async function deployAndInitializeController(
   marketFactory: IMarketFactory,
 ): Promise<[IERC20Metadata, IERC20Metadata, Controller]> {
   const [dsu, usdc] = await getStablecoins(owner)
-  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE)
+  const controller = await deployController(owner, usdc.address, dsu.address, DSU_RESERVE, marketFactory.address)
 
-  const verifier = await new AccountVerifier__factory(owner).deploy()
-  await controller.initialize(marketFactory.address, verifier.address)
+  const verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
+  await controller.initialize(verifier.address)
   return [dsu, usdc, controller]
 }
 
 // deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
 export async function deployControllerArbitrum(
   owner: SignerWithAddress,
-  keepConfig: IKept.KeepConfigStruct,
+  marketFactory: IMarketFactory,
   nonceManager: IVerifier,
   overrides?: CallOverrides,
 ): Promise<Controller_Arbitrum> {
@@ -160,7 +159,7 @@ export async function deployControllerArbitrum(
   accountImpl.initialize(constants.AddressZero)
   const controller = await new Controller_Arbitrum__factory(owner).deploy(
     accountImpl.address,
-    keepConfig,
+    marketFactory.address,
     nonceManager.address,
     overrides ?? {},
   )

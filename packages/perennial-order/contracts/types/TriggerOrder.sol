@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarket, OracleVersion, Order, Position } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket, OracleVersion, Order, Position } from "@perennial/core/contracts/interfaces/IMarket.sol";
 import { InterfaceFee, InterfaceFeeLib } from "./InterfaceFee.sol";
 
 /// @notice Changes a user's position in a market when price reaches a trigger threshold
@@ -111,6 +111,9 @@ library TriggerOrderLib {
     /// @notice Returns user's position for the side of the order they placed
     function _position(IMarket market, address account, uint8 side) private view returns (UFixed6) {
         Position memory current = market.positions(account);
+        Order memory pending = market.pendings(account);
+        current.update(pending);
+
         if (side == 4) return current.maker;
         else if (side == 5) return current.long;
         else if (side == 6) return current.short;

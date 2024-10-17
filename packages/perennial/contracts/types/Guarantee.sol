@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "./Order.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { Order } from "./Order.sol";
 
 /// @dev Guarantee type
 struct Guarantee {
@@ -84,6 +86,27 @@ library GuaranteeLib {
     /// @return The total taker delta of the guarantee
     function takerTotal(Guarantee memory self) internal pure returns (UFixed6) {
         return self.takerPos.add(self.takerNeg);
+    }
+
+    /// @notice Returns the collateral adjusted due to the price override
+    /// @param self The guarantee object to check
+    /// @param price The oracle price to compare to the price override
+    /// @return The collateral adjusted due to the price override
+    function priceAdjustment(Guarantee memory self, Fixed6 price) internal pure returns (Fixed6) {
+        return self.taker().mul(price).sub(self.notional);
+    }
+
+    /// @notice Returns the price deviation of the guarantee from the oracle price
+    /// @dev The price deviation is the difference between the prices over the closest price to zero
+    ///      Only supports new guarantees for updates, does not work for aggregated guarantees (local / global)
+    /// @param self The guarantee object to check
+    /// @param price The oracle price to compare
+    /// @return The price deviation of the guarantee from the oracle price
+    function priceDeviation(Guarantee memory self, Fixed6 price) internal pure returns (UFixed6) {
+        if (takerTotal(self).isZero()) return UFixed6Lib.ZERO;
+
+        Fixed6 guaranteePrice = self.notional.div(taker(self));
+        return guaranteePrice.sub(price).abs().unsafeDiv(guaranteePrice.abs().min(price.abs()));
     }
 
     /// @notice Updates the current global guarantee with a new local guarantee

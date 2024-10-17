@@ -14,7 +14,7 @@ export const solidityOverrides = {
 }
 
 const config = defaultConfig({
-  dependencyPaths: ['@equilibria/perennial-v2-oracle/contracts/interfaces/IOracleFactory.sol'],
+  dependencyPaths: ['@perennial/oracle/contracts/interfaces/IOracleFactory.sol'],
   solidityOverrides,
 })
 

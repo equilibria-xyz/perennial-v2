@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/accumulator/types/Accumulator6.sol";
-import "../interfaces/IMarket.sol";
-import "../types/OracleVersion.sol";
-import "../types/RiskParameter.sol";
-import "../types/Global.sol";
-import "../types/Local.sol";
-import "../types/Order.sol";
-import "../types/Version.sol";
-import "../types/Checkpoint.sol";
+import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { IMarket } from "../interfaces/IMarket.sol";
+import { PositionLib } from "../types/Position.sol";
+import { Order } from "../types/Order.sol";
+import { Guarantee } from "../types/Guarantee.sol";
 
 /// @title InvariantLib
 /// @dev (external-safe): this library is safe to externalize
@@ -73,6 +69,9 @@ library InvariantLib {
             )
         ) revert IMarket.MarketNotSingleSidedError();
 
+        if (newGuarantee.priceDeviation(context.latestOracleVersion.price).gt(context.marketParameter.maxPriceDeviation))
+            revert IMarket.MarketIntentPriceDeviationError();
+
         if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
@@ -92,7 +91,7 @@ library InvariantLib {
                 context.latestOracleVersion,
                 context.riskParameter,
                 updateContext.collateralization,
-                context.local.collateral
+                context.local.collateral.add(newGuarantee.priceAdjustment(context.latestOracleVersion.price)) // apply price override adjustment from intent if present
             )
         ) revert IMarket.MarketInsufficientMarginError();
 

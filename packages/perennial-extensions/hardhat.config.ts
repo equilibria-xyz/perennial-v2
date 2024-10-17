@@ -2,16 +2,16 @@ import defaultConfig from '../common/hardhat.default.config'
 
 const config = defaultConfig({
   dependencyPaths: [
-    '@equilibria/perennial-v2/contracts/MarketFactory.sol',
-    '@equilibria/perennial-v2/contracts/Market.sol',
-    '@equilibria/perennial-v2-vault/contracts/Vault.sol',
-    '@equilibria/perennial-v2-vault/contracts/VaultFactory.sol',
-    '@equilibria/perennial-v2-oracle/contracts/interfaces/IKeeperOracle.sol',
-    '@equilibria/perennial-v2-oracle/contracts/keeper/KeeperOracle.sol',
-    '@equilibria/perennial-v2-oracle/contracts/pyth/PythFactory.sol',
-    '@equilibria/perennial-v2-oracle/contracts/Oracle.sol',
-    '@equilibria/perennial-v2-oracle/contracts/OracleFactory.sol',
-    '@equilibria/perennial-v2-oracle/contracts/payoff/PowerTwo.sol',
+    '@perennial/core/contracts/MarketFactory.sol',
+    '@perennial/core/contracts/Market.sol',
+    '@perennial/vault/contracts/Vault.sol',
+    '@perennial/vault/contracts/VaultFactory.sol',
+    '@perennial/oracle/contracts/interfaces/IKeeperOracle.sol',
+    '@perennial/oracle/contracts/keeper/KeeperOracle.sol',
+    '@perennial/oracle/contracts/pyth/PythFactory.sol',
+    '@perennial/oracle/contracts/Oracle.sol',
+    '@perennial/oracle/contracts/OracleFactory.sol',
+    '@perennial/oracle/contracts/payoff/PowerTwo.sol',
     '@equilibria/root/attribute/Kept/Kept.sol',
   ],
 })

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
 
 import { CancelOrderAction } from "../types/CancelOrderAction.sol";
 import { InterfaceFee } from "../types/InterfaceFee.sol";
@@ -48,6 +48,10 @@ interface IManager {
     /// @custom:error Conditions required for order execution are not currently met
     error ManagerCannotExecuteError();
 
+    // sig: 0x170dda16
+    /// @custom:error Replacement order may not reduce maxFee; must cancel and resubmit with new orderId
+    error ManagerCannotReduceMaxFee();
+
     // sig: 0xd0cfc108
     /// @custom:error Order nonce has already been used
     error ManagerInvalidOrderNonceError();
@@ -55,6 +59,10 @@ interface IManager {
     // sig: 0x6673613b
     /// @custom:error Signer is not authorized to interact with markets for the specified user
     error ManagerInvalidSignerError();
+
+    // sig: 0x63c7e7fd
+    /// @custom:error Operator is not authorized to interact with markets for the specified user
+    error ManagerInvalidOperatorError();
 
     /// @notice Store a new trigger order or replace an existing trigger order
     /// @param market Perennial market in which user wants to change their position
@@ -100,4 +108,9 @@ interface IManager {
     /// @param account Actor whose position is to be changed
     /// @param orderId Uniquely identifies the order for an account
     function executeOrder(IMarket market, address account, uint256 orderId) external;
+
+    /// @notice withdraw DSU or unwrap DSU to withdraw USDC from this address to `account`
+    /// @param account Account to claim fees for
+    /// @param unwrap Wheather to wrap/unwrap collateral on withdrawal
+    function claim(address account, bool unwrap) external;
 }

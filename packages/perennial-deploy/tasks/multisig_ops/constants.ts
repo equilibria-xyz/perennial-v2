@@ -1,9 +1,6 @@
 import { utils } from 'ethers'
-import {
-  MarketParameterStruct,
-  RiskParameterStruct,
-} from '../../types/generated/@equilibria/perennial-v2/contracts/Market'
-import { ProtocolParameterStruct } from '../../types/generated/@equilibria/perennial-v2/contracts/MarketFactory'
+import { MarketParameterStruct, RiskParameterStruct } from '../../types/generated/@perennial/core/contracts/Market'
+import { ProtocolParameterStruct } from '../../types/generated/@perennial/core/contracts/MarketFactory'
 
 export const NewRiskParams: Record<string, RiskParameterStruct> = {
   XRP: {
@@ -570,10 +567,11 @@ export const NewMarketParameter: MarketParameterStruct = {
 export const NewProtocolParameter: ProtocolParameterStruct = {
   protocolFee: 0,
   maxFee: 14200,
-  maxFeeAbsolute: 50000000,
+  maxLiquidationFee: 50000000,
   maxCut: 100000,
   maxRate: 15000000,
   minMaintenance: 4000,
   minEfficiency: 250000,
   referralFee: 0,
+  maxStaleAfter: 172800, // 2 days
 }
