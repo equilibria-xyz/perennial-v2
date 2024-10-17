@@ -550,17 +550,17 @@ async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
     Manager_Arbitrum__factory.createInterface().encodeFunctionData('initialize', [
       (await get('ChainlinkETHUSDFeed')).address,
       {
-        multiplierBase: 0,
-        bufferBase: 0,
+        multiplierBase: ethers.utils.parseEther('1'),
+        bufferBase: 1_000_000, // buffer for withdrawing keeper fee from market
         multiplierCalldata: 0,
         bufferCalldata: 0,
-      }, // TODO: Determine keep config
+      }, // TODO: Determine keep config unbuffered
       {
-        multiplierBase: 0,
-        bufferBase: 0,
-        multiplierCalldata: 0,
-        bufferCalldata: 0,
-      }, // TODO: Determine keep config
+        multiplierBase: ethers.utils.parseEther('1.05'),
+        bufferBase: 1_500_000, // for price commitment
+        multiplierCalldata: ethers.utils.parseEther('1.05'),
+        bufferCalldata: 35_200,
+      }, // TODO: Determine keep config buffered
     ]),
   ]
   await deploy('Manager', {
@@ -644,23 +644,23 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
         (await get('AccountVerifier')).address,
         (await get('ChainlinkETHUSDFeed')).address,
         {
-          multiplierBase: 0,
-          bufferBase: 0,
-          multiplierCalldata: 0,
+          multiplierBase: ethers.utils.parseEther('1'),
+          bufferBase: 275_000, // buffer for handling the keeper fee
+          multiplierCalldata: ethers.utils.parseEther('1'),
           bufferCalldata: 0,
-        }, // TODO: Determine keep config
+        }, // TODO: Determine keep config unbuffered
         {
-          multiplierBase: 0,
-          bufferBase: 0,
-          multiplierCalldata: 0,
-          bufferCalldata: 0,
-        }, // TODO: Determine keep config
+          multiplierBase: ethers.utils.parseEther('1.08'),
+          bufferBase: 1_500_000, // for price commitment
+          multiplierCalldata: ethers.utils.parseEther('1.08'),
+          bufferCalldata: 35_200,
+        }, // TODO: Determine keep config buffered
         {
-          multiplierBase: 0,
-          bufferBase: 0,
-          multiplierCalldata: 0,
-          bufferCalldata: 0,
-        }, // TODO: Determine keep config
+          multiplierBase: ethers.utils.parseEther('1.05'),
+          bufferBase: 1_500_000,
+          multiplierCalldata: ethers.utils.parseEther('1.05'),
+          bufferCalldata: 35_200,
+        }, // TODO: Determine keep config withdrawal
       ],
     ),
   ]
