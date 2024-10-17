@@ -22316,13 +22316,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('1000'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
@@ -22500,13 +22501,14 @@ describe('Market', () => {
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
               maxFee: parse6decimal('0.01'),
-              maxFeeAbsolute: parse6decimal('1000'),
+              maxLiquidationFee: parse6decimal('1000'),
               maxCut: parse6decimal('0.50'),
               maxRate: parse6decimal('10.00'),
               minMaintenance: parse6decimal('0.01'),
               minEfficiency: parse6decimal('0.1'),
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
             })
 
             const marketParameter = { ...(await market.parameter()) }
