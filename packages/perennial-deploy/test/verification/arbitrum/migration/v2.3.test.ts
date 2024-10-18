@@ -4,17 +4,22 @@ import { expect } from 'chai'
 import { impersonateWithBalance } from '../../../../../common/testutil/impersonate'
 import { currentBlockTimestamp, increase, increaseTo, reset } from '../../../../../common/testutil/time'
 import {
+  AccountVerifier,
   ArbGasInfo,
+  Controller_Incentivized,
   IERC20,
   IMarket,
   IOracleProvider,
+  Manager,
   MarketFactory,
   MetaQuantsFactory,
   MultiInvoker,
   OracleFactory,
+  OrderVerifier,
   ProxyAdmin,
   PythFactory,
   VaultFactory,
+  Verifier,
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { smock } from '@defi-wonderland/smock'
@@ -25,6 +30,12 @@ const SkipSettleAccounts = false
 const SkipSettleVaults = false
 
 const liquidatorAddress = '0xB092493412FCae3432487Efb33204F7B4FeF12ff'
+const emptyKeeperConfig = {
+  multiplierBase: 0,
+  bufferBase: 0,
+  multiplierCalldata: 0,
+  bufferCalldata: 0,
+}
 
 describe('Verify Arbitrum v2.3 Migration', () => {
   let ownerSigner: SignerWithAddress
@@ -34,6 +45,11 @@ describe('Verify Arbitrum v2.3 Migration', () => {
   let marketFactory: MarketFactory
   let vaultFactory: VaultFactory
   let multiinvoker: MultiInvoker
+  let verifier: Verifier
+  let controller: Controller_Incentivized
+  let manager: Manager
+  let orderVerifier: OrderVerifier
+  let accountVerifier: AccountVerifier
   let proxyAdmin: ProxyAdmin
   let usdc: IERC20
 
@@ -71,6 +87,17 @@ describe('Verify Arbitrum v2.3 Migration', () => {
       ownerSigner,
     )
     multiinvoker = (await ethers.getContractAt('MultiInvoker', (await get('MultiInvoker')).address)).connect(
+      ownerSigner,
+    )
+    verifier = (await ethers.getContractAt('Verifier', (await get('Verifier')).address)).connect(ownerSigner)
+    controller = (await ethers.getContractAt('Controller_Incentivized', (await get('Controller')).address)).connect(
+      ownerSigner,
+    )
+    manager = (await ethers.getContractAt('Manager', (await get('Manager')).address)).connect(ownerSigner)
+    orderVerifier = (await ethers.getContractAt('OrderVerifier', (await get('OrderVerifier')).address)).connect(
+      ownerSigner,
+    )
+    accountVerifier = (await ethers.getContractAt('AccountVerifier', (await get('AccountVerifier')).address)).connect(
       ownerSigner,
     )
     proxyAdmin = (await ethers.getContractAt('ProxyAdmin', (await get('ProxyAdmin')).address)).connect(ownerSigner)
@@ -199,6 +226,18 @@ describe('Verify Arbitrum v2.3 Migration', () => {
       multiinvoker,
       'InitializableAlreadyInitializedError',
     )
+    await expect(verifier.initialize(constants.AddressZero)).to.be.revertedWithCustomError(
+      verifier,
+      'InitializableAlreadyInitializedError',
+    )
+    await expect(
+      controller[
+        'initialize(address,address,(uint256,uint256,uint256,uint256),(uint256,uint256,uint256,uint256),(uint256,uint256,uint256,uint256))'
+      ](constants.AddressZero, constants.AddressZero, emptyKeeperConfig, emptyKeeperConfig, emptyKeeperConfig),
+    ).to.be.revertedWithCustomError(controller, 'InitializableAlreadyInitializedError')
+    await expect(
+      manager.initialize(constants.AddressZero, emptyKeeperConfig, emptyKeeperConfig),
+    ).to.be.revertedWithCustomError(manager, 'InitializableAlreadyInitializedError')
 
     // Check Oracle Factories setup
     expect(await pythFactory.callStatic.owner()).to.be.eq(ownerSigner.address)
@@ -224,8 +263,17 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     expect(await proxyAdmin.getProxyImplementation(multiinvoker.address)).to.be.equal(
       (await get('MultiInvokerImpl')).address,
     )
-
-    // TODO: Check all new contracts are initialized
+    expect(await proxyAdmin.getProxyImplementation(verifier.address)).to.be.equal((await get('VerifierImpl')).address)
+    expect(await proxyAdmin.getProxyImplementation(controller.address)).to.be.equal(
+      (await get('ControllerImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(manager.address)).to.be.equal((await get('ManagerImpl')).address)
+    expect(await proxyAdmin.getProxyImplementation(orderVerifier.address)).to.be.equal(
+      (await get('OrderVerifierImpl')).address,
+    )
+    expect(await proxyAdmin.getProxyImplementation(accountVerifier.address)).to.be.equal(
+      (await get('AccountVerifierImpl')).address,
+    )
 
     // Check Factory beacon proxy impls
     expect(await marketFactory.implementation()).to.be.equal((await get('MarketImpl')).address)
@@ -233,6 +281,10 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     expect(await cryptexFactory.implementation()).to.be.equal((await get('KeeperOracleImpl')).address)
     expect(await oracleFactory.implementation()).to.be.equal((await get('OracleImpl')).address)
     expect(await vaultFactory.implementation()).to.be.equal((await get('VaultImpl')).address)
+    expect(await controller.implementation()).to.be.equal((await get('AccountImpl')).address)
+
+    // Check Verifier points to MarketFactory
+    expect(await verifier.marketFactory()).to.be.equal(marketFactory.address)
 
     // Check Oracles point to PythFactory
     for (const oracle of oracleIDs) {
