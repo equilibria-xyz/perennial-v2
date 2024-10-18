@@ -126,7 +126,7 @@ export default function defaultConfig({
           : undefined,
         chainId: getChainId('hardhat'),
         allowUnlimitedContractSize: true,
-        blockGasLimit: 32000000,
+        blockGasLimit: 32_000_000,
         mining: NODE_INTERVAL_MINING
           ? {
               interval: NODE_INTERVAL_MINING,

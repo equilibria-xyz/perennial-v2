@@ -6,9 +6,10 @@ import { createFactories, deployController } from './setupHelpers'
 import {
   Account__factory,
   AccountVerifier__factory,
+  AggregatorV3Interface,
   Controller,
-  Controller_Arbitrum,
-  Controller_Arbitrum__factory,
+  Controller_Optimism,
+  Controller_Optimism__factory,
   IEmptySetReserve__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
@@ -16,15 +17,14 @@ import {
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
 
-const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
-const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
+const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
+const CHAINLINK_ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
 
-const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
-const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 466k at height 208460709
-const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+const DSU_ADDRESS = '0x7b4Adf64B0d60fF97D672E473420203D52562A84' // Digital Standard Unit, an 18-decimal token
+const DSU_RESERVE = '0x5FA881826AD000D010977645450292701bc2f56D'
 
-const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC (not USDC.e), a 6-decimal token
-const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyperliquid deposit bridge has 414mm USDC at height 233560862
+const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // USDC, a 6-decimal token, used by DSU reserve above
+const USDC_HOLDER = '0xF977814e90dA44bFA03b6295A0616a897441aceC' // EOA has 302mm USDC at height 21067741
 
 // deploys protocol
 export async function createFactoriesForChain(
@@ -33,7 +33,7 @@ export async function createFactoriesForChain(
   return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
 }
 
-// connects to Arbitrum stablecoins and deploys a non-incentivized controller configured for them
+// connects to Base stablecoins and deploys a non-incentivized controller configured for them
 export async function deployAndInitializeController(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
@@ -46,15 +46,15 @@ export async function deployAndInitializeController(
   return [dsu, usdc, controller]
 }
 
-// deploys an instance of the Controller with Arbitrum-specific keeper compensation mechanisms
-export async function deployControllerArbitrum(
+// deploys an instance of the Controller with keeper compensation mechanisms for OP stack chains
+export async function deployControllerOptimism(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
   overrides?: CallOverrides,
-): Promise<Controller_Arbitrum> {
+): Promise<Controller_Optimism> {
   const accountImpl = await new Account__factory(owner).deploy(USDC_ADDRESS, DSU_ADDRESS, DSU_RESERVE)
   accountImpl.initialize(constants.AddressZero)
-  const controller = await new Controller_Arbitrum__factory(owner).deploy(
+  const controller = await new Controller_Optimism__factory(owner).deploy(
     accountImpl.address,
     marketFactory.address,
     await marketFactory.verifier(),
@@ -68,11 +68,17 @@ export async function fundWalletDSU(
   amount: BigNumber,
   overrides?: CallOverrides,
 ): Promise<undefined> {
-  const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, dsuOwner)
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, wallet)
+  const reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, wallet)
+  const balanceBefore = await dsu.balanceOf(wallet.address)
 
-  expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
-  await dsu.transfer(wallet.address, amount, overrides ?? {})
+  // fund wallet with USDC and then mint using reserve
+  await fundWalletUSDC(wallet, amount.div(1e12), overrides)
+  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, wallet)
+  await usdc.connect(wallet).approve(reserve.address, amount.div(1e12))
+  await reserve.mint(amount)
+
+  expect((await dsu.balanceOf(wallet.address)).sub(balanceBefore)).to.equal(amount)
 }
 
 export async function fundWalletUSDC(
