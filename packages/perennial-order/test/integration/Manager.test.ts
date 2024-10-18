@@ -10,7 +10,7 @@ import { parse6decimal } from '../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@equilibria/perennial-v2/types/generated'
 import { IKeeperOracle } from '@equilibria/perennial-v2-oracle/types/generated'
-import { IEmptySetReserve, IOrderVerifier, Manager_Arbitrum } from '../../types/generated'
+import { IEmptySetReserve, IManager, IOrderVerifier } from '../../types/generated'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../helpers/eip712'
 import {
@@ -51,7 +51,7 @@ export function RunManagerTests(
     let usdc: IERC20Metadata
     let reserve: IEmptySetReserve
     let keeperOracle: IKeeperOracle
-    let manager: Manager_Arbitrum
+    let manager: IManager
     let marketFactory: IMarketFactory
     let market: IMarket
     let oracle: IOracleProvider
