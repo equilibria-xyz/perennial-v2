@@ -33,25 +33,20 @@ jobs:
           script: |
             const fs = require('fs');
             const prNumber = context.payload.pull_request.number;
-            const repoOwner = context.repo.owner;
-            const repoName = context.repo.repo;
 
             const isWorkflowComment = (comment) => {
-              return comment.user.login === github.context.actor && 
-                     (comment.body.includes('### Code Size:') || comment.body.includes('### Gas Report:'));
+              return (comment.body.includes('### Code Size:') || comment.body.includes('### Gas Report:'));   
             };
 
             const { data: comments } = await github.rest.issues.listComments({
-              owner: repoOwner,
-              repo: repoName,
+              ...context.repo,
               issue_number: prNumber,
             });
 
             for (const comment of comments) {
               if (isWorkflowComment(comment)) {
                 await github.rest.issues.deleteComment({
-                  owner: repoOwner,
-                  repo: repoName,
+                  ...context.repo,
                   comment_id: comment.id,
                 });
               }
@@ -62,16 +57,14 @@ jobs:
 
             // Post the Code Size comment
             await github.rest.issues.createComment({
-              owner: repoOwner,
-              repo: repoName,
+              ...context.repo,
               issue_number: prNumber,
               body: `### Code Size:\n\`\`\`\n${code_size}\n\`\`\``
             });
 
             // Post the Gas Report comment
             await github.rest.issues.createComment({
-              owner: repoOwner,
-              repo: repoName,
+              ...context.repo,
               issue_number: prNumber,
               body: `### Gas Report:\n\`\`\`\n${gas_report}\n\`\`\``
             });
