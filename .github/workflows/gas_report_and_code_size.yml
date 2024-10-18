@@ -1,0 +1,51 @@
+name: Gas Report and Code Size
+
+on: [pull_request]
+
+jobs:
+  gas-report-and-code-size:
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Set up Node.js
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.19
+
+      # Step 2: Checkout the repository
+      - uses: actions/checkout@v3
+
+      # Step 3: Install dependencies
+      - name: Install
+        run: yarn --frozen-lockfile
+
+      # Step 4: Run the Gas Report script
+      - name: Run Gas Report Script
+        run: ./gas_report.sh
+
+      # Step 5: Comment PR with Code Size and Gas Report
+      - name: Comment PR with Code Size and Gas Report
+        uses: actions/github-script@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const code_size = fs.readFileSync('code_size.txt', 'utf8');
+            const gas_report = fs.readFileSync('gas_report.txt', 'utf8');
+            const prNumber = context.payload.pull_request.number;
+
+            // Post the Code Size comment
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: prNumber,
+              body: `### Code Size:\n\`\`\`\n${code_size}\n\`\`\``
+            });
+
+            // Post the Gas Report comment
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: prNumber,
+              body: `### Gas Report:\n\`\`\`\n${gas_report}\n\`\`\``
+            });
