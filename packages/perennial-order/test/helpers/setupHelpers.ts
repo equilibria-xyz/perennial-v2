@@ -1,30 +1,53 @@
-import { expect } from 'chai'
-import { BigNumber, CallOverrides, constants, utils } from 'ethers'
-import { IMarket, MarketFactory, MarketFactory__factory } from '@perennial/core/types/generated'
+import { CallOverrides, utils } from 'ethers'
+import { Address } from 'hardhat-deploy/dist/types'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+
+import { IVerifier, MarketFactory, MarketFactory__factory } from '@perennial/core/types/generated'
 import {
   IKeeperOracle,
   IOracleFactory,
-  IOracleProvider,
   KeeperOracle__factory,
   OracleFactory,
   PythFactory,
   PythFactory__factory,
-  GasOracle__factory,
 } from '@perennial/oracle/types/generated'
-import { Verifier__factory } from '@perennial/verifier/types/generated'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IERC20Metadata, IERC20Metadata__factory, IMarketFactory, IVerifier } from '../../types/generated'
-import { impersonate } from '../../../common/testutil'
-import { Address } from 'hardhat-deploy/dist/types'
-import { parse6decimal } from '../../../common/testutil/types'
-import { createPythOracle, deployOracleFactory } from './oracleHelpers'
-import { createMarket, deployMarketImplementation } from './marketHelpers'
+import {
+  GasOracle__factory,
+  IEmptySetReserve,
+  IERC20Metadata,
+  IERC20Metadata__factory,
+  IManager,
+  IMarket,
+  IMarketFactory,
+  IOracleProvider,
+  IOrderVerifier,
+} from '../../types/generated'
 
-const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
-const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 4.7mm at height 243648015
-const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
+import { createMarket, deployMarketImplementation } from './marketHelpers'
+import { createPythOracle, deployOracleFactory } from './oracleHelpers'
+import { parse6decimal } from '../../../common/testutil/types'
+import { Verifier__factory } from '@perennial/verifier/types/generated'
+
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
-const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
+
+export interface FixtureVars {
+  dsu: IERC20Metadata
+  usdc: IERC20Metadata
+  reserve: IEmptySetReserve
+  keeperOracle: IKeeperOracle
+  manager: IManager
+  marketFactory: IMarketFactory
+  market: IMarket
+  oracle: IOracleProvider
+  verifier: IOrderVerifier
+  owner: SignerWithAddress
+  userA: SignerWithAddress
+  userB: SignerWithAddress
+  userC: SignerWithAddress
+  userD: SignerWithAddress
+  keeper: SignerWithAddress
+  oracleFeeReceiver: SignerWithAddress
+}
 
 // creates an ETH market using a locally deployed factory and oracle
 export async function createMarketETH(
@@ -52,7 +75,7 @@ export async function createMarketETH(
 }
 
 // Deploys the market factory and configures default protocol parameters
-async function deployMarketFactory(
+export async function deployMarketFactory(
   owner: SignerWithAddress,
   pauser: SignerWithAddress,
   oracleFactoryAddress: Address,
@@ -86,9 +109,10 @@ async function deployMarketFactory(
 // Deploys OracleFactory and then MarketFactory
 export async function deployProtocol(
   owner: SignerWithAddress,
+  dsuAddress: Address,
 ): Promise<[IMarketFactory, IERC20Metadata, IOracleFactory]> {
   // Deploy the oracle factory, which markets created by the market factory will query
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+  const dsu = IERC20Metadata__factory.connect(dsuAddress, owner)
   const oracleFactory = await deployOracleFactory(owner)
 
   // Deploy the market factory and authorize it with the oracle factory
@@ -118,9 +142,11 @@ async function deployProtocolForOracle(
 export async function deployPythOracleFactory(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
+  pythAddress: Address,
+  chainlinkFeedAddress: Address,
 ): Promise<PythFactory> {
   const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
-    CHAINLINK_ETH_USD_FEED,
+    chainlinkFeedAddress,
     8,
     1_000_000,
     utils.parseEther('1.02'),
@@ -130,7 +156,7 @@ export async function deployPythOracleFactory(
     0,
   )
   const settlementGasOracle = await new GasOracle__factory(owner).deploy(
-    CHAINLINK_ETH_USD_FEED,
+    chainlinkFeedAddress,
     8,
     200_000,
     utils.parseEther('1.02'),
@@ -143,7 +169,7 @@ export async function deployPythOracleFactory(
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
   const pythOracleFactory = await new PythFactory__factory(owner).deploy(
-    PYTH_ADDRESS,
+    pythAddress,
     commitmentGasOracle.address,
     settlementGasOracle.address,
     keeperOracleImpl.address,
@@ -152,16 +178,4 @@ export async function deployPythOracleFactory(
   await pythOracleFactory.updateParameter(1, 0, 4, 10)
   await oracleFactory.register(pythOracleFactory.address)
   return pythOracleFactory
-}
-
-export async function fundWalletDSU(
-  wallet: SignerWithAddress,
-  amount: BigNumber,
-  overrides?: CallOverrides,
-): Promise<undefined> {
-  const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, dsuOwner)
-
-  expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
-  await dsu.transfer(wallet.address, amount, overrides ?? {})
 }
