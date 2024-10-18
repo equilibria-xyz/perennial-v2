@@ -23,7 +23,7 @@ jobs:
 
       # Step 4: Run the Gas Report script
       - name: Run Gas Report Script
-        run: ./gas_report.sh
+        run: ./gas-report.sh
 
       # Step 5: Comment PR with Code Size and Gas Report
       - name: Comment PR with Code Size and Gas Report
