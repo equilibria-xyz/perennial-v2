@@ -106,7 +106,7 @@ describe('Fees', () => {
   })
 
   describe('position fees', () => {
-    it.only('charges make fees on open', async () => {
+    it('charges make fees on open', async () => {
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
       const { user, dsu } = instanceVars
