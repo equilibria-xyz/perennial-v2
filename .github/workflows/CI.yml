@@ -215,7 +215,7 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
         run: |
-          yarn workspace @equilibria/perennial-v2-account run test:integration
+          yarn workspace @perennial/account run test:integration
 
   # [ORACLE]
   oracle-unit-test:

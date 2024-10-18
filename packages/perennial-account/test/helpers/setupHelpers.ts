@@ -55,9 +55,9 @@ import {
   Oracle,
   AggregatorV3Interface__factory,
 } from '@perennial/oracle/types/generated'
-import { OracleVersionStruct } from '../../types/generated/@perennial/core/contracts/interfaces/IOracleProvider'
 import { Verifier__factory } from '@perennial/verifier/types/generated'
 import { expect } from 'chai'
+import { OracleVersionStruct } from '@perennial/core/types/generated/contracts/interfaces/IOracleProvider'
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'

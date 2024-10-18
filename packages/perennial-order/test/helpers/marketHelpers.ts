@@ -7,21 +7,20 @@ import {
   IMarket,
   IMarketFactory,
   InvariantLib__factory,
-  IOracle,
   MarketParameterStorageLib__factory,
-  MarketParameterStruct,
   Market__factory,
   PositionStorageGlobalLib__factory,
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
-  RiskParameterStruct,
   VersionLib__factory,
   VersionStorageLib__factory,
   MagicValueLib__factory,
 } from '@perennial/core/types/generated'
+import { IOracle } from '@perennial/oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
+import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
 
 // TODO: consider sharing this across extensions, possibly by moving to packages/common
 // Using a provided factory, create a new market and set some reasonable initial parameters

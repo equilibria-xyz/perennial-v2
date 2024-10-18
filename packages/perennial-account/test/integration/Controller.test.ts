@@ -8,8 +8,14 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { getEventArguments } from '../../../common/testutil/transaction'
 import { parse6decimal } from '../../../common/testutil/types'
-import { Account, Account__factory, AccountVerifier__factory, Controller, IERC20Metadata } from '../../types/generated'
-import { IAccountVerifier } from '../../types/generated/contracts/interfaces'
+import {
+  Account,
+  Account__factory,
+  AccountVerifier__factory,
+  Controller,
+  IAccountVerifier,
+  IERC20Metadata,
+} from '../../types/generated'
 import { IMarket, IMarketFactory } from '@perennial/core/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
 import { advanceToPrice, deployController, DeploymentVars } from '../helpers/setupHelpers'

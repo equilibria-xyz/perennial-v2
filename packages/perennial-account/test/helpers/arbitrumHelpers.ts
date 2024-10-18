@@ -1,11 +1,12 @@
 import { expect } from 'chai'
 import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IOracleFactory, PythFactory } from '@equilibria/perennial-v2-oracle/types/generated'
+import { IOracleFactory, PythFactory } from '@perennial/oracle/types/generated'
 import { createFactories, deployController } from './setupHelpers'
 import {
   Account__factory,
   AccountVerifier__factory,
+  AggregatorV3Interface,
   Controller,
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
