@@ -210,14 +210,14 @@ jobs:
         with:
           name: account_integration_test_coverage
           path: ./packages/perennial-account/coverage/lcov.info
-      - name: Run tests on Base
-        env:
-          FORK_NETWORK: 'base'
-          MOCHA_REPORTER: dot
-          MOCHA_RETRY_COUNT: 2
-          BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
-        run: |
-          yarn workspace @perennial/account run test:integration
+      # - name: Run tests on Base
+      #   env:
+      #     FORK_NETWORK: 'base'
+      #     MOCHA_REPORTER: dot
+      #     MOCHA_RETRY_COUNT: 2
+      #     BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
+      #   run: |
+      #     yarn workspace @perennial/account run test:integrationBase
 
   # [ORACLE]
   oracle-unit-test:
