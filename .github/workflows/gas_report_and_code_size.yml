@@ -22,6 +22,8 @@ jobs:
         run: yarn workspaces run compile
 
       - name: Run Gas Report Script
+        env:
+            MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: ./gas-report.sh
 
       - name: Comment PR with Code Size and Gas Report
