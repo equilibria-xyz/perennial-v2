@@ -359,7 +359,7 @@ jobs:
         run: yarn --frozen-lockfile
       - name: Compile
         run: yarn workspaces run compile # compile all packages
-      - name: Run tests
+      - name: Run tests with coverage on Arbitrum
         env:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
@@ -371,6 +371,13 @@ jobs:
         with:
           name: order_integration_test_coverage
           path: ./packages/perennial-order/coverage/lcov.info
+      - name: Run tests on Base
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
+        run: |
+          yarn workspace @perennial/order run test:integrationBase
 
   # [VAULT]
   vault-unit-test:
