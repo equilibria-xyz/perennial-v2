@@ -9,23 +9,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Set up Node.js
       - uses: actions/setup-node@v3
         with:
           node-version: 18.19
 
-      # Step 2: Checkout the repository
       - uses: actions/checkout@v3
 
-      # Step 3: Install dependencies
       - name: Install
         run: yarn --frozen-lockfile
 
-      # Step 4: Run the Gas Report script
+      - name: Compile
+        run: yarn workspaces run compile
+
       - name: Run Gas Report Script
         run: ./gas-report.sh
 
-      # Step 5: Comment PR with Code Size and Gas Report
       - name: Comment PR with Code Size and Gas Report
         uses: actions/github-script@v7
         with:
