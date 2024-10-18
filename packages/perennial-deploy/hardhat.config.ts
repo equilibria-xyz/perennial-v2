@@ -1,6 +1,8 @@
 import defaultConfig, { AUTO_IMPERSONATE } from '../common/hardhat.default.config'
 import { solidityOverrides as coreOverrides } from '@perennial/core/hardhat.config'
 import { solidityOverrides as vaultOverrides } from '@perennial/vault/hardhat.config'
+import { solidityOverrides as extensionsOverrides } from '@perennial/extensions/hardhat.config'
+import { solidityOverrides as accountOverrides } from '@perennial/account/hardhat.config'
 import './tasks'
 import { extendEnvironment } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, HttpNetworkUserConfig } from 'hardhat/types'
@@ -44,6 +46,18 @@ const config = defaultConfig({
     },
     '@perennial/vault/contracts/Vault.sol': {
       ...vaultOverrides['contracts/Vault.sol'],
+    },
+    '@perennial/extensions/contracts/MultiInvoker.sol': {
+      ...extensionsOverrides['contracts/MultiInvoker.sol'],
+    },
+    '@perennial/extensions/contracts/MultiInvoker_Arbitrum.sol': {
+      ...extensionsOverrides['contracts/MultiInvoker_Arbitrum.sol'],
+    },
+    '@perennial/extensions/contracts/MultiInvoker_Optimism.sol': {
+      ...extensionsOverrides['contracts/MultiInvoker_Optimism.sol'],
+    },
+    '@perennial/account/contracts/Controller_Arbitrum.sol': {
+      ...accountOverrides['contracts/Controller_Arbitrum.sol'],
     },
   },
 })
