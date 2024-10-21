@@ -187,8 +187,21 @@ export function RunIncentivizedTests(
       dsu = deployment.dsu
       usdc = deployment.usdc
       marketFactory = deployment.marketFactory
-      ethMarket = deployment.ethMarket!.market
-      btcMarket = deployment.btcMarket!.market
+      let ethMarketDeployment
+      if (deployment.ethMarket) {
+        ethMarketDeployment = deployment.ethMarket
+        ethMarket = deployment.ethMarket.market
+      } else {
+        throw new Error('BTC market not created')
+      }
+      let btcMarketDeployment
+      if (deployment.btcMarket) {
+        btcMarketDeployment = deployment.btcMarket
+        btcMarket = btcMarketDeployment.market
+      } else {
+        throw new Error('BTC market not created')
+      }
+
       ;[controller, accountVerifier] = await deployInstance(
         owner,
         deployment.marketFactory,
@@ -197,14 +210,14 @@ export function RunIncentivizedTests(
       )
 
       await advanceToPrice(
-        deployment.ethMarket!.keeperOracle,
+        ethMarketDeployment.keeperOracle,
         receiver,
         currentTime,
         parse6decimal('3113.7128'),
         TX_OVERRIDES,
       )
       await advanceToPrice(
-        deployment.btcMarket!.keeperOracle,
+        btcMarketDeployment.keeperOracle,
         receiver,
         currentTime,
         parse6decimal('57575.464'),

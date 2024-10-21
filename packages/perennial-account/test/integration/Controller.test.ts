@@ -18,7 +18,7 @@ import {
 } from '../../types/generated'
 import { IMarket, IMarketFactory } from '@perennial/core/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
-import { advanceToPrice, deployController, DeploymentVars } from '../helpers/setupHelpers'
+import { advanceToPrice, deployController, DeploymentVars, MarketWithOracle } from '../helpers/setupHelpers'
 
 const { ethers } = HRE
 
@@ -41,6 +41,7 @@ export function RunControllerBaseTests(
     let verifier: IAccountVerifier
     let marketFactory: IMarketFactory
     let ethMarket: IMarket
+    let ethMarketDeployment: MarketWithOracle
     let accountA: Account
     let owner: SignerWithAddress
     let userA: SignerWithAddress
@@ -80,7 +81,7 @@ export function RunControllerBaseTests(
       timestamp = currentTime,
       price = lastPrice,
     ) {
-      await advanceToPrice(deployment.ethMarket!.keeperOracle, receiver, timestamp, price, TX_OVERRIDES)
+      await advanceToPrice(ethMarketDeployment.keeperOracle, receiver, timestamp, price, TX_OVERRIDES)
       await ethMarket.settle(user.address, TX_OVERRIDES)
     }
 
@@ -181,7 +182,12 @@ export function RunControllerBaseTests(
       marketFactory = deployment.marketFactory
       dsu = deployment.dsu
       usdc = deployment.usdc
-      ethMarket = deployment.ethMarket!.market
+      if (deployment.ethMarket) {
+        ethMarketDeployment = deployment.ethMarket
+        ethMarket = ethMarketDeployment.market
+      } else {
+        throw new Error('ETH market not created')
+      }
 
       // deploy controller
       controller = await deployController(
@@ -196,13 +202,13 @@ export function RunControllerBaseTests(
 
       // set initial price
       await advanceToPrice(
-        deployment.ethMarket!.keeperOracle,
+        ethMarketDeployment.keeperOracle,
         receiver,
         currentTime,
         parse6decimal('3116.734999'),
         TX_OVERRIDES,
       )
-      lastPrice = (await deployment.ethMarket!.oracle.status())[0].price
+      lastPrice = (await ethMarketDeployment.oracle.status())[0].price
 
       // create a collateral account for userA with 15k collateral in it
       await fundWallet(userA)
@@ -227,11 +233,18 @@ export function RunControllerBaseTests(
 
     describe('#rebalance', () => {
       let btcMarket: IMarket
+      let btcMarketDeployment: MarketWithOracle
 
       beforeEach(async () => {
         // create another market, including requisite oracles, and set initial price
-        btcMarket = deployment.btcMarket!.market
-        const btcKeeperOracle = deployment.btcMarket!.keeperOracle
+        if (deployment.btcMarket) {
+          btcMarketDeployment = deployment.btcMarket
+          btcMarket = btcMarketDeployment.market
+        } else {
+          throw new Error('BTC market not created')
+        }
+
+        const btcKeeperOracle = btcMarketDeployment.keeperOracle
         await advanceToPrice(btcKeeperOracle, receiver, currentTime, parse6decimal('60606.369'), TX_OVERRIDES)
 
         // configure a group with both markets
