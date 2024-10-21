@@ -79,9 +79,8 @@ export function RunControllerBaseTests(
       receiver: SignerWithAddress,
       timestamp = currentTime,
       price = lastPrice,
-      keeperOracle = deployment.ethMarket!.keeperOracle,
     ) {
-      await advanceToPrice(keeperOracle, receiver, timestamp, price, TX_OVERRIDES)
+      await advanceToPrice(deployment.ethMarket!.keeperOracle, receiver, timestamp, price, TX_OVERRIDES)
       await ethMarket.settle(user.address, TX_OVERRIDES)
     }
 

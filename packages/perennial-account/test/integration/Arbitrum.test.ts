@@ -45,20 +45,16 @@ async function deployProtocol(
     oracleFactory,
     pythOracleFactory,
     marketFactory,
-    ethMarket: undefined, // TODO: style: inlining these was difficult to read; set below
-    btcMarket: undefined,
+    ethMarket: createMarketETH
+      ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
+      : undefined,
+    btcMarket: createMarketBTC
+      ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
+      : undefined,
     chainlinkKeptFeed,
     dsuReserve: getDSUReserve(owner),
     fundWalletDSU,
     fundWalletUSDC,
-  }
-
-  if (createMarketETH) {
-    deployment.ethMarket = await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
-  }
-
-  if (createMarketBTC) {
-    deployment.btcMarket = await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
   }
 
   return deployment

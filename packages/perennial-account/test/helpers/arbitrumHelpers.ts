@@ -10,6 +10,7 @@ import {
   Controller,
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
+  IEmptySetReserve,
   IEmptySetReserve__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
@@ -88,7 +89,7 @@ export async function fundWalletUSDC(
   await usdc.transfer(wallet.address, amount, overrides ?? {})
 }
 
-export function getDSUReserve(owner: SignerWithAddress) {
+export function getDSUReserve(owner: SignerWithAddress): IEmptySetReserve {
   return IEmptySetReserve__factory.connect(DSU_RESERVE, owner)
 }
 
