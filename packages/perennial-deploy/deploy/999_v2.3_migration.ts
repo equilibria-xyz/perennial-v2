@@ -222,14 +222,13 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
   })
 
   log('  Deploying CommitmentGasOracle...')
-  // TODO: Finalize gas values
   const commitmentGasOracleArgs: Parameters<GasOracle__factory['deploy']> = [
     (await get('ChainlinkETHUSDFeed')).address,
     8, // Chainlink Decimals
     788_000n, // Compute Gas
     ethers.utils.parseEther('1.05'), // Compute Multiplier
-    275_000n, // Compute Base
-    31_000n, // Calldata Gas
+    50_000n, // Compute Base
+    35_200n, // Calldata Gas
     ethers.utils.parseEther('1.05'), // Calldata Multiplier
     0n, // Calldata Base
   ]
@@ -242,14 +241,13 @@ async function deployOracles(hre: HardhatRuntimeEnvironment) {
     autoMine: true,
   })
   log('  Deploying SettleGasOracle...')
-  // TODO: Finalize gas values
   const settlementGasOracleArgs: Parameters<GasOracle__factory['deploy']> = [
     (await get('ChainlinkETHUSDFeed')).address,
     8, // Chainlink Decimals
-    788_000n, // Compute Gas
+    316_000n, // Compute Gas
     ethers.utils.parseEther('1.05'), // Compute Multiplier
-    275_000n, // Compute Base
-    31_000n, // Calldata Gas
+    50_000n, // Compute Base
+    6_000n, // Calldata Gas
     ethers.utils.parseEther('1.05'), // Calldata Multiplier
     0n, // Calldata Base
   ]
@@ -550,17 +548,19 @@ async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
     Manager_Arbitrum__factory.createInterface().encodeFunctionData('initialize', [
       (await get('ChainlinkETHUSDFeed')).address,
       {
-        multiplierBase: ethers.utils.parseEther('1'),
-        bufferBase: 1_000_000, // buffer for withdrawing keeper fee from market
-        multiplierCalldata: 0,
-        bufferCalldata: 0,
-      }, // TODO: Determine keep config unbuffered
-      {
+        // Unbuffered Keep Config (relayed messages), requires price commitment
         multiplierBase: ethers.utils.parseEther('1.05'),
-        bufferBase: 1_500_000, // for price commitment
+        bufferBase: 788_000n, // buffer for withdrawing keeper fee from market
+        multiplierCalldata: 0n,
+        bufferCalldata: 35_200n,
+      },
+      {
+        // Buffered Keep Config (market transfers, rebalances)
+        multiplierBase: ethers.utils.parseEther('1.05'),
+        bufferBase: 788_000n, // for price commitment
         multiplierCalldata: ethers.utils.parseEther('1.05'),
-        bufferCalldata: 35_200,
-      }, // TODO: Determine keep config buffered
+        bufferCalldata: 35_200n,
+      },
     ]),
   ]
   await deploy('Manager', {
@@ -644,23 +644,26 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
         (await get('AccountVerifier')).address,
         (await get('ChainlinkETHUSDFeed')).address,
         {
-          multiplierBase: ethers.utils.parseEther('1'),
-          bufferBase: 275_000, // buffer for handling the keeper fee
-          multiplierCalldata: ethers.utils.parseEther('1'),
-          bufferCalldata: 0,
-        }, // TODO: Determine keep config unbuffered
-        {
-          multiplierBase: ethers.utils.parseEther('1.08'),
-          bufferBase: 1_500_000, // for price commitment
-          multiplierCalldata: ethers.utils.parseEther('1.08'),
-          bufferCalldata: 35_200,
-        }, // TODO: Determine keep config buffered
-        {
+          // Unbuffered Keep Config (relayed messages)
           multiplierBase: ethers.utils.parseEther('1.05'),
-          bufferBase: 1_500_000,
+          bufferBase: 275_000n, // buffer for handling the keeper fee
           multiplierCalldata: ethers.utils.parseEther('1.05'),
-          bufferCalldata: 35_200,
-        }, // TODO: Determine keep config withdrawal
+          bufferCalldata: 0n,
+        },
+        {
+          // Buffered Keep Config (market transfers, rebalances)
+          multiplierBase: ethers.utils.parseEther('1.08'),
+          bufferBase: 788_000n, // for price commitment
+          multiplierCalldata: ethers.utils.parseEther('1.08'),
+          bufferCalldata: 35_200n,
+        },
+        {
+          // Withdrawal keep config
+          multiplierBase: ethers.utils.parseEther('0'), // Unused
+          bufferBase: 300_000n,
+          multiplierCalldata: ethers.utils.parseEther('1.05'),
+          bufferCalldata: 0n,
+        },
       ],
     ),
   ]
