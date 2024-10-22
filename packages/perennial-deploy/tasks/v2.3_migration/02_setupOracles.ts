@@ -57,8 +57,8 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
       () =>
         oracleFactory.populateTransaction.updateParameter({
           maxGranularity: 60,
-          maxOracleFee: ethers.utils.parseUnits('0.10', 6), // TODO: Determine correct value
-          maxSettlementFee: ethers.utils.parseUnits('25', 6), // TODO: Determine correct value
+          maxOracleFee: ethers.utils.parseUnits('0.25', 6),
+          maxSettlementFee: ethers.utils.parseUnits('2', 6),
         }),
       'Update OracleFactory parameter',
     )
@@ -110,7 +110,7 @@ export default task('02_v2_3_setup-oracles', 'Sets up the new oracles for v2.3 M
           () =>
             cryptexFactory.populateTransaction.updateParameter(
               KeeperFactoryParameter.granularity,
-              KeeperFactoryParameter.oracleFee,
+              ethers.utils.parseUnits('0.10', 6), // 10% oracle fee
               KeeperFactoryParameter.validFrom,
               KeeperFactoryParameter.validTo,
             ),

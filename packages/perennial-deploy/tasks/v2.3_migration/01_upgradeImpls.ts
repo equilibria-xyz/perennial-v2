@@ -3,7 +3,7 @@ import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
 import { PopulatedTransaction, BigNumberish } from 'ethers'
 import { NewMarketParameter, NewProtocolParameter } from '../multisig_ops/constants'
-import { V2_2RiskParameterStructOutput } from './prevTypes'
+import { V2_2MarketParameterStructOutput, V2_2RiskParameterStructOutput } from './prevTypes'
 export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 Migration')
   .addFlag('dry', 'Dry run; do not send transactions but use eth_call to simulate them')
   .addFlag('timelock', 'Print timelock transaction payload')
@@ -65,10 +65,17 @@ export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 
     const newCoordinator = (await get('GauntletCoordinator')).address
     for (const market of markets) {
       await addPayload(() => market.populateTransaction.migrate(), `Migrate Market ${market.address}`)
-      await addPayload(
-        () => market.populateTransaction.updateParameter({ ...NewMarketParameter, settle: true }),
-        `Update Market ${market.address} Parameter`,
-      )
+      await addPayload(async () => {
+        const v2_2Market = await ethers.getContractAt((await getArtifact('MarketV2_2')).abi, market.address)
+        const v2_2MarketParam = (await v2_2Market.callStatic.parameter()) as V2_2MarketParameterStructOutput
+
+        return market.populateTransaction.updateParameter({
+          ...NewMarketParameter,
+          fundingFee: v2_2MarketParam.fundingFee,
+          interestFee: v2_2MarketParam.interestFee,
+          settle: true,
+        })
+      }, `Update Market ${market.address} Parameter`)
       await addPayload(
         () => market.populateTransaction.updateCoordinator(newCoordinator),
         `Update Market ${market.address} Parameter`,
@@ -80,16 +87,11 @@ export default task('01_v2_3_upgrade-impls', 'Upgrades implementations for v2.3 
 
         return market.populateTransaction.updateRiskParameter({
           ...v2_2RiskParam,
+          liquidationFee: 10e6, // 10x liquidation fee
           makerFee: {
             linearFee: v2_2RiskParam.makerFee.linearFee,
             proportionalFee: v2_2RiskParam.makerFee.proportionalFee,
             scale: v2_2RiskParam.makerFee.scale,
-          },
-          takerFee: {
-            linearFee: v2_2RiskParam.takerFee.linearFee,
-            proportionalFee: v2_2RiskParam.takerFee.proportionalFee,
-            adiabaticFee: v2_2RiskParam.takerFee.adiabaticFee,
-            scale: v2_2RiskParam.takerFee.scale,
           },
         })
       }, `Update Market ${market.address} Risk Parameter`)

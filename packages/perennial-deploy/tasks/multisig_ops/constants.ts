@@ -534,28 +534,28 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
 }
 
 export const NewMarketParameter: MarketParameterStruct = {
-  fundingFee: utils.parseUnits('0.10', 6), // TODO: Determine this value
-  interestFee: utils.parseUnits('0.10', 6), // TODO: Determine this value
-  makerFee: utils.parseUnits('0.0005', 6), // TODO: Determine this value
-  takerFee: utils.parseUnits('0.0005', 6), // TODO: Determine this value
-  riskFee: utils.parseUnits('1', 6), // TODO: Determine this value
+  fundingFee: utils.parseUnits('0.10', 6), // Overriden in migration to current market value
+  interestFee: utils.parseUnits('0.10', 6), // Overriden in migration to current market value
+  makerFee: utils.parseUnits('0', 6),
+  takerFee: utils.parseUnits('0.0002', 6),
+  riskFee: utils.parseUnits('0.25', 6),
   maxPendingGlobal: 12,
   maxPendingLocal: 6,
   closed: false,
   settle: false,
-  maxPriceDeviation: utils.parseUnits('0.15', 6), // TODO: Determine this value
+  maxPriceDeviation: utils.parseUnits('0.15', 6),
 }
 
 export const NewProtocolParameter: ProtocolParameterStruct = {
-  minScale: utils.parseUnits('0.02', 6), // TODO: Determine this value
-  maxFee: 14200,
+  minScale: utils.parseUnits('0.04', 6),
+  maxFee: 30000,
   maxLiquidationFee: 50000000,
-  maxCut: 100000,
+  maxCut: 130000,
   maxRate: 15000000,
   minMaintenance: 4000,
   minEfficiency: 250000,
-  referralFee: 0,
-  maxStaleAfter: 172800, // 2 days
+  referralFee: utils.parseUnits('0.40', 6),
+  maxStaleAfter: 3600, // 1 hour
 }
 
 export const VaultMinimumDeposit = utils.parseUnits('20', 6)
