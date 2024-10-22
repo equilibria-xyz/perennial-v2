@@ -16,8 +16,7 @@ contract Manager_Optimism is Manager, Kept_Optimism {
         IEmptySetReserve reserve,
         IMarketFactory marketFactory,
         IOrderVerifier verifier
-    )
-        Manager(usdc, dsu, reserve, marketFactory, verifier) {}
+    ) Manager(usdc, dsu, reserve, marketFactory, verifier) {}
 
     /// @dev Use the Kept_Optimism implementation for calculating the dynamic fee
     function _calldataFee(

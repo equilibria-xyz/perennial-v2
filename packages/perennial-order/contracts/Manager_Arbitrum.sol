@@ -16,8 +16,7 @@ contract Manager_Arbitrum is Manager, Kept_Arbitrum {
         IEmptySetReserve reserve,
         IMarketFactory marketFactory,
         IOrderVerifier verifier
-    )
-        Manager(usdc, dsu, reserve, marketFactory, verifier) {}
+    ) Manager(usdc, dsu, reserve, marketFactory, verifier) {}
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(
