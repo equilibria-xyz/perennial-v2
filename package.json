@@ -65,5 +65,8 @@
       "eslint --fix"
     ],
     "*.json": "prettier --write"
+  },
+  "dependencies": {
+    "@nomicfoundation/hardhat-foundry": "^1.1.2"
   }
 }

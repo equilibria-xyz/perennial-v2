@@ -1,0 +1,24 @@
+[submodule "packages/perennial/lib/forge-std"]
+	path = packages/perennial/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "packages/perennial-account/lib/forge-std"]
+	path = packages/perennial-account/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "packages/perennial-extensions/lib/forge-std"]
+	path = packages/perennial-extensions/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "packages/perennial-deploy/lib/forge-std"]
+	path = packages/perennial-deploy/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "packages/perennial-oracle/lib/forge-std"]
+	path = packages/perennial-oracle/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "packages/perennial-order/lib/forge-std"]
+	path = packages/perennial-order/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "packages/perennial-verifier/lib/forge-std"]
+	path = packages/perennial-verifier/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "packages/perennial-vault/lib/forge-std"]
+	path = packages/perennial-vault/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
