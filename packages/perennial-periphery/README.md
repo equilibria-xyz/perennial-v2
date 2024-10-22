@@ -1,6 +1,6 @@
-# Perennial V2 Extensions
+# Perennial V2 Periphery
 
-Extension systems for the Perennial V2 Protocol
+Extension systems and periphery contracts for the Perennial V2 Protocol
 
 ## Usage
 

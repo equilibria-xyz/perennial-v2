@@ -1,7 +1,7 @@
 {
-  "name": "@perennial/extensions",
+  "name": "@perennial/periphery",
   "version": "1.3.0",
-  "description": "Perennial V2 Extensions",
+  "description": "Perennial V2 Periphery",
   "files": [
     "contracts/interfaces",
     "contracts/libs",
