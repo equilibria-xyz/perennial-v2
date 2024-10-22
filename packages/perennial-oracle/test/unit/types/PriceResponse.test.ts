@@ -218,4 +218,176 @@ describe('PriceResponse', () => {
       expect(value.oracleFee).to.equal(parse6decimal('0.01'))
     })
   })
+
+  describe('#settlementFee', () => {
+    it('calculates correct fee w/ non-zero sync, zero async', async () => {
+      const value = await priceResponse.settlementFee(
+        {
+          ...DEFAULT_PRICE_RESPONSE,
+          syncFee: parse6decimal('1'),
+          asyncFee: parse6decimal('0.1'),
+        },
+        0,
+      )
+
+      expect(value).to.equal(parse6decimal('1.0'))
+    })
+
+    it('calculates correct fee w/ non-zero sync, single async', async () => {
+      const value = await priceResponse.settlementFee(
+        {
+          ...DEFAULT_PRICE_RESPONSE,
+          syncFee: parse6decimal('1'),
+          asyncFee: parse6decimal('0.1'),
+        },
+        1,
+      )
+
+      expect(value).to.equal(parse6decimal('1.1'))
+    })
+
+    it('calculates correct fee w/ non-zero sync, multiple async', async () => {
+      const value = await priceResponse.settlementFee(
+        {
+          ...DEFAULT_PRICE_RESPONSE,
+          syncFee: parse6decimal('1'),
+          asyncFee: parse6decimal('0.1'),
+        },
+        5,
+      )
+
+      expect(value).to.equal(parse6decimal('1.5'))
+    })
+
+    it('calculates correct fee w/ zero sync, zero async', async () => {
+      const value = await priceResponse.settlementFee(
+        {
+          ...DEFAULT_PRICE_RESPONSE,
+          syncFee: parse6decimal('0'),
+          asyncFee: parse6decimal('0.1'),
+        },
+        0,
+      )
+
+      expect(value).to.equal(parse6decimal('0.0'))
+    })
+
+    it('calculates correct fee w/ zero sync, single async', async () => {
+      const value = await priceResponse.settlementFee(
+        {
+          ...DEFAULT_PRICE_RESPONSE,
+          syncFee: parse6decimal('0'),
+          asyncFee: parse6decimal('0.1'),
+        },
+        1,
+      )
+
+      expect(value).to.equal(parse6decimal('0.1'))
+    })
+
+    it('calculates correct fee w/ zero sync, multiple async', async () => {
+      const value = await priceResponse.settlementFee(
+        {
+          ...DEFAULT_PRICE_RESPONSE,
+          syncFee: parse6decimal('0'),
+          asyncFee: parse6decimal('0.1'),
+        },
+        5,
+      )
+
+      expect(value).to.equal(parse6decimal('0.5'))
+    })
+  })
+
+  describe('#applyFeeMaximum', () => {
+    it('calculates correct fee w/ non-zero sync, zero async', async () => {
+      await priceResponse.store({
+        ...DEFAULT_PRICE_RESPONSE,
+        syncFee: parse6decimal('1'),
+        asyncFee: parse6decimal('0.2'),
+      })
+
+      await priceResponse.applyFeeMaximum(parse6decimal('0.5'), 0)
+
+      const value = await priceResponse.read()
+
+      expect(value.syncFee).to.equal(parse6decimal('0.5'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
+    })
+
+    it('calculates correct fee w/ non-zero sync, single async', async () => {
+      await priceResponse.store({
+        ...DEFAULT_PRICE_RESPONSE,
+        syncFee: parse6decimal('1'),
+        asyncFee: parse6decimal('0.2'),
+      })
+
+      await priceResponse.applyFeeMaximum(parse6decimal('0.6'), 1)
+
+      const value = await priceResponse.read()
+
+      expect(value.syncFee).to.equal(parse6decimal('0.5'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
+    })
+
+    it('calculates correct fee w/ non-zero sync, multiple async', async () => {
+      await priceResponse.store({
+        ...DEFAULT_PRICE_RESPONSE,
+        syncFee: parse6decimal('1'),
+        asyncFee: parse6decimal('0.2'),
+      })
+
+      await priceResponse.applyFeeMaximum(parse6decimal('1.0'), 5)
+
+      const value = await priceResponse.read()
+
+      expect(value.syncFee).to.equal(parse6decimal('0.5'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
+    })
+
+    it('calculates correct fee w/ zero sync, zero async', async () => {
+      await priceResponse.store({
+        ...DEFAULT_PRICE_RESPONSE,
+        syncFee: parse6decimal('0'),
+        asyncFee: parse6decimal('0.2'),
+      })
+
+      await priceResponse.applyFeeMaximum(parse6decimal('0.0'), 0)
+
+      const value = await priceResponse.read()
+
+      expect(value.syncFee).to.equal(parse6decimal('0'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.2'))
+    })
+
+    it('calculates correct fee w/ zero sync, single async', async () => {
+      await priceResponse.store({
+        ...DEFAULT_PRICE_RESPONSE,
+        syncFee: parse6decimal('0'),
+        asyncFee: parse6decimal('0.2'),
+      })
+
+      await priceResponse.applyFeeMaximum(parse6decimal('0.1'), 1)
+
+      const value = await priceResponse.read()
+
+      expect(value.syncFee).to.equal(parse6decimal('0.0'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
+    })
+
+    it('calculates correct fee w/ zero sync, multiple async', async () => {
+      await priceResponse.store({
+        ...DEFAULT_PRICE_RESPONSE,
+        syncFee: parse6decimal('0'),
+        asyncFee: parse6decimal('0.2'),
+      })
+
+      await priceResponse.applyFeeMaximum(parse6decimal('0.5'), 5)
+
+      const value = await priceResponse.read()
+
+      expect(value.syncFee).to.equal(parse6decimal('0.0'))
+      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
+    })
+  })
 })
