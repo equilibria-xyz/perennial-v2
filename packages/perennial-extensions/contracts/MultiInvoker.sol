@@ -19,7 +19,7 @@ import { Order } from "@perennial/core/contracts/types/Order.sol";
 import { Position } from "@perennial/core/contracts/types/Position.sol";
 import { IPythFactory } from "@perennial/oracle/contracts/interfaces/IPythFactory.sol";
 import { IVault } from "@perennial/vault/contracts/interfaces/IVault.sol";
-import { Intent } from "@perennial/verifier/contracts/types/Intent.sol";
+import { Intent } from "@perennial/core/contracts/types/Intent.sol";
 import { IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { InterfaceFee } from "./types/InterfaceFee.sol";

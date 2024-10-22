@@ -1,11 +1,11 @@
 import { expect } from 'chai'
-import HRE from 'hardhat'
 import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { BigNumber, constants, utils } from 'ethers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../types/generated'
+import HRE from 'hardhat'
+
 import {
   signAction,
   signCommon,
@@ -25,11 +25,12 @@ import {
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
-} from '@perennial/verifier/test/helpers/erc712'
+} from '@perennial/core/test/helpers/erc712'
 import { impersonate } from '../../../common/testutil'
 import { currentBlockTimestamp } from '../../../common/testutil/time'
 import { parse6decimal } from '../../../common/testutil/types'
-import { Verifier, Verifier__factory } from '@perennial/verifier/types/generated'
+import { Verifier, Verifier__factory } from '@perennial/core/types/generated'
+import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../types/generated'
 
 const { ethers } = HRE
 

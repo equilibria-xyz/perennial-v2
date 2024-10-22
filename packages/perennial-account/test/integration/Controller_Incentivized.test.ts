@@ -38,8 +38,8 @@ import {
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
-} from '@perennial/verifier/test/helpers/erc712'
-import { Verifier, Verifier__factory } from '@perennial/verifier/types/generated'
+} from '@perennial/core/test/helpers/erc712'
+import { Verifier, Verifier__factory } from '@perennial/core/types/generated'
 import { AggregatorV3Interface } from '@perennial/oracle/types/generated'
 
 const { ethers } = HRE

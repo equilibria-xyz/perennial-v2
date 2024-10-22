@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { AccessUpdateBatch, AccessUpdateBatchLib } from "@perennial/verifier/contracts/types/AccessUpdateBatch.sol";
+import { AccessUpdateBatch, AccessUpdateBatchLib } from "@perennial/core/contracts/types/AccessUpdateBatch.sol";
 import { Action, ActionLib } from "./Action.sol";
 
 struct RelayedAccessUpdateBatch {

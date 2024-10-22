@@ -26,6 +26,8 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   MagicValueLib__factory,
+  Verifier,
+  Verifier__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -40,7 +42,6 @@ import {
   IPayoffProvider,
   IPayoffProvider__factory,
 } from '@perennial/oracle/types/generated'
-import { Verifier, Verifier__factory } from '../../../../perennial-verifier/types/generated'
 const { deployments, ethers } = HRE
 
 export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'

@@ -4,7 +4,7 @@ import { InterfaceFeeStruct, TriggerOrderStruct } from '../../types/generated/co
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
 import { IntentStruct } from '../../types/generated/@perennial/core/contracts/Market'
-import { signIntent } from '../../../perennial-verifier/test/helpers/erc712'
+import { signIntent } from '../../../perennial/test/helpers/erc712'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IVerifier } from '@perennial/core/types/generated'
 import { sign } from 'crypto'

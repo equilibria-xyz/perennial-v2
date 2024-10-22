@@ -25,6 +25,7 @@ import {
   InvariantLib__factory,
   IOracleProvider,
   IVerifier,
+  MagicValueLib__factory,
   Market,
   Market__factory,
   MarketFactory,
@@ -35,9 +36,9 @@ import {
   ProxyAdmin__factory,
   RiskParameterStorageLib__factory,
   TransparentUpgradeableProxy__factory,
+  Verifier__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
-  MagicValueLib__factory,
 } from '@perennial/core/types/generated'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
 
@@ -55,7 +56,6 @@ import {
   Oracle,
   AggregatorV3Interface__factory,
 } from '@perennial/oracle/types/generated'
-import { Verifier__factory } from '@perennial/verifier/types/generated'
 import { expect } from 'chai'
 import { OracleVersionStruct } from '@perennial/core/types/generated/contracts/interfaces/IOracleProvider'
 
@@ -352,7 +352,7 @@ export async function deployProtocolForOracle(
 // Creates a market for a specified collateral token, which can't do much of anything
 export async function mockMarket(token: Address): Promise<IMarket> {
   const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  const verifier = await smock.fake<IVerifier>('@perennial/verifier/contracts/interfaces/IVerifier.sol:IVerifier')
+  const verifier = await smock.fake<IVerifier>('IVerifier')
   const factory = await smock.fake<IMarketFactory>('IMarketFactory')
   const factorySigner = await impersonateWithBalance(factory.address, utils.parseEther('10'))
 

@@ -55,7 +55,7 @@ import {
   IVerifier,
   IVerifier__factory,
 } from '@perennial/core/types/generated'
-import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
+import { Verifier__factory } from '../../../../perennial/types/generated'
 
 const { ethers } = HRE
 

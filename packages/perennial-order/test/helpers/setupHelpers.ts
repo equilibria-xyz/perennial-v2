@@ -2,7 +2,7 @@ import { CallOverrides, utils } from 'ethers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
-import { IVerifier, MarketFactory, MarketFactory__factory } from '@perennial/core/types/generated'
+import { IVerifier, MarketFactory, MarketFactory__factory, Verifier__factory } from '@perennial/core/types/generated'
 import {
   IKeeperOracle,
   IOracleFactory,
@@ -26,7 +26,6 @@ import {
 import { createMarket, deployMarketImplementation } from './marketHelpers'
 import { createPythOracle, deployOracleFactory } from './oracleHelpers'
 import { parse6decimal } from '../../../common/testutil/types'
-import { Verifier__factory } from '@perennial/verifier/types/generated'
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 
