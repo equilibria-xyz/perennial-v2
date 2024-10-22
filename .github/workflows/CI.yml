@@ -55,6 +55,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -92,6 +94,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -163,6 +167,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -192,6 +198,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -224,6 +232,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -253,6 +263,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -283,6 +295,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -315,6 +329,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -344,6 +360,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -376,6 +394,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -405,6 +425,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -437,6 +459,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -466,6 +490,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
@@ -498,6 +524,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Install foundry
+        uses: foundry-rs/foundry-toolchain@v1 
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests
