@@ -25,10 +25,10 @@ import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 /// without keeper compensation.  No message relaying facilities are provided.
 contract Controller is Factory, IController {
     // used for deterministic address creation through create2
-    bytes32 constant SALT = keccak256("Perennial V2 Collateral Accounts");
+    bytes32 public constant SALT = keccak256("Perennial V2 Collateral Accounts");
 
-    uint256 constant MAX_GROUPS_PER_OWNER = 8;
-    uint256 constant MAX_MARKETS_PER_GROUP = 4;
+    uint256 public constant MAX_GROUPS_PER_OWNER = 8;
+    uint256 public constant MAX_MARKETS_PER_GROUP = 4;
 
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase

@@ -13,11 +13,9 @@ import {
   Oracle__factory,
   OracleFactory,
   OracleFactory__factory,
-  OracleVersionStruct,
   PythFactory,
 } from '@perennial/oracle/types/generated'
-
-const { ethers } = HRE
+import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
 
 // TODO: consider sharing this across extensions, possibly by moving to packages/common
 // Simulates an oracle update from KeeperOracle.
