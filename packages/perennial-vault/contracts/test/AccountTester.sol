@@ -1,9 +1,9 @@
 // // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Account, AccountStorage } from "../types/Account.sol";
-import { Checkpoint } from "../types/Checkpoint.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Account, AccountStorage} from "../types/Account.sol";
+import {Checkpoint} from "../types/Checkpoint.sol";
 
 contract AccountTester {
     AccountStorage public account;
@@ -16,12 +16,9 @@ contract AccountTester {
         return account.read();
     }
 
-    function processGlobal(
-        uint256 latestId,
-        Checkpoint memory checkpoint,
-        UFixed6 deposit,
-        UFixed6 redemption
-    ) external {
+    function processGlobal(uint256 latestId, Checkpoint memory checkpoint, UFixed6 deposit, UFixed6 redemption)
+        external
+    {
         Account memory newAccount = account.read();
 
         newAccount.processGlobal(latestId, checkpoint, deposit, redemption);
@@ -29,12 +26,9 @@ contract AccountTester {
         account.store(newAccount);
     }
 
-    function processLocal(
-        uint256 latestId,
-        Checkpoint memory checkpoint,
-        UFixed6 deposit,
-        UFixed6 redemption
-    ) external {
+    function processLocal(uint256 latestId, Checkpoint memory checkpoint, UFixed6 deposit, UFixed6 redemption)
+        external
+    {
         Account memory newAccount = account.read();
 
         newAccount.processLocal(latestId, checkpoint, deposit, redemption);

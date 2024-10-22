@@ -18,7 +18,7 @@
     "test": "HARDHAT_SHOW_STACK_TRACES=true hardhat test test/unit/**/*",
     "coverage": "hardhat coverage --testfiles 'test/unit/**/*'",
     "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
-    "format": "prettier -w .",
+    "format": "forge fmt",
     "clean": "rm -rf cache artifacts types/generated deployments/localhost",
     "node:fork:arbitrumGoerli": "FORK_ENABLED=true FORK_NETWORK=arbitrumGoerli NODE_INTERVAL_MINING=500 hardhat node",
     "prepack": "yarn clean && yarn build && find artifacts/contracts -name '*.dbg.json' -type f -delete"

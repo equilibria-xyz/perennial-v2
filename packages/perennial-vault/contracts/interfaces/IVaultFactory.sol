@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { IVault } from "./IVault.sol";
+import {IFactory} from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {IMarketFactory} from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {IVault} from "./IVault.sol";
 
 interface IVaultFactory is IFactory {
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);

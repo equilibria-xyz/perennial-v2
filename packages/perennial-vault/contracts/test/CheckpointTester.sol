@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
-import { Checkpoint, CheckpointStorage } from "../types/Checkpoint.sol";
-import { Account } from "../types/Account.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Checkpoint as PerennialCheckpoint} from "@perennial/core/contracts/types/Checkpoint.sol";
+import {Checkpoint, CheckpointStorage} from "../types/Checkpoint.sol";
+import {Account} from "../types/Account.sol";
 
 contract CheckpointTester {
     CheckpointStorage public checkpoint;
@@ -25,10 +25,7 @@ contract CheckpointTester {
         checkpoint.store(newCheckpoint);
     }
 
-    function update(
-        UFixed6 deposit,
-        UFixed6 redemption
-    ) external {
+    function update(UFixed6 deposit, UFixed6 redemption) external {
         Checkpoint memory newCheckpoint = checkpoint.read();
 
         newCheckpoint.update(deposit, redemption);

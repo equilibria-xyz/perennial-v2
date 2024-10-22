@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
-import { Action } from "../types/Action.sol";
-import { CancelOrderAction } from "../types/CancelOrderAction.sol";
-import { PlaceOrderAction } from "../types/PlaceOrderAction.sol";
+import {IVerifierBase} from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
+import {Action} from "../types/Action.sol";
+import {CancelOrderAction} from "../types/CancelOrderAction.sol";
+import {PlaceOrderAction} from "../types/PlaceOrderAction.sol";
 
 /// @notice EIP712 signed message verifier for Perennial V2 Trigger Orders.
 interface IOrderVerifier is IVerifierBase {

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { Instance } from "@equilibria/root/attribute/Instance.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IEmptySetReserve} from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import {Instance} from "@equilibria/root/attribute/Instance.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed18, UFixed18Lib} from "@equilibria/root/number/types/UFixed18.sol";
+import {Token6} from "@equilibria/root/token/types/Token6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
 
-import { IAccount } from "./interfaces/IAccount.sol";
-import { IMarket, Position } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {IAccount} from "./interfaces/IAccount.sol";
+import {IMarket, Position} from "@perennial/core/contracts/interfaces/IMarket.sol";
 
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
@@ -64,8 +64,9 @@ contract Account is IAccount, Instance {
         DSU.approve(address(market));
 
         // if account does not have enough DSU for the deposit, wrap everything
-         if (amount.gt(Fixed6Lib.ZERO))
+        if (amount.gt(Fixed6Lib.ZERO)) {
             wrapIfNecessary(UFixed18Lib.from(amount.abs()), true);
+        }
 
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
         market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
@@ -75,9 +76,9 @@ contract Account is IAccount, Instance {
     function withdraw(UFixed6 amount, bool shouldUnwrap) external ownerOrController {
         UFixed6 usdcBalance = USDC.balanceOf();
         if (shouldUnwrap && usdcBalance.lt(amount)) {
-            UFixed18 unwrapAmount = amount.eq(UFixed6Lib.MAX) ?
-                DSU.balanceOf() :
-                UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
+            UFixed18 unwrapAmount = amount.eq(UFixed6Lib.MAX)
+                ? DSU.balanceOf()
+                : UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
             unwrap(unwrapAmount);
         }
         UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
@@ -93,8 +94,9 @@ contract Account is IAccount, Instance {
     function wrapIfNecessary(UFixed18 amount, bool wrapAll) public ownerOrController {
         if (DSU.balanceOf().lt(amount)) {
             UFixed6 usdcBalance = USDC.balanceOf();
-            if (!usdcBalance.eq(UFixed6Lib.ZERO))
+            if (!usdcBalance.eq(UFixed6Lib.ZERO)) {
                 wrap(wrapAll ? UFixed18Lib.from(usdcBalance) : amount);
+            }
         }
     }
 
@@ -104,7 +106,7 @@ contract Account is IAccount, Instance {
     }
 
     /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller
-    modifier ownerOrController {
+    modifier ownerOrController() {
         if (msg.sender != owner && msg.sender != address(factory())) revert AccountNotAuthorizedError();
         _;
     }

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Position, PositionStorageGlobal, PositionStorageLocal } from "../types/Position.sol";
-import { Order } from "../types/Order.sol";
-import { RiskParameter } from "../types/RiskParameter.sol";
-import { OracleVersion } from "../types/OracleVersion.sol";
-
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {Position, PositionStorageGlobal, PositionStorageLocal} from "../types/Position.sol";
+import {Order} from "../types/Order.sol";
+import {RiskParameter} from "../types/RiskParameter.sol";
+import {OracleVersion} from "../types/OracleVersion.sol";
 
 abstract contract PositionTester {
     function read() public view virtual returns (Position memory);
@@ -64,17 +63,19 @@ abstract contract PositionTester {
         return read().socialized();
     }
 
-    function maintenance(
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) external view returns (UFixed6) {
+    function maintenance(OracleVersion memory latestVersion, RiskParameter memory riskParameter)
+        external
+        view
+        returns (UFixed6)
+    {
         return read().maintenance(latestVersion, riskParameter);
     }
 
-    function margin(
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) external view returns (UFixed6) {
+    function margin(OracleVersion memory latestVersion, RiskParameter memory riskParameter)
+        external
+        view
+        returns (UFixed6)
+    {
         return read().margin(latestVersion, riskParameter);
     }
 

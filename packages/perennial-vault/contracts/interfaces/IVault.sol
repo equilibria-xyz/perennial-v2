@@ -1,16 +1,16 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
-import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { Account } from "../types/Account.sol";
-import { Checkpoint } from "../types/Checkpoint.sol";
-import { VaultParameter } from "../types/VaultParameter.sol";
-import { Registration } from "../types/Registration.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {Checkpoint as PerennialCheckpoint} from "@perennial/core/contracts/types/Checkpoint.sol";
+import {IInstance} from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {Account} from "../types/Account.sol";
+import {Checkpoint} from "../types/Checkpoint.sol";
+import {VaultParameter} from "../types/VaultParameter.sol";
+import {Registration} from "../types/Registration.sol";
 
 interface IVault is IInstance {
     struct Context {
@@ -21,7 +21,6 @@ interface IVault is IInstance {
         Registration[] registrations;
         Fixed6[] collaterals;
         Fixed6 totalCollateral;
-
         // state
         VaultParameter parameter;
         Checkpoint currentCheckpoint;
@@ -38,7 +37,14 @@ interface IVault is IInstance {
     event MarketRegistered(uint256 indexed marketId, IMarket market);
     event MarketUpdated(uint256 indexed marketId, UFixed6 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
-    event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
+    event Updated(
+        address indexed sender,
+        address indexed account,
+        uint256 version,
+        UFixed6 depositAssets,
+        UFixed6 redeemShares,
+        UFixed6 claimAssets
+    );
 
     // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();

@@ -1,30 +1,38 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { OracleVersion } from "./OracleVersion.sol";
-import { RiskParameter } from "./RiskParameter.sol";
-import { Order } from "./Order.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {OracleVersion} from "./OracleVersion.sol";
+import {RiskParameter} from "./RiskParameter.sol";
+import {Order} from "./Order.sol";
 
 /// @dev Position type
 struct Position {
     /// @dev The timestamp of the position
     uint256 timestamp;
-
     /// @dev The maker position size
     UFixed6 maker;
-
     /// @dev The long position size
     UFixed6 long;
-
     /// @dev The short position size
     UFixed6 short;
 }
+
 using PositionLib for Position global;
-struct PositionStorageGlobal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
+
+struct PositionStorageGlobal {
+    uint256 slot0;
+    uint256 slot1;
+} // SECURITY: must remain at (2) slots
+
 using PositionStorageGlobalLib for PositionStorageGlobal global;
-struct PositionStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
+
+struct PositionStorageLocal {
+    uint256 slot0;
+    uint256 slot1;
+} // SECURITY: must remain at (2) slots
+
 using PositionStorageLocalLib for PositionStorageLocal global;
 
 /// @title Position
@@ -107,9 +115,9 @@ library PositionLib {
     /// @param self The position object to check
     /// @return The portion of the position that is covered by the maker
     function socializedMakerPortion(Position memory self) internal pure returns (UFixed6) {
-        return takerSocialized(self).isZero() ?
-            UFixed6Lib.ZERO :
-            takerSocialized(self).sub(minor(self)).div(takerSocialized(self));
+        return takerSocialized(self).isZero()
+            ? UFixed6Lib.ZERO
+            : takerSocialized(self).sub(minor(self)).div(takerSocialized(self));
     }
 
     /// @notice Returns the long position with socialization taken into account
@@ -172,7 +180,9 @@ library PositionLib {
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return _collateralRequirement(positionMagnitude, latestVersion, riskParameter.maintenance, riskParameter.minMaintenance);
+        return _collateralRequirement(
+            positionMagnitude, latestVersion, riskParameter.maintenance, riskParameter.minMaintenance
+        );
     }
 
     /// @notice Returns the margin requirement of the position
@@ -187,7 +197,9 @@ library PositionLib {
         RiskParameter memory riskParameter,
         UFixed6 collateralization
     ) internal pure returns (UFixed6) {
-        return _collateralRequirement(positionMagnitude, latestVersion, riskParameter.margin.max(collateralization), riskParameter.minMargin);
+        return _collateralRequirement(
+            positionMagnitude, latestVersion, riskParameter.margin.max(collateralization), riskParameter.minMargin
+        );
     }
 
     /// @notice Returns the maintenance requirement of the position
@@ -195,11 +207,11 @@ library PositionLib {
     /// @param latestVersion The latest oracle version
     /// @param riskParameter The current risk parameter
     /// @return The maintenance requirement of the position
-    function maintenance(
-        Position memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) internal pure returns (UFixed6) {
+    function maintenance(Position memory self, OracleVersion memory latestVersion, RiskParameter memory riskParameter)
+        internal
+        pure
+        returns (UFixed6)
+    {
         return maintenance(magnitude(self), latestVersion, riskParameter);
     }
 
@@ -208,11 +220,11 @@ library PositionLib {
     /// @param latestVersion The latest oracle version
     /// @param riskParameter The current risk parameter
     /// @return The margin requirement of the position
-    function margin(
-        Position memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) internal pure returns (UFixed6) {
+    function margin(Position memory self, OracleVersion memory latestVersion, RiskParameter memory riskParameter)
+        internal
+        pure
+        returns (UFixed6)
+    {
         return margin(magnitude(self), latestVersion, riskParameter, UFixed6Lib.ZERO);
     }
 
@@ -263,7 +275,9 @@ library PositionLib {
         UFixed6 collateralization,
         Fixed6 collateral
     ) internal pure returns (bool) {
-        return UFixed6Lib.unsafeFrom(collateral).gte(margin(positionMagnitude, latestVersion, riskParameter, collateralization));
+        return UFixed6Lib.unsafeFrom(collateral).gte(
+            margin(positionMagnitude, latestVersion, riskParameter, collateralization)
+        );
     }
 
     /// @notice Returns the whether the position is maintained
@@ -335,11 +349,10 @@ library PositionStorageGlobalLib {
         if (newValue.long.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageLib.PositionStorageInvalidError();
         if (newValue.short.gt(UFixed6.wrap(type(uint64).max))) revert PositionStorageLib.PositionStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(UFixed6.unwrap(newValue.maker) << (256 - 64)) >> (256 - 32 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.long) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.short) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64 - 64);
+        uint256 encoded0 = uint256(newValue.timestamp << (256 - 32)) >> (256 - 32)
+            | uint256(UFixed6.unwrap(newValue.maker) << (256 - 64)) >> (256 - 32 - 32 - 64)
+            | uint256(UFixed6.unwrap(newValue.long) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64)
+            | uint256(UFixed6.unwrap(newValue.short) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -352,8 +365,9 @@ library PositionStorageGlobalLib {
         UFixed6 deprecatedMaker = UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64));
 
         // only migrate if the deprecated maker is set and new maker is unset to avoid double-migration
-        if (deprecatedMaker.isZero() || !position.maker.isZero())
+        if (deprecatedMaker.isZero() || !position.maker.isZero()) {
             revert PositionStorageLib.PositionStorageInvalidMigrationError();
+        }
 
         position.maker = deprecatedMaker;
         store(self, position);
@@ -395,12 +409,11 @@ library PositionStorageLocalLib {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
         uint256 layout = uint256(slot0 << (256 - 32 - 216 - 8)) >> (256 - 8);
 
-        uint256 direction = layout == 0 ?
-            uint256(slot1 << (256 - 2)) >> (256 - 2) :
-            uint256(slot0 << (256 - 32 - 2)) >> (256 - 2);
-        UFixed6 magnitude = layout == 0 ?
-            UFixed6.wrap(uint256(slot1 << (256 - 2 - 62)) >> (256 - 62)) :
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 2 - 62)) >> (256 - 62));
+        uint256 direction =
+            layout == 0 ? uint256(slot1 << (256 - 2)) >> (256 - 2) : uint256(slot0 << (256 - 32 - 2)) >> (256 - 2);
+        UFixed6 magnitude = layout == 0
+            ? UFixed6.wrap(uint256(slot1 << (256 - 2 - 62)) >> (256 - 62))
+            : UFixed6.wrap(uint256(slot0 << (256 - 32 - 2 - 62)) >> (256 - 62));
 
         return Position(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
@@ -418,11 +431,10 @@ library PositionStorageLocalLib {
 
         if (magnitude.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 2) |
-            uint256(UFixed6.unwrap(magnitude) << (256 - 62)) >> (256 - 32 - 2 - 62) |
-            uint256(layout << (256 - 8)) >> (256 - 32 - 2 - 62 - 152 - 8);
+        uint256 encoded0 = uint256(newValue.timestamp << (256 - 32)) >> (256 - 32)
+            | uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 2)
+            | uint256(UFixed6.unwrap(magnitude) << (256 - 62)) >> (256 - 32 - 2 - 62)
+            | uint256(layout << (256 - 8)) >> (256 - 32 - 2 - 62 - 152 - 8);
 
         assembly {
             sstore(self.slot, encoded0)

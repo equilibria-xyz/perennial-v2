@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Order, OrderStorageGlobal, OrderStorageLocal } from "../types/Order.sol";
-import { OracleVersion } from "../types/OracleVersion.sol";
-import { Position } from "../types/Position.sol";
-import { MarketParameter } from "../types/MarketParameter.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {Order, OrderStorageGlobal, OrderStorageLocal} from "../types/Order.sol";
+import {OracleVersion} from "../types/OracleVersion.sol";
+import {Position} from "../types/Position.sol";
+import {MarketParameter} from "../types/MarketParameter.sol";
 
 abstract contract OrderTester {
-    function read() public virtual view returns (Order memory);
+    function read() public view virtual returns (Order memory);
 
     function store(Order memory newOrder) public virtual;
 

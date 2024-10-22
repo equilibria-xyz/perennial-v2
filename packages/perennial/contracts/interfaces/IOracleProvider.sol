@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { OracleReceipt } from "../types/OracleReceipt.sol";
-import { OracleVersion } from "../types/OracleVersion.sol";
-import { IMarket } from "./IMarket.sol";
+import {OracleReceipt} from "../types/OracleReceipt.sol";
+import {OracleVersion} from "../types/OracleVersion.sol";
+import {IMarket} from "./IMarket.sol";
 
 /// @dev OracleVersion Invariants
 ///       - Version are requested at a timestamp, the current timestamp is determined by the oracle

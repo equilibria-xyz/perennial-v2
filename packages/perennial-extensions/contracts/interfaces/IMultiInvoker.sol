@@ -1,27 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { TriggerOrder } from "../types/TriggerOrder.sol";
-import { InterfaceFee } from "../types/InterfaceFee.sol";
+import {IFactory} from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {IBatcher} from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
+import {IEmptySetReserve} from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {TriggerOrder} from "../types/TriggerOrder.sol";
+import {InterfaceFee} from "../types/InterfaceFee.sol";
 
 interface IMultiInvoker {
     enum PerennialAction {
-        NO_OP,           // 0
+        NO_OP, // 0
         UPDATE_POSITION, // 1
-        UPDATE_VAULT,    // 2
-        PLACE_ORDER,     // 3
-        CANCEL_ORDER,    // 4
-        EXEC_ORDER,      // 5
-        COMMIT_PRICE,    // 6
+        UPDATE_VAULT, // 2
+        PLACE_ORDER, // 3
+        CANCEL_ORDER, // 4
+        EXEC_ORDER, // 5
+        COMMIT_PRICE, // 6
         __LIQUIDATE__DEPRECATED,
-        APPROVE,         // 8
-        UPDATE_INTENT,   // 9
-        CLAIM_FEE        // 10
+        APPROVE, // 8
+        UPDATE_INTENT, // 9
+        CLAIM_FEE // 10
+
     }
 
     struct Invocation {

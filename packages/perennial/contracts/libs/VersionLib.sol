@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { IMarket } from "../interfaces/IMarket.sol";
-import { MarketParameter } from "../types/MarketParameter.sol";
-import { RiskParameter } from "../types/RiskParameter.sol";
-import { Global } from "../types/Global.sol";
-import { Position } from "../types/Position.sol";
-import { Order } from "../types/Order.sol";
-import { Guarantee } from "../types/Guarantee.sol";
-import { Version } from "../types/Version.sol";
-import { OracleVersion } from "../types/OracleVersion.sol";
-import { OracleReceipt } from "../types/OracleReceipt.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {IMarket} from "../interfaces/IMarket.sol";
+import {MarketParameter} from "../types/MarketParameter.sol";
+import {RiskParameter} from "../types/RiskParameter.sol";
+import {Global} from "../types/Global.sol";
+import {Position} from "../types/Position.sol";
+import {Order} from "../types/Order.sol";
+import {Guarantee} from "../types/Guarantee.sol";
+import {Version} from "../types/Version.sol";
+import {OracleVersion} from "../types/OracleVersion.sol";
+import {OracleReceipt} from "../types/OracleReceipt.sol";
 
 /// @dev The response of the version accumulation
 ///      Contains only select fee information needed for the downstream market contract
@@ -20,10 +20,8 @@ import { OracleReceipt } from "../types/OracleReceipt.sol";
 struct VersionAccumulationResponse {
     /// @dev The total market fee charged including (tradeFee, tradeOffsetMarket, fundingFee, interestFee)
     UFixed6 marketFee;
-
     /// @dev The settlement fee charged
     UFixed6 settlementFee;
-
     /// @dev The market's adiabatic exposure
     Fixed6 marketExposure;
 }
@@ -34,64 +32,44 @@ struct VersionAccumulationResponse {
 struct VersionAccumulationResult {
     /// @dev The trade fee charged
     UFixed6 tradeFee;
-
     /// @dev The subtractive fee charged
     UFixed6 subtractiveFee;
-
     /// @dev The total price impact of the trade (including linear, proportional, and adiabatic)
     Fixed6 tradeOffset;
-
     /// @dev The portion of the trade offset that the makers receive
     Fixed6 tradeOffsetMaker;
-
     /// @dev The portion of the trade offset that the market receives (if there are no makers)
     UFixed6 tradeOffsetMarket;
-
     /// @dev The adiabatic exposure accrued
     Fixed6 adiabaticExposure;
-
     /// @dev The adiabatic exposure accrued by makers
     Fixed6 adiabaticExposureMaker;
-
     /// @dev The adiabatic exposure accrued by the market
     Fixed6 adiabaticExposureMarket;
-
     /// @dev Funding accrued by makers
     Fixed6 fundingMaker;
-
     /// @dev Funding accrued by longs
     Fixed6 fundingLong;
-
     /// @dev Funding accrued by shorts
     Fixed6 fundingShort;
-
     /// @dev Funding received by the protocol
     UFixed6 fundingFee;
-
     /// @dev Interest accrued by makers
     Fixed6 interestMaker;
-
     /// @dev Interest accrued by longs
     Fixed6 interestLong;
-
     /// @dev Interest accrued by shorts
     Fixed6 interestShort;
-
     /// @dev Interest received by the protocol
     UFixed6 interestFee;
-
     /// @dev Price-based profit/loss accrued by makers
     Fixed6 pnlMaker;
-
     /// @dev Price-based profit/loss accrued by longs
     Fixed6 pnlLong;
-
     /// @dev Price-based profit/loss accrued by shorts
     Fixed6 pnlShort;
-
     /// @dev Total settlement fee charged
     UFixed6 settlementFee;
-
     /// @dev Snapshot of the riskParameter.liquidationFee at the version (0 if not valid)
     UFixed6 liquidationFee;
 }
@@ -146,10 +124,10 @@ library VersionLib {
     /// @return next The accumulated version
     /// @return nextGlobal The next global state
     /// @return response The accumulation response
-    function _accumulate(
-        Version memory self,
-        VersionAccumulationContext memory context
-    ) private returns (Version memory next, Global memory nextGlobal, VersionAccumulationResponse memory response) {
+    function _accumulate(Version memory self, VersionAccumulationContext memory context)
+        private
+        returns (Version memory next, Global memory nextGlobal, VersionAccumulationResponse memory response)
+    {
         VersionAccumulationResult memory result;
 
         // setup next accumulators
@@ -210,13 +188,13 @@ library VersionLib {
     /// @notice Converts the accumulation result into a response
     /// @param result The accumulation result
     /// @return response The accumulation response
-    function _response(
-        VersionAccumulationResult memory result
-    ) private pure returns (VersionAccumulationResponse memory response) {
-        response.marketFee = result.tradeFee
-            .add(result.tradeOffsetMarket)
-            .add(result.fundingFee)
-            .add(result.interestFee);
+    function _response(VersionAccumulationResult memory result)
+        private
+        pure
+        returns (VersionAccumulationResponse memory response)
+    {
+        response.marketFee =
+            result.tradeFee.add(result.tradeOffsetMarket).add(result.fundingFee).add(result.interestFee);
         response.settlementFee = result.settlementFee;
         response.marketExposure = result.adiabaticExposureMarket;
     }
@@ -232,10 +210,11 @@ library VersionLib {
     /// @notice Globally accumulates settlement fees since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
-    function _accumulateSettlementFee(
-        Version memory next,
-        VersionAccumulationContext memory context
-    ) private pure returns (UFixed6 settlementFee) {
+    function _accumulateSettlementFee(Version memory next, VersionAccumulationContext memory context)
+        private
+        pure
+        returns (UFixed6 settlementFee)
+    {
         uint256 orders = context.order.orders - context.guarantee.orders;
         settlementFee = orders == 0 ? UFixed6Lib.ZERO : context.toOracleReceipt.settlementFee;
         next.settlementFee.decrement(Fixed6Lib.from(settlementFee), UFixed6Lib.from(orders));
@@ -244,13 +223,14 @@ library VersionLib {
     /// @notice Globally accumulates hypothetical liquidation fee since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
-    function _accumulateLiquidationFee(
-        Version memory next,
-        VersionAccumulationContext memory context
-    ) private pure returns (UFixed6 liquidationFee) {
-        liquidationFee = context.toOracleVersion.valid ?
-            context.toOracleReceipt.settlementFee.mul(context.riskParameter.liquidationFee) :
-            UFixed6Lib.ZERO;
+    function _accumulateLiquidationFee(Version memory next, VersionAccumulationContext memory context)
+        private
+        pure
+        returns (UFixed6 liquidationFee)
+    {
+        liquidationFee = context.toOracleVersion.valid
+            ? context.toOracleReceipt.settlementFee.mul(context.riskParameter.liquidationFee)
+            : UFixed6Lib.ZERO;
         next.liquidationFee.decrement(Fixed6Lib.from(liquidationFee), UFixed6Lib.ONE);
     }
 
@@ -262,22 +242,18 @@ library VersionLib {
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
-        UFixed6 makerFee = context.order.makerTotal()
-            .mul(context.toOracleVersion.price.abs())
-            .mul(context.marketParameter.makerFee);
+        UFixed6 makerFee =
+            context.order.makerTotal().mul(context.toOracleVersion.price.abs()).mul(context.marketParameter.makerFee);
         next.makerFee.decrement(Fixed6Lib.from(makerFee), context.order.makerTotal());
-        UFixed6 makerSubtractiveFee = context.order.makerTotal().isZero() ?
-            UFixed6Lib.ZERO :
-            makerFee.muldiv(context.order.makerReferral, context.order.makerTotal());
+        UFixed6 makerSubtractiveFee = context.order.makerTotal().isZero()
+            ? UFixed6Lib.ZERO
+            : makerFee.muldiv(context.order.makerReferral, context.order.makerTotal());
 
         UFixed6 takerTotal = context.order.takerTotal().sub(context.guarantee.takerFee);
-        UFixed6 takerFee = takerTotal
-            .mul(context.toOracleVersion.price.abs())
-            .mul(context.marketParameter.takerFee);
+        UFixed6 takerFee = takerTotal.mul(context.toOracleVersion.price.abs()).mul(context.marketParameter.takerFee);
         next.takerFee.decrement(Fixed6Lib.from(takerFee), takerTotal);
-        UFixed6 takerSubtractiveFee = takerTotal.isZero() ?
-            UFixed6Lib.ZERO :
-            takerFee.muldiv(context.order.takerReferral, takerTotal);
+        UFixed6 takerSubtractiveFee =
+            takerTotal.isZero() ? UFixed6Lib.ZERO : takerFee.muldiv(context.order.takerReferral, takerTotal);
 
         result.tradeFee = result.tradeFee.add(makerFee).add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee);
         result.subtractiveFee = result.subtractiveFee.add(makerSubtractiveFee).add(takerSubtractiveFee);
@@ -292,23 +268,18 @@ library VersionLib {
         VersionAccumulationResult memory result
     ) private pure {
         UFixed6 makerLinearFee = context.riskParameter.makerFee.linear(
-            Fixed6Lib.from(context.order.makerTotal()),
-            context.toOracleVersion.price.abs()
+            Fixed6Lib.from(context.order.makerTotal()), context.toOracleVersion.price.abs()
         );
         next.makerOffset.decrement(Fixed6Lib.from(makerLinearFee), context.order.makerTotal());
 
         UFixed6 takerPosTotal = context.order.takerPos().sub(context.guarantee.takerPos);
-        UFixed6 takerPosLinearFee = context.riskParameter.takerFee.linear(
-            Fixed6Lib.from(takerPosTotal),
-            context.toOracleVersion.price.abs()
-        );
+        UFixed6 takerPosLinearFee =
+            context.riskParameter.takerFee.linear(Fixed6Lib.from(takerPosTotal), context.toOracleVersion.price.abs());
         next.takerPosOffset.decrement(Fixed6Lib.from(takerPosLinearFee), takerPosTotal);
 
         UFixed6 takerNegTotal = context.order.takerNeg().sub(context.guarantee.takerNeg);
-        UFixed6 takerNegLinearFee = context.riskParameter.takerFee.linear(
-            Fixed6Lib.from(takerNegTotal),
-            context.toOracleVersion.price.abs()
-        );
+        UFixed6 takerNegLinearFee =
+            context.riskParameter.takerFee.linear(Fixed6Lib.from(takerNegTotal), context.toOracleVersion.price.abs());
         next.takerNegOffset.decrement(Fixed6Lib.from(takerNegLinearFee), takerNegTotal);
 
         UFixed6 linearFee = makerLinearFee.add(takerPosLinearFee).add(takerNegLinearFee);
@@ -330,23 +301,18 @@ library VersionLib {
         VersionAccumulationResult memory result
     ) private pure {
         UFixed6 makerProportionalFee = context.riskParameter.makerFee.proportional(
-            Fixed6Lib.from(context.order.makerTotal()),
-            context.toOracleVersion.price.abs()
+            Fixed6Lib.from(context.order.makerTotal()), context.toOracleVersion.price.abs()
         );
         next.makerOffset.decrement(Fixed6Lib.from(makerProportionalFee), context.order.makerTotal());
 
         UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos);
-        UFixed6 takerPosProportionalFee = context.riskParameter.takerFee.proportional(
-            Fixed6Lib.from(takerPos),
-            context.toOracleVersion.price.abs()
-        );
+        UFixed6 takerPosProportionalFee =
+            context.riskParameter.takerFee.proportional(Fixed6Lib.from(takerPos), context.toOracleVersion.price.abs());
         next.takerPosOffset.decrement(Fixed6Lib.from(takerPosProportionalFee), takerPos);
 
         UFixed6 takerNeg = context.order.takerNeg().sub(context.guarantee.takerNeg);
-        UFixed6 takerNegProportionalFee = context.riskParameter.takerFee.proportional(
-            Fixed6Lib.from(takerNeg),
-            context.toOracleVersion.price.abs()
-        );
+        UFixed6 takerNegProportionalFee =
+            context.riskParameter.takerFee.proportional(Fixed6Lib.from(takerNeg), context.toOracleVersion.price.abs());
         next.takerNegOffset.decrement(Fixed6Lib.from(takerNegProportionalFee), takerNeg);
 
         UFixed6 proportionalFee = makerProportionalFee.add(takerPosProportionalFee).add(takerNegProportionalFee);
@@ -372,9 +338,7 @@ library VersionLib {
         // position fee from positive skew taker orders
         UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos);
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
-            context.fromPosition.skew(),
-            Fixed6Lib.from(takerPos),
-            context.toOracleVersion.price.abs()
+            context.fromPosition.skew(), Fixed6Lib.from(takerPos), context.toOracleVersion.price.abs()
         );
         next.takerPosOffset.decrement(adiabaticFee, takerPos);
         result.tradeOffset = result.tradeOffset.add(adiabaticFee);
@@ -419,28 +383,30 @@ library VersionLib {
     /// @return fundingLong The total funding accrued by longs
     /// @return fundingShort The total funding accrued by shorts
     /// @return fundingFee The total fee accrued from funding accumulation
-    function _accumulateFunding(Version memory next, VersionAccumulationContext memory context) private pure returns (
-        Fixed6 fundingMaker,
-        Fixed6 fundingLong,
-        Fixed6 fundingShort,
-        UFixed6 fundingFee
-    ) {
-        Fixed6 toSkew = context.toOracleVersion.valid ?
-            context.fromPosition.skew().add(context.order.long()).sub(context.order.short()) :
-            context.fromPosition.skew();
+    function _accumulateFunding(Version memory next, VersionAccumulationContext memory context)
+        private
+        pure
+        returns (Fixed6 fundingMaker, Fixed6 fundingLong, Fixed6 fundingShort, UFixed6 fundingFee)
+    {
+        Fixed6 toSkew = context.toOracleVersion.valid
+            ? context.fromPosition.skew().add(context.order.long()).sub(context.order.short())
+            : context.fromPosition.skew();
 
         // Compute long-short funding rate
         Fixed6 funding = context.global.pAccumulator.accumulate(
             context.riskParameter.pController,
-            toSkew.unsafeDiv(Fixed6Lib.from(context.riskParameter.takerFee.scale)).min(Fixed6Lib.ONE).max(Fixed6Lib.NEG_ONE),
+            toSkew.unsafeDiv(Fixed6Lib.from(context.riskParameter.takerFee.scale)).min(Fixed6Lib.ONE).max(
+                Fixed6Lib.NEG_ONE
+            ),
             context.fromOracleVersion.timestamp,
             context.toOracleVersion.timestamp,
             context.fromPosition.takerSocialized().mul(context.fromOracleVersion.price.abs())
         );
 
         // Handle maker receive-only status
-        if (context.riskParameter.makerReceiveOnly && funding.sign() != context.fromPosition.skew().sign())
+        if (context.riskParameter.makerReceiveOnly && funding.sign() != context.fromPosition.skew().sign()) {
             funding = funding.mul(Fixed6Lib.NEG_ONE);
+        }
 
         // Initialize long and short funding
         (fundingLong, fundingShort) = (Fixed6Lib.NEG_ONE.mul(funding), funding);
@@ -450,10 +416,8 @@ library VersionLib {
         Fixed6 fundingSpread = Fixed6Lib.from(fundingFee).div(Fixed6Lib.from(2));
 
         // Adjust funding with spread
-        (fundingLong, fundingShort) = (
-            fundingLong.sub(Fixed6Lib.from(fundingFee)).add(fundingSpread),
-            fundingShort.sub(fundingSpread)
-        );
+        (fundingLong, fundingShort) =
+            (fundingLong.sub(Fixed6Lib.from(fundingFee)).add(fundingSpread), fundingShort.sub(fundingSpread));
 
         // Redirect net portion of minor's side to maker
         if (context.fromPosition.long.gt(context.fromPosition.short)) {
@@ -477,11 +441,14 @@ library VersionLib {
     /// @return interestLong The total interest accrued by longs
     /// @return interestShort The total interest accrued by shorts
     /// @return interestFee The total fee accrued from interest accumulation
-    function _accumulateInterest(
-        Version memory next,
-        VersionAccumulationContext memory context
-    ) private pure returns (Fixed6 interestMaker, Fixed6 interestLong, Fixed6 interestShort, UFixed6 interestFee) {
-        UFixed6 notional = context.fromPosition.long.add(context.fromPosition.short).min(context.fromPosition.maker).mul(context.fromOracleVersion.price.abs());
+    function _accumulateInterest(Version memory next, VersionAccumulationContext memory context)
+        private
+        pure
+        returns (Fixed6 interestMaker, Fixed6 interestLong, Fixed6 interestShort, UFixed6 interestFee)
+    {
+        UFixed6 notional = context.fromPosition.long.add(context.fromPosition.short).min(context.fromPosition.maker).mul(
+            context.fromOracleVersion.price.abs()
+        );
 
         // Compute maker interest
         UFixed6 interest = context.riskParameter.utilizationCurve.accumulate(
@@ -496,9 +463,9 @@ library VersionLib {
 
         // Adjust long and short funding with spread
         interestLong = Fixed6Lib.from(
-            context.fromPosition.major().isZero() ?
-            interest :
-            interest.muldiv(context.fromPosition.long, context.fromPosition.long.add(context.fromPosition.short))
+            context.fromPosition.major().isZero()
+                ? interest
+                : interest.muldiv(context.fromPosition.long, context.fromPosition.long.add(context.fromPosition.short))
         );
         interestShort = Fixed6Lib.from(interest).sub(interestLong);
         interestMaker = Fixed6Lib.from(interest.sub(interestFee));
@@ -516,14 +483,17 @@ library VersionLib {
     /// @return pnlMaker The total pnl accrued by makers
     /// @return pnlLong The total pnl accrued by longs
     /// @return pnlShort The total pnl accrued by shorts
-    function _accumulatePNL(
-        Version memory next,
-        VersionAccumulationContext memory context
-    ) private pure returns (Fixed6 pnlMaker, Fixed6 pnlLong, Fixed6 pnlShort) {
-        pnlLong = context.toOracleVersion.price.sub(context.fromOracleVersion.price)
-            .mul(Fixed6Lib.from(context.fromPosition.longSocialized()));
-        pnlShort = context.fromOracleVersion.price.sub(context.toOracleVersion.price)
-            .mul(Fixed6Lib.from(context.fromPosition.shortSocialized()));
+    function _accumulatePNL(Version memory next, VersionAccumulationContext memory context)
+        private
+        pure
+        returns (Fixed6 pnlMaker, Fixed6 pnlLong, Fixed6 pnlShort)
+    {
+        pnlLong = context.toOracleVersion.price.sub(context.fromOracleVersion.price).mul(
+            Fixed6Lib.from(context.fromPosition.longSocialized())
+        );
+        pnlShort = context.fromOracleVersion.price.sub(context.toOracleVersion.price).mul(
+            Fixed6Lib.from(context.fromPosition.shortSocialized())
+        );
         pnlMaker = pnlLong.add(pnlShort).mul(Fixed6Lib.NEG_ONE);
 
         next.longValue.increment(pnlLong, context.fromPosition.long);

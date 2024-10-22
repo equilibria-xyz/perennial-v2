@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Local, LocalStorage } from "../types/Local.sol";
-import { CheckpointAccumulationResponse } from "../libs/CheckpointLib.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {Local, LocalStorage} from "../types/Local.sol";
+import {CheckpointAccumulationResponse} from "../libs/CheckpointLib.sol";
 
 contract LocalTester {
     LocalStorage public local;
@@ -22,10 +22,7 @@ contract LocalTester {
         local.store(newLocal);
     }
 
-    function update(
-        uint256 newId,
-        CheckpointAccumulationResponse memory accumulation
-    ) external {
+    function update(uint256 newId, CheckpointAccumulationResponse memory accumulation) external {
         Local memory newLocal = local.read();
         newLocal.update(newId, accumulation);
         local.store(newLocal);

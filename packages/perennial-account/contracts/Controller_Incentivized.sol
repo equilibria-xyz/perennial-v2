@@ -1,32 +1,32 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { Kept } from "@equilibria/root/attribute/Kept/Kept.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {IEmptySetReserve} from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import {Kept} from "@equilibria/root/attribute/Kept/Kept.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed18, UFixed18Lib} from "@equilibria/root/number/types/UFixed18.sol";
+import {Token6} from "@equilibria/root/token/types/Token6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {IVerifierBase} from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {IMarketFactory} from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 
-import { IAccount } from "./interfaces/IAccount.sol";
-import { IController } from "./interfaces/IController.sol";
-import { IRelayer } from "./interfaces/IRelayer.sol";
-import { Controller, IAccountVerifier } from "./Controller.sol";
-import { Action } from "./types/Action.sol";
-import { DeployAccount } from "./types/DeployAccount.sol";
-import { MarketTransfer } from "./types/MarketTransfer.sol";
-import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
-import { RelayedNonceCancellation } from "./types/RelayedNonceCancellation.sol";
-import { RelayedGroupCancellation } from "./types/RelayedGroupCancellation.sol";
-import { RelayedOperatorUpdate } from "./types/RelayedOperatorUpdate.sol";
-import { RelayedSignerUpdate } from "./types/RelayedSignerUpdate.sol";
-import { RelayedAccessUpdateBatch } from "./types/RelayedAccessUpdateBatch.sol";
-import { Withdrawal } from "./types/Withdrawal.sol";
+import {IAccount} from "./interfaces/IAccount.sol";
+import {IController} from "./interfaces/IController.sol";
+import {IRelayer} from "./interfaces/IRelayer.sol";
+import {Controller, IAccountVerifier} from "./Controller.sol";
+import {Action} from "./types/Action.sol";
+import {DeployAccount} from "./types/DeployAccount.sol";
+import {MarketTransfer} from "./types/MarketTransfer.sol";
+import {RebalanceConfigChange} from "./types/RebalanceConfigChange.sol";
+import {RelayedNonceCancellation} from "./types/RelayedNonceCancellation.sol";
+import {RelayedGroupCancellation} from "./types/RelayedGroupCancellation.sol";
+import {RelayedOperatorUpdate} from "./types/RelayedOperatorUpdate.sol";
+import {RelayedSignerUpdate} from "./types/RelayedSignerUpdate.sol";
+import {RelayedAccessUpdateBatch} from "./types/RelayedAccessUpdateBatch.sol";
+import {Withdrawal} from "./types/Withdrawal.sol";
 
 /// @title Controller_Incentivized
 /// @notice Controller which compensates keepers for handling or relaying messages. Subclass to handle differences in
@@ -48,11 +48,9 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @param implementation_ Pristine collateral account contract
     /// @param marketFactory_ Market factory contract
     /// @param nonceManager_ Verifier contract to which nonce and group cancellations are relayed
-    constructor(
-        address implementation_,
-        IMarketFactory marketFactory_,
-        IVerifierBase nonceManager_
-    ) Controller(implementation_, marketFactory_) {
+    constructor(address implementation_, IMarketFactory marketFactory_, IVerifierBase nonceManager_)
+        Controller(implementation_, marketFactory_)
+    {
         nonceManager = nonceManager_;
     }
 
@@ -78,10 +76,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     }
 
     /// @inheritdoc IController
-    function changeRebalanceConfigWithSignature(
-        RebalanceConfigChange calldata configChange,
-        bytes calldata signature
-    )
+    function changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature)
         external
         override
         keepCollateralAccount(
@@ -95,10 +90,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     }
 
     /// @inheritdoc IController
-    function deployAccountWithSignature(
-        DeployAccount calldata deployAccount_,
-        bytes calldata signature
-    )
+    function deployAccountWithSignature(DeployAccount calldata deployAccount_, bytes calldata signature)
         external
         override
         keepCollateralAccount(
@@ -112,10 +104,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     }
 
     /// @inheritdoc IController
-    function marketTransferWithSignature(
-        MarketTransfer calldata marketTransfer,
-        bytes calldata signature
-    )
+    function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature)
         external
         override
         keepCollateralAccount(
@@ -130,10 +119,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     }
 
     /// @inheritdoc IController
-    function rebalanceGroup(
-        address owner,
-        uint256 group
-    )
+    function rebalanceGroup(address owner, uint256 group)
         external
         override
         keepCollateralAccount(
@@ -147,10 +133,7 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     }
 
     /// @inheritdoc IController
-    function withdrawWithSignature(
-        Withdrawal calldata withdrawal,
-        bytes calldata signature
-    ) override external {
+    function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) external override {
         address account = getAccountAddress(withdrawal.action.common.account);
         // levy fee prior to withdrawal
         bytes memory data = abi.encode(account, withdrawal.action.maxFee);
@@ -279,10 +262,12 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
     /// @param amount Calculated keeper fee
     /// @param data Encoded address of collateral account and UFixed6 user-specified maximum fee
     /// @return raisedKeeperFee Amount pulled from controller to keeper
-    function _raiseKeeperFee(
-        UFixed18 amount,
-        bytes memory data
-    ) internal virtual override returns (UFixed18 raisedKeeperFee) {
+    function _raiseKeeperFee(UFixed18 amount, bytes memory data)
+        internal
+        virtual
+        override
+        returns (UFixed18 raisedKeeperFee)
+    {
         (address account, UFixed6 maxFee) = abi.decode(data, (address, UFixed6));
         raisedKeeperFee = amount.min(UFixed18Lib.from(maxFee));
 

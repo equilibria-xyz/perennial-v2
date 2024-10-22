@@ -1,37 +1,37 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
 
 struct KeeperOracleParameter {
     /// @dev The latest granularity setting in seconds
     uint256 latestGranularity;
-
     /// @dev The current granularity setting in seconds
     uint256 currentGranularity;
-
     /// @dev The timestamp at which the current granularity setting becomes effective
     uint256 effectiveAfter;
-
     /// @dev The relative oracle fee percentage of the request
     UFixed6 oracleFee;
-
     /// @dev Seconds after version a committed price is valid
     uint256 validFrom;
-
     /// @dev Seconds after version a committed price is valid until
     uint256 validTo;
 }
+
 struct StoredKeeperOracleParameter {
     /* slot 0 (21) */
-    uint16 latestGranularity;   // <= 65k
-    uint16 currentGranularity;  // <= 65k
-    uint32 effectiveAfter;      // <= 2038
-    uint24 oracleFee;           // <= 100%
-    uint16 validFrom;           // <= 65k
-    uint16 validTo;             // <= 65k
+    uint16 latestGranularity; // <= 65k
+    uint16 currentGranularity; // <= 65k
+    uint32 effectiveAfter; // <= 2038
+    uint24 oracleFee; // <= 100%
+    uint16 validFrom; // <= 65k
+    uint16 validTo; // <= 65k
 }
-struct KeeperOracleParameterStorage { StoredKeeperOracleParameter value; }
+
+struct KeeperOracleParameterStorage {
+    StoredKeeperOracleParameter value;
+}
+
 using KeeperOracleParameterStorageLib for KeeperOracleParameterStorage global;
 
 /// @dev (external-safe): this library is safe to externalize
@@ -52,8 +52,9 @@ library KeeperOracleParameterStorageLib {
     }
 
     function validate(KeeperOracleParameter memory newValue) private pure {
-        if (newValue.latestGranularity < 1 && newValue.effectiveAfter != 0)
+        if (newValue.latestGranularity < 1 && newValue.effectiveAfter != 0) {
             revert KeeperOracleParameterStorageInvalidError();
+        }
         if (newValue.currentGranularity < 1) revert KeeperOracleParameterStorageInvalidError();
     }
 

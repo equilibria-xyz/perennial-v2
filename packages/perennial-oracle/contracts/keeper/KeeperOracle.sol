@@ -2,19 +2,19 @@
 pragma solidity 0.8.24;
 
 // import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
-import { Instance } from "@equilibria/root/attribute/Instance.sol";
-import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
-import { OracleReceipt } from "@perennial/core/contracts/types/OracleReceipt.sol";
-import { IKeeperFactory } from "../interfaces/IKeeperFactory.sol";
-import { IKeeperOracle } from "../interfaces/IKeeperOracle.sol";
-import { PriceResponse, PriceResponseStorage, PriceResponseLib } from "./types/PriceResponse.sol";
-import { KeeperOracleParameter } from "./types/KeeperOracleParameter.sol";
-import { IOracle } from "../interfaces/IOracle.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed18Lib} from "@equilibria/root/number/types/UFixed18.sol";
+import {Instance} from "@equilibria/root/attribute/Instance.sol";
+import {IGasOracle} from "@equilibria/root/gas/GasOracle.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {OracleVersion} from "@perennial/core/contracts/types/OracleVersion.sol";
+import {OracleReceipt} from "@perennial/core/contracts/types/OracleReceipt.sol";
+import {IKeeperFactory} from "../interfaces/IKeeperFactory.sol";
+import {IKeeperOracle} from "../interfaces/IKeeperOracle.sol";
+import {PriceResponse, PriceResponseStorage, PriceResponseLib} from "./types/PriceResponse.sol";
+import {KeeperOracleParameter} from "./types/KeeperOracleParameter.sol";
+import {IOracle} from "../interfaces/IOracle.sol";
 
 /// @title KeeperOracle
 /// @notice Generic implementation of the IOracle interface for keeper-based oracles.
@@ -55,7 +55,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
     /// @notice Returns the global state of the oracle
     /// @return The global state of the oracle
-    function global() external view returns (KeeperOracleGlobal memory) { return _global; }
+    function global() external view returns (KeeperOracleGlobal memory) {
+        return _global;
+    }
 
     /// @notice Updates the registered oracle provider
     /// @dev The oracle provider is the only authorized caller
@@ -112,7 +114,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Returns the latest synced oracle version
     /// @return latestVersion Latest oracle version
     function latest() public view virtual returns (OracleVersion memory latestVersion) {
-        (latestVersion, ) = at(_global.latestVersion);
+        (latestVersion,) = at(_global.latestVersion);
     }
 
     /// @notice Returns the current oracle version accepting new orders
@@ -139,14 +141,14 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param value The value charged to commit the price in ether
     function commit(OracleVersion memory version, address receiver, uint256 value) external virtual onlyFactory {
         if (version.timestamp == 0) revert KeeperOracleVersionOutsideRangeError();
-        PriceResponse memory priceResponse = (version.timestamp == next()) ?
-            _commitRequested(version, value) :
-            _commitUnrequested(version);
+        PriceResponse memory priceResponse =
+            (version.timestamp == next()) ? _commitRequested(version, value) : _commitUnrequested(version);
         _global.latestVersion = uint64(version.timestamp);
 
         emit OracleProviderVersionFulfilled(version);
 
-        try oracle.market() returns (IMarket market) { // v2.3 migration -- don't callback if Oracle is still on its v2.2 implementation
+        try oracle.market() returns (IMarket market) {
+            // v2.3 migration -- don't callback if Oracle is still on its v2.2 implementation
             market.settle(address(0));
             oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
             market.token().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
@@ -186,10 +188,10 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @param oracleVersion The oracle version to commit
     /// @param value The value charged to commit the price in ether
     /// @return priceResponse The response to the price request
-    function _commitRequested(
-        OracleVersion memory oracleVersion,
-        uint256 value
-    ) private returns (PriceResponse memory priceResponse) {
+    function _commitRequested(OracleVersion memory oracleVersion, uint256 value)
+        private
+        returns (PriceResponse memory priceResponse)
+    {
         IKeeperFactory factory = IKeeperFactory(address(factory()));
         KeeperOracleParameter memory keeperOracleParameter = factory.parameter();
 
@@ -214,10 +216,14 @@ contract KeeperOracle is IKeeperOracle, Instance {
     /// @notice Commits the price to a non-requested version
     /// @param oracleVersion The oracle version to commit
     /// @return priceResponse The response to the price request
-    function _commitUnrequested(OracleVersion memory oracleVersion) private returns (PriceResponse memory priceResponse) {
+    function _commitUnrequested(OracleVersion memory oracleVersion)
+        private
+        returns (PriceResponse memory priceResponse)
+    {
         if (!oracleVersion.valid) revert KeeperOracleInvalidPriceError();
-        if (oracleVersion.timestamp <= _global.latestVersion || (next() != 0 && oracleVersion.timestamp >= next()))
+        if (oracleVersion.timestamp <= _global.latestVersion || (next() != 0 && oracleVersion.timestamp >= next())) {
             revert KeeperOracleVersionOutsideRangeError();
+        }
 
         priceResponse = PriceResponseLib.fromUnrequested(oracleVersion);
 
@@ -225,7 +231,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     }
 
     /// @dev Only allow authorized oracle provider to call
-    modifier onlyOracle {
+    modifier onlyOracle() {
         if (msg.sender != address(oracle)) revert KeeperOracleNotOracleError();
         _;
     }

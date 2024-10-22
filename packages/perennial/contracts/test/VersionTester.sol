@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Version, VersionStorage } from "../types/Version.sol";
-import { Global } from "../types/Global.sol";
-import { Order } from "../types/Order.sol";
-import { Guarantee } from "../types/Guarantee.sol";
-import { OracleVersion } from "../types/OracleVersion.sol";
-import { OracleReceipt } from "../types/OracleReceipt.sol";
-import { IMarket } from "../interfaces/IMarket.sol";
-import { VersionLib, VersionAccumulationResponse } from "../libs/VersionLib.sol";
+import {Version, VersionStorage} from "../types/Version.sol";
+import {Global} from "../types/Global.sol";
+import {Order} from "../types/Order.sol";
+import {Guarantee} from "../types/Guarantee.sol";
+import {OracleVersion} from "../types/OracleVersion.sol";
+import {OracleReceipt} from "../types/OracleReceipt.sol";
+import {IMarket} from "../interfaces/IMarket.sol";
+import {VersionLib, VersionAccumulationResponse} from "../libs/VersionLib.sol";
 
 contract VersionTester {
     VersionStorage public version;
@@ -33,7 +33,8 @@ contract VersionTester {
         Version memory newVersion = version.read();
         settlementContext.latestVersion = newVersion;
 
-        (newVersion, nextGlobal, response) = VersionLib.accumulate(context, settlementContext, orderId, order, guarantee, oracleVersion, oracleReceipt);
+        (newVersion, nextGlobal, response) =
+            VersionLib.accumulate(context, settlementContext, orderId, order, guarantee, oracleVersion, oracleReceipt);
 
         version.store(newVersion);
     }

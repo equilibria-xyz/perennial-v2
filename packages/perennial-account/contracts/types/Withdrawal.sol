@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Action, ActionLib } from "./Action.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Action, ActionLib} from "./Action.sol";
 
 struct Withdrawal {
     /// @dev Quantity to transfer from account to owner; set to UFixed6.MAX for full withdrawal
@@ -13,15 +13,15 @@ struct Withdrawal {
     /// set action.common.account to the owner of the collateral account
     Action action;
 }
+
 using WithdrawalLib for Withdrawal global;
 
 /// @title WithdrawalLib
 /// @notice Library used to hash and verify action to withdraw from a collateral account
 library WithdrawalLib {
     /// @dev Used to verify a signed message
-    bytes32 constant public STRUCT_HASH = keccak256(
-        "Withdrawal(uint256 amount,bool unwrap,Action action)"
-        "Action(uint256 maxFee,Common common)"
+    bytes32 public constant STRUCT_HASH = keccak256(
+        "Withdrawal(uint256 amount,bool unwrap,Action action)" "Action(uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 

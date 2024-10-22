@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
 
-import { CancelOrderAction } from "../types/CancelOrderAction.sol";
-import { InterfaceFee } from "../types/InterfaceFee.sol";
-import { PlaceOrderAction, TriggerOrder } from "../types/PlaceOrderAction.sol";
+import {CancelOrderAction} from "../types/CancelOrderAction.sol";
+import {InterfaceFee} from "../types/InterfaceFee.sol";
+import {PlaceOrderAction, TriggerOrder} from "../types/PlaceOrderAction.sol";
 
 /// @notice Stores and executes trigger orders
 interface IManager {
@@ -14,12 +14,7 @@ interface IManager {
     /// @param account Actor who wants to change their position in the market
     /// @param order Desired change in position and conditions upon which change may be made
     /// @param orderId Client-supplied order identifier, unique to client
-    event TriggerOrderPlaced(
-        IMarket indexed market,
-        address indexed account,
-        TriggerOrder order,
-        uint256 orderId
-    );
+    event TriggerOrderPlaced(IMarket indexed market, address indexed account, TriggerOrder order, uint256 orderId);
 
     /// @notice Emitted when an order has been cancelled
     /// @param market Perennial market for which the order was intended
@@ -97,11 +92,9 @@ interface IManager {
     /// @param orderId Uniquely identifies the order for an account
     /// @return order Trigger order read from storage
     /// @return canExecute True if trigger conditions have been met and executeOrder may be called on the order
-    function checkOrder(
-        IMarket market,
-        address account,
-        uint256 orderId
-    ) external returns (TriggerOrder memory order, bool canExecute);
+    function checkOrder(IMarket market, address account, uint256 orderId)
+        external
+        returns (TriggerOrder memory order, bool canExecute);
 
     /// @notice Called by keeper to execute an order whose trigger conditions have been met
     /// @param market Perennial market for which the order is intended

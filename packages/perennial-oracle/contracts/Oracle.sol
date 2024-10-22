@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { Instance } from "@equilibria/root/attribute/Instance.sol";
-import { IOracleProvider} from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
-import { OracleReceipt } from "@perennial/core/contracts/types/OracleReceipt.sol";
-import { IOracle } from "./interfaces/IOracle.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed18Lib} from "@equilibria/root/number/types/UFixed18.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {Instance} from "@equilibria/root/attribute/Instance.sol";
+import {IOracleProvider} from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {OracleVersion} from "@perennial/core/contracts/types/OracleVersion.sol";
+import {OracleReceipt} from "@perennial/core/contracts/types/OracleReceipt.sol";
+import {IOracle} from "./interfaces/IOracle.sol";
 
 /// @title Oracle
 /// @notice The top-level oracle contract that implements an oracle provider interface.
@@ -74,9 +74,9 @@ contract Oracle is IOracle, Instance {
     function request(IMarket, address account) external onlyMarket {
         (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[global.current].provider.status();
 
-        oracles[
-            (currentTimestamp > oracles[global.latest].timestamp) ? global.current : global.latest
-        ].provider.request(market, account);
+        oracles[(currentTimestamp > oracles[global.latest].timestamp) ? global.current : global.latest].provider.request(
+            market, account
+        );
 
         oracles[global.current].timestamp = uint96(currentTimestamp);
         _updateLatest(latestVersion);
@@ -104,7 +104,11 @@ contract Oracle is IOracle, Instance {
     /// @param timestamp The timestamp to query
     /// @return atVersion The oracle version at the given timestamp
     /// @return atReceipt The oracle receipt at the given timestamp
-    function at(uint256 timestamp) public view returns (OracleVersion memory atVersion, OracleReceipt memory atReceipt) {
+    function at(uint256 timestamp)
+        public
+        view
+        returns (OracleVersion memory atVersion, OracleReceipt memory atReceipt)
+    {
         if (timestamp == 0) return (atVersion, atReceipt);
 
         IOracleProvider provider = oracles[global.current].provider;
@@ -145,8 +149,9 @@ contract Oracle is IOracle, Instance {
         // if the latest version of the underlying oracle is further ahead than its latest request update its timestamp
         if (global.current != 0) {
             OracleVersion memory latestVersion = oracles[global.current].provider.latest();
-            if (latestVersion.timestamp > oracles[global.current].timestamp)
+            if (latestVersion.timestamp > oracles[global.current].timestamp) {
                 oracles[global.current].timestamp = uint96(latestVersion.timestamp);
+            }
         }
 
         // add the new oracle registration
@@ -164,9 +169,11 @@ contract Oracle is IOracle, Instance {
     /// @dev Applicable if we haven't yet switched over to the current oracle from the latest oracle
     /// @param currentOracleLatestVersion The latest version from the current oracle
     /// @return latestVersion The latest version
-    function _handleLatest(
-        OracleVersion memory currentOracleLatestVersion
-    ) private view returns (OracleVersion memory latestVersion) {
+    function _handleLatest(OracleVersion memory currentOracleLatestVersion)
+        private
+        view
+        returns (OracleVersion memory latestVersion)
+    {
         if (global.current == global.latest) return currentOracleLatestVersion;
 
         bool isLatestStale = _latestStale(currentOracleLatestVersion);
@@ -174,8 +181,9 @@ contract Oracle is IOracle, Instance {
 
         uint256 latestOracleTimestamp =
             uint256(isLatestStale ? oracles[global.current].timestamp : oracles[global.latest].timestamp);
-        if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp)
-            (latestVersion, ) = at(latestOracleTimestamp);
+        if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp) {
+            (latestVersion,) = at(latestOracleTimestamp);
+        }
     }
 
     /// @notice Returns whether the latest oracle is ready to be updated
@@ -185,29 +193,31 @@ contract Oracle is IOracle, Instance {
         if (global.current == global.latest) return false;
         if (global.latest == 0) return true;
 
-        if (uint256(oracles[global.latest].timestamp) > oracles[global.latest].provider.latest().timestamp) return false;
+        if (uint256(oracles[global.latest].timestamp) > oracles[global.latest].provider.latest().timestamp) {
+            return false;
+        }
         if (uint256(oracles[global.latest].timestamp) >= currentOracleLatestVersion.timestamp) return false;
 
         return true;
     }
 
     /// @dev Only if the caller is the beneficiary
-    modifier onlyBeneficiary {
+    modifier onlyBeneficiary() {
         if (msg.sender != beneficiary) revert OracleNotBeneficiaryError();
         _;
     }
 
     /// @dev Only if the caller is the registered market
-    modifier onlyMarket {
+    modifier onlyMarket() {
         if (msg.sender != address(market)) revert OracleNotMarketError();
         _;
     }
 
     /// @dev Only if the caller is the registered sub oracle
-    modifier onlySubOracle {
+    modifier onlySubOracle() {
         if (
-            msg.sender != address(oracles[global.current].provider) &&
-            msg.sender != address(oracles[global.latest].provider)
+            msg.sender != address(oracles[global.current].provider)
+                && msg.sender != address(oracles[global.latest].provider)
         ) revert OracleNotSubOracleError();
         _;
     }

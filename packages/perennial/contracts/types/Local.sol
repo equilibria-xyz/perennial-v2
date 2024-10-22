@@ -1,26 +1,29 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { CheckpointAccumulationResponse } from "../libs/CheckpointLib.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {CheckpointAccumulationResponse} from "../libs/CheckpointLib.sol";
 
 /// @dev Local type
 struct Local {
     /// @dev The current position id
     uint256 currentId;
-
     /// @dev The latest position id
     uint256 latestId;
-
     /// @dev The collateral balance
     Fixed6 collateral;
-
     /// @dev The claimable balance
     UFixed6 claimable;
 }
+
 using LocalLib for Local global;
-struct LocalStorage { uint256 slot0; uint256 slot1; }
+
+struct LocalStorage {
+    uint256 slot0;
+    uint256 slot1;
+}
+
 using LocalStorageLib for LocalStorage global;
 
 /// @title Local
@@ -37,11 +40,10 @@ library LocalLib {
     /// @notice Updates the collateral with the new collateral change
     /// @param self The Local object to update
     /// @param accumulation The accumulation result
-    function update(
-        Local memory self,
-        uint256 newId,
-        CheckpointAccumulationResponse memory accumulation
-    ) internal pure {
+    function update(Local memory self, uint256 newId, CheckpointAccumulationResponse memory accumulation)
+        internal
+        pure
+    {
         self.collateral = self.collateral.add(accumulation.collateral).sub(Fixed6Lib.from(accumulation.liquidationFee));
         self.latestId = newId;
     }
@@ -87,11 +89,10 @@ library LocalStorageLib {
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
         if (newValue.claimable.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
+        uint256 encoded0 = uint256(newValue.currentId << (256 - 32)) >> (256 - 32)
+            | uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32)
+            | uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64)
+            | uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)

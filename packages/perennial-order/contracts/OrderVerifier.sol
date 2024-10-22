@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import {VerifierBase} from "@equilibria/root/verifier/VerifierBase.sol";
+import {IMarketFactory} from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 
-import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
-import { Action, ActionLib } from "./types/Action.sol";
-import { CancelOrderAction, CancelOrderActionLib } from "./types/CancelOrderAction.sol";
-import { PlaceOrderAction, PlaceOrderActionLib } from "./types/PlaceOrderAction.sol";
+import {IOrderVerifier} from "./interfaces/IOrderVerifier.sol";
+import {Action, ActionLib} from "./types/Action.sol";
+import {CancelOrderAction, CancelOrderActionLib} from "./types/CancelOrderAction.sol";
+import {PlaceOrderAction, PlaceOrderActionLib} from "./types/PlaceOrderAction.sol";
 
 contract OrderVerifier is VerifierBase, IOrderVerifier {
     /// @dev market factory to check authorization
@@ -45,11 +45,9 @@ contract OrderVerifier is VerifierBase, IOrderVerifier {
     }
 
     function _verifySignature(Action calldata action, bytes32 hash, bytes calldata signature) internal view {
-        if (!SignatureChecker.isValidSignatureNow(
-            action.common.signer,
-            _hashTypedDataV4(hash),
-            signature
-        )) revert VerifierInvalidSignerError();
+        if (!SignatureChecker.isValidSignatureNow(action.common.signer, _hashTypedDataV4(hash), signature)) {
+            revert VerifierInvalidSignerError();
+        }
     }
 
     /// @notice Checks whether signer is allowed to sign a message for account

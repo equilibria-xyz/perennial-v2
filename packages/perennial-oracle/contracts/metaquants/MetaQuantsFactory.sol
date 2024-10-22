@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { SignedMath } from "@openzeppelin/contracts/utils/math/SignedMath.sol";
-import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
-import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
-import { IMetaQuantsFactory } from "../interfaces/IMetaQuantsFactory.sol";
-import { KeeperFactory } from "../keeper/KeeperFactory.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
+import {Fixed18, Fixed18Lib} from "@equilibria/root/number/types/Fixed18.sol";
+import {IGasOracle} from "@equilibria/root/gas/GasOracle.sol";
+import {IMetaQuantsFactory} from "../interfaces/IMetaQuantsFactory.sol";
+import {KeeperFactory} from "../keeper/KeeperFactory.sol";
 
 contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
     int32 private constant PARSE_DECIMALS = 18;
@@ -44,17 +44,20 @@ contract MetaQuantsFactory is IMetaQuantsFactory, KeeperFactory {
     /// @param underlyingIds The list of price feed ids validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
-    function _parsePrices(
-        bytes32[] memory underlyingIds,
-        bytes calldata data
-    ) internal view override returns (PriceRecord[] memory prices) {
+    function _parsePrices(bytes32[] memory underlyingIds, bytes calldata data)
+        internal
+        view
+        override
+        returns (PriceRecord[] memory prices)
+    {
         UpdateAndSignature[] memory updates = abi.decode(data, (UpdateAndSignature[]));
         if (updates.length != underlyingIds.length) revert MetaQuantsFactoryInputLengthMismatchError();
 
         prices = new PriceRecord[](underlyingIds.length);
         for (uint256 i; i < updates.length; i++) {
-            if (!_verifySignature(updates[i].encodedUpdate, updates[i].signature))
+            if (!_verifySignature(updates[i].encodedUpdate, updates[i].signature)) {
                 revert MetaQuantsFactoryInvalidSignatureError();
+            }
 
             MetaQuantsUpdate memory parsedUpdate = abi.decode(updates[i].encodedUpdate, (MetaQuantsUpdate));
 

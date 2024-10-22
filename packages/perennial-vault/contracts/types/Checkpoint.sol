@@ -1,57 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
-import { Account } from "./Account.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {Checkpoint as PerennialCheckpoint} from "@perennial/core/contracts/types/Checkpoint.sol";
+import {Account} from "./Account.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
     /// @dev The total amount of pending deposits
     UFixed6 deposit;
-
     /// @dev The total amount of pending redemptions
     UFixed6 redemption;
-
     /// @dev The total shares at the checkpoint
     UFixed6 shares;
-
     /// @dev The total assets at the checkpoint
     Fixed6 assets;
-
     /// @dev The total fee at the checkpoint
     Fixed6 tradeFee;
-
     /// @dev The total settlement fee at the checkpoint
     UFixed6 settlementFee;
-
     /// @dev The number of deposits and redemptions during the checkpoint
     uint256 deposits;
-
     /// @dev The number of deposits and redemptions during the checkpoint
     uint256 redemptions;
-
     // @dev The timestamp of of the checkpoint
     uint256 timestamp;
 }
+
 using CheckpointLib for Checkpoint global;
+
 struct StoredCheckpoint {
     /* slot 0 */
-    uint64 deposit;         // <= 18.44t
-    uint64 redemption;      // <= 18.44t
-    uint64 shares;          // <= 18.44t
-    int64 assets;           // <= 9.22t
-
+    uint64 deposit; // <= 18.44t
+    uint64 redemption; // <= 18.44t
+    uint64 shares; // <= 18.44t
+    int64 assets; // <= 9.22t
     /* slot 1 */
-    int64 tradeFee;         // <= 9.22t
-    uint64 settlementFee;   // <= 18.44t
-    uint32 deposits;        // <= 4.29b
-    uint32 timestamp;       // <= 4.29b
+    int64 tradeFee; // <= 9.22t
+    uint64 settlementFee; // <= 18.44t
+    uint32 deposits; // <= 4.29b
+    uint32 timestamp; // <= 4.29b
     uint32 redemptions;
     bytes4 __unallocated0__;
 }
-struct CheckpointStorage { StoredCheckpoint value; }
+
+struct CheckpointStorage {
+    StoredCheckpoint value;
+}
+
 using CheckpointStorageLib for CheckpointStorage global;
 
 /// @title Checkpoint
@@ -75,8 +72,7 @@ library CheckpointLib {
     /// @param deposit The amount of new deposits
     /// @param redemption The amount of new redemptions
     function update(Checkpoint memory self, UFixed6 deposit, UFixed6 redemption) internal pure {
-        (self.deposit, self.redemption) =
-            (self.deposit.add(deposit), self.redemption.add(redemption));
+        (self.deposit, self.redemption) = (self.deposit.add(deposit), self.redemption.add(redemption));
         if (!deposit.isZero()) self.deposits++;
         if (!redemption.isZero()) self.redemptions++;
     }
@@ -100,9 +96,9 @@ library CheckpointLib {
 
         // if vault is insolvent, default to par value
         UFixed6 settlementFee = _settlementFeeForOrders(self, self.deposits);
-        return self.assets.lte(Fixed6Lib.ZERO) ?
-            assets.unsafeSub(settlementFee) :
-            _toShares(self, assets).unsafeSub(_toSharesExact(self, settlementFee));
+        return self.assets.lte(Fixed6Lib.ZERO)
+            ? assets.unsafeSub(settlementFee)
+            : _toShares(self, assets).unsafeSub(_toSharesExact(self, settlementFee));
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the global context
@@ -123,9 +119,9 @@ library CheckpointLib {
 
         // if vault is insolvent, default to par value
         UFixed6 settlementFee = _settlementFeeForOrders(self, 1);
-        return self.assets.lte(Fixed6Lib.ZERO) ?
-            assets.unsafeSub(settlementFee) :
-            _toShares(self, assets).unsafeSub(_toSharesExact(self, settlementFee));
+        return self.assets.lte(Fixed6Lib.ZERO)
+            ? assets.unsafeSub(settlementFee)
+            : _toShares(self, assets).unsafeSub(_toSharesExact(self, settlementFee));
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the local context
@@ -167,16 +163,13 @@ library CheckpointLib {
         UFixed6 totalAmount = self.deposit.add(_toAssetsExact(self, self.redemption));
         UFixed6 totalAmountIncludingFee = UFixed6Lib.unsafeFrom(Fixed6Lib.from(totalAmount).sub(self.tradeFee));
 
-        return totalAmount.isZero() ?
-            amount :
-            amount.muldiv(totalAmountIncludingFee, totalAmount);
+        return totalAmount.isZero() ? amount : amount.muldiv(totalAmountIncludingFee, totalAmount);
     }
 
     function _settlementFeeForOrders(Checkpoint memory self, uint256 orders) private pure returns (UFixed6) {
         UFixed6 totalOrders = UFixed6Lib.from(self.deposits + self.redemptions);
-        return totalOrders.isZero() ?
-            UFixed6Lib.ZERO :
-            self.settlementFee.muldivOut(UFixed6Lib.from(orders), totalOrders);
+        return
+            totalOrders.isZero() ? UFixed6Lib.ZERO : self.settlementFee.muldivOut(UFixed6Lib.from(orders), totalOrders);
     }
 
     function _toAssetsExact(Checkpoint memory self, UFixed6 shares) private pure returns (UFixed6) {
@@ -234,7 +227,6 @@ library CheckpointStorageLib {
             uint64(UFixed6.unwrap(newValue.redemption)),
             uint64(UFixed6.unwrap(newValue.shares)),
             int64(Fixed6.unwrap(newValue.assets)),
-
             int64(Fixed6.unwrap(newValue.tradeFee)),
             uint64(UFixed6.unwrap(newValue.settlementFee)),
             uint32(newValue.deposits),

@@ -1,34 +1,40 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Order } from "./Order.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {Order} from "./Order.sol";
 
 /// @dev Guarantee type
 struct Guarantee {
     /// @dev The quantity of guarantees that that will be exempt from the settlement fee
     uint256 orders;
-
     /// @dev The notional of the magnitude with the price override (local only)
     Fixed6 notional;
-
     /// @dev The positive skew (open long / close short) guarantee size
     UFixed6 takerPos;
-
     /// @dev The negative skew (close long / open short) guarantee size
     UFixed6 takerNeg;
-
     /// @dev The magnitude of the guarantee that be exempt from the trade fee
     UFixed6 takerFee;
-
     /// @dev The referral fee multiplied by the size applicable to the referral (local only)
     UFixed6 referral;
 }
+
 using GuaranteeLib for Guarantee global;
-struct GuaranteeStorageGlobal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
+
+struct GuaranteeStorageGlobal {
+    uint256 slot0;
+    uint256 slot1;
+} // SECURITY: must remain at (2) slots
+
 using GuaranteeStorageGlobalLib for GuaranteeStorageGlobal global;
-struct GuaranteeStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
+
+struct GuaranteeStorageLocal {
+    uint256 slot0;
+    uint256 slot1;
+} // SECURITY: must remain at (2) slots
+
 using GuaranteeStorageLocalLib for GuaranteeStorageLocal global;
 
 /// @title Guarantee
@@ -37,7 +43,7 @@ using GuaranteeStorageLocalLib for GuaranteeStorageLocal global;
 library GuaranteeLib {
     /// @notice Prepares the next guarantee from the current guarantee
     /// @param self The guarantee object to update
-    function next(Guarantee memory self) internal pure  {
+    function next(Guarantee memory self) internal pure {
         invalidate(self);
         self.orders = 0;
     }
@@ -151,11 +157,10 @@ library GuaranteeStorageGlobalLib {
     function store(GuaranteeStorageGlobal storage self, Guarantee memory newValue) internal {
         GuaranteeStorageLib.validate(newValue);
 
-        uint256 encoded0 =
-            uint256(newValue.orders << (256 - 32)) >> (256 - 32) |
-            uint256(UFixed6.unwrap(newValue.takerPos) << (256 - 64)) >> (256 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
+        uint256 encoded0 = uint256(newValue.orders << (256 - 32)) >> (256 - 32)
+            | uint256(UFixed6.unwrap(newValue.takerPos) << (256 - 64)) >> (256 - 32 - 64)
+            | uint256(UFixed6.unwrap(newValue.takerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64)
+            | uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -194,18 +199,22 @@ library GuaranteeStorageLocalLib {
     function store(GuaranteeStorageLocal storage self, Guarantee memory newValue) internal {
         GuaranteeStorageLib.validate(newValue);
 
-        if (newValue.notional.gt(Fixed6.wrap(type(int64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
-        if (newValue.notional.lt(Fixed6.wrap(type(int64).min))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
-        if (newValue.referral.gt(UFixed6.wrap(type(uint64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        if (newValue.notional.gt(Fixed6.wrap(type(int64).max))) {
+            revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        }
+        if (newValue.notional.lt(Fixed6.wrap(type(int64).min))) {
+            revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        }
+        if (newValue.referral.gt(UFixed6.wrap(type(uint64).max))) {
+            revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        }
 
-        uint256 encoded0 =
-            uint256(newValue.orders << (256 - 32)) >> (256 - 32) |
-            uint256(Fixed6.unwrap(newValue.notional) << (256 - 64)) >> (256 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerPos) << (256 - 64)) >> (256 - 32 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
-        uint256 encode1 =
-            uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.referral) << (256 - 64)) >> (256 - 64 - 64);
+        uint256 encoded0 = uint256(newValue.orders << (256 - 32)) >> (256 - 32)
+            | uint256(Fixed6.unwrap(newValue.notional) << (256 - 64)) >> (256 - 32 - 64)
+            | uint256(UFixed6.unwrap(newValue.takerPos) << (256 - 64)) >> (256 - 32 - 64 - 64)
+            | uint256(UFixed6.unwrap(newValue.takerNeg) << (256 - 64)) >> (256 - 32 - 64 - 64 - 64);
+        uint256 encode1 = uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 64)) >> (256 - 64)
+            | uint256(UFixed6.unwrap(newValue.referral) << (256 - 64)) >> (256 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -220,8 +229,14 @@ library GuaranteeStorageLib {
 
     function validate(Guarantee memory newValue) internal pure {
         if (newValue.orders > type(uint32).max) revert GuaranteeStorageInvalidError();
-        if (newValue.takerPos.gt(UFixed6.wrap(type(uint64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
-        if (newValue.takerNeg.gt(UFixed6.wrap(type(uint64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
-        if (newValue.takerFee.gt(UFixed6.wrap(type(uint64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        if (newValue.takerPos.gt(UFixed6.wrap(type(uint64).max))) {
+            revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        }
+        if (newValue.takerNeg.gt(UFixed6.wrap(type(uint64).max))) {
+            revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        }
+        if (newValue.takerFee.gt(UFixed6.wrap(type(uint64).max))) {
+            revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
+        }
     }
 }

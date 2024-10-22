@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { SignedMath } from "@openzeppelin/contracts/utils/math/SignedMath.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
-import { Factory } from "@equilibria/root/attribute/Factory.sol";
-import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
-import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
-import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
-import { IKeeperOracle } from "../interfaces/IKeeperOracle.sol";
-import { IKeeperFactory } from "../interfaces/IKeeperFactory.sol";
-import { IOracleFactory } from "../interfaces/IOracleFactory.sol";
-import { IPayoffProvider } from "../interfaces/IPayoffProvider.sol";
-import { KeeperOracleParameter, KeeperOracleParameterStorage } from "./types/KeeperOracleParameter.sol";
-import { OracleParameter } from "../types/OracleParameter.sol";
-import { DedupLib } from "./libs/DedupLib.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {Fixed18, Fixed18Lib} from "@equilibria/root/number/types/Fixed18.sol";
+import {Factory} from "@equilibria/root/attribute/Factory.sol";
+import {IGasOracle} from "@equilibria/root/gas/GasOracle.sol";
+import {IOracleProvider} from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import {OracleVersion} from "@perennial/core/contracts/types/OracleVersion.sol";
+import {IKeeperOracle} from "../interfaces/IKeeperOracle.sol";
+import {IKeeperFactory} from "../interfaces/IKeeperFactory.sol";
+import {IOracleFactory} from "../interfaces/IOracleFactory.sol";
+import {IPayoffProvider} from "../interfaces/IPayoffProvider.sol";
+import {KeeperOracleParameter, KeeperOracleParameterStorage} from "./types/KeeperOracleParameter.sol";
+import {OracleParameter} from "../types/OracleParameter.sol";
+import {DedupLib} from "./libs/DedupLib.sol";
 
 /// @title KeeperFactory
 /// @notice Factory contract for creating and managing keeper-based oracles
@@ -55,11 +55,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param implementation_ IKeeperOracle implementation contract
     /// @param commitmentGasOracle_ The gas oracle for pricing a commit keeper reward
     /// @param settlementGasOracle_ The gas oracle for pricing a settle keeper reward
-    constructor(
-        IGasOracle commitmentGasOracle_,
-        IGasOracle settlementGasOracle_,
-        address implementation_
-    ) Factory(implementation_) {
+    constructor(IGasOracle commitmentGasOracle_, IGasOracle settlementGasOracle_, address implementation_)
+        Factory(implementation_)
+    {
         commitmentGasOracle = commitmentGasOracle_;
         settlementGasOracle = settlementGasOracle_;
     }
@@ -97,11 +95,12 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param underlyingId The underlying id of the oracle to create
     /// @param payoff The payoff provider for the oracle
     /// @return newOracle The newly created oracle instance
-    function create(
-        bytes32 oracleId,
-        bytes32 underlyingId,
-        PayoffDefinition memory payoff
-     ) public virtual onlyOwner returns (IKeeperOracle newOracle) {
+    function create(bytes32 oracleId, bytes32 underlyingId, PayoffDefinition memory payoff)
+        public
+        virtual
+        onlyOwner
+        returns (IKeeperOracle newOracle)
+    {
         if (oracles[oracleId] != IOracleProvider(address(0))) revert KeeperFactoryAlreadyCreatedError();
         if (!payoffs[payoff.provider]) revert KeeperFactoryInvalidPayoffError();
         if (fromUnderlying[underlyingId][payoff.provider] != bytes32(0)) revert KeeperFactoryAlreadyCreatedError();
@@ -122,9 +121,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     function current() public view returns (uint256) {
         KeeperOracleParameter memory keeperOracleParameter = _parameter.read();
 
-        uint256 effectiveGranularity = block.timestamp <= keeperOracleParameter.effectiveAfter ?
-            keeperOracleParameter.latestGranularity :
-            keeperOracleParameter.currentGranularity;
+        uint256 effectiveGranularity = block.timestamp <= keeperOracleParameter.effectiveAfter
+            ? keeperOracleParameter.latestGranularity
+            : keeperOracleParameter.currentGranularity;
 
         return Math.ceilDiv(block.timestamp, effectiveGranularity) * effectiveGranularity;
     }
@@ -158,9 +157,11 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
         // create array of prices
         (Fixed6[] memory prices, uint256[] memory costs) = _transformPrices(oracleIds, indices, dedupedPrices, valid);
 
-        for (uint256 i; i < oracleIds.length; i++)
-            IKeeperOracle(address(oracles[oracleIds[i]]))
-                .commit(OracleVersion(version, prices[i], valid), msg.sender, costs[i]);
+        for (uint256 i; i < oracleIds.length; i++) {
+            IKeeperOracle(address(oracles[oracleIds[i]])).commit(
+                OracleVersion(version, prices[i], valid), msg.sender, costs[i]
+            );
+        }
     }
 
     /// @notice Performs a list of local settlement callbacks
@@ -170,8 +171,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param versions The list of versions to settle
     /// @param maxCounts The list of maximum number of settlement callbacks to perform before exiting
     function settle(bytes32[] memory oracleIds, uint256[] memory versions, uint256[] memory maxCounts) external {
-        if (oracleIds.length == 0 || oracleIds.length != versions.length || oracleIds.length != maxCounts.length)
+        if (oracleIds.length == 0 || oracleIds.length != versions.length || oracleIds.length != maxCounts.length) {
             revert KeeperFactoryInvalidSettleError();
+        }
 
         for (uint256 i; i < oracleIds.length; i++) {
             IKeeperOracle(address(oracles[oracleIds[i]])).settle(versions[i], maxCounts[i], msg.sender);
@@ -189,12 +191,10 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param newOraclefee The new relative oracle fee percentage
     /// @param newValidFrom The new valid from value in seconds
     /// @param newValidTo The new valid to value in seconds
-    function updateParameter(
-        uint256 newGranularity,
-        UFixed6 newOraclefee,
-        uint256 newValidFrom,
-        uint256 newValidTo
-    ) external onlyOwner {
+    function updateParameter(uint256 newGranularity, UFixed6 newOraclefee, uint256 newValidFrom, uint256 newValidTo)
+        external
+        onlyOwner
+    {
         uint256 currentTimestamp = current();
         OracleParameter memory oracleParameter = oracleFactory.parameter();
         KeeperOracleParameter memory keeperOracleParameter = _parameter.read();
@@ -244,8 +244,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
 
             // apply payoff if it exists
             PayoffDefinition memory payoff = _toUnderlyingPayoff[oracleIds[i]];
-            if (payoff.provider != IPayoffProvider(address(0)))
+            if (payoff.provider != IPayoffProvider(address(0))) {
                 price = payoff.provider.payoff(price);
+            }
 
             // apply decimal offset
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(payoff.decimals)));
@@ -262,11 +263,12 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param prices The list of price records to validate
     function _validatePrices(uint256 version, PriceRecord[] memory prices) private view {
         KeeperOracleParameter memory keeperOracleParameter = _parameter.read();
-        for (uint256 i; i < prices.length; i++)
+        for (uint256 i; i < prices.length; i++) {
             if (
-                prices[i].timestamp < version + keeperOracleParameter.validFrom ||
-                prices[i].timestamp > version + keeperOracleParameter.validTo
+                prices[i].timestamp < version + keeperOracleParameter.validFrom
+                    || prices[i].timestamp > version + keeperOracleParameter.validTo
             ) revert KeeperFactoryVersionOutsideRangeError();
+        }
     }
 
     /// @notice Converts a list of oracle ids to a list of underlying ids
@@ -285,8 +287,8 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param ids The list of price feed ids validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
-    function _parsePrices(
-        bytes32[] memory ids,
-        bytes calldata data
-    ) internal virtual returns (PriceRecord[] memory prices);
+    function _parsePrices(bytes32[] memory ids, bytes calldata data)
+        internal
+        virtual
+        returns (PriceRecord[] memory prices);
 }

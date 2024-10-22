@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Address } from "@openzeppelin/contracts/utils/Address.sol";
-import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
-import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
-import { Kept } from "@equilibria/root/attribute/Kept/Kept.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { Order } from "@perennial/core/contracts/types/Order.sol";
-import { Position } from "@perennial/core/contracts/types/Position.sol";
-import { IPythFactory } from "@perennial/oracle/contracts/interfaces/IPythFactory.sol";
-import { IVault } from "@perennial/vault/contracts/interfaces/IVault.sol";
-import { Intent } from "@perennial/verifier/contracts/types/Intent.sol";
-import { IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
-import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
-import { InterfaceFee } from "./types/InterfaceFee.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {IEmptySetReserve} from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import {IBatcher} from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
+import {IInstance} from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import {IFactory} from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import {Token6} from "@equilibria/root/token/types/Token6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed18, UFixed18Lib} from "@equilibria/root/number/types/UFixed18.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {Fixed18, Fixed18Lib} from "@equilibria/root/number/types/Fixed18.sol";
+import {Kept} from "@equilibria/root/attribute/Kept/Kept.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {Order} from "@perennial/core/contracts/types/Order.sol";
+import {Position} from "@perennial/core/contracts/types/Position.sol";
+import {IPythFactory} from "@perennial/oracle/contracts/interfaces/IPythFactory.sol";
+import {IVault} from "@perennial/vault/contracts/interfaces/IVault.sol";
+import {Intent} from "@perennial/verifier/contracts/types/Intent.sol";
+import {IMultiInvoker} from "./interfaces/IMultiInvoker.sol";
+import {TriggerOrder, TriggerOrderStorage} from "./types/TriggerOrder.sol";
+import {InterfaceFee} from "./types/InterfaceFee.sol";
 
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
@@ -161,7 +161,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to perform invocations for
     /// @param invocations List of actions to execute in order
     function _invoke(address account, Invocation[] calldata invocations) private onlyOperator(account, msg.sender) {
-        for(uint i = 0; i < invocations.length; ++i) {
+        for (uint256 i = 0; i < invocations.length; ++i) {
             Invocation memory invocation = invocations[i];
 
             if (invocation.action == PerennialAction.UPDATE_POSITION) {
@@ -175,16 +175,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     bool wrap,
                     InterfaceFee memory interfaceFee1,
                     InterfaceFee memory interfaceFee2
-                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
+                ) = abi.decode(
+                    invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee)
+                );
 
                 _update(account, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
             } else if (invocation.action == PerennialAction.UPDATE_INTENT) {
-                (IMarket market, Intent memory intent, bytes memory signature) = abi.decode(invocation.args, (IMarket, Intent, bytes));
+                (IMarket market, Intent memory intent, bytes memory signature) =
+                    abi.decode(invocation.args, (IMarket, Intent, bytes));
 
                 _updateIntent(account, market, intent, signature);
             } else if (invocation.action == PerennialAction.UPDATE_VAULT) {
-                (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap)
-                    = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
+                (IVault vault, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets, bool wrap) =
+                    abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
 
                 _vaultUpdate(account, vault, depositAssets, redeemShares, claimAssets, wrap);
             } else if (invocation.action == PerennialAction.PLACE_ORDER) {
@@ -196,13 +199,19 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
                 _cancelOrder(account, market, nonce);
             } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address execAccount, IMarket market, uint256 nonce)
-                    = abi.decode(invocation.args, (address, IMarket, uint256));
+                (address execAccount, IMarket market, uint256 nonce) =
+                    abi.decode(invocation.args, (address, IMarket, uint256));
 
                 _executeOrder(execAccount, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
-                (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
-                    abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
+                (
+                    address oracleProviderFactory,
+                    uint256 value,
+                    bytes32[] memory ids,
+                    uint256 version,
+                    bytes memory data,
+                    bool revertOnFailure
+                ) = abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
 
                 _commitPrice(oracleProviderFactory, value, ids, version, data, revertOnFailure);
             } else if (invocation.action == PerennialAction.APPROVE) {
@@ -239,7 +248,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         InterfaceFee memory interfaceFee1,
         InterfaceFee memory interfaceFee2
     ) internal isMarketInstance(market) {
-        Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
+        Fixed18 balanceBefore = Fixed18Lib.from(DSU.balanceOf());
 
         // collateral is transferred here as DSU then an optional interface fee is charged from it
         if (collateral.sign() == 1) _deposit(account, collateral.abs(), wrap);
@@ -266,12 +275,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Address of account to update
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
-    function _updateIntent(
-        address account,
-        IMarket market,
-        Intent memory intent,
-        bytes memory signature
-    ) internal isMarketInstance(market) {
+    function _updateIntent(address account, IMarket market, Intent memory intent, bytes memory signature)
+        internal
+        isMarketInstance(market)
+    {
         market.update(account, intent, signature);
     }
 
@@ -299,9 +306,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         vault.update(account, depositAssets, redeemShares, claimAssets);
 
         // handle socialization, settlement fees, and magic values
-        UFixed6 claimAmount = claimAssets.isZero() ?
-            UFixed6Lib.ZERO :
-            UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
+        UFixed6 claimAmount =
+            claimAssets.isZero() ? UFixed6Lib.ZERO : UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
 
         if (!claimAmount.isZero()) {
             _withdraw(account, claimAmount, wrap);
@@ -311,10 +317,9 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
     /// @param target Market or Vault to approve
     function _approve(address target) internal {
-        if (
-            !marketFactory.instances(IInstance(target)) &&
-            !vaultFactory.instances(IInstance(target))
-        ) revert MultiInvokerInvalidInstanceError();
+        if (!marketFactory.instances(IInstance(target)) && !vaultFactory.instances(IInstance(target))) {
+            revert MultiInvokerInvalidInstanceError();
+        }
 
         DSU.approve(target);
     }
@@ -429,12 +434,7 @@ contract MultiInvoker is IMultiInvoker, Kept {
         TriggerOrder memory order = orders(account, market, nonce);
 
         _handleKeeperFee(
-            KeepConfig(
-                UFixed18Lib.ZERO,
-                keepBufferBase,
-                UFixed18Lib.ZERO,
-                keepBufferCalldata
-            ),
+            KeepConfig(UFixed18Lib.ZERO, keepBufferBase, UFixed18Lib.ZERO, keepBufferCalldata),
             0,
             msg.data[0:0],
             0,
@@ -481,16 +481,15 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param account Account to place order for
     /// @param market Market to place order in
     /// @param order Order state to place
-    function _placeOrder(
-        address account,
-        IMarket market,
-        TriggerOrder memory order
-    ) internal isMarketInstance(market) {
+    function _placeOrder(address account, IMarket market, TriggerOrder memory order)
+        internal
+        isMarketInstance(market)
+    {
         if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
         if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
         if (
-            order.side > 3 ||                                       // Invalid side
-            (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO))    // Disallow placing orders that increase collateral
+            order.side > 3 // Invalid side
+                || (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO)) // Disallow placing orders that increase collateral
         ) revert MultiInvokerInvalidOrderError();
 
         _orders[account][market][++latestNonce].store(order);
@@ -523,15 +522,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @notice Target market must be created by MarketFactory
     modifier isMarketInstance(IMarket market) {
-        if (!marketFactory.instances(market))
+        if (!marketFactory.instances(market)) {
             revert MultiInvokerInvalidInstanceError();
+        }
         _;
     }
 
     /// @notice Target vault must be created by VaultFactory
     modifier isVaultInstance(IVault vault) {
-        if (!vaultFactory.instances(vault))
+        if (!vaultFactory.instances(vault)) {
             revert MultiInvokerInvalidInstanceError();
+        }
         _;
     }
 
