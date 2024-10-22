@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.24;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IVerifier } from "@perennial/verifier/contracts/interfaces/IVerifier.sol";
-import { Factory, IFactory } from "@equilibria/root/attribute/Factory.sol";
-import { IInstance } from "@equilibria/root/attribute/Instance.sol";
-import { IMarket } from "./interfaces/IMarket.sol";
-import { IOracleProvider } from "./interfaces/IOracleProvider.sol";
-import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
-import { OperatorUpdate } from "@perennial/verifier/contracts/types/OperatorUpdate.sol";
-import { SignerUpdate } from "@perennial/verifier/contracts/types/SignerUpdate.sol";
-import { AccessUpdate } from "@perennial/verifier/contracts/types/AccessUpdate.sol";
-import { AccessUpdateBatch } from "@perennial/verifier/contracts/types/AccessUpdateBatch.sol";
-import { ProtocolParameter, ProtocolParameterStorage } from "./types/ProtocolParameter.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {IVerifier} from "@perennial/verifier/contracts/interfaces/IVerifier.sol";
+import {Factory, IFactory} from "@equilibria/root/attribute/Factory.sol";
+import {IInstance} from "@equilibria/root/attribute/Instance.sol";
+import {IMarket} from "./interfaces/IMarket.sol";
+import {IOracleProvider} from "./interfaces/IOracleProvider.sol";
+import {IMarketFactory} from "./interfaces/IMarketFactory.sol";
+import {OperatorUpdate} from "@perennial/verifier/contracts/types/OperatorUpdate.sol";
+import {SignerUpdate} from "@perennial/verifier/contracts/types/SignerUpdate.sol";
+import {AccessUpdate} from "@perennial/verifier/contracts/types/AccessUpdate.sol";
+import {AccessUpdateBatch} from "@perennial/verifier/contracts/types/AccessUpdateBatch.sol";
+import {ProtocolParameter, ProtocolParameterStorage} from "./types/ProtocolParameter.sol";
 
 /// @title MarketFactory
 /// @notice Manages creating new markets and global protocol parameters.
@@ -82,12 +82,11 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @return isOperator True if the sender is a valid operator for the account
     /// @return isSigner True if the signer is a valid signer for the account
     /// @return orderReferralFee The referral fee for the order
-    function authorization(
-        address account,
-        address sender,
-        address signer,
-        address orderReferrer
-    ) external view returns (bool isOperator, bool isSigner, UFixed6 orderReferralFee) {
+    function authorization(address account, address sender, address signer, address orderReferrer)
+        external
+        view
+        returns (bool isOperator, bool isSigner, UFixed6 orderReferralFee)
+    {
         return (
             account == sender || extensions[sender] || operators[account][sender],
             account == signer || signers[account][signer],
@@ -172,12 +171,13 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @notice Updates the status of the list of operators and signers for the caller verified via a signed message
     /// @param accessUpdateBatch The batch access update message to process
     /// @param signature The signature of the batch access update message
-    function updateAccessBatchWithSignature(
-        AccessUpdateBatch calldata accessUpdateBatch,
-        bytes calldata signature
-    ) external {
+    function updateAccessBatchWithSignature(AccessUpdateBatch calldata accessUpdateBatch, bytes calldata signature)
+        external
+    {
         verifier.verifyAccessUpdateBatch(accessUpdateBatch, signature);
-        if (accessUpdateBatch.common.signer != accessUpdateBatch.common.account) revert MarketFactoryInvalidSignerError();
+        if (accessUpdateBatch.common.signer != accessUpdateBatch.common.account) {
+            revert MarketFactoryInvalidSignerError();
+        }
 
         _updateAccessBatch(accessUpdateBatch.common.account, accessUpdateBatch.operators, accessUpdateBatch.signers);
     }
@@ -191,10 +191,12 @@ contract MarketFactory is IMarketFactory, Factory {
         AccessUpdate[] calldata newOperators,
         AccessUpdate[] calldata newSigners
     ) private {
-        for (uint256 i = 0; i < newOperators.length; i++)
+        for (uint256 i = 0; i < newOperators.length; i++) {
             _updateOperator(account, newOperators[i].accessor, newOperators[i].approved);
-        for (uint256 i = 0; i < newSigners.length; i++)
+        }
+        for (uint256 i = 0; i < newSigners.length; i++) {
             _updateSigner(account, newSigners[i].accessor, newSigners[i].approved);
+        }
     }
 
     /// @notice Updates the referral fee for orders
@@ -215,8 +217,9 @@ contract MarketFactory is IMarketFactory, Factory {
         if (!oracleFactory.instances(IInstance(address(definition.oracle)))) revert FactoryInvalidOracleError();
 
         // verify invariants
-        if (_markets[definition.oracle][address(0)] != IMarket(address(0)))
+        if (_markets[definition.oracle][address(0)] != IMarket(address(0))) {
             revert FactoryAlreadyRegisteredError();
+        }
 
         // create and register market
         newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition)))));

@@ -1,48 +1,43 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Accumulator6 } from "@equilibria/root/accumulator/types/Accumulator6.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {Accumulator6} from "@equilibria/root/accumulator/types/Accumulator6.sol";
 
 /// @dev Version type
 struct Version {
     /// @dev whether this version had a valid oracle price
     bool valid;
-
     /// @dev The price of the version
     Fixed6 price;
-
     /// @dev The maker accumulator value
     Accumulator6 makerValue;
-
     /// @dev The long accumulator value
     Accumulator6 longValue;
-
     /// @dev The short accumulator value
     Accumulator6 shortValue;
-
     /// @dev The accumulated fee for maker orders
     Accumulator6 makerFee;
-
     /// @dev The accumulated fee for taker orders
     Accumulator6 takerFee;
-
     /// @dev The accumulated offset for maker orders
     Accumulator6 makerOffset;
-
     /// @dev The accumulated offset for positive taker orders (open long / close short)
     Accumulator6 takerPosOffset;
-
     /// @dev The accumulated offset for negative taker orders (close long / open short)
     Accumulator6 takerNegOffset;
-
     /// @dev The accumulated settlement fee for each individual order
     Accumulator6 settlementFee;
-
     /// @dev The accumulated liquidation fee for each individual order
     Accumulator6 liquidationFee;
 }
-struct VersionStorage { uint256 slot0; uint256 slot1; uint256 slot2; }
+
+struct VersionStorage {
+    uint256 slot0;
+    uint256 slot1;
+    uint256 slot2;
+}
+
 using VersionStorageLib for VersionStorage global;
 
 /// @dev Manually encodes and decodes the Version struct into storage.
@@ -77,18 +72,14 @@ library VersionStorageLib {
         return Version(
             (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,
             Fixed6.wrap(int256(slot1 << (256 - 64)) >> (256 - 64)),
-
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),
-
             Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48)) >> (256 - 48))),
-
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 64 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 64 - 48 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 64 - 48 - 48 - 48)) >> (256 - 48))),
-
             Accumulator6(Fixed6.wrap(int256(slot1 << (256 - 64 - 48 - 48 - 48 - 48)) >> (256 - 48))),
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64 - 48)) >> (256 - 48)))
         );
@@ -118,21 +109,18 @@ library VersionStorageLib {
         if (newValue.liquidationFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
         if (newValue.liquidationFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256((newValue.valid ? uint256(1) : uint256(0)) << (256 - 8)) >> (256 - 8) |
-            uint256(Fixed6.unwrap(newValue.makerValue._value) << (256 - 64)) >> (256 - 8 - 64) |
-            uint256(Fixed6.unwrap(newValue.longValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64) |
-            uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64 - 64) |
-            uint256(Fixed6.unwrap(newValue.liquidationFee._value) << (256 - 48)) >> (256 - 8 - 64 - 64 - 64 - 48);
-        uint256 encoded1 =
-            uint256(Fixed6.unwrap(newValue.price) << (256 - 64)) >> (256 - 64) |
-            uint256(Fixed6.unwrap(newValue.makerOffset._value) << (256 - 48)) >> (256 - 64 - 48) |
-            uint256(Fixed6.unwrap(newValue.takerPosOffset._value) << (256 - 48)) >> (256 - 64 - 48 - 48) |
-            uint256(Fixed6.unwrap(newValue.takerNegOffset._value) << (256 - 48)) >> (256 - 64 - 48 - 48 - 48) |
-            uint256(Fixed6.unwrap(newValue.settlementFee._value) << (256 - 48)) >> (256 - 64 - 48 - 48 - 48 - 48);
-        uint256 encoded2 =
-            uint256(Fixed6.unwrap(newValue.makerFee._value) << (256 - 48)) >> (256 - 48) |
-            uint256(Fixed6.unwrap(newValue.takerFee._value) << (256 - 48)) >> (256 - 48 - 48);
+        uint256 encoded0 = uint256((newValue.valid ? uint256(1) : uint256(0)) << (256 - 8)) >> (256 - 8)
+            | uint256(Fixed6.unwrap(newValue.makerValue._value) << (256 - 64)) >> (256 - 8 - 64)
+            | uint256(Fixed6.unwrap(newValue.longValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64)
+            | uint256(Fixed6.unwrap(newValue.shortValue._value) << (256 - 64)) >> (256 - 8 - 64 - 64 - 64)
+            | uint256(Fixed6.unwrap(newValue.liquidationFee._value) << (256 - 48)) >> (256 - 8 - 64 - 64 - 64 - 48);
+        uint256 encoded1 = uint256(Fixed6.unwrap(newValue.price) << (256 - 64)) >> (256 - 64)
+            | uint256(Fixed6.unwrap(newValue.makerOffset._value) << (256 - 48)) >> (256 - 64 - 48)
+            | uint256(Fixed6.unwrap(newValue.takerPosOffset._value) << (256 - 48)) >> (256 - 64 - 48 - 48)
+            | uint256(Fixed6.unwrap(newValue.takerNegOffset._value) << (256 - 48)) >> (256 - 64 - 48 - 48 - 48)
+            | uint256(Fixed6.unwrap(newValue.settlementFee._value) << (256 - 48)) >> (256 - 64 - 48 - 48 - 48 - 48);
+        uint256 encoded2 = uint256(Fixed6.unwrap(newValue.makerFee._value) << (256 - 48)) >> (256 - 48)
+            | uint256(Fixed6.unwrap(newValue.takerFee._value) << (256 - 48)) >> (256 - 48 - 48);
 
         assembly {
             sstore(self.slot, encoded0)

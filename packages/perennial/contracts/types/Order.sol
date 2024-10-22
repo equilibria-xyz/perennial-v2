@@ -1,54 +1,55 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { OracleVersion } from "./OracleVersion.sol";
-import { Position } from "./Position.sol";
-import { MarketParameter } from "./MarketParameter.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {OracleVersion} from "./OracleVersion.sol";
+import {Position} from "./Position.sol";
+import {MarketParameter} from "./MarketParameter.sol";
 
 /// @dev Order type
 struct Order {
     /// @dev The timestamp of the order
     uint256 timestamp;
-
     /// @dev The quantity of orders that are included in this order
     uint256 orders;
-
     /// @dev The change in the collateral
     Fixed6 collateral;
-
     /// @dev The positive skew maker order size
     UFixed6 makerPos;
-
     /// @dev The negative skew maker order size
     UFixed6 makerNeg;
-
     /// @dev The positive skew long order size
     UFixed6 longPos;
-
     /// @dev The negative skew long order size
     UFixed6 longNeg;
-
     /// @dev The positive skew short order size
     UFixed6 shortPos;
-
     /// @dev The negative skew short order size
     UFixed6 shortNeg;
-
     /// @dev The protection status semaphore (local only)
     uint256 protection;
-
     /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 makerReferral;
-
     /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 takerReferral;
 }
+
 using OrderLib for Order global;
-struct OrderStorageGlobal { uint256 slot0; uint256 slot1; uint256 slot2; } // SECURITY: must remain at (3) slots
+
+struct OrderStorageGlobal {
+    uint256 slot0;
+    uint256 slot1;
+    uint256 slot2;
+} // SECURITY: must remain at (3) slots
+
 using OrderStorageGlobalLib for OrderStorageGlobal global;
-struct OrderStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
+
+struct OrderStorageLocal {
+    uint256 slot0;
+    uint256 slot1;
+} // SECURITY: must remain at (2) slots
+
 using OrderStorageLocalLib for OrderStorageLocal global;
 
 /// @title Order
@@ -66,7 +67,7 @@ library OrderLib {
     /// @notice Prepares the next order from the current order
     /// @param self The order object to update
     /// @param timestamp The current timestamp
-    function next(Order memory self, uint256 timestamp) internal pure  {
+    function next(Order memory self, uint256 timestamp) internal pure {
         invalidate(self);
         (self.timestamp, self.orders, self.collateral, self.protection) = (timestamp, 0, Fixed6Lib.ZERO, 0);
     }
@@ -74,8 +75,7 @@ library OrderLib {
     /// @notice Invalidates the order
     /// @param self The order object to update
     function invalidate(Order memory self) internal pure {
-        (self.makerReferral, self.takerReferral) =
-            (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        (self.makerReferral, self.takerReferral) = (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
@@ -87,13 +87,11 @@ library OrderLib {
     /// @param collateral The change in the collateral
     /// @param referralFee The referral fee
     /// @return newOrder The resulting order
-    function from(
-        uint256 timestamp,
-        Position memory position,
-        Fixed6 amount,
-        Fixed6 collateral,
-        UFixed6 referralFee
-    ) internal pure returns (Order memory newOrder) {
+    function from(uint256 timestamp, Position memory position, Fixed6 amount, Fixed6 collateral, UFixed6 referralFee)
+        internal
+        pure
+        returns (Order memory newOrder)
+    {
         newOrder.timestamp = timestamp;
         newOrder.collateral = collateral;
         newOrder.orders = amount.isZero() ? 0 : 1;
@@ -104,7 +102,7 @@ library OrderLib {
             newOrder.longPos = amount.max(Fixed6Lib.ZERO).abs();
             newOrder.shortPos = amount.min(Fixed6Lib.ZERO).abs();
 
-        // If the order is counter to the current position, it is closing
+            // If the order is counter to the current position, it is closing
         } else {
             newOrder.shortNeg = amount.max(Fixed6Lib.ZERO).abs();
             newOrder.longNeg = amount.min(Fixed6Lib.ZERO).abs();
@@ -187,8 +185,9 @@ library OrderLib {
     /// @return Whether the order decreases the liquidity of the market
     function decreasesEfficiency(Order memory self, Position memory currentPosition) internal pure returns (bool) {
         UFixed6 currentMajor = currentPosition.major();
-        UFixed6 latestMajor = UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).sub(long(self)))
-            .max(UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).sub(short(self))));
+        UFixed6 latestMajor = UFixed6Lib.from(Fixed6Lib.from(currentPosition.long).sub(long(self))).max(
+            UFixed6Lib.from(Fixed6Lib.from(currentPosition.short).sub(short(self)))
+        );
         return !self.makerNeg.isZero() || currentMajor.gt(latestMajor);
     }
 
@@ -196,16 +195,17 @@ library OrderLib {
     /// @param self The Order object to check
     /// @param marketParameter The market parameter
     /// @return Whether the order is applicable for liquidity checks
-    function liquidityCheckApplicable(
-        Order memory self,
-        MarketParameter memory marketParameter
-    ) internal pure returns (bool) {
-        return !marketParameter.closed &&
+    function liquidityCheckApplicable(Order memory self, MarketParameter memory marketParameter)
+        internal
+        pure
+        returns (bool)
+    {
+        return !marketParameter.closed
         // not "a taker order that is increasing" ->
         // not (any of the following)
         //  - taker is empty (not a taker order)
         //  - taker is increasing (position going more long or short)
-            ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
+        && ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
     /// @notice Returns whether the order is protected
@@ -222,7 +222,7 @@ library OrderLib {
         return pos(self).isZero() && neg(self).isZero();
     }
 
-     /// @notice Returns the direction of the order
+    /// @notice Returns the direction of the order
     /// @dev 0 = maker, 1 = long, 2 = short
     /// @param self The position object to check
     /// @return The direction of the position
@@ -400,20 +400,17 @@ library OrderStorageGlobalLib {
         if (newValue.shortPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
         if (newValue.shortNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
-            uint256(UFixed6.unwrap(newValue.makerPos) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.makerNeg) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64 - 64);
-        uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.longPos) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.longNeg) << (256 - 64)) >> (256 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.shortPos) << (256 - 64)) >> (256 - 64 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.shortNeg) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
-        uint256 encoded2 =
-            uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64);
+        uint256 encoded0 = uint256(newValue.timestamp << (256 - 32)) >> (256 - 32)
+            | uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32)
+            | uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64)
+            | uint256(UFixed6.unwrap(newValue.makerPos) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64)
+            | uint256(UFixed6.unwrap(newValue.makerNeg) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64 - 64);
+        uint256 encoded1 = uint256(UFixed6.unwrap(newValue.longPos) << (256 - 64)) >> (256 - 64)
+            | uint256(UFixed6.unwrap(newValue.longNeg) << (256 - 64)) >> (256 - 64 - 64)
+            | uint256(UFixed6.unwrap(newValue.shortPos) << (256 - 64)) >> (256 - 64 - 64 - 64)
+            | uint256(UFixed6.unwrap(newValue.shortNeg) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
+        uint256 encoded2 = uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64)
+            | uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -473,17 +470,15 @@ library OrderStorageLocalLib {
         if (magnitudeNeg.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
         if (newValue.protection > 1) revert OrderStorageLib.OrderStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
-            uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 32 - 64 - 2) |
-            uint256(UFixed6.unwrap(magnitudePos) << (256 - 62)) >> (256 - 32 - 32 - 64 - 2 - 62) |
-            uint256(UFixed6.unwrap(magnitudeNeg) << (256 - 62)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62) |
-            uint256(newValue.protection << (256 - 1)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1);
-        uint256 encoded1 =
-            uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64);
+        uint256 encoded0 = uint256(newValue.timestamp << (256 - 32)) >> (256 - 32)
+            | uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32)
+            | uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64)
+            | uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 32 - 64 - 2)
+            | uint256(UFixed6.unwrap(magnitudePos) << (256 - 62)) >> (256 - 32 - 32 - 64 - 2 - 62)
+            | uint256(UFixed6.unwrap(magnitudeNeg) << (256 - 62)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62)
+            | uint256(newValue.protection << (256 - 1)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1);
+        uint256 encoded1 = uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64)
+            | uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)

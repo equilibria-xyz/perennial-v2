@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarket, OracleVersion } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import {
-    TriggerOrder,
-    TriggerOrderLib,
-    TriggerOrderStorage,
-    TriggerOrderStorageLib
-} from "../types/TriggerOrder.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {IMarket, OracleVersion} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {TriggerOrder, TriggerOrderLib, TriggerOrderStorage, TriggerOrderStorageLib} from "../types/TriggerOrder.sol";
 
 contract TriggerOrderTester {
     TriggerOrderStorage public order;
@@ -25,7 +20,11 @@ contract TriggerOrderTester {
         return order_.canExecute(version);
     }
 
-    function notionalValue(TriggerOrder calldata order_, IMarket market, address user) external view returns (UFixed6) {
+    function notionalValue(TriggerOrder calldata order_, IMarket market, address user)
+        external
+        view
+        returns (UFixed6)
+    {
         return order_.notionalValue(market, user);
     }
 }

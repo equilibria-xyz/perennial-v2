@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IController } from "../interfaces/IController.sol";
-import { RebalanceConfig } from "../types/RebalanceConfig.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {IController} from "../interfaces/IController.sol";
+import {RebalanceConfig} from "../types/RebalanceConfig.sol";
 
 /// @title RebalanceLib
 /// @notice Facilities for rebalancing collateral accounts
@@ -40,7 +40,6 @@ library RebalanceLib {
 
         // if this percentage exceeds the configured threshold,
         // and the amount to rebalance exceeds max fee paid to keeper, the market may be rebalanced
-        canRebalance = pctFromTarget.abs().gt(marketConfig.threshold)
-            && imbalance.abs().gt(maxFee);
+        canRebalance = pctFromTarget.abs().gt(marketConfig.threshold) && imbalance.abs().gt(maxFee);
     }
 }

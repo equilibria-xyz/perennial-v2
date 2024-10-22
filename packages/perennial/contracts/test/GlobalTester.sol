@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Global, GlobalStorage } from "../types/Global.sol";
-import { VersionAccumulationResponse } from "../libs/VersionLib.sol";
-import { MarketParameter } from "../types/MarketParameter.sol";
-import { OracleReceipt } from "../types/OracleReceipt.sol";
+import {Global, GlobalStorage} from "../types/Global.sol";
+import {VersionAccumulationResponse} from "../libs/VersionLib.sol";
+import {MarketParameter} from "../types/MarketParameter.sol";
+import {OracleReceipt} from "../types/OracleReceipt.sol";
 
 contract GlobalTester {
     GlobalStorage public global;

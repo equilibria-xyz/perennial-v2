@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { SignedMath } from "@openzeppelin/contracts/utils/math/SignedMath.sol";
-import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
-import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
-import { AbstractPyth, PythStructs } from "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
-import { IPythFactory, IPythStaticFee } from "../interfaces/IPythFactory.sol";
-import { IKeeperOracle } from "../interfaces/IKeeperOracle.sol";
-import { IKeeperFactory } from "../interfaces/IKeeperFactory.sol";
-import { KeeperFactory } from "../keeper/KeeperFactory.sol";
+import {SignedMath} from "@openzeppelin/contracts/utils/math/SignedMath.sol";
+import {IGasOracle} from "@equilibria/root/gas/GasOracle.sol";
+import {Fixed18, Fixed18Lib} from "@equilibria/root/number/types/Fixed18.sol";
+import {AbstractPyth, PythStructs} from "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
+import {IPythFactory, IPythStaticFee} from "../interfaces/IPythFactory.sol";
+import {IKeeperOracle} from "../interfaces/IKeeperOracle.sol";
+import {IKeeperFactory} from "../interfaces/IKeeperFactory.sol";
+import {KeeperFactory} from "../keeper/KeeperFactory.sol";
 
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
@@ -38,11 +38,11 @@ contract PythFactory is IPythFactory, KeeperFactory {
     /// @param underlyingId The underlying id of the oracle to create
     /// @param payoff The payoff provider contract
     /// @return newOracle The newly created oracle instance
-    function create(
-        bytes32 id,
-        bytes32 underlyingId,
-        PayoffDefinition memory payoff
-    ) public override(IKeeperFactory, KeeperFactory) returns (IKeeperOracle newOracle) {
+    function create(bytes32 id, bytes32 underlyingId, PayoffDefinition memory payoff)
+        public
+        override(IKeeperFactory, KeeperFactory)
+        returns (IKeeperOracle newOracle)
+    {
         if (!pyth.priceFeedExists(underlyingId)) revert PythFactoryInvalidIdError();
         return super.create(id, underlyingId, payoff);
     }
@@ -51,20 +51,17 @@ contract PythFactory is IPythFactory, KeeperFactory {
     /// @param underlyingIds The list of price feed ids validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
-    function _parsePrices(
-        bytes32[] memory underlyingIds,
-        bytes calldata data
-    ) internal override returns (PriceRecord[] memory prices) {
+    function _parsePrices(bytes32[] memory underlyingIds, bytes calldata data)
+        internal
+        override
+        returns (PriceRecord[] memory prices)
+    {
         prices = new PriceRecord[](underlyingIds.length);
         bytes[] memory datas = new bytes[](1);
         datas[0] = data;
 
-        PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{value: msg.value}(
-            datas,
-            underlyingIds,
-            type(uint64).min,
-            type(uint64).max
-        );
+        PythStructs.PriceFeed[] memory parsedPrices =
+            pyth.parsePriceFeedUpdates{value: msg.value}(datas, underlyingIds, type(uint64).min, type(uint64).max);
 
         uint256 updateFee = IPythStaticFee(address(pyth)).singleUpdateFeeInWei();
 

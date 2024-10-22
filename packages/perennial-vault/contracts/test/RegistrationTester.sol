@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Registration, RegistrationStorage } from "../types/Registration.sol";
+import {Registration, RegistrationStorage} from "../types/Registration.sol";
 
 contract RegistrationTester {
     RegistrationStorage public registration;

@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { Intent } from "@perennial/verifier/contracts/types/Intent.sol";
-import { IOracleProvider } from "./IOracleProvider.sol";
-import { OracleVersion } from "../types/OracleVersion.sol";
-import { MarketParameter } from "../types/MarketParameter.sol";
-import { RiskParameter } from "../types/RiskParameter.sol";
-import { Version } from "../types/Version.sol";
-import { Local } from "../types/Local.sol";
-import { Global } from "../types/Global.sol";
-import { Position } from "../types/Position.sol";
-import { Checkpoint } from "../types/Checkpoint.sol";
-import { Order } from "../types/Order.sol";
-import { Guarantee } from "../types/Guarantee.sol";
-import { VersionAccumulationResult } from "../libs/VersionLib.sol";
-import { CheckpointAccumulationResult } from "../libs/CheckpointLib.sol";
+import {IInstance} from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {Intent} from "@perennial/verifier/contracts/types/Intent.sol";
+import {IOracleProvider} from "./IOracleProvider.sol";
+import {OracleVersion} from "../types/OracleVersion.sol";
+import {MarketParameter} from "../types/MarketParameter.sol";
+import {RiskParameter} from "../types/RiskParameter.sol";
+import {Version} from "../types/Version.sol";
+import {Local} from "../types/Local.sol";
+import {Global} from "../types/Global.sol";
+import {Position} from "../types/Position.sol";
+import {Checkpoint} from "../types/Checkpoint.sol";
+import {Order} from "../types/Order.sol";
+import {Guarantee} from "../types/Guarantee.sol";
+import {VersionAccumulationResult} from "../libs/VersionLib.sol";
+import {CheckpointAccumulationResult} from "../libs/CheckpointLib.sol";
 
 interface IMarket is IInstance {
     struct MarketDefinition {
@@ -63,9 +63,18 @@ interface IMarket is IInstance {
         UFixed6 collateralization;
     }
 
-    event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);
+    event OrderCreated(
+        address indexed account,
+        Order order,
+        Guarantee guarantee,
+        address liquidator,
+        address orderReferrer,
+        address guaranteeReferrer
+    );
     event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
-    event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
+    event AccountPositionProcessed(
+        address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult
+    );
     event BeneficiaryUpdated(address newBeneficiary);
     event CoordinatorUpdated(address newCoordinator);
     /// @notice Fee earned by an account was transferred from market to a receiver
@@ -162,8 +171,23 @@ interface IMarket is IInstance {
     function settle(address account) external;
     function update(address account, Intent calldata intent, bytes memory signature) external;
     function update(address account, Fixed6 amount, Fixed6 collateral, address referrer) external;
-    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
-    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
+    function update(
+        address account,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
+        Fixed6 collateral,
+        bool protect
+    ) external;
+    function update(
+        address account,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
+        Fixed6 collateral,
+        bool protect,
+        address referrer
+    ) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
     function updateBeneficiary(address newBeneficiary) external;

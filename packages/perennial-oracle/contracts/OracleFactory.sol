@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { Factory } from "@equilibria/root/attribute/Factory.sol";
-import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
-import { IOracleProviderFactory } from "@perennial/core/contracts/interfaces/IOracleProviderFactory.sol";
-import { IOracleFactory } from "./interfaces/IOracleFactory.sol";
-import { OracleParameter, OracleParameterStorage } from "./types/OracleParameter.sol";
-import { IOracle } from "./interfaces/IOracle.sol";
+import {UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {Factory} from "@equilibria/root/attribute/Factory.sol";
+import {IOracleProvider} from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import {IOracleProviderFactory} from "@perennial/core/contracts/interfaces/IOracleProviderFactory.sol";
+import {IOracleFactory} from "./interfaces/IOracleFactory.sol";
+import {OracleParameter, OracleParameterStorage} from "./types/OracleParameter.sol";
+import {IOracle} from "./interfaces/IOracle.sol";
 
 /// @title OracleFactory
 /// @notice Factory for creating and managing oracles
@@ -36,7 +36,7 @@ contract OracleFactory is IOracleFactory, Factory {
 
     /// @notice Constructs the contract
     /// @param implementation_ The implementation contract for the oracle
-    constructor(address implementation_) Factory(implementation_) { }
+    constructor(address implementation_) Factory(implementation_) {}
 
     /// @notice Initializes the contract state
     function initialize() external initializer(3) {
@@ -85,7 +85,11 @@ contract OracleFactory is IOracleFactory, Factory {
     /// @param factory The initial underlying oracle factory for this oracle to use
     /// @param name The name of the oracle
     /// @return newOracle The newly created oracle instance
-    function create(bytes32 id, IOracleProviderFactory factory, string calldata name) external onlyOwner returns (IOracle newOracle) {
+    function create(bytes32 id, IOracleProviderFactory factory, string calldata name)
+        external
+        onlyOwner
+        returns (IOracle newOracle)
+    {
         if (!factories[factory]) revert OracleFactoryNotRegisteredError();
         if (oracles[id] != IOracleProvider(address(0))) revert OracleFactoryAlreadyCreatedError();
 

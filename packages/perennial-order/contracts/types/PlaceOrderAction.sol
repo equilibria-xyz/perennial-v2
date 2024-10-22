@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {Common, CommonLib} from "@equilibria/root/verifier/types/Common.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
 
-import { Action, ActionLib } from "./Action.sol";
-import { TriggerOrder, TriggerOrderStorageLib } from "./TriggerOrder.sol";
+import {Action, ActionLib} from "./Action.sol";
+import {TriggerOrder, TriggerOrderStorageLib} from "./TriggerOrder.sol";
 
 /// @notice Request to persist a new trigger order or replace an open trigger order
 struct PlaceOrderAction {
@@ -23,12 +23,13 @@ struct PlaceOrderAction {
     ///      action.common.expiry  - order will be implictly cancelled if not persisted after this time
     Action action;
 }
+
 using PlaceOrderActionLib for PlaceOrderAction global;
 
 /// @notice Library used to hash new trigger order requests
 library PlaceOrderActionLib {
     /// @dev Used to verify a signed message
-    bytes32 constant public STRUCT_HASH = keccak256(
+    bytes32 public constant STRUCT_HASH = keccak256(
         "PlaceOrderAction(TriggerOrder order,Action action)"
         "Action(address market,uint256 orderId,uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"

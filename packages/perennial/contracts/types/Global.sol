@@ -1,44 +1,43 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { PAccumulator6 } from "@equilibria/root/pid/types/PAccumulator6.sol";
-import { MarketParameter } from "./MarketParameter.sol";
-import { RiskParameter } from "./RiskParameter.sol";
-import { Position } from "./Position.sol";
-import { OracleVersion } from "./OracleVersion.sol";
-import { OracleReceipt } from "./OracleReceipt.sol";
-import { VersionAccumulationResponse } from "../libs/VersionLib.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {PAccumulator6} from "@equilibria/root/pid/types/PAccumulator6.sol";
+import {MarketParameter} from "./MarketParameter.sol";
+import {RiskParameter} from "./RiskParameter.sol";
+import {Position} from "./Position.sol";
+import {OracleVersion} from "./OracleVersion.sol";
+import {OracleReceipt} from "./OracleReceipt.sol";
+import {VersionAccumulationResponse} from "../libs/VersionLib.sol";
 
 /// @dev Global type
 struct Global {
     /// @dev The current position ID
     uint256 currentId;
-
     /// @dev The latest position id
     uint256 latestId;
-
     /// @dev The accrued protocol fee
     UFixed6 protocolFee;
-
     /// @dev The accrued oracle fee
     UFixed6 oracleFee;
-
     /// @dev The accrued risk fee
     UFixed6 riskFee;
-
     /// @dev The latest valid price in the market
     Fixed6 latestPrice;
-
     /// @dev The accumulated market exposure
     Fixed6 exposure;
-
     /// @dev The current PAccumulator state
     PAccumulator6 pAccumulator;
 }
+
 using GlobalLib for Global global;
-struct GlobalStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
+
+struct GlobalStorage {
+    uint256 slot0;
+    uint256 slot1;
+} // SECURITY: must remain at (2) slots
+
 using GlobalStorageLib for GlobalStorage global;
 
 /// @title Global
@@ -56,8 +55,9 @@ library GlobalLib {
         RiskParameter memory newRiskParameter,
         Position memory latestPosition
     ) internal pure {
-        Fixed6 exposureChange = latestRiskParameter.takerFee
-            .exposure(newRiskParameter.takerFee, latestPosition.skew(), self.latestPrice.abs());
+        Fixed6 exposureChange = latestRiskParameter.takerFee.exposure(
+            newRiskParameter.takerFee, latestPosition.skew(), self.latestPrice.abs()
+        );
         self.exposure = self.exposure.sub(exposureChange);
     }
 
@@ -156,18 +156,16 @@ library GlobalStorageLib {
         if (newValue.pAccumulator._skew.gt(Fixed6.wrap(type(int24).max))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._skew.lt(Fixed6.wrap(type(int24).min))) revert GlobalStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
-            uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(UFixed6.unwrap(newValue.protocolFee) << (256 - 48)) >> (256 - 32 - 32 - 48) |
-            uint256(UFixed6.unwrap(newValue.oracleFee) << (256 - 48)) >> (256 - 32 - 32 - 48 - 48) |
-            uint256(UFixed6.unwrap(newValue.riskFee) << (256 - 48)) >> (256 - 32 - 32 - 48 - 48 - 48);
+        uint256 encoded0 = uint256(newValue.currentId << (256 - 32)) >> (256 - 32)
+            | uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32)
+            | uint256(UFixed6.unwrap(newValue.protocolFee) << (256 - 48)) >> (256 - 32 - 32 - 48)
+            | uint256(UFixed6.unwrap(newValue.oracleFee) << (256 - 48)) >> (256 - 32 - 32 - 48 - 48)
+            | uint256(UFixed6.unwrap(newValue.riskFee) << (256 - 48)) >> (256 - 32 - 32 - 48 - 48 - 48);
 
-        uint256 encoded1 =
-            uint256(Fixed6.unwrap(newValue.pAccumulator._value) << (256 - 32)) >> (256 - 32) |
-            uint256(Fixed6.unwrap(newValue.pAccumulator._skew) << (256 - 24)) >> (256 - 32 - 24) |
-            uint256(Fixed6.unwrap(newValue.latestPrice) << (256 - 64)) >> (256 - 32 - 24 - 64) |
-            uint256(Fixed6.unwrap(newValue.exposure) << (256 - 64)) >> (256 - 32 - 24 - 64 - 64);
+        uint256 encoded1 = uint256(Fixed6.unwrap(newValue.pAccumulator._value) << (256 - 32)) >> (256 - 32)
+            | uint256(Fixed6.unwrap(newValue.pAccumulator._skew) << (256 - 24)) >> (256 - 32 - 24)
+            | uint256(Fixed6.unwrap(newValue.latestPrice) << (256 - 64)) >> (256 - 32 - 24 - 64)
+            | uint256(Fixed6.unwrap(newValue.exposure) << (256 - 64)) >> (256 - 32 - 24 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)

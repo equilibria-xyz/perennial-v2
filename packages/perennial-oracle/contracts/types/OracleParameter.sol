@@ -1,25 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
 
 struct OracleParameter {
     /// @dev The cap for the granularity setting in seconds
     uint256 maxGranularity;
-
     /// @dev the cap for the settle fee in absolute terms
     UFixed6 maxSettlementFee;
-
     /// @dev The cap for the oracle fee in relative terms
     UFixed6 maxOracleFee;
 }
+
 struct StoredOracleParameter {
     /* slot 0 */
-    uint16 maxGranularity;      // <= 65k
-    uint48 maxSettlementFee;    // <= 281m
-    uint24 maxOracleFee;        // <= 100%
+    uint16 maxGranularity; // <= 65k
+    uint48 maxSettlementFee; // <= 281m
+    uint24 maxOracleFee; // <= 100%
 }
-struct OracleParameterStorage { StoredOracleParameter value; }
+
+struct OracleParameterStorage {
+    StoredOracleParameter value;
+}
+
 using OracleParameterStorageLib for OracleParameterStorage global;
 
 /// @dev (external-safe): this library is safe to externalize

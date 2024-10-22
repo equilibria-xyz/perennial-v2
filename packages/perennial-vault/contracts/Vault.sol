@@ -1,23 +1,23 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { Instance } from "@equilibria/root/attribute/Instance.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { Checkpoint as PerennialCheckpoint } from  "@perennial/core/contracts/types/Checkpoint.sol";
-import { OracleVersion } from  "@perennial/core/contracts/types/OracleVersion.sol";
-import { Local } from  "@perennial/core/contracts/types/Local.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { IVault } from "./interfaces/IVault.sol";
-import { IVaultFactory } from "./interfaces/IVaultFactory.sol";
-import { Account, AccountStorage } from "./types/Account.sol";
-import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
-import { Registration, RegistrationStorage } from "./types/Registration.sol";
-import { VaultParameter, VaultParameterStorage } from "./types/VaultParameter.sol";
-import { StrategyLib } from "./libs/StrategyLib.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed18Lib} from "@equilibria/root/number/types/UFixed18.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {Instance} from "@equilibria/root/attribute/Instance.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {Checkpoint as PerennialCheckpoint} from "@perennial/core/contracts/types/Checkpoint.sol";
+import {OracleVersion} from "@perennial/core/contracts/types/OracleVersion.sol";
+import {Local} from "@perennial/core/contracts/types/Local.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IVault} from "./interfaces/IVault.sol";
+import {IVaultFactory} from "./interfaces/IVaultFactory.sol";
+import {Account, AccountStorage} from "./types/Account.sol";
+import {Checkpoint, CheckpointStorage} from "./types/Checkpoint.sol";
+import {Registration, RegistrationStorage} from "./types/Registration.sol";
+import {VaultParameter, VaultParameterStorage} from "./types/VaultParameter.sol";
+import {StrategyLib} from "./libs/StrategyLib.sol";
 
 /// @title Vault
 /// @notice Deploys underlying capital by weight in maker positions across registered markets
@@ -59,12 +59,10 @@ contract Vault is IVault, Instance {
     /// @param initialMarket The initial market to register
     /// @param initialDeposit The initial deposit amount
     /// @param name_ The vault's name
-    function initialize(
-        Token18 asset_,
-        IMarket initialMarket,
-        UFixed6 initialDeposit,
-        string calldata name_
-    ) external initializer(1) {
+    function initialize(Token18 asset_, IMarket initialMarket, UFixed6 initialDeposit, string calldata name_)
+        external
+        initializer(1)
+    {
         __Instance__initialize();
 
         asset = asset_;
@@ -110,26 +108,23 @@ contract Vault is IVault, Instance {
     /// @return The total number of underlying assets at the last checkpoint
     function totalAssets() public view returns (Fixed6) {
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
-        return checkpoint.assets
-            .add(Fixed6Lib.from(checkpoint.deposit))
-            .sub(Fixed6Lib.from(checkpoint.toAssetsGlobal(checkpoint.redemption)));
+        return checkpoint.assets.add(Fixed6Lib.from(checkpoint.deposit)).sub(
+            Fixed6Lib.from(checkpoint.toAssetsGlobal(checkpoint.redemption))
+        );
     }
 
     /// @notice Returns the total number of shares at the last checkpoint
     /// @return The total number of shares at the last checkpoint
     function totalShares() public view returns (UFixed6) {
         Checkpoint memory checkpoint = _checkpoints[_accounts[address(0)].read().latest].read();
-        return checkpoint.shares
-            .add(checkpoint.toSharesGlobal(checkpoint.deposit))
-            .sub(checkpoint.redemption);
+        return checkpoint.shares.add(checkpoint.toSharesGlobal(checkpoint.deposit)).sub(checkpoint.redemption);
     }
 
     /// @notice Converts a given amount of assets to shares
     /// @param assets Number of assets to convert to shares
     /// @return Amount of shares for the given assets
     function convertToShares(UFixed6 assets) external view returns (UFixed6) {
-        (UFixed6 _totalAssets, UFixed6 _totalShares) =
-            (UFixed6Lib.unsafeFrom(totalAssets()), totalShares());
+        (UFixed6 _totalAssets, UFixed6 _totalShares) = (UFixed6Lib.unsafeFrom(totalAssets()), totalShares());
         return _totalShares.isZero() ? assets : assets.muldiv(_totalShares, _totalAssets);
     }
 
@@ -137,8 +132,7 @@ contract Vault is IVault, Instance {
     /// @param shares Number of shares to convert to assets
     /// @return Amount of assets for the given shares
     function convertToAssets(UFixed6 shares) external view returns (UFixed6) {
-        (UFixed6 _totalAssets, UFixed6 _totalShares) =
-            (UFixed6Lib.unsafeFrom(totalAssets()), totalShares());
+        (UFixed6 _totalAssets, UFixed6 _totalShares) = (UFixed6Lib.unsafeFrom(totalAssets()), totalShares());
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
@@ -206,7 +200,7 @@ contract Vault is IVault, Instance {
         if (newWeights.length != totalMarkets) revert VaultMarketDoesNotExistError();
 
         UFixed6 totalWeight;
-        for(uint256 i; i < totalMarkets; i++) {
+        for (uint256 i; i < totalMarkets; i++) {
             _updateMarket(i, newWeights[i], UFixed6Lib.MAX);
             totalWeight = totalWeight.add(newWeights[i]);
         }
@@ -255,12 +249,10 @@ contract Vault is IVault, Instance {
     /// @param depositAssets The amount of assets to deposit
     /// @param redeemShares The amount of shares to redeem
     /// @param claimAssets The amount of assets to claim
-    function update(
-        address account,
-        UFixed6 depositAssets,
-        UFixed6 redeemShares,
-        UFixed6 claimAssets
-    ) external whenNotPaused {
+    function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets)
+        external
+        whenNotPaused
+    {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
@@ -300,16 +292,22 @@ contract Vault is IVault, Instance {
         if (redeemShares.eq(UFixed6Lib.MAX)) redeemShares = context.local.shares;
 
         // invariant
-        if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
+        if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender)) {
             revert VaultNotOperatorError();
-        if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets)))
+        }
+        if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets))) {
             revert VaultNotSingleSidedError();
-        if (depositAssets.gt(_maxDeposit(context)))
+        }
+        if (depositAssets.gt(_maxDeposit(context))) {
             revert VaultDepositLimitExceededError();
-        if (!depositAssets.isZero() && depositAssets.lt(context.parameter.minDeposit))
+        }
+        if (!depositAssets.isZero() && depositAssets.lt(context.parameter.minDeposit)) {
             revert VaultInsufficientMinimumError();
+        }
         if (!redeemShares.isZero() && context.latestCheckpoint.toAssets(redeemShares).lt(context.parameter.minDeposit))
+        {
             revert VaultInsufficientMinimumError();
+        }
         if (context.local.current != context.local.latest) revert VaultExistingOrderError();
 
         // asses socialization
@@ -332,18 +330,18 @@ contract Vault is IVault, Instance {
     /// @param context The context to use
     /// @param claimAssets The amount of assets to claim
     function _socialize(Context memory context, UFixed6 claimAssets) private pure returns (UFixed6) {
-        return context.global.assets.isZero() ?
-            UFixed6Lib.ZERO :
-            claimAssets.muldiv(
-                UFixed6Lib.unsafeFrom(context.totalCollateral).min(context.global.assets),
-                context.global.assets
+        return context.global.assets.isZero()
+            ? UFixed6Lib.ZERO
+            : claimAssets.muldiv(
+                UFixed6Lib.unsafeFrom(context.totalCollateral).min(context.global.assets), context.global.assets
             );
     }
 
     /// @notice Handles settling the vault's underlying markets
     function _settleUnderlying() private {
-        for (uint256 marketId; marketId < totalMarkets; marketId++)
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
             _registrations[marketId].read().market.settle(address(this));
+        }
     }
 
     /// @notice Handles settling the vault state
@@ -354,15 +352,12 @@ contract Vault is IVault, Instance {
 
         // settle global positions
         while (
-            context.global.current > context.global.latest &&
-            context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.global.latest + 1].read()).timestamp
+            context.global.current > context.global.latest
+                && context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.global.latest + 1].read()).timestamp
         ) {
             nextCheckpoint.complete(_checkpointAtId(context, nextCheckpoint.timestamp));
             context.global.processGlobal(
-                context.global.latest + 1,
-                nextCheckpoint,
-                nextCheckpoint.deposit,
-                nextCheckpoint.redemption
+                context.global.latest + 1, nextCheckpoint, nextCheckpoint.deposit, nextCheckpoint.redemption
             );
             _checkpoints[context.global.latest].store(nextCheckpoint);
             context.latestCheckpoint = nextCheckpoint;
@@ -372,15 +367,13 @@ contract Vault is IVault, Instance {
 
         // settle local position
         if (
-            context.local.current > context.local.latest &&
-            context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.local.current].read()).timestamp
-        )
+            context.local.current > context.local.latest
+                && context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.local.current].read()).timestamp
+        ) {
             context.local.processLocal(
-                context.local.current,
-                nextCheckpoint,
-                context.local.deposit,
-                context.local.redemption
+                context.local.current, nextCheckpoint, context.local.deposit, context.local.redemption
             );
+        }
     }
 
     /// @notice Manages the internal collateral and position strategy of the vault
@@ -390,20 +383,20 @@ contract Vault is IVault, Instance {
     function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool shouldRebalance) private {
         if (context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
-        StrategyLib.MarketTarget[] memory targets = StrategyLib
-            .load(context.registrations)
-            .allocate(
-                deposit,
-                withdrawal,
-                _ineligible(context, deposit, withdrawal)
-            );
+        StrategyLib.MarketTarget[] memory targets = StrategyLib.load(context.registrations).allocate(
+            deposit, withdrawal, _ineligible(context, deposit, withdrawal)
+        );
 
-        for (uint256 marketId; marketId < context.registrations.length; marketId++)
-            if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
+        for (uint256 marketId; marketId < context.registrations.length; marketId++) {
+            if (targets[marketId].collateral.lt(Fixed6Lib.ZERO)) {
                 _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
-        for (uint256 marketId; marketId < context.registrations.length; marketId++)
-            if (targets[marketId].collateral.gte(Fixed6Lib.ZERO))
+            }
+        }
+        for (uint256 marketId; marketId < context.registrations.length; marketId++) {
+            if (targets[marketId].collateral.gte(Fixed6Lib.ZERO)) {
                 _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
+            }
+        }
     }
 
     /// @notice Returns the amount of collateral is ineligible for allocation
@@ -413,29 +406,29 @@ contract Vault is IVault, Instance {
     /// @return The amount of assets that are ineligible from being allocated
     function _ineligible(Context memory context, UFixed6 deposit, UFixed6 withdrawal) private pure returns (UFixed6) {
         // assets eligible for redemption
-        UFixed6 redemptionEligible = UFixed6Lib.unsafeFrom(context.totalCollateral)
+        UFixed6 redemptionEligible = UFixed6Lib.unsafeFrom(context.totalCollateral).unsafeSub(
+            context.global.assets.add(withdrawal)
+        )
             // assets pending claim (use latest global assets before withdrawal for redeemability)
-            .unsafeSub(context.global.assets.add(withdrawal))
             // assets pending deposit
             .unsafeSub(context.global.deposit.sub(deposit));
 
-        return redemptionEligible
+        return redemptionEligible.mul(
+            context.global.redemption.unsafeDiv(context.global.shares.add(context.global.redemption))
+        )
             // approximate assets up for redemption
-            .mul(context.global.redemption.unsafeDiv(context.global.shares.add(context.global.redemption)))
             // assets pending claim (use new global assets after withdrawal for eligability)
             .add(context.global.assets);
-            // assets pending deposit are eligible for allocation
+        // assets pending deposit are eligible for allocation
     }
 
     /// @notice Adjusts the position on `market` to `targetPosition`
     /// @param registration The registration of the market to use
     /// @param target The new state to target
     /// @param shouldRebalance Whether to rebalance the vault's position
-    function _retarget(
-        Registration memory registration,
-        StrategyLib.MarketTarget memory target,
-        bool shouldRebalance
-    ) private {
+    function _retarget(Registration memory registration, StrategyLib.MarketTarget memory target, bool shouldRebalance)
+        private
+    {
         registration.market.update(
             address(this),
             shouldRebalance ? target.position : UFixed6Lib.MAX,
@@ -492,22 +485,23 @@ contract Vault is IVault, Instance {
     /// @param context Context to use in calculation
     /// @return Maximum available deposit amount
     function _maxDeposit(Context memory context) private view returns (UFixed6) {
-        return context.latestCheckpoint.unhealthy() ?
-            UFixed6Lib.ZERO :
-            context.parameter.maxDeposit.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
+        return context.latestCheckpoint.unhealthy()
+            ? UFixed6Lib.ZERO
+            : context.parameter.maxDeposit.unsafeSub(UFixed6Lib.unsafeFrom(totalAssets()).add(context.global.deposit));
     }
 
     /// @notice Returns the aggregate perennial checkpoint for the vault at position
     /// @param context Context to use
     /// @param timestamp The timestamp to use
     /// @return checkpoint The checkpoint at the given position
-    function _checkpointAtId(
-        Context memory context,
-        uint256 timestamp
-    ) public view returns (PerennialCheckpoint memory checkpoint) {
+    function _checkpointAtId(Context memory context, uint256 timestamp)
+        public
+        view
+        returns (PerennialCheckpoint memory checkpoint)
+    {
         for (uint256 marketId; marketId < context.registrations.length; marketId++) {
-            PerennialCheckpoint memory marketCheckpoint = context.registrations[marketId].market
-                .checkpoints(address(this), timestamp);
+            PerennialCheckpoint memory marketCheckpoint =
+                context.registrations[marketId].market.checkpoints(address(this), timestamp);
 
             (checkpoint.collateral, checkpoint.tradeFee, checkpoint.settlementFee) = (
                 checkpoint.collateral.add(marketCheckpoint.collateral),

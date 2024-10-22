@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed18 } from "@equilibria/root/number/types/UFixed18.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {UFixed18} from "@equilibria/root/number/types/UFixed18.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Token6} from "@equilibria/root/token/types/Token6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
 
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 interface IAccount {

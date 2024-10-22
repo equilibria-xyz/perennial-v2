@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { AggregatorV3Interface, Kept, Token18 } from "@equilibria/root/attribute/Kept/Kept.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { IMarket, IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import {IEmptySetReserve} from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
+import {AggregatorV3Interface, Kept, Token18} from "@equilibria/root/attribute/Kept/Kept.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed18, UFixed18Lib} from "@equilibria/root/number/types/UFixed18.sol";
+import {Token6} from "@equilibria/root/token/types/Token6.sol";
+import {IMarket, IMarketFactory} from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 
-import { IManager } from "./interfaces/IManager.sol";
-import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
-import { Action } from "./types/Action.sol";
-import { CancelOrderAction } from "./types/CancelOrderAction.sol";
-import { InterfaceFee } from "./types/InterfaceFee.sol";
-import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
-import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
+import {IManager} from "./interfaces/IManager.sol";
+import {IOrderVerifier} from "./interfaces/IOrderVerifier.sol";
+import {Action} from "./types/Action.sol";
+import {CancelOrderAction} from "./types/CancelOrderAction.sol";
+import {InterfaceFee} from "./types/InterfaceFee.sol";
+import {TriggerOrder, TriggerOrderStorage} from "./types/TriggerOrder.sol";
+import {PlaceOrderAction} from "./types/PlaceOrderAction.sol";
 
 /// @notice Base class with business logic to store and execute trigger orders.
 ///         Derived implementations created as appropriate for different chains.
@@ -123,11 +123,11 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function checkOrder(
-        IMarket market,
-        address account,
-        uint256 orderId
-    ) public view returns (TriggerOrder memory order, bool canExecute) {
+    function checkOrder(IMarket market, address account, uint256 orderId)
+        public
+        view
+        returns (TriggerOrder memory order, bool canExecute)
+    {
         order = _orders[market][account][orderId].read();
         // prevent calling canExecute on a spent or empty order
         if (order.isSpent || order.isEmpty()) revert ManagerInvalidOrderNonceError();
@@ -135,8 +135,7 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @inheritdoc IManager
-    function executeOrder(IMarket market, address account, uint256 orderId) external
-    {
+    function executeOrder(IMarket market, address account, uint256 orderId) external {
         // Using a modifier to measure gas would require us reading order from storage twice.
         // Instead, measure gas within the method itself.
         uint256 startGas = gasleft();
@@ -176,10 +175,7 @@ abstract contract Manager is IManager, Kept {
     /// @param data Identifies the market from and user for which funds should be withdrawn,
     ///             and the user-defined fee cap
     /// @return Amount of funds transferred from market to manager
-    function _raiseKeeperFee(
-        UFixed18 amount,
-        bytes memory data
-    ) internal virtual override returns (UFixed18) {
+    function _raiseKeeperFee(UFixed18 amount, bytes memory data) internal virtual override returns (UFixed18) {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
@@ -205,9 +201,9 @@ abstract contract Manager is IManager, Kept {
         if (order.interfaceFee.amount.isZero()) return false;
 
         // determine amount of fee to charge
-        UFixed6 feeAmount = order.interfaceFee.fixedFee ?
-            order.interfaceFee.amount :
-            order.notionalValue(market, account).mul(order.interfaceFee.amount);
+        UFixed6 feeAmount = order.interfaceFee.fixedFee
+            ? order.interfaceFee.amount
+            : order.notionalValue(market, account).mul(order.interfaceFee.amount);
 
         _marketWithdraw(market, account, feeAmount);
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { PythStructs } from "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
-import { IKeeperFactory } from "./IKeeperFactory.sol";
+import {PythStructs} from "@pythnetwork/pyth-sdk-solidity/PythStructs.sol";
+import {IKeeperFactory} from "./IKeeperFactory.sol";
 
 interface IMetaQuantsFactory is IKeeperFactory {
     struct UpdateAndSignature {

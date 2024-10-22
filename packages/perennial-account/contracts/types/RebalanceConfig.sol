@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
 
 /// @dev Rebalancing configuration for a single market
 struct RebalanceConfig {
@@ -11,15 +11,16 @@ struct RebalanceConfig {
     UFixed6 threshold;
 }
 
-struct RebalanceConfigStorage { uint256 slot0; }
+struct RebalanceConfigStorage {
+    uint256 slot0;
+}
+
 using RebalanceConfigLib for RebalanceConfigStorage global;
 
 /// @title RebalanceConfigLib
 /// @notice Library used to hash and manage storage for rebalancing configuration for a single market
 library RebalanceConfigLib {
-    bytes32 constant public STRUCT_HASH = keccak256(
-        "RebalanceConfig(uint256 target,uint256 threshold)"
-    );
+    bytes32 public constant STRUCT_HASH = keccak256("RebalanceConfig(uint256 target,uint256 threshold)");
 
     /// sig: 0xd673935e
     error RebalanceConfigStorageInvalidError();
@@ -43,9 +44,8 @@ library RebalanceConfigLib {
         if (newValue.target.gt(UFixed6Lib.ONE)) revert RebalanceConfigStorageInvalidError();
         if (newValue.threshold.gt(UFixed6Lib.ONE)) revert RebalanceConfigStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(UFixed6.unwrap(newValue.target)    << (256 - 32)) >> (256 - 32) |
-            uint256(UFixed6.unwrap(newValue.threshold) << (256 - 32)) >> (256 - 32 - 32);
+        uint256 encoded0 = uint256(UFixed6.unwrap(newValue.target) << (256 - 32)) >> (256 - 32)
+            | uint256(UFixed6.unwrap(newValue.threshold) << (256 - 32)) >> (256 - 32 - 32);
 
         assembly {
             sstore(self.slot, encoded0)

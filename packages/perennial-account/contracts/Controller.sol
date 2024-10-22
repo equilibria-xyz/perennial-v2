@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
+import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 
-import { Factory } from "@equilibria/root/attribute/Factory.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import {Factory} from "@equilibria/root/attribute/Factory.sol";
+import {Token6} from "@equilibria/root/token/types/Token6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {Fixed6, Fixed6Lib} from "@equilibria/root/number/types/Fixed6.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {IMarketFactory} from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 
-import { IAccount, IMarket } from "./interfaces/IAccount.sol";
-import { IAccountVerifier, IController } from "./interfaces/IController.sol";
-import { RebalanceLib } from "./libs/RebalanceLib.sol";
-import { Account } from "./Account.sol";
-import { DeployAccount, DeployAccountLib } from "./types/DeployAccount.sol";
-import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
-import { RebalanceConfig, RebalanceConfigLib } from "./types/RebalanceConfig.sol";
-import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
-import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
+import {IAccount, IMarket} from "./interfaces/IAccount.sol";
+import {IAccountVerifier, IController} from "./interfaces/IController.sol";
+import {RebalanceLib} from "./libs/RebalanceLib.sol";
+import {Account} from "./Account.sol";
+import {DeployAccount, DeployAccountLib} from "./types/DeployAccount.sol";
+import {MarketTransfer, MarketTransferLib} from "./types/MarketTransfer.sol";
+import {RebalanceConfig, RebalanceConfigLib} from "./types/RebalanceConfig.sol";
+import {RebalanceConfigChange, RebalanceConfigChangeLib} from "./types/RebalanceConfigChange.sol";
+import {Withdrawal, WithdrawalLib} from "./types/Withdrawal.sol";
 
 /// @title Controller
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets,
@@ -66,9 +66,7 @@ contract Controller is Factory, IController {
     }
 
     /// @inheritdoc IController
-    function initialize(
-        IAccountVerifier verifier_
-    ) external initializer(1) {
+    function initialize(IAccountVerifier verifier_) external initializer(1) {
         __Factory__initialize();
         verifier = verifier_;
     }
@@ -80,19 +78,19 @@ contract Controller is Factory, IController {
     }
 
     /// @inheritdoc IController
-    function changeRebalanceConfigWithSignature(
-        RebalanceConfigChange calldata configChange,
-        bytes calldata signature
-    ) virtual external {
+    function changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature)
+        external
+        virtual
+    {
         _changeRebalanceConfigWithSignature(configChange, signature);
     }
 
     /// @inheritdoc IController
-    function checkGroup(address owner, uint256 group) public view returns (
-        Fixed6 groupCollateral,
-        bool canRebalance,
-        Fixed6[] memory imbalances
-    ) {
+    function checkGroup(address owner, uint256 group)
+        public
+        view
+        returns (Fixed6 groupCollateral, bool canRebalance, Fixed6[] memory imbalances)
+    {
         // query owner's collateral in each market and calculate sum
         Fixed6[] memory actualCollateral;
         (actualCollateral, groupCollateral) = _queryMarketCollateral(owner, group);
@@ -102,13 +100,9 @@ contract Controller is Factory, IController {
         for (uint256 i; i < actualCollateral.length; i++) {
             IMarket market = groupToMarkets[owner][group][i];
             RebalanceConfig memory marketRebalanceConfig = _rebalanceConfigs[owner][group][address(market)];
-            (bool canMarketRebalance, Fixed6 imbalance) =
-                RebalanceLib.checkMarket(
-                    marketRebalanceConfig,
-                    groupToMaxRebalanceFee[owner][group],
-                    groupCollateral,
-                    actualCollateral[i]
-                );
+            (bool canMarketRebalance, Fixed6 imbalance) = RebalanceLib.checkMarket(
+                marketRebalanceConfig, groupToMaxRebalanceFee[owner][group], groupCollateral, actualCollateral[i]
+            );
             imbalances[i] = imbalance;
             canRebalance = canRebalance || canMarketRebalance;
         }
@@ -122,51 +116,50 @@ contract Controller is Factory, IController {
     }
 
     /// @inheritdoc IController
-    function deployAccountWithSignature(
-        DeployAccount calldata deployAccountAction,
-        bytes calldata signature
-    ) virtual external {
+    function deployAccountWithSignature(DeployAccount calldata deployAccountAction, bytes calldata signature)
+        external
+        virtual
+    {
         _deployAccountWithSignature(deployAccountAction, signature);
     }
 
     /// @inheritdoc IController
-    function marketTransferWithSignature(
-        MarketTransfer calldata marketTransfer,
-        bytes calldata signature
-    ) virtual external {
+    function marketTransferWithSignature(MarketTransfer calldata marketTransfer, bytes calldata signature)
+        external
+        virtual
+    {
         IAccount account = IAccount(getAccountAddress(marketTransfer.action.common.account));
         _marketTransferWithSignature(account, marketTransfer, signature);
     }
 
     /// @inheritdoc IController
-    function rebalanceConfigs(
-        address owner,
-        uint256 group,
-        address market
-    ) external view returns (RebalanceConfig memory) {
+    function rebalanceConfigs(address owner, uint256 group, address market)
+        external
+        view
+        returns (RebalanceConfig memory)
+    {
         return _rebalanceConfigs[owner][group][market];
     }
 
     /// @inheritdoc IController
-    function rebalanceGroupMarkets(
-        address owner,
-        uint256 group
-    ) external view returns (IMarket[] memory markets) {
+    function rebalanceGroupMarkets(address owner, uint256 group) external view returns (IMarket[] memory markets) {
         markets = groupToMarkets[owner][group];
     }
 
     /// @inheritdoc IController
-    function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) virtual external {
+    function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) external virtual {
         IAccount account = IAccount(getAccountAddress(withdrawal.action.common.account));
         _withdrawWithSignature(account, withdrawal, signature);
     }
 
     /// @inheritdoc IController
-    function rebalanceGroup(address owner, uint256 group) virtual external {
+    function rebalanceGroup(address owner, uint256 group) external virtual {
         _rebalanceGroup(owner, group);
     }
 
-    function _changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature) internal {
+    function _changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature)
+        internal
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRebalanceConfigChange(configChange, signature);
         // sum of the target allocations of all markets in the group
@@ -178,10 +171,10 @@ contract Controller is Factory, IController {
         emit AccountDeployed(owner, account);
     }
 
-    function _deployAccountWithSignature(
-        DeployAccount calldata deployAccount_,
-        bytes calldata signature
-    ) internal returns (IAccount account) {
+    function _deployAccountWithSignature(DeployAccount calldata deployAccount_, bytes calldata signature)
+        internal
+        returns (IAccount account)
+    {
         address owner = deployAccount_.action.common.account;
         verifier.verifyDeployAccount(deployAccount_, signature);
 
@@ -204,11 +197,9 @@ contract Controller is Factory, IController {
         account.marketTransfer(market, marketTransfer.amount);
     }
 
-    function _withdrawWithSignature(
-        IAccount account,
-        Withdrawal calldata withdrawal,
-        bytes calldata signature
-    ) internal {
+    function _withdrawWithSignature(IAccount account, Withdrawal calldata withdrawal, bytes calldata signature)
+        internal
+    {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyWithdrawal(withdrawal, signature);
 
@@ -241,10 +232,11 @@ contract Controller is Factory, IController {
     }
 
     /// @dev checks current collateral for each market in a group and aggregates collateral for the group
-    function _queryMarketCollateral(address owner, uint256 group) private view returns (
-        Fixed6[] memory actualCollateral,
-        Fixed6 groupCollateral
-    ) {
+    function _queryMarketCollateral(address owner, uint256 group)
+        private
+        view
+        returns (Fixed6[] memory actualCollateral, Fixed6 groupCollateral)
+    {
         actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
         for (uint256 i; i < actualCollateral.length; i++) {
             Fixed6 collateral = groupToMarkets[owner][group][i].locals(owner).collateral;
@@ -255,23 +247,23 @@ contract Controller is Factory, IController {
 
     /// @dev settles each market in a rebalancing group
     function _settleMarkets(address owner, uint256 group) private {
-        for (uint256 i; i < groupToMarkets[owner][group].length; i++)
+        for (uint256 i; i < groupToMarkets[owner][group].length; i++) {
             groupToMarkets[owner][group][i].settle(owner);
+        }
     }
 
     /// @dev overwrites rebalance configuration of all markets for a particular owner and group
     /// @param message already-verified message with new configuration
     /// @param owner identifies the owner of the collateral account
-    function _updateRebalanceGroup(
-        RebalanceConfigChange calldata message,
-        address owner
-    ) private {
+    function _updateRebalanceGroup(RebalanceConfigChange calldata message, address owner) private {
         // ensure group index is valid
-        if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER)
+        if (message.group == 0 || message.group > MAX_GROUPS_PER_OWNER) {
             revert ControllerInvalidRebalanceGroupError();
+        }
 
-        if (message.markets.length > MAX_MARKETS_PER_GROUP)
+        if (message.markets.length > MAX_MARKETS_PER_GROUP) {
             revert ControllerInvalidRebalanceMarketsError();
+        }
 
         // delete the existing group
         for (uint256 i; i < groupToMarkets[owner][message.group].length; i++) {
@@ -285,8 +277,9 @@ contract Controller is Factory, IController {
         for (uint256 i; i < message.markets.length; i++) {
             // ensure market is not pointing to a different group
             uint256 currentGroup = marketToGroup[owner][message.markets[i]];
-            if (currentGroup != 0)
+            if (currentGroup != 0) {
                 revert ControllerMarketAlreadyInGroupError(IMarket(message.markets[i]), currentGroup);
+            }
 
             // rewrite over all the old configuration
             marketToGroup[owner][message.markets[i]] = message.group;
@@ -302,8 +295,9 @@ contract Controller is Factory, IController {
         }
 
         // if not deleting the group, ensure rebalance targets add to 100%
-        if (message.markets.length != 0 && !totalAllocation.eq(UFixed6Lib.ONE))
+        if (message.markets.length != 0 && !totalAllocation.eq(UFixed6Lib.ONE)) {
             revert ControllerInvalidRebalanceTargetsError();
+        }
 
         emit RebalanceGroupConfigured(owner, message.group, message.markets.length);
     }

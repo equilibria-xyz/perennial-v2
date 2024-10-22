@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {IInstance} from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import {IOracleProvider} from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
 
 interface IOracle is IOracleProvider, IInstance {
     // sig: 0x8852e53b
@@ -28,7 +28,6 @@ interface IOracle is IOracleProvider, IInstance {
     struct Epoch {
         /// @dev The oracle provider for this epoch
         IOracleProvider provider;
-
         /// @dev The last timestamp that this oracle provider is valid
         uint96 timestamp;
     }
@@ -37,7 +36,6 @@ interface IOracle is IOracleProvider, IInstance {
     struct OracleGlobal {
         /// @dev The current epoch
         uint128 current;
-
         /// @dev The latest epoch
         uint128 latest;
     }

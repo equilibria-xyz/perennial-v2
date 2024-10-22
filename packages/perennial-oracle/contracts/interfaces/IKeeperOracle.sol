@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
-import { IOracle } from "./IOracle.sol";
-import { PriceResponse } from "../keeper/types/PriceResponse.sol";
+import {IInstance} from "@equilibria/root/attribute/interfaces/IInstance.sol";
+import {IOracleProvider} from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
+import {IMarket} from "@perennial/core/contracts/interfaces/IMarket.sol";
+import {OracleVersion} from "@perennial/core/contracts/types/OracleVersion.sol";
+import {IOracle} from "./IOracle.sol";
+import {PriceResponse} from "../keeper/types/PriceResponse.sol";
 
 interface IKeeperOracle is IOracleProvider, IInstance {
     event CallbackRequested(SettlementCallback indexed callback);
@@ -16,10 +16,8 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     struct SettlementCallback {
         /// @dev The market to settle
         IMarket market;
-
         /// @dev The account to settle
         address account;
-
         /// @dev The version to settle for
         uint256 version;
     }
@@ -27,10 +25,8 @@ interface IKeeperOracle is IOracleProvider, IInstance {
     struct KeeperOracleGlobal {
         /// @dev The latest committed oracle version
         uint64 latestVersion;
-
         /// @dev Index in `versions` of the most recent version requested
         uint64 currentIndex;
-
         /// @dev Index in `versions` of the latest version a keeper has committed
         uint64 latestIndex;
     }

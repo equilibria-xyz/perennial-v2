@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import {UFixed6} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
     /// @dev The trade fee that the order incurred at the checkpoint settlement
     Fixed6 tradeFee;
-
     // @dev The settlement and liquidation fee that the order incurred at the checkpoint settlement
     UFixed6 settlementFee;
-
     /// @dev The amount deposited or withdrawn at the checkpoint settlement
     Fixed6 transfer;
-
     /// @dev The collateral at the time of the checkpoint settlement
     Fixed6 collateral;
 }
-struct CheckpointStorage { uint256 slot0; }
+
+struct CheckpointStorage {
+    uint256 slot0;
+}
+
 using CheckpointStorageLib for CheckpointStorage global;
 
 /// @dev Manually encodes and decodes the Checkpoint struct into storage.
@@ -55,11 +56,10 @@ library CheckpointStorageLib {
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(Fixed6.unwrap(newValue.tradeFee)        << (256 - 48)) >> (256 - 48) |
-            uint256(UFixed6.unwrap(newValue.settlementFee)  << (256 - 48)) >> (256 - 48 - 48) |
-            uint256(Fixed6.unwrap(newValue.transfer)        << (256 - 64)) >> (256 - 48 - 48 - 64) |
-            uint256(Fixed6.unwrap(newValue.collateral)      << (256 - 64)) >> (256 - 48 - 48 - 64 - 64);
+        uint256 encoded0 = uint256(Fixed6.unwrap(newValue.tradeFee) << (256 - 48)) >> (256 - 48)
+            | uint256(UFixed6.unwrap(newValue.settlementFee) << (256 - 48)) >> (256 - 48 - 48)
+            | uint256(Fixed6.unwrap(newValue.transfer) << (256 - 64)) >> (256 - 48 - 48 - 64)
+            | uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 48 - 48 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)

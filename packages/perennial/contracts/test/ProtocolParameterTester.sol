@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { ProtocolParameter, ProtocolParameterStorage } from "../types/ProtocolParameter.sol";
+import {ProtocolParameter, ProtocolParameterStorage} from "../types/ProtocolParameter.sol";
 
 contract ProtocolParameterTester {
     ProtocolParameterStorage public protocolParameter;

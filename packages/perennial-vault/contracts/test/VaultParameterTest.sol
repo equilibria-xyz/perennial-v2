@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { VaultParameter, VaultParameterStorage } from "../types/VaultParameter.sol";
+import {VaultParameter, VaultParameterStorage} from "../types/VaultParameter.sol";
 
 contract VaultParameterTester {
     VaultParameterStorage public vaultParameter;

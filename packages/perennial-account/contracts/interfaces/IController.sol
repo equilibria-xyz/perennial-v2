@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {Token6} from "@equilibria/root/token/types/Token6.sol";
+import {Token18} from "@equilibria/root/token/types/Token18.sol";
+import {IMarketFactory} from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 
-import { IAccount, IMarket } from "../interfaces/IAccount.sol";
-import { IAccountVerifier } from "../interfaces/IAccountVerifier.sol";
-import { DeployAccount } from "../types/DeployAccount.sol";
-import { MarketTransfer } from "../types/MarketTransfer.sol";
-import { RebalanceConfig } from "../types/RebalanceConfig.sol";
-import { RebalanceConfigChange } from "../types/RebalanceConfigChange.sol";
-import { Withdrawal } from "../types/Withdrawal.sol";
+import {IAccount, IMarket} from "../interfaces/IAccount.sol";
+import {IAccountVerifier} from "../interfaces/IAccountVerifier.sol";
+import {DeployAccount} from "../types/DeployAccount.sol";
+import {MarketTransfer} from "../types/MarketTransfer.sol";
+import {RebalanceConfig} from "../types/RebalanceConfig.sol";
+import {RebalanceConfigChange} from "../types/RebalanceConfigChange.sol";
+import {Withdrawal} from "../types/Withdrawal.sol";
 
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets
 interface IController {
@@ -39,10 +39,7 @@ interface IController {
     /// @param market The Perennial market for which this configuration applies
     /// @param newConfig Rebalance configuration for the market, which may or may not have changed
     event RebalanceMarketConfigured(
-        address indexed owner,
-        uint256 indexed group,
-        address indexed market,
-        RebalanceConfig newConfig
+        address indexed owner, uint256 indexed group, address indexed market, RebalanceConfig newConfig
     );
 
     // sig: 0xdc72f280
@@ -89,9 +86,7 @@ interface IController {
 
     /// @notice Sets contract addresses used for message verification and token management
     /// @param verifier Contract used to validate collateral account message signatures
-    function initialize(
-        IAccountVerifier verifier
-    ) external;
+    function initialize(IAccountVerifier verifier) external;
 
     /// @notice Returns the deterministic address of the collateral account for a user,
     /// regardless of whether or not it exists.
@@ -104,7 +99,8 @@ interface IController {
     /// @notice Deploys a collateral account via a signed message
     /// @param deployAccountAction Message requesting creation of a collateral account
     /// @param signature ERC712 message signature
-    function deployAccountWithSignature(DeployAccount calldata deployAccountAction, bytes calldata signature) external;
+    function deployAccountWithSignature(DeployAccount calldata deployAccountAction, bytes calldata signature)
+        external;
 
     /// @notice Transfers tokens between a collateral account and a specified Perennial Market
     /// @param marketTransfer Message requesting a deposit to or withdrawal from the Market
@@ -114,8 +110,8 @@ interface IController {
     /// @notice Adjusts the rebalancing configuration of one or more markets
     /// @param configChange Message with new rebalance group configuration
     /// @param signature ERC712 message signature
-    function changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange,
-        bytes calldata signature) external;
+    function changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature)
+        external;
 
     /// @notice Checks all markets in a rebalance group to see if anything may be rebalanced
     /// @param owner User whose collateral account may be rebalanced using this group
@@ -123,11 +119,10 @@ interface IController {
     /// @return groupCollateral Sum of ower's collateral across each market in the group
     /// @return canRebalance True if one or more markets in the group are eligible for rebalancing
     /// @return imbalances The difference between target and actual collateral for each market
-    function checkGroup(address owner, uint256 group) external view returns (
-        Fixed6 groupCollateral,
-        bool canRebalance,
-        Fixed6[] memory imbalances
-    );
+    function checkGroup(address owner, uint256 group)
+        external
+        view
+        returns (Fixed6 groupCollateral, bool canRebalance, Fixed6[] memory imbalances);
 
     /// @notice Called by keepers to rebalance an unbalanced group
     /// @param owner User whose collateral account may be rebalanced using this group
@@ -138,20 +133,16 @@ interface IController {
     /// @param owner User for whom the collateral account was created
     /// @param group Identifies a collection of markets, each with their own configuration
     /// @param market Identifies which Perennial market for which the configuration is desired
-    function rebalanceConfigs(
-        address owner,
-        uint256 group,
-        address market
-    ) external view returns (RebalanceConfig memory);
+    function rebalanceConfigs(address owner, uint256 group, address market)
+        external
+        view
+        returns (RebalanceConfig memory);
 
     /// @notice Retrieves array of markets in an owner's rebalance group
     /// @param owner User for whom the collateral account was created
     /// @param group Identifies which collection of markets is desired for the owner
     /// @return markets Array containing each market in the rebalance group
-    function rebalanceGroupMarkets(
-        address owner,
-        uint256 group
-    ) external view returns (IMarket[] memory markets);
+    function rebalanceGroupMarkets(address owner, uint256 group) external view returns (IMarket[] memory markets);
 
     /// @notice Transfers tokens from the collateral account back to the owner of the account
     /// @param withdrawal Message requesting a withdrawal

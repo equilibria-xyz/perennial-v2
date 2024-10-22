@@ -10,7 +10,11 @@ library DedupLib {
     /// @param ids The array of IDs to deduplicate
     /// @return dedupedIds The deduplicated array of IDs
     /// @return indices The indices that each ID maps to in the deduplicated array
-    function dedup(bytes32[] memory ids) internal pure returns (bytes32[] memory dedupedIds, uint256[] memory indices) {
+    function dedup(bytes32[] memory ids)
+        internal
+        pure
+        returns (bytes32[] memory dedupedIds, uint256[] memory indices)
+    {
         bytes32[] memory dedupedIdsUnpacked = new bytes32[](ids.length);
         indices = new uint256[](ids.length);
         uint256 duplicates;
@@ -30,8 +34,9 @@ library DedupLib {
 
         // pack
         dedupedIds = new bytes32[](ids.length - duplicates);
-        for (uint256 i; i < dedupedIds.length; i++)
+        for (uint256 i; i < dedupedIds.length; i++) {
             dedupedIds[i] = dedupedIdsUnpacked[i];
+        }
     }
 
     /// @notice Finds the index of the first occurrence of an ID in an array
@@ -39,9 +44,11 @@ library DedupLib {
     /// @param ids The array of IDs to search
     /// @param index The index of the ID to search for
     function _match(bytes32[] memory ids, uint256 index) private pure returns (uint256) {
-        for (uint256 i; i < index; i++)
-            if (ids[index] == ids[i])
+        for (uint256 i; i < index; i++) {
+            if (ids[index] == ids[i]) {
                 return i;
+            }
+        }
         return index;
     }
 }

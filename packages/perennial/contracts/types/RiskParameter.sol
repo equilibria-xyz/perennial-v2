@@ -1,56 +1,50 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { UJumpRateUtilizationCurve6 } from "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
-import { PController6 } from "@equilibria/root/pid/types/PController6.sol";
-import { LinearAdiabatic6 } from "@equilibria/root/adiabatic/types/LinearAdiabatic6.sol";
-import { NoopAdiabatic6 } from "@equilibria/root/adiabatic/types/NoopAdiabatic6.sol";
-import { ProtocolParameter } from "./ProtocolParameter.sol";
+import {UFixed6, UFixed6Lib} from "@equilibria/root/number/types/UFixed6.sol";
+import {Fixed6} from "@equilibria/root/number/types/Fixed6.sol";
+import {UJumpRateUtilizationCurve6} from "@equilibria/root/utilization/types/UJumpRateUtilizationCurve6.sol";
+import {PController6} from "@equilibria/root/pid/types/PController6.sol";
+import {LinearAdiabatic6} from "@equilibria/root/adiabatic/types/LinearAdiabatic6.sol";
+import {NoopAdiabatic6} from "@equilibria/root/adiabatic/types/NoopAdiabatic6.sol";
+import {ProtocolParameter} from "./ProtocolParameter.sol";
 
 /// @dev RiskParameter type
 struct RiskParameter {
     /// @dev The minimum amount of collateral required to open a new position as a percentage of notional
     UFixed6 margin;
-
     /// @dev The minimum amount of collateral that must be maintained as a percentage of notional
     UFixed6 maintenance;
-
     /// @dev The taker impact fee
     LinearAdiabatic6 takerFee;
-
     /// @dev The maker fee configuration
     NoopAdiabatic6 makerFee;
-
     /// @dev The maximum amount of maker positions that opened
     UFixed6 makerLimit;
-
     /// @dev The minimum limit of the efficiency metric
     UFixed6 efficiencyLimit;
-
     /// @dev Multiple of the settlement fee charged when a position is liquidated
     UFixed6 liquidationFee;
-
     /// @dev The utilization curve that is used to compute maker interest
     UJumpRateUtilizationCurve6 utilizationCurve;
-
     /// @dev The p controller that is used to compute long-short funding
     PController6 pController;
-
     /// @dev The minimum fixed amount that is required to open a position
     UFixed6 minMargin;
-
     /// @dev The minimum fixed amount that is required for maintenance
     UFixed6 minMaintenance;
-
     /// @dev The maximum amount of time since the latest oracle version that update may still be called
     uint256 staleAfter;
-
     /// @dev Whether or not the maker should always receive positive funding
     bool makerReceiveOnly;
 }
-struct RiskParameterStorage { uint256 slot0; uint256 slot1; uint256 slot2; } // SECURITY: must remain at (3) slots
+
+struct RiskParameterStorage {
+    uint256 slot0;
+    uint256 slot1;
+    uint256 slot2;
+} // SECURITY: must remain at (3) slots
+
 using RiskParameterStorageLib for RiskParameterStorage global;
 
 /// @dev Manually encodes and decodes the local Position struct into storage.
@@ -94,55 +88,53 @@ library RiskParameterStorageLib {
     function read(RiskParameterStorage storage self) internal view returns (RiskParameter memory) {
         (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
         return RiskParameter(
-            UFixed6.wrap(uint256(       slot0 << (256 - 24)) >> (256 - 24)),
-            UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24)) >> (256 - 24)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24)) >> (256 - 24)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24)) >> (256 - 24)),
             LinearAdiabatic6(
-                UFixed6.wrap(uint256(   slot0 << (256 - 24 - 24 - 24)) >> (256 - 24)),
-                UFixed6.wrap(uint256(   slot0 << (256 - 24 - 24 - 24 - 24)) >> (256 - 24)),
-                UFixed6.wrap(uint256(   slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
                 UFixed6Lib.from(uint256(slot1 << (256 - 24 - 48 - 48)) >> (256 - 48))
             ),
             NoopAdiabatic6(
-                UFixed6.wrap(uint256(   slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
-                UFixed6.wrap(uint256(   slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),
                 UFixed6Lib.from(uint256(slot1 << (256 - 24 - 48)) >> (256 - 48))
             ),
-            UFixed6Lib.from(uint256(    slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48)) >> (256 - 48)),
-            UFixed6.wrap(uint256(       slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48 - 24)) >> (256 - 24)),
-
-            UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32)) >> (256 - 32)),
+            UFixed6Lib.from(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(slot0 << (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48 - 24)) >> (256 - 24)),
+            UFixed6.wrap(uint256(slot2 << (256 - 48 - 32 - 48 - 48 - 32)) >> (256 - 32)),
             UJumpRateUtilizationCurve6(
-                UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 48 - 24)) >> (256 - 24)),
-                UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 48 - 24 - 24)) >> (256 - 24)),
-                UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 48 - 24 - 24 - 24)) >> (256 - 24)),
-                UFixed6.wrap(uint256(   slot1 << (256 - 24 - 48 - 48 - 24 - 24 - 24 - 24)) >> (256 - 24))
+                UFixed6.wrap(uint256(slot1 << (256 - 24 - 48 - 48 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(slot1 << (256 - 24 - 48 - 48 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(slot1 << (256 - 24 - 48 - 48 - 24 - 24 - 24)) >> (256 - 24)),
+                UFixed6.wrap(uint256(slot1 << (256 - 24 - 48 - 48 - 24 - 24 - 24 - 24)) >> (256 - 24))
             ),
-
             PController6(
-                UFixed6.wrap(uint256(   slot2 << (256 - 48)) >> (256 - 48)),
-                Fixed6.wrap(int256(     slot1 << (256 - 24 - 48 - 48 - 24 - 24 - 24 - 24 - 32)) >> (256 - 32)),
-                Fixed6.wrap(int256(     slot2 << (256 - 48 - 32)) >> (256 - 32))
+                UFixed6.wrap(uint256(slot2 << (256 - 48)) >> (256 - 48)),
+                Fixed6.wrap(int256(slot1 << (256 - 24 - 48 - 48 - 24 - 24 - 24 - 24 - 32)) >> (256 - 32)),
+                Fixed6.wrap(int256(slot2 << (256 - 48 - 32)) >> (256 - 32))
             ),
-            UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48)) >> (256 - 48)),
-            UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48)) >> (256 - 48)),
-                         uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24)) >> (256 - 24),
-            0 !=        (uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8)) >> (256 - 8))
+            UFixed6.wrap(uint256(slot2 << (256 - 48 - 32 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(slot2 << (256 - 48 - 32 - 48 - 48)) >> (256 - 48)),
+            uint256(slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24)) >> (256 - 24),
+            0 != (uint256(slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8)) >> (256 - 8))
         );
     }
 
     function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) private pure {
         if (
-            self.takerFee.linearFee.max(self.takerFee.proportionalFee).max(self.takerFee.adiabaticFee)
-                .max(self.makerFee.linearFee).max(self.makerFee.proportionalFee)
-                .gt(protocolParameter.maxFee)
+            self.takerFee.linearFee.max(self.takerFee.proportionalFee).max(self.takerFee.adiabaticFee).max(
+                self.makerFee.linearFee
+            ).max(self.makerFee.proportionalFee).gt(protocolParameter.maxFee)
         ) revert RiskParameterStorageInvalidError();
 
         if (self.liquidationFee.gt(protocolParameter.maxLiquidationFee)) revert RiskParameterStorageInvalidError();
 
         if (
-            self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate)
-                .max(self.pController.max.abs()).max(self.pController.min.abs())
-                .gt(protocolParameter.maxRate)
+            self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate).max(
+                self.pController.max.abs()
+            ).max(self.pController.min.abs()).gt(protocolParameter.maxRate)
         ) revert RiskParameterStorageInvalidError();
 
         if (self.staleAfter > protocolParameter.maxStaleAfter) revert RiskParameterStorageInvalidError();
@@ -165,8 +157,9 @@ library RiskParameterStorageLib {
             UFixed6Lib.from(self.makerFee.scale.truncate())
         );
         UFixed6 scaleLimit = makerLimitTruncated.div(self.efficiencyLimit).mul(protocolParameter.minScale);
-        if (takerFeeScaleTruncated.lt(scaleLimit) || makerFeeScaleTruncated.lt(scaleLimit))
+        if (takerFeeScaleTruncated.lt(scaleLimit) || makerFeeScaleTruncated.lt(scaleLimit)) {
             revert RiskParameterStorageInvalidError();
+        }
     }
 
     function validateAndStore(
@@ -185,34 +178,37 @@ library RiskParameterStorageLib {
         if (newValue.makerFee.scale.gt(UFixed6Lib.from(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
 
-        uint256 encoded0 =
-            uint256(UFixed6.unwrap(newValue.margin)                    << (256 - 24)) >> (256 - 24) |
-            uint256(UFixed6.unwrap(newValue.maintenance)               << (256 - 24)) >> (256 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.takerFee.linearFee)        << (256 - 24)) >> (256 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.takerFee.proportionalFee)  << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.takerFee.adiabaticFee)     << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.makerFee.linearFee)        << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.makerFee.proportionalFee)  << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24) |
-            uint256(newValue.makerLimit.truncate()                     << (256 - 48)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48) |
-            uint256(UFixed6.unwrap(newValue.efficiencyLimit)           << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48 - 24);
+        uint256 encoded0 = uint256(UFixed6.unwrap(newValue.margin) << (256 - 24)) >> (256 - 24)
+            | uint256(UFixed6.unwrap(newValue.maintenance) << (256 - 24)) >> (256 - 24 - 24)
+            | uint256(UFixed6.unwrap(newValue.takerFee.linearFee) << (256 - 24)) >> (256 - 24 - 24 - 24)
+            | uint256(UFixed6.unwrap(newValue.takerFee.proportionalFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24)
+            | uint256(UFixed6.unwrap(newValue.takerFee.adiabaticFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24)
+            | uint256(UFixed6.unwrap(newValue.makerFee.linearFee) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24)
+            | uint256(UFixed6.unwrap(newValue.makerFee.proportionalFee) << (256 - 24))
+                >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24)
+            | uint256(newValue.makerLimit.truncate() << (256 - 48)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48)
+            | uint256(UFixed6.unwrap(newValue.efficiencyLimit) << (256 - 24))
+                >> (256 - 24 - 24 - 24 - 24 - 24 - 24 - 24 - 48 - 24);
 
-        uint256 encoded1 =
-            uint256(newValue.makerFee.scale.truncate()                          << (256 - 48)) >> (256 - 24 - 48) |
-            uint256(newValue.takerFee.scale.truncate()                          << (256 - 48)) >> (256 - 24 - 48 - 48) |
-            uint256(UFixed6.unwrap(newValue.utilizationCurve.minRate)           << (256 - 24)) >> (256 - 24 - 48 - 48 - 24) |
-            uint256(UFixed6.unwrap(newValue.utilizationCurve.maxRate)           << (256 - 24)) >> (256 - 24 - 48 - 48 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.utilizationCurve.targetRate)        << (256 - 24)) >> (256 - 24 - 48 - 48 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization) << (256 - 24)) >> (256 - 24 - 48 - 48 - 24 - 24 - 24 - 24) |
-            uint256(Fixed6.unwrap(newValue.pController.min)                     << (256 - 32)) >> (256 - 24 - 48 - 48 - 24 - 24 - 24 - 24 - 32);
+        uint256 encoded1 = uint256(newValue.makerFee.scale.truncate() << (256 - 48)) >> (256 - 24 - 48)
+            | uint256(newValue.takerFee.scale.truncate() << (256 - 48)) >> (256 - 24 - 48 - 48)
+            | uint256(UFixed6.unwrap(newValue.utilizationCurve.minRate) << (256 - 24)) >> (256 - 24 - 48 - 48 - 24)
+            | uint256(UFixed6.unwrap(newValue.utilizationCurve.maxRate) << (256 - 24)) >> (256 - 24 - 48 - 48 - 24 - 24)
+            | uint256(UFixed6.unwrap(newValue.utilizationCurve.targetRate) << (256 - 24))
+                >> (256 - 24 - 48 - 48 - 24 - 24 - 24)
+            | uint256(UFixed6.unwrap(newValue.utilizationCurve.targetUtilization) << (256 - 24))
+                >> (256 - 24 - 48 - 48 - 24 - 24 - 24 - 24)
+            | uint256(Fixed6.unwrap(newValue.pController.min) << (256 - 32))
+                >> (256 - 24 - 48 - 48 - 24 - 24 - 24 - 24 - 32);
 
-        uint256 encoded2 =
-            uint256(UFixed6.unwrap(newValue.pController.k)                  << (256 - 48)) >> (256 - 48) |
-            uint256(Fixed6.unwrap(newValue.pController.max)                 << (256 - 32)) >> (256 - 48 - 32) |
-            uint256(UFixed6.unwrap(newValue.minMargin)                      << (256 - 48)) >> (256 - 48 - 32 - 48) |
-            uint256(UFixed6.unwrap(newValue.minMaintenance)                 << (256 - 48)) >> (256 - 48 - 32 - 48 - 48) |
-            uint256(UFixed6.unwrap(newValue.liquidationFee)                 << (256 - 32)) >> (256 - 48 - 32 - 48 - 48 - 32) |
-            uint256(newValue.staleAfter                                     << (256 - 24)) >> (256 - 48 - 32 - 48 - 48 - 32 - 24) |
-            uint256((newValue.makerReceiveOnly ? uint256(1) : uint256(0))   << (256 - 8))  >> (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8);
+        uint256 encoded2 = uint256(UFixed6.unwrap(newValue.pController.k) << (256 - 48)) >> (256 - 48)
+            | uint256(Fixed6.unwrap(newValue.pController.max) << (256 - 32)) >> (256 - 48 - 32)
+            | uint256(UFixed6.unwrap(newValue.minMargin) << (256 - 48)) >> (256 - 48 - 32 - 48)
+            | uint256(UFixed6.unwrap(newValue.minMaintenance) << (256 - 48)) >> (256 - 48 - 32 - 48 - 48)
+            | uint256(UFixed6.unwrap(newValue.liquidationFee) << (256 - 32)) >> (256 - 48 - 32 - 48 - 48 - 32)
+            | uint256(newValue.staleAfter << (256 - 24)) >> (256 - 48 - 32 - 48 - 48 - 32 - 24)
+            | uint256((newValue.makerReceiveOnly ? uint256(1) : uint256(0)) << (256 - 8))
+                >> (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8);
 
         assembly {
             sstore(self.slot, encoded0)
