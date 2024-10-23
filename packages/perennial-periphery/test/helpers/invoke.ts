@@ -7,7 +7,6 @@ import { IntentStruct } from '../../types/generated/@perennial/core/contracts/Ma
 import { signIntent } from '../../../perennial/test/helpers/erc712'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IVerifier } from '@perennial/core/types/generated'
-import { sign } from 'crypto'
 
 export const MAX_INT = ethers.constants.MaxInt256
 export const MIN_INT = ethers.constants.MinInt256

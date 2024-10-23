@@ -1,5 +1,5 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ActionStruct, CommonStruct } from '../../types/generated/contracts/Verifier'
+import { ActionStruct, CommonStruct } from '../../types/generated/contracts/Controller'
 import { IAccountVerifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
 import {
@@ -9,7 +9,7 @@ import {
   WithdrawalStruct,
 } from '../../types/generated/contracts/Controller'
 import {
-  RelayedAccessUpdateBatch,
+  RelayedAccessUpdateBatchStruct,
   RelayedNonceCancellationStruct,
   RelayedGroupCancellationStruct,
   RelayedOperatorUpdateStruct,
@@ -233,7 +233,7 @@ export async function signRelayedSignerUpdate(
 export async function signRelayedAccessUpdateBatch(
   signer: SignerWithAddress,
   verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
-  message: RelayedAccessUpdateBatch,
+  message: RelayedAccessUpdateBatchStruct,
 ): Promise<string> {
   const types = {
     RelayedAccessUpdateBatch: [

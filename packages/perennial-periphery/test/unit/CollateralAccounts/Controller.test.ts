@@ -14,14 +14,14 @@ import {
   IEmptySetReserve,
   IAccountVerifier,
   AccountVerifier__factory,
-} from '../../types/generated'
+} from '../../../types/generated'
 
-import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../helpers/erc712'
-import { currentBlockTimestamp } from '../../../common/testutil/time'
-import { getEventArguments } from '../../../common/testutil/transaction'
+import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../../helpers/erc712'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import { getEventArguments } from '../../../../common/testutil/transaction'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { deployController, mockMarket } from '../helpers/setupHelpers'
-import { parse6decimal } from '../../../common/testutil/types'
+import { deployController, mockMarket } from '../../helpers/setupHelpers'
+import { parse6decimal } from '../../../../common/testutil/types'
 import { IMarket } from '@perennial/oracle/types/generated'
 import { IMarketFactory } from '@perennial/core/types/generated'
 

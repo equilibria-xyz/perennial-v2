@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import HRE from 'hardhat'
 import { BigNumber, utils, ContractTransaction, constants } from 'ethers'
+import HRE from 'hardhat'
 
 import { impersonate } from '../../../../common/testutil'
 
@@ -53,9 +53,8 @@ import {
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
   IVerifier,
-  IVerifier__factory,
 } from '@perennial/core/types/generated'
-import { Verifier__factory } from '../../../../perennial/types/generated'
+import { Verifier__factory } from '@perennial/core/types/generated'
 
 const { ethers } = HRE
 

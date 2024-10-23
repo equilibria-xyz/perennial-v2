@@ -18,7 +18,7 @@ import {
   signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
   signWithdrawal,
-} from '../helpers/erc712'
+} from '../../helpers/erc712'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,
@@ -26,11 +26,11 @@ import {
   signOperatorUpdate,
   signSignerUpdate,
 } from '@perennial/core/test/helpers/erc712'
-import { impersonate } from '../../../common/testutil'
-import { currentBlockTimestamp } from '../../../common/testutil/time'
-import { parse6decimal } from '../../../common/testutil/types'
+import { impersonate } from '../../../../common/testutil'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import { parse6decimal } from '../../../../common/testutil/types'
 import { Verifier, Verifier__factory } from '@perennial/core/types/generated'
-import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../types/generated'
+import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../../types/generated'
 
 const { ethers } = HRE
 

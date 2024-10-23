@@ -3,7 +3,7 @@ import { smock } from '@defi-wonderland/smock'
 import { use } from 'chai'
 import { CallOverrides } from 'ethers'
 
-import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../types/generated'
+import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerArbitrum,
@@ -11,15 +11,15 @@ import {
   fundWalletUSDC,
   getDSUReserve,
   getStablecoins,
-} from '../helpers/arbitrumHelpers'
+} from '../../helpers/arbitrumHelpers'
 import {
   createMarketBTC as setupMarketBTC,
   createMarketETH as setupMarketETH,
   DeploymentVars,
-} from '../helpers/setupHelpers'
+} from '../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Controller_Incentivized, IMarketFactory } from '../../types/generated'
+import { Controller_Incentivized, IMarketFactory } from '../../../types/generated'
 import { RunAccountTests } from './Account.test'
 import { AggregatorV3Interface } from '@perennial/oracle/types/generated'
 import { RunControllerBaseTests } from './Controller.test'

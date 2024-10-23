@@ -2,12 +2,16 @@ import { expect } from 'chai'
 import { ethers } from 'hardhat'
 import { constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { parse6decimal } from '../../../common/testutil/types'
-import { RebalanceConfigLib, RebalanceConfigLib__factory, RebalanceConfigTester__factory } from '../../types/generated'
+import { parse6decimal } from '../../../../common/testutil/types'
+import {
+  RebalanceConfigLib,
+  RebalanceConfigLib__factory,
+  RebalanceConfigTester__factory,
+} from '../../../types/generated'
 import {
   RebalanceConfigStruct,
   RebalanceConfigTester,
-} from '../../types/generated/contracts/test/RebalanceConfigTester'
+} from '../../../types/generated/contracts/test/RebalanceConfigTester'
 
 describe('RebalanceConfig', () => {
   let owner: SignerWithAddress

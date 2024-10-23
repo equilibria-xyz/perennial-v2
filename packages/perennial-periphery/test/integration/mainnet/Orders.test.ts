@@ -6,7 +6,6 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import 'hardhat'
 
 import { expect } from 'chai'
-import { getTimestamp } from '../../../../common/testutil/transaction'
 import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
