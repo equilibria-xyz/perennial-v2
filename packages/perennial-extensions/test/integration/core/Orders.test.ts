@@ -455,6 +455,45 @@ describe('Orders', () => {
           .to.emit(multiInvoker, 'KeeperCall')
       })
 
+      it('executes a close order between margin and maintenance requirements', async () => {
+        const { user, owner, chainlink } = instanceVars
+
+        // increase minMargin above user's collateral
+        const riskParameters = { ...(await market.riskParameter()) }
+        const userLocal = await market.locals(user.address)
+        riskParameters.minMargin = userLocal.collateral.add(parse6decimal('1000'))
+        await market.connect(owner).updateRiskParameter(riskParameters)
+
+        // place an immediately-executable trigger order
+        const trigger = openTriggerOrder({
+          delta: 0,
+          price: parse6decimal('0.01'),
+          side: Dir.M,
+          comparison: Compare.BELOW_MARKET,
+        })
+        const placeOrder = buildPlaceOrder({
+          market: market.address,
+          maker: userPosition,
+          order: trigger,
+          collateral: collateral,
+        })
+        await expect(invoke(placeOrder)).to.not.be.reverted
+        await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.1')))
+        await settle(market, user)
+        expect((await market.positions(user.address)).maker).to.be.eq(userPosition)
+
+        // execute the order and settle the market
+        const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1, revertOnFailure: true })
+        await expect(multiInvoker.connect(user)['invoke((uint8,bytes)[])'](execute))
+          .to.emit(multiInvoker, 'OrderExecuted')
+          .withArgs(user.address, market.address, 1)
+
+        await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.1')))
+        await settle(market, user)
+
+        expect((await market.positions(user.address)).maker).to.be.eq(0)
+      })
+
       it('executes an order with interface fee', async () => {
         const { marketFactory, user, userB, userC, chainlink, dsu } = instanceVars
         await marketFactory.updateParameter({

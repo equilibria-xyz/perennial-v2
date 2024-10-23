@@ -428,19 +428,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         TriggerOrder memory order = orders(account, market, nonce);
 
-        _handleKeeperFee(
-            KeepConfig(
-                UFixed18Lib.ZERO,
-                keepBufferBase,
-                UFixed18Lib.ZERO,
-                keepBufferCalldata
-            ),
-            0,
-            msg.data[0:0],
-            0,
-            abi.encode(account, market, order.fee)
-        );
-
         _marketSettle(market, account);
 
         Order memory pending = market.pendings(account);
@@ -448,6 +435,17 @@ contract MultiInvoker is IMultiInvoker, Kept {
         currentPosition.update(pending);
 
         Fixed6 collateral = order.execute(currentPosition);
+
+        KeepConfig memory config = KeepConfig(
+                UFixed18Lib.ZERO,
+                keepBufferBase,
+                UFixed18Lib.ZERO,
+                keepBufferCalldata
+            );
+        bytes memory keepData = abi.encode(account, market, order.fee);
+        bool payKeeperFirst = (order.side == 3 && order.delta.sign() == -1);
+
+        if (payKeeperFirst) _handleKeeperFee(config, 0, msg.data[0:0], 0, keepData);
 
         _update(
             account,
@@ -460,6 +458,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
             order.interfaceFee1,
             order.interfaceFee2
         );
+
+        if (!payKeeperFirst) _handleKeeperFee(config, 0, msg.data[0:0], 0, keepData);
 
         delete _orders[account][market][nonce];
         emit OrderExecuted(account, market, nonce);
