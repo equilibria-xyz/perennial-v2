@@ -28,6 +28,10 @@ Before running any command, make sure to install dependencies
 $ yarn
 ```
 
+```sh
+$ curl -L https://foundry.paradigm.xyz | bash
+```
+
 ### Compile
 
 Compile the smart contracts for each package with Hardhat:
