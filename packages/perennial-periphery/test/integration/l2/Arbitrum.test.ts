@@ -70,19 +70,19 @@ async function deployInstance(
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 275_000, // buffer for handling the keeper fee
+    bufferBase: 357_500, // buffer for handling the keeper fee
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1.08'),
-    bufferBase: 1_500_000, // for price commitment
+    bufferBase: 2_000_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1.08'),
     bufferCalldata: 35_200,
   }
   const keepConfigWithdrawal = {
     multiplierBase: ethers.utils.parseEther('1.05'),
-    bufferBase: 1_500_000,
+    bufferBase: 2_000_000,
     multiplierCalldata: ethers.utils.parseEther('1.05'),
     bufferCalldata: 35_200,
   }
@@ -108,7 +108,7 @@ async function mockGasInfo() {
   const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
     address: '0x000000000000000000000000000000000000006C',
   })
-  gasInfo.getL1BaseFeeEstimate.returns(0)
+  gasInfo.getL1BaseFeeEstimate.returns(1)
 }
 
 if (process.env.FORK_NETWORK === 'arbitrum') {
