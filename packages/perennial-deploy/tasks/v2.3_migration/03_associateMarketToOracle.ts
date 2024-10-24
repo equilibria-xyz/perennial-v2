@@ -57,7 +57,7 @@ export default task(
       const asscociatedMarketMetadata = Object.entries(MarketMetadata).find(
         ([, metadata]) => metadata.providerId === oracle.args.id,
       )
-      if (!asscociatedMarketMetadata) throw new Error(`No asscociated market data for ${oracle.args.id}`)
+      if (!asscociatedMarketMetadata) throw new Error(`No associated market data for ${oracle.args.id}`)
       const [name] = asscociatedMarketMetadata
       await addPayload(
         () => oracleContract.populateTransaction.updateName(name),

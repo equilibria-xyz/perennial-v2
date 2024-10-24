@@ -56,3 +56,31 @@ export type V2_2RiskParameterStructOutput = [
   staleAfter: BigNumber
   makerReceiveOnly: boolean
 }
+
+export type V2_2MarketParameterStructOutput = [
+  BigNumber,
+  BigNumber,
+  BigNumber,
+  BigNumber,
+  BigNumber,
+  BigNumber,
+  BigNumber,
+  BigNumber,
+  boolean,
+  boolean,
+  boolean,
+  boolean,
+] & {
+  fundingFee: BigNumber
+  interestFee: BigNumber
+  positionFee: BigNumber
+  oracleFee: BigNumber
+  riskFee: BigNumber
+  maxPendingGlobal: BigNumber
+  maxPendingLocal: BigNumber
+  settlementFee: BigNumber
+  takerCloseAlways: boolean
+  makerCloseAlways: boolean
+  closed: boolean
+  settle: boolean
+}

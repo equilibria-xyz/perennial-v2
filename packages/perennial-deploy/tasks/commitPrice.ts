@@ -86,10 +86,6 @@ export default task('commit-price', 'Commits a price for the given price ids')
           underlyingId: underlyingId as Hex,
           minValidTime: minValidTime.toBigInt(),
           versionOverride: requestedVersion.isZero() ? undefined : requestedVersion.toBigInt(),
-          // Since Viem can't connect to Hardhat's in-process node, we need to pass the factory type manually for now
-          // This utilizes a custom patch on the SDK to by-pass the internal RPC request.
-          // TODO: Remove this once we figure out a way for Viem to connect to Hardhat's in-process node.
-          factoryType: prevabi ? undefined : await keeperFactory.callStatic.factoryType(),
         }
         const [vaa] = timestamp
           ? await sdk.oracles.read.oracleCommitmentsTimestamp({

@@ -2051,10 +2051,10 @@
     graphql-request "^6.0.0"
     viem "2.9.9"
 
-"@perennial/sdk@0.0.3-alpha.1":
-  version "0.0.3-alpha.1"
-  resolved "https://registry.yarnpkg.com/@perennial/sdk/-/sdk-0.0.3-alpha.1.tgz#0b1f51d612ae4260cda478a495f76ada6798ea35"
-  integrity sha512-HhEQnewpPASDAZthFdItKbNxfQq+46htAs8XTGEAR9LjJ8Ef976cdPplHuw7eH9oYPojHA+r3nSFpN4QrgHiKw==
+"@perennial/sdk@0.0.3-beta.0":
+  version "0.0.3-beta.0"
+  resolved "https://registry.yarnpkg.com/@perennial/sdk/-/sdk-0.0.3-beta.0.tgz#fb1a64ee525f02c063de4e06a1e85b785be6c4fc"
+  integrity sha512-tx4dIKD1gCMJkO49xiaKVxDXKZkQckakpAS9gRSHHeEMEjc4xeItpYkPYKnv8ZYCSA2F8u8PS2QxKMuw/lZ66g==
   dependencies:
     "@microsoft/tsdoc" "^0.14.2"
     "@pythnetwork/hermes-client" "^1.0.4"
