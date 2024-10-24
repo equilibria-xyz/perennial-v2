@@ -6,62 +6,49 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 
 import {
+  ArbGasInfo,
   IEmptySetReserve__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
   IManager,
   IMarket,
   IMarketFactory,
-  Manager_Optimism__factory,
-  OptGasInfo,
+  Manager_Arbitrum__factory,
   OrderVerifier__factory,
-} from '../../types/generated'
-import { impersonate } from '../../../common/testutil'
+} from '../../../types/generated'
+import { impersonate } from '../../../../common/testutil'
 
-import { parse6decimal } from '../../../common/testutil/types'
-import { transferCollateral } from '../helpers/marketHelpers'
-import { createMarketETH, deployProtocol, deployPythOracleFactory, FixtureVars } from '../helpers/setupHelpers'
+import { parse6decimal } from '../../../../common/testutil/types'
+import { transferCollateral } from '../../../../perennial-order/test/helpers/marketHelpers'
+import {
+  createMarketETH,
+  deployProtocol,
+  deployPythOracleFactory,
+  FixtureVars,
+} from '../../../../perennial-order/test/helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 
 const { ethers } = HRE
 
-const DSU_ADDRESS = '0x7b4Adf64B0d60fF97D672E473420203D52562A84' // Digital Standard Unit, an 18-decimal token
-const DSU_RESERVE = '0x5FA881826AD000D010977645450292701bc2f56D'
-const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // USDC, a 6-decimal token, used by DSU reserve above
-const USDC_HOLDER = '0xF977814e90dA44bFA03b6295A0616a897441aceC' // EOA has 302mm USDC at height 21067741
+const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
+const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 4.7mm at height 243648015
+const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC, a 6-decimal token
 
-const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
+const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 
-const CHAINLINK_ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
+const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 
 export async function fundWalletDSU(
   wallet: SignerWithAddress,
   amount: BigNumber,
   overrides?: CallOverrides,
 ): Promise<undefined> {
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, wallet)
-  const reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, wallet)
-  const balanceBefore = await dsu.balanceOf(wallet.address)
+  const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, dsuOwner)
 
-  // fund wallet with USDC and then mint using reserve
-  await fundWalletUSDC(wallet, amount.div(1e12), overrides)
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, wallet)
-  await usdc.connect(wallet).approve(reserve.address, amount.div(1e12))
-  await reserve.mint(amount)
-
-  expect((await dsu.balanceOf(wallet.address)).sub(balanceBefore)).to.equal(amount)
-}
-
-async function fundWalletUSDC(
-  wallet: SignerWithAddress,
-  amount: BigNumber,
-  overrides?: CallOverrides,
-): Promise<undefined> {
-  const usdcOwner = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, usdcOwner)
-
-  expect(await usdc.balanceOf(USDC_HOLDER)).to.be.greaterThan(amount)
-  await usdc.transfer(wallet.address, amount, overrides ?? {})
+  expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
+  await dsu.transfer(wallet.address, amount, overrides ?? {})
 }
 
 // prepares an account for use with the market and manager
@@ -99,7 +86,7 @@ const fixture = async (): Promise<FixtureVars> => {
 
   // deploy the order manager
   const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
-  const manager = await new Manager_Optimism__factory(owner).deploy(
+  const manager = await new Manager_Arbitrum__factory(owner).deploy(
     USDC_ADDRESS,
     dsu.address,
     DSU_RESERVE,
@@ -114,10 +101,10 @@ const fixture = async (): Promise<FixtureVars> => {
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 1_000_000, // for price commitment
-    multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 0,
+    multiplierBase: ethers.utils.parseEther('1.05'),
+    bufferBase: 1_500_000, // for price commitment
+    multiplierCalldata: ethers.utils.parseEther('1.05'),
+    bufferCalldata: 35_200,
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
 
@@ -156,13 +143,12 @@ async function getFixture(): Promise<FixtureVars> {
 }
 
 async function mockGasInfo() {
-  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
-    address: '0x420000000000000000000000000000000000000F',
+  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
+  /*const gasInfo = */ await smock.fake<ArbGasInfo>('ArbGasInfo', {
+    address: '0x000000000000000000000000000000000000006C',
   })
-  gasInfo.getL1GasUsed.returns(1600)
-  gasInfo.l1BaseFee.returns(18476655731)
-  gasInfo.baseFeeScalar.returns(2768304)
-  gasInfo.decimals.returns(6)
+  // TODO: is this needed/useful?
+  // gasInfo.getL1BaseFeeEstimate.returns(0)
 }
 
-if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture, mockGasInfo)
+if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture, mockGasInfo)

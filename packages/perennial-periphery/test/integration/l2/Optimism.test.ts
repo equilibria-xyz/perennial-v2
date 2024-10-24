@@ -1,6 +1,6 @@
-import HRE from 'hardhat'
 import { smock } from '@defi-wonderland/smock'
 import { CallOverrides } from 'ethers'
+import HRE from 'hardhat'
 
 import { AccountVerifier__factory, AggregatorV3Interface, IAccountVerifier, OptGasInfo } from '../../../types/generated'
 import {

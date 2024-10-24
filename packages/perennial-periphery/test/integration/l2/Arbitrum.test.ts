@@ -1,7 +1,7 @@
-import HRE from 'hardhat'
 import { smock } from '@defi-wonderland/smock'
 import { use } from 'chai'
 import { CallOverrides } from 'ethers'
+import HRE from 'hardhat'
 
 import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../../types/generated'
 import {
