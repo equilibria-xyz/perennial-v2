@@ -13,10 +13,7 @@ jobs:
         with:
           node-version: 18.19
 
-      - name: Checkout Base Branch
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.base_ref }}
+      - uses: actions/checkout@v3
 
       - name: Install
         run: yarn --frozen-lockfile
@@ -24,23 +21,7 @@ jobs:
       - name: Compile
         run: yarn workspaces run compile
 
-      - name: Run Gas Report Script for Base branch
-        env:
-            MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
-        run: ./gas-report.sh
-      
-      - name: Checkout PR Branch
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ github.head_ref }}
-
-      - name: Install
-        run: yarn --frozen-lockfile
-
-      - name: Compile
-        run: yarn workspaces run compile
-
-      - name: Run Gas Report Script for PR branch
+      - name: Run Gas Report Script
         env:
             MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: ./gas-report.sh
@@ -78,12 +59,12 @@ jobs:
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: prNumber,
-              body: `${code_size}`
+              body: `### Code Size:\n\`\`\`\n${code_size}\n\`\`\``
             });
 
             // Post the Gas Report comment
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: prNumber,
-              body: `${gas_report}`
+              body: `### Gas Report:\n\`\`\`\n${gas_report}\n\`\`\``
             });
