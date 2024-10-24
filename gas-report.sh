@@ -34,11 +34,12 @@ extract_gas_report() {
     '
 }
 
+# Store the output of the extract functions in variables
 code_size_output=$(extract_code_size)
 gas_report_output=$(extract_gas_report)
 
-# Write the Code Size output to a file
-echo "$code_size_output" > code_size.txt
+# Write the Code Size output to a file with proper escaping for newlines
+echo "## $1 Code Size:\n\`\`\`\n$code_size_output\n\`\`\`\n" >> code_size.txt
 
-# Write the Gas Report output to a file
-echo "$gas_report_output" > gas_report.txt
+# Write the Gas Report output to a file with proper escaping for newlines
+echo "## $1 Gas Report:\n\`\`\`\n$gas_report_output\n\`\`\`\n" >> gas_report.txt
