@@ -18,13 +18,9 @@ import {
   Manager_Arbitrum__factory,
   OrderVerifier__factory,
 } from '../../../types/generated'
-import {
-  signCancelOrderAction,
-  signCommon,
-  signPlaceOrderAction,
-} from '../../../../perennial-order/test/helpers/eip712'
+import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/eip712'
 import { OracleVersionStruct } from '../../../types/generated/contracts/TriggerOrders/test/TriggerOrderTester'
-import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../../../perennial-order/test/helpers/order'
+import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/order'
 
 const { ethers } = HRE
 

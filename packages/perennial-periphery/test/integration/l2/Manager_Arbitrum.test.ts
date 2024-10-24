@@ -19,13 +19,8 @@ import {
 import { impersonate } from '../../../../common/testutil'
 
 import { parse6decimal } from '../../../../common/testutil/types'
-import { transferCollateral } from '../../../../perennial-order/test/helpers/marketHelpers'
-import {
-  createMarketETH,
-  deployProtocol,
-  deployPythOracleFactory,
-  FixtureVars,
-} from '../../../../perennial-order/test/helpers/setupHelpers'
+import { transferCollateral } from '../../helpers/marketHelpers'
+import { createMarketETH, deployProtocol, deployPythOracleFactory, FixtureVars } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 
 const { ethers } = HRE
@@ -76,13 +71,8 @@ const fixture = async (): Promise<FixtureVars> => {
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
   const reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, owner)
   const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
-  const [market, oracle, keeperOracle] = await createMarketETH(
-    owner,
-    oracleFactory,
-    pythOracleFactory,
-    marketFactory,
-    dsu,
-  )
+  const marketWithOracle = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+  const market = marketWithOracle.market
 
   // deploy the order manager
   const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
@@ -96,13 +86,13 @@ const fixture = async (): Promise<FixtureVars> => {
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 1_000_000, // buffer for withdrawing keeper fee from market
+    bufferBase: 1_250_000, // buffer for withdrawing keeper fee from market
     multiplierCalldata: 0,
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1.05'),
-    bufferBase: 1_500_000, // for price commitment
+    bufferBase: 1_875_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1.05'),
     bufferCalldata: 35_200,
   }
@@ -121,11 +111,11 @@ const fixture = async (): Promise<FixtureVars> => {
     dsu,
     usdc,
     reserve,
-    keeperOracle,
+    keeperOracle: marketWithOracle.keeperOracle,
     manager,
     marketFactory,
     market,
-    oracle,
+    oracle: marketWithOracle.oracle,
     verifier,
     owner,
     userA,

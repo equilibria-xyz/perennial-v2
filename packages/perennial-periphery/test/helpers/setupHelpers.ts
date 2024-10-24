@@ -15,6 +15,9 @@ import {
   Controller__factory,
   IEmptySetReserve,
   IERC20Metadata,
+  IERC20Metadata__factory,
+  IManager,
+  IOrderVerifier,
 } from '../../types/generated'
 import {
   CheckpointLib__factory,
@@ -56,7 +59,6 @@ import {
   Oracle,
   AggregatorV3Interface__factory,
 } from '@perennial/oracle/types/generated'
-import { expect } from 'chai'
 import { OracleVersionStruct } from '@perennial/core/types/generated/contracts/interfaces/IOracleProvider'
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
@@ -74,6 +76,25 @@ export interface DeploymentVars {
   dsuReserve: IEmptySetReserve
   fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
   fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
+}
+
+export interface FixtureVars {
+  dsu: IERC20Metadata
+  usdc: IERC20Metadata
+  reserve: IEmptySetReserve
+  keeperOracle: IKeeperOracle
+  manager: IManager
+  marketFactory: IMarketFactory
+  market: IMarket
+  oracle: IOracleProvider
+  verifier: IOrderVerifier
+  owner: SignerWithAddress
+  userA: SignerWithAddress
+  userB: SignerWithAddress
+  userC: SignerWithAddress
+  userD: SignerWithAddress
+  keeper: SignerWithAddress
+  oracleFeeReceiver: SignerWithAddress
 }
 
 export interface MarketWithOracle {
@@ -126,39 +147,8 @@ export async function createFactories(
   const marketFactory = await deployProtocolForOracle(owner, oracleFactory)
   // Connect the Chainlink ETH feed used for keeper compensation
   const chainlinkKeptFeed = AggregatorV3Interface__factory.connect(chainLinkFeedAddress, owner)
-
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
-  const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
-    chainLinkFeedAddress,
-    8,
-    1_000_000,
-    utils.parseEther('1.02'),
-    1_000_000,
-    0,
-    0,
-    0,
-  )
-  const settlementGasOracle = await new GasOracle__factory(owner).deploy(
-    chainLinkFeedAddress,
-    8,
-    200_000,
-    utils.parseEther('1.02'),
-    500_000,
-    0,
-    0,
-    0,
-  )
-  const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
-    pythAddress,
-    commitmentGasOracle.address,
-    settlementGasOracle.address,
-    keeperOracleImpl.address,
-  )
-  await pythOracleFactory.connect(owner).initialize(oracleFactory.address)
-  expect(await pythOracleFactory.owner()).to.equal(owner.address)
-  await pythOracleFactory.updateParameter(1, 0, 4, 10)
-  await oracleFactory.register(pythOracleFactory.address)
+  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, pythAddress, chainlinkKeptFeed.address)
 
   return [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed]
 }
@@ -331,13 +321,29 @@ export async function deployController(
   return controller
 }
 
+// Deploys OracleFactory and then MarketFactory
+export async function deployProtocol(
+  owner: SignerWithAddress,
+  dsuAddress: Address,
+): Promise<[IMarketFactory, IERC20Metadata, IOracleFactory]> {
+  // Deploy the oracle factory, which markets created by the market factory will query
+  const dsu = IERC20Metadata__factory.connect(dsuAddress, owner)
+  const oracleFactory = await deployOracleFactory(owner)
+
+  // Deploy the market factory and authorize it with the oracle factory
+  const marketVerifier = await new Verifier__factory(owner).deploy()
+  const marketFactory = await deployProtocolForOracle(owner, oracleFactory, marketVerifier)
+  return [marketFactory, dsu, oracleFactory]
+}
+
 // Deploys the protocol using a provided oracle
 export async function deployProtocolForOracle(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
+  verifier: IVerifier | undefined = undefined,
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
-  const verifier = await new Verifier__factory(owner).deploy()
+  if (!verifier) verifier = await new Verifier__factory(owner).deploy()
   const marketImpl = await deployMarketImplementation(owner, verifier.address)
   const marketFactory = await deployMarketFactory(
     owner,
@@ -347,6 +353,47 @@ export async function deployProtocolForOracle(
     marketImpl.address,
   )
   return marketFactory
+}
+
+export async function deployPythOracleFactory(
+  owner: SignerWithAddress,
+  oracleFactory: IOracleFactory,
+  pythAddress: Address,
+  chainlinkFeedAddress: Address,
+): Promise<PythFactory> {
+  const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+    chainlinkFeedAddress,
+    8,
+    1_000_000,
+    utils.parseEther('1.02'),
+    1_000_000,
+    0,
+    0,
+    0,
+  )
+  const settlementGasOracle = await new GasOracle__factory(owner).deploy(
+    chainlinkFeedAddress,
+    8,
+    200_000,
+    utils.parseEther('1.02'),
+    500_000,
+    0,
+    0,
+    0,
+  )
+
+  // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
+  const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
+  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
+    pythAddress,
+    commitmentGasOracle.address,
+    settlementGasOracle.address,
+    keeperOracleImpl.address,
+  )
+  await pythOracleFactory.initialize(oracleFactory.address)
+  await pythOracleFactory.updateParameter(1, 0, 4, 10)
+  await oracleFactory.register(pythOracleFactory.address)
+  return pythOracleFactory
 }
 
 // Creates a market for a specified collateral token, which can't do much of anything

@@ -13,11 +13,7 @@ import { IKeeperOracle } from '@perennial/oracle/types/generated'
 import { IEmptySetReserve, IManager, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
-import {
-  signAction,
-  signCancelOrderAction,
-  signPlaceOrderAction,
-} from '../../../../perennial-order/test/helpers/eip712'
+import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/eip712'
 import {
   Compare,
   compareOrders,
@@ -25,11 +21,11 @@ import {
   MAGIC_VALUE_CLOSE_POSITION,
   orderFromStructOutput,
   Side,
-} from '../../../../perennial-order/test/helpers/order'
-import { advanceToPrice } from '../../../../perennial-order/test/helpers/oracleHelpers'
+} from '../../helpers/order'
+import { advanceToPrice } from '../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { impersonate } from '../../../../common/testutil'
-import { FixtureVars } from '../../../../perennial-order/test/helpers/setupHelpers'
+import { FixtureVars } from '../../helpers/setupHelpers'
 
 const MAX_FEE = utils.parseEther('0.88')
 

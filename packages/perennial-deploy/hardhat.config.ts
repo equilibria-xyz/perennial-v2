@@ -20,10 +20,10 @@ const config = defaultConfig({
     '@perennial/core/contracts/MarketFactory.sol',
     '@perennial/vault/contracts/Vault.sol',
     '@perennial/vault/contracts/VaultFactory.sol',
-    '@perennial/periphery/contracts/MultiInvoker.sol',
-    '@perennial/periphery/contracts/MultiInvoker_Arbitrum.sol',
-    '@perennial/periphery/contracts/MultiInvoker_Optimism.sol',
-    '@perennial/periphery/contracts/Coordinator.sol',
+    '@perennial/periphery/contracts/MultiInvoker/MultiInvoker.sol',
+    '@perennial/periphery/contracts/MultiInvoker/MultiInvoker_Arbitrum.sol',
+    '@perennial/periphery/contracts/MultiInvoker/MultiInvoker_Optimism.sol',
+    '@perennial/periphery/contracts/Coordinator/Coordinator.sol',
   ],
   solidityOverrides: {
     '@perennial/core/contracts/Market.sol': {

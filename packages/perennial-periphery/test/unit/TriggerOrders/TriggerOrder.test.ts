@@ -6,13 +6,7 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import HRE from 'hardhat'
 
 import { IMarket, IOracleProvider, TriggerOrderTester, TriggerOrderTester__factory } from '../../../types/generated'
-import {
-  Compare,
-  compareOrders,
-  DEFAULT_TRIGGER_ORDER,
-  MAGIC_VALUE_CLOSE_POSITION,
-  Side,
-} from '../../../../perennial-order/test/helpers/order'
+import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, MAGIC_VALUE_CLOSE_POSITION, Side } from '../../helpers/order'
 import {
   OracleVersionStruct,
   TriggerOrderStruct,
