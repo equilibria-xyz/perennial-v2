@@ -41,12 +41,6 @@ struct VersionAccumulationResult {
     /// @dev The total price impact of the trade (including linear, proportional, and adiabatic)
     Fixed6 tradeOffset;
 
-    /// @dev The portion of the trade offset that the makers receive
-    Fixed6 tradeOffsetMaker;
-
-    /// @dev The portion of the trade offset that the market receives (if there are no makers)
-    UFixed6 tradeOffsetMarket;
-
     /// @dev The adiabatic exposure accrued
     Fixed6 adiabaticExposure;
 
@@ -319,6 +313,77 @@ library VersionLib {
         result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(linearFee));
         result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
         result.tradeOffsetMarket = result.tradeOffsetMarket.add(marketFee);
+    }
+
+    /// @notice Globally accumulates linear fees since last oracle update
+    /// @param next The Version object to update
+    /// @param context The accumulation context
+    function _accumulateSpread(
+        Version memory next,
+        VersionAccumulationContext memory context,
+        VersionAccumulationResult memory result
+    ) private pure {
+        (UFixed6 takerPosTotal, UFixed6 takerNegTotal) = _computeDelta(context);
+
+        UFixed6 spreadPos = __SynBook6_compute(
+            context.fromPosition.skew(),
+            Fixed6Lib.from(1, takerPosTotal),
+            context.toOracleVersion.price.abs()
+        );
+        next.takerPosOffset.decrement(Fixed6Lib.from(spreadPos), takerPosTotal);
+
+        UFixed6 spreadNeg = __SynBook6_compute(
+            context.fromPosition.skew(),
+            Fixed6Lib.from(-1, takerNegTotal),
+            context.toOracleVersion.price.abs()
+        );
+        next.takerNegOffset.decrement(Fixed6Lib.from(spreadNeg), takerNegTotal);
+
+        // TODO: cleanup
+        UFixed6 makerTotal = context.fromPosition.maker().sub(context.order.makerNeg);
+        UFixed6 spread = spreadPos.add(spreadNeg);
+        Fixed6 newSkew = context.fromPosition.skew().add(context.order.taker());
+        UFixed6 makerUsage = newSkew.abs().sub(context.fromPosition.skew().abs());
+        UFixed6 filledByMaker = makerUsage.eq(UFixed6Lib.ZERO ? UFixed6Lib.ONE : makerUsage.min(makerTotal));
+
+        UFixed6 spreadMaker = spread.mul(filledByMaker).div(makerUsage);
+        UFixed6 spreadTaker = spread.sub(spreadMaker);
+        next.makerValue.increment(Fixed6Lib.from(spreadMaker), context.fromPosition.maker);
+        if (context.fromPosition.long.gt(context.fromPosition.short))
+            next.takerPosOffset.increment(Fixed6Lib.from(spreadTaker), takerPosTotal);
+        if (context.fromPosition.short.gt(context.fromPosition.long))
+            next.takerPosOffset.increment(Fixed6Lib.from(spreadTaker), takerNegTotal);
+
+        // TODO
+        result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(spread));
+    }
+
+    function _computeDelta(VersionAccumulationContext memory context) internal pure returns (UFixed6 pos, UFixed6 neg) {
+        // delta from taker orders
+        (pos, neg) = (
+            context.order.takerPos().sub(context.guarantee.takerPos),
+            context.order.takerNeg().sub(context.guarantee.takerNeg)
+        );
+
+        // delta from maker orders
+        UFixed6 makerTotal = context.fromPosition.maker().sub(context.order.makerNeg);
+        (UFixed6 makerPos, UFixed6 makerNeg) = (
+            context.order.makerPos.mul(context.fromPosition.skew().abs()).div(makerTotal),
+            context.order.makerNeg.mul(context.fromPosition.skew().abs()).div(makerTotal)
+        );
+
+        (pos, neg) = (
+            pos.add(context.fromPosition.skew().gt(UFixed6Lib.ZERO) ? makerNeg : makerPos),
+            neg.add(context.fromPosition.skew().gt(UFixed6Lib.ZERO) ? makerPos : makerNeg)
+        );
+    }
+
+    function __SynBook6_compute(
+        Fixed6 latest,
+        Fixed6 change,
+        UFixed6 price
+    ) internal pure returns (UFixed6) {
+        return UFixed6Lib.ZERO;
     }
 
     /// @notice Globally accumulates proportional fees since last oracle update
