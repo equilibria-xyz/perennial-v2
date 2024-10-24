@@ -6,6 +6,7 @@
     "contracts/interfaces",
     "contracts/libs",
     "contracts/types",
+    "contracts/keeper/types",
     "artifacts/contracts/interfaces",
     "deployments/!(localhost)"
   ],
