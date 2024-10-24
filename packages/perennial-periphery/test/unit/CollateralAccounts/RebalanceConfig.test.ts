@@ -11,7 +11,7 @@ import {
 import {
   RebalanceConfigStruct,
   RebalanceConfigTester,
-} from '../../../types/generated/contracts/test/RebalanceConfigTester'
+} from '../../../types/generated/contracts/CollateralAccounts/test/RebalanceConfigTester'
 
 describe('RebalanceConfig', () => {
   let owner: SignerWithAddress
@@ -28,7 +28,7 @@ describe('RebalanceConfig', () => {
     rebalanceConfigLib = await new RebalanceConfigLib__factory(owner).deploy()
     tester = await new RebalanceConfigTester__factory(
       {
-        'contracts/types/RebalanceConfig.sol:RebalanceConfigLib': rebalanceConfigLib.address,
+        'contracts/CollateralAccounts/types/RebalanceConfig.sol:RebalanceConfigLib': rebalanceConfigLib.address,
       },
       owner,
     ).deploy()
