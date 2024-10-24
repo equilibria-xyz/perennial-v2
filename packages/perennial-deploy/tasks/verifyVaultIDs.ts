@@ -35,7 +35,7 @@ export default task('verify-vault-ids', 'Verifies that all vault and users have 
 
     for (const vaultAddress in vaultUsers) {
       const vault = args.prevabi
-        ? ((await ethers.getContractAt((await getArtifact('VaultV2_1_1')).abi, vaultAddress)) as IVault)
+        ? ((await ethers.getContractAt((await getArtifact('VaultV2_2')).abi, vaultAddress)) as IVault)
         : await ethers.getContractAt('IVault', vaultAddress)
 
       const global = await vault.accounts(ethers.constants.AddressZero)

@@ -17,9 +17,9 @@ import {
   IMarketFactory,
   KeeperOracle,
   KeeperOracle__factory,
+  GasOracle,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { parse6decimal } from '../../../../common/testutil/types'
 import { utils, BigNumber, BigNumberish } from 'ethers'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
@@ -50,6 +50,8 @@ describe('PythOracleFactory', () => {
   let pyth: FakeContract<AbstractPyth>
   let pythUpdateFee: FakeContract<IPythStaticFee>
   let chainlinkFeed: FakeContract<AggregatorV3Interface>
+  let commitmentGasOracle: FakeContract<GasOracle>
+  let settlementGasOracle: FakeContract<GasOracle>
   let oracle: Oracle
   let keeperOracle: KeeperOracle
   let pythOracleFactory: PythFactory
@@ -92,35 +94,28 @@ describe('PythOracleFactory', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market.factory.returns(marketFactory.address)
     marketFactory.instances.whenCalledWith(market.address).returns(true)
+    market.settle.returns()
+    market.token.returns(dsu.address)
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-    await oracleFactory.initialize(dsu.address)
-    await oracleFactory.updateMaxClaim(parse6decimal('10'))
+    await oracleFactory.initialize()
+
+    commitmentGasOracle = await smock.fake<GasOracle>('GasOracle')
+    commitmentGasOracle.cost.whenCalledWith(1).returns(utils.parseEther('0.20'))
+    settlementGasOracle = await smock.fake<GasOracle>('GasOracle')
+    settlementGasOracle.cost.whenCalledWith(0).returns(utils.parseEther('0.05'))
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
       pyth.address,
+      commitmentGasOracle.address,
+      settlementGasOracle.address,
       keeperOracleImpl.address,
-      4,
-      10,
-      {
-        multiplierBase: 0,
-        bufferBase: 1_000_000,
-        multiplierCalldata: 0,
-        bufferCalldata: 500_000,
-      },
-      {
-        multiplierBase: ethers.utils.parseEther('1.02'),
-        bufferBase: 2_000_000,
-        multiplierCalldata: ethers.utils.parseEther('1.03'),
-        bufferCalldata: 1_500_000,
-      },
-      5_000,
     )
-    await pythOracleFactory.initialize(oracleFactory.address, chainlinkFeed.address, dsu.address)
+    await pythOracleFactory.initialize(oracleFactory.address)
+    await pythOracleFactory.updateParameter(1, 0, 4, 10)
     await oracleFactory.register(pythOracleFactory.address)
-    await pythOracleFactory.authorize(oracleFactory.address)
 
     keeperOracle = KeeperOracle__factory.connect(
       await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
@@ -135,16 +130,25 @@ describe('PythOracleFactory', () => {
     })
 
     oracle = Oracle__factory.connect(
-      await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address),
+      await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD'),
       owner,
     )
-    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address)
+    await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD')
+
+    await keeperOracle.register(oracle.address)
+    await oracle.register(market.address)
 
     oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
   })
 
+  it('factoryType is PythFactory', async () => {
+    expect(await pythOracleFactory.factoryType()).to.equal('PythFactory')
+  })
+
   it('parses Pyth exponents correctly', async () => {
-    const minDelay = await pythOracleFactory.validFrom()
+    market.claimFee.returns(utils.parseUnits('0.25', 6))
+
+    const minDelay = (await pythOracleFactory.parameter()).validFrom
     await keeperOracle.connect(oracleSigner).request(market.address, user.address)
     await pythOracleFactory
       .connect(user)
@@ -170,5 +174,24 @@ describe('PythOracleFactory', () => {
         },
       )
     expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2000', 6))
+  })
+
+  describe('#updateId', async () => {
+    it('updates max claim', async () => {
+      expect(await pythOracleFactory.ids(keeperOracle.address)).to.equal(PYTH_ETH_USD_PRICE_FEED)
+      await pythOracleFactory.updateId(
+        keeperOracle.address,
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+      expect(await pythOracleFactory.ids(keeperOracle.address)).to.equal(
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      )
+    })
+
+    it('reverts if not owner', async () => {
+      await expect(
+        pythOracleFactory.connect(user).updateId(keeperOracle.address, PYTH_ETH_USD_PRICE_FEED),
+      ).to.be.revertedWithCustomError(pythOracleFactory, 'OwnableNotOwnerError')
+    })
   })
 })

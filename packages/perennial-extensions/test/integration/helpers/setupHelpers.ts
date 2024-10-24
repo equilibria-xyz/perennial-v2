@@ -25,6 +25,7 @@ import {
   OracleFactory,
   Oracle__factory,
   OracleFactory__factory,
+  IOracle,
   IOracle__factory,
   IOracleFactory,
   InvariantLib__factory,
@@ -37,23 +38,24 @@ import {
   VersionStorageLib__factory,
   MarketFactory,
   MarketFactory__factory,
+  MagicValueLib__factory,
 } from '../../../types/generated'
-import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
-import { CheckpointLib__factory } from '../../../types/generated/factories/@equilibria/perennial-v2/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
-import { ChainlinkContext } from '@equilibria/perennial-v2/test/integration/helpers/chainlinkHelpers'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
-import {
-  MarketParameterStruct,
-  RiskParameterStruct,
-} from '../../../types/generated/@equilibria/perennial-v2/contracts/Market'
+import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@perennial/core/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
+import { CheckpointLib__factory } from '../../../types/generated/factories/@perennial/core/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
+import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chainlinkHelpers'
+import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
+import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/@perennial/core/contracts/Market'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { deployProductOnMainnetFork } from '@equilibria/perennial-v2-vault/test/integration/helpers/setupHelpers'
+import { deployProductOnMainnetFork } from '@perennial/vault/test/integration/helpers/setupHelpers'
 import {
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
-} from '@equilibria/perennial-v2/types/generated'
+  IVerifier,
+  IVerifier__factory,
+} from '@perennial/core/types/generated'
+import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
 
 const { ethers } = HRE
 
@@ -68,6 +70,7 @@ export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 const LEGACY_ORACLE_DELAY = 3600
+const STARTING_TIMESTAMP = BigNumber.from(1646456563)
 
 export interface InstanceVars {
   owner: SignerWithAddress
@@ -80,12 +83,13 @@ export interface InstanceVars {
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   marketFactory: MarketFactory
+  verifier: IVerifier
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
   usdcHolder: SignerWithAddress
   chainlink: ChainlinkContext
-  oracle: IOracleProvider
+  oracle: IOracle
   marketImpl: Market
 }
 
@@ -103,7 +107,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       CHAINLINK_CUSTOM_CURRENCIES.USD,
       { provider: payoff, decimals: -5 },
       1,
-    ).init())
+    ).init(BigNumber.from(0), BigNumber.from(0)))
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -118,43 +122,58 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
 
+  const verifierImpl = await new Verifier__factory(owner).deploy()
+  const verifierProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    verifierImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+  const verifier = Verifier__factory.connect(verifierProxy.address, owner)
+
   const marketImpl = await new Market__factory(
     {
-      '@equilibria/perennial-v2/contracts/libs/CheckpointLib.sol:CheckpointLib': (
+      '@perennial/core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
         await new CheckpointLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/libs/InvariantLib.sol:InvariantLib': (
+      '@perennial/core/contracts/libs/InvariantLib.sol:InvariantLib': (
         await new InvariantLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/libs/VersionLib.sol:VersionLib': (
+      '@perennial/core/contracts/libs/VersionLib.sol:VersionLib': (
         await new VersionLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+      '@perennial/core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
+        await new MagicValueLib__factory(owner).deploy()
+      ).address,
+      '@perennial/core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
         await new CheckpointStorageLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Global.sol:GlobalStorageLib': (
+      '@perennial/core/contracts/types/Global.sol:GlobalStorageLib': (
         await new GlobalStorageLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+      '@perennial/core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
         await new MarketParameterStorageLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageGlobalLib': (
+      '@perennial/core/contracts/types/Position.sol:PositionStorageGlobalLib': (
         await new PositionStorageGlobalLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Position.sol:PositionStorageLocalLib': (
+      '@perennial/core/contracts/types/Position.sol:PositionStorageLocalLib': (
         await new PositionStorageLocalLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+      '@perennial/core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
-      '@equilibria/perennial-v2/contracts/types/Version.sol:VersionStorageLib': (
+      '@perennial/core/contracts/types/Version.sol:VersionStorageLib': (
         await new VersionStorageLib__factory(owner).deploy()
       ).address,
     },
     owner,
-  ).deploy()
+  ).deploy(verifierProxy.address)
 
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(
+    oracleFactory.address,
+    verifierImpl.address,
+    marketImpl.address,
+  )
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -165,28 +184,29 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address)
+  await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
+  await verifier.connect(owner).initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
-    protocolFee: parse6decimal('0.50'),
     maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
+    maxLiquidationFee: parse6decimal('5'),
     maxCut: parse6decimal('0.50'),
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
+    minScale: parse6decimal('0.001'),
+    maxStaleAfter: 7200,
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
-  await oracleFactory.connect(owner).authorize(marketFactory.address)
   const oracle = IOracle__factory.connect(
-    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
+    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD'),
     owner,
   )
-  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address)
+  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
   // Set state
   await fundWallet(dsu, usdc, user)
@@ -207,6 +227,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     proxyAdmin,
     oracleFactory,
     marketFactory,
+    verifier,
     chainlink,
     payoff,
     dsu,
@@ -253,7 +274,7 @@ export async function createMarket(
   instanceVars: InstanceVars,
   name?: string,
   symbol?: string,
-  oracleOverride?: IOracleProvider,
+  oracleOverride?: IOracle,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
@@ -278,7 +299,7 @@ export async function createMarket(
       adiabaticFee: 0,
       scale: parse6decimal('10'),
     },
-    makerLimit: parse6decimal('10000'),
+    makerLimit: parse6decimal('2000'),
     efficiencyLimit: parse6decimal('0.2'),
     liquidationFee: parse6decimal('0.50'),
     utilizationCurve: {
@@ -301,14 +322,12 @@ export async function createMarket(
   const marketParameter = {
     fundingFee: parse6decimal('0.1'),
     interestFee: parse6decimal('0.1'),
-    oracleFee: 0,
     riskFee: 0,
-    positionFee: 0,
+    makerFee: 0,
+    takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    settlementFee: 0,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
     ...marketParamOverrides,
@@ -319,8 +338,11 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
 
-  await market.updateRiskParameter(riskParameter, false)
-  await market.updateParameter(beneficiaryB.address, constants.AddressZero, marketParameter)
+  await market.updateRiskParameter(riskParameter)
+  await market.updateBeneficiary(beneficiaryB.address)
+  await market.updateParameter(marketParameter)
+
+  await oracle.register(market.address)
 
   return market
 }
@@ -343,7 +365,6 @@ export async function createVault(
   leverage?: BigNumber,
   maxCollateral?: BigNumber,
 ): Promise<[IVault, VaultFactory, FakeContract<IOracleProvider>, FakeContract<IOracleProvider>]> {
-  const STARTING_TIMESTAMP = BigNumber.from(1646456563)
   const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
   const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
@@ -353,33 +374,12 @@ export async function createVault(
 
   const vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
   await oracleFactory.connect(owner).register(vaultOracleFactory.address)
-  await oracleFactory.connect(owner).authorize(marketFactory.address)
 
   const ethSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  const ethRealVersion = {
-    timestamp: STARTING_TIMESTAMP,
-    price: BigNumber.from('2620237388'),
-    valid: true,
-  }
-
-  ethSubOracle.status.returns([ethRealVersion, ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-  ethSubOracle.request.returns()
-  ethSubOracle.latest.returns(ethRealVersion)
-  ethSubOracle.current.returns(ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-  ethSubOracle.at.whenCalledWith(ethRealVersion.timestamp).returns(ethRealVersion)
+  resetEthSubOracle(ethSubOracle)
 
   const btcSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  const btcRealVersion = {
-    timestamp: STARTING_TIMESTAMP,
-    price: BigNumber.from('38838362695'),
-    valid: true,
-  }
-
-  btcSubOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-  btcSubOracle.request.returns()
-  btcSubOracle.latest.returns(btcRealVersion)
-  btcSubOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-  btcSubOracle.at.whenCalledWith(btcRealVersion.timestamp).returns(btcRealVersion)
+  resetBtcSubOracle(btcSubOracle)
 
   vaultOracleFactory.instances.whenCalledWith(ethSubOracle.address).returns(true)
   vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
@@ -398,16 +398,20 @@ export async function createVault(
   vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
 
   const ethOracle = IOracle__factory.connect(
-    await instanceVars.oracleFactory.connect(owner).callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address),
+    await instanceVars.oracleFactory
+      .connect(owner)
+      .callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD'),
     owner,
   )
-  await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address)
+  await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD')
 
   const btcOracle = IOracle__factory.connect(
-    await instanceVars.oracleFactory.connect(owner).callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address),
+    await instanceVars.oracleFactory
+      .connect(owner)
+      .callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD'),
     owner,
   )
-  await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address)
+  await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD')
 
   const ethMarket = await deployProductOnMainnetFork({
     factory: marketFactory,
@@ -421,13 +425,12 @@ export async function createVault(
       linearFee: 0,
       proportionalFee: 0,
       adiabaticFee: 0,
-      scale: parse6decimal('10'),
+      scale: parse6decimal('100'),
     },
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('10'),
+      scale: parse6decimal('100'),
     },
   })
   const btcMarket = await deployProductOnMainnetFork({
@@ -436,6 +439,7 @@ export async function createVault(
     owner: owner,
     oracle: btcOracle.address,
     payoff: constants.AddressZero,
+    makerLimit: parse6decimal('100'),
     minMaintenance: parse6decimal('50'),
     takerFee: {
       linearFee: 0,
@@ -446,7 +450,6 @@ export async function createVault(
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      adiabaticFee: 0,
       scale: parse6decimal('10'),
     },
   })
@@ -456,6 +459,10 @@ export async function createVault(
     vaultImpl.address,
     0,
   )
+
+  await ethOracle.register(ethMarket.address)
+  await btcOracle.register(btcMarket.address)
+
   await instanceVars.proxyAdmin.upgrade(vaultFactoryProxy.address, vaultFactoryImpl.address)
   const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
   await vaultFactory.initialize()
@@ -471,7 +478,8 @@ export async function createVault(
   await vault.updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
 
   await vault.updateParameter({
-    cap: maxCollateral ?? parse6decimal('500000'),
+    maxDeposit: maxCollateral ?? parse6decimal('500000'),
+    minDeposit: 0,
   })
   const usdc = IERC20Metadata__factory.connect(USDC, owner)
   const asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
@@ -538,6 +546,34 @@ export async function createVault(
     )
 
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
+}
+
+export function resetEthSubOracle(ethSubOracle: FakeContract<IOracleProvider>) {
+  const ethRealVersion = {
+    timestamp: STARTING_TIMESTAMP,
+    price: BigNumber.from('2620237388'),
+    valid: true,
+  }
+
+  ethSubOracle.status.returns([ethRealVersion, ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+  ethSubOracle.request.returns()
+  ethSubOracle.latest.returns(ethRealVersion)
+  ethSubOracle.current.returns(ethRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+  ethSubOracle.at.whenCalledWith(ethRealVersion.timestamp).returns([ethRealVersion, DEFAULT_ORACLE_RECEIPT])
+}
+
+export function resetBtcSubOracle(btcSubOracle: FakeContract<IOracleProvider>) {
+  const btcRealVersion = {
+    timestamp: STARTING_TIMESTAMP,
+    price: BigNumber.from('38838362695'),
+    valid: true,
+  }
+
+  btcSubOracle.status.returns([btcRealVersion, btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+  btcSubOracle.request.returns()
+  btcSubOracle.latest.returns(btcRealVersion)
+  btcSubOracle.current.returns(btcRealVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+  btcSubOracle.at.whenCalledWith(btcRealVersion.timestamp).returns([btcRealVersion, DEFAULT_ORACLE_RECEIPT])
 }
 
 export async function createInvoker(

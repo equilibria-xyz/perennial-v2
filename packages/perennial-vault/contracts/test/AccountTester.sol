@@ -1,7 +1,9 @@
 // // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/Account.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Account, AccountStorage } from "../types/Account.sol";
+import { Checkpoint } from "../types/Checkpoint.sol";
 
 contract AccountTester {
     AccountStorage public account;

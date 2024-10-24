@@ -1,35 +1,35 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
-import "../interfaces/IPythFactory.sol";
-import "../keeper/KeeperFactory.sol";
+import { SignedMath } from "@openzeppelin/contracts/utils/math/SignedMath.sol";
+import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
+import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
+import { AbstractPyth, PythStructs } from "@pythnetwork/pyth-sdk-solidity/AbstractPyth.sol";
+import { IPythFactory, IPythStaticFee } from "../interfaces/IPythFactory.sol";
+import { IKeeperOracle } from "../interfaces/IKeeperOracle.sol";
+import { IKeeperFactory } from "../interfaces/IKeeperFactory.sol";
+import { KeeperFactory } from "../keeper/KeeperFactory.sol";
 
 /// @title PythFactory
 /// @notice Factory contract for creating and managing Pyth oracles
 contract PythFactory is IPythFactory, KeeperFactory {
     int32 private constant PARSE_DECIMALS = 18;
+    string public constant factoryType = "PythFactory";
 
     /// @dev Pyth contract
     AbstractPyth public immutable pyth;
 
     /// @notice Initializes the immutable contract state
     /// @param pyth_ Pyth contract
+    /// @param commitmentGasOracle_ Commitment gas oracle contract
+    /// @param settlementGasOracle_ Settlement gas oracle contract
     /// @param implementation_ IPythOracle implementation contract
-    /// @param validFrom_ The minimum time after a version that a keeper update can be valid
-    /// @param validTo_ The maximum time after a version that a keeper update can be valid
-    /// @param commitKeepConfig_ Parameter configuration for commit keeper incentivization
-    /// @param settleKeepConfig_ Parameter configuration for settle keeper incentivization
     constructor(
         AbstractPyth pyth_,
-        address implementation_,
-        uint256 validFrom_,
-        uint256 validTo_,
-        KeepConfig memory commitKeepConfig_,
-        KeepConfig memory settleKeepConfig_,
-        uint256 keepCommitIncrementalBufferData_
-    ) KeeperFactory(implementation_, validFrom_, validTo_, commitKeepConfig_, settleKeepConfig_, keepCommitIncrementalBufferData_) {
+        IGasOracle commitmentGasOracle_,
+        IGasOracle settlementGasOracle_,
+        address implementation_
+    ) KeeperFactory(commitmentGasOracle_, settlementGasOracle_, implementation_) {
         pyth = pyth_;
     }
 
@@ -48,23 +48,25 @@ contract PythFactory is IPythFactory, KeeperFactory {
     }
 
     /// @notice Validates and parses the update data payload against the specified version
-    /// @param ids The list of price feed ids validate against
+    /// @param underlyingIds The list of price feed ids validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
     function _parsePrices(
-        bytes32[] memory ids,
+        bytes32[] memory underlyingIds,
         bytes calldata data
     ) internal override returns (PriceRecord[] memory prices) {
-        prices = new PriceRecord[](ids.length);
+        prices = new PriceRecord[](underlyingIds.length);
         bytes[] memory datas = new bytes[](1);
         datas[0] = data;
 
         PythStructs.PriceFeed[] memory parsedPrices = pyth.parsePriceFeedUpdates{value: msg.value}(
             datas,
-            _toUnderlyingIds(ids),
+            underlyingIds,
             type(uint64).min,
             type(uint64).max
         );
+
+        uint256 updateFee = IPythStaticFee(address(pyth)).singleUpdateFeeInWei();
 
         for (uint256 i; i < parsedPrices.length; i++) {
             (Fixed18 significand, int256 exponent) =
@@ -72,27 +74,9 @@ contract PythFactory is IPythFactory, KeeperFactory {
             Fixed18 base = Fixed18Lib.from(int256(10 ** SignedMath.abs(exponent)));
             prices[i] = PriceRecord(
                 parsedPrices[i].price.publishTime,
-                exponent < 0 ? significand.div(base) : significand.mul(base)
+                exponent < 0 ? significand.div(base) : significand.mul(base),
+                updateFee
             );
         }
-    }
-
-    /// @notice Converts a list of oracle ids to a list of underlying ids
-    /// @dev Reverts if any of the ids are not associated
-    /// @param ids The list of oracle ids to convert
-    /// @return underlyingIds The list of underlying ids
-    function _toUnderlyingIds(bytes32[] memory ids) private view returns (bytes32[] memory underlyingIds) {
-        underlyingIds = new bytes32[](ids.length);
-        for (uint256 i; i < ids.length; i++) {
-            underlyingIds[i] = toUnderlyingId[ids[i]];
-            if (underlyingIds[i] == bytes32(0)) revert KeeperFactoryNotCreatedError();
-        }
-    }
-
-    /// @notice Returns the applicable value for the keeper fee
-    /// @param numRequested The number of requested price commits
-    /// @return The applicable value for the keeper fee
-    function _applicableValue(uint256 numRequested, bytes memory) internal view override returns (uint256) {
-        return IPythStaticFee(address(pyth)).singleUpdateFeeInWei() * numRequested;
     }
 }

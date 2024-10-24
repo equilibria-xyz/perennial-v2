@@ -11,10 +11,12 @@ const SETTLE_MULTICALL_BATCH_SIZE = 150
 
 export default task('settle-vaults', 'Settles users across all vaults')
   .addFlag('dry', 'Count number of users and transactions required to settle')
+  .addFlag('prevabi', 'Use previous ABIs for contract interaction')
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
   .addOptionalParam('buffergas', 'The buffer gas to add to the estimate', 1, types.int)
   .addOptionalParam('timestamp', 'Timestamp to commit prices for', undefined, types.int)
   .addOptionalParam('factoryaddress', 'Address of the PythFactory contract', undefined, types.string)
+  .addOptionalParam('commitgaslimit', 'The gas limit for the transaction', undefined, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Settle Vaults] Running Settle Vaults Task')
     const {
@@ -44,6 +46,8 @@ export default task('settle-vaults', 'Settles users across all vaults')
       dry: args.dry,
       timestamp: args.timestamp,
       factoryaddress: args.factoryaddress,
+      prevabi: args.prevabi,
+      gaslimit: args.commitgaslimit,
     })
 
     const multicall = new ethers.Contract(MulticallAddress, MulticallABI, ethers.provider).connect(

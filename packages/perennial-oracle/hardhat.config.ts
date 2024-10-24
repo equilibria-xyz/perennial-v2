@@ -3,11 +3,13 @@ import './tasks'
 
 const config = defaultConfig({
   dependencyPaths: [
-    '@equilibria/perennial-v2/contracts/interfaces/IMarketFactory.sol',
-    '@equilibria/perennial-v2/contracts/MarketFactory.sol',
-    '@equilibria/perennial-v2/contracts/Market.sol',
-    '@equilibria/perennial-v2/contracts/types/MarketParameter.sol',
-    '@equilibria/perennial-v2/contracts/types/RiskParameter.sol',
+    '@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol',
+    '@equilibria/root/attribute/Kept/Kept_Arbitrum.sol',
+    '@perennial/core/contracts/interfaces/IMarketFactory.sol',
+    '@perennial/core/contracts/MarketFactory.sol',
+    '@perennial/core/contracts/Market.sol',
+    '@perennial/core/contracts/types/MarketParameter.sol',
+    '@perennial/core/contracts/types/RiskParameter.sol',
   ],
 })
 

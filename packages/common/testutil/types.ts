@@ -7,6 +7,16 @@ export interface OracleVersion {
   timestamp: BigNumberish
 }
 
+export interface OracleReceipt {
+  settlementFee: BigNumberish
+  oracleFee: BigNumberish
+}
+
+export interface PAccumulator {
+  _value: BigNumberish
+  _skew: BigNumberish
+}
+
 export interface Accumulator {
   _value: BigNumberish
 }
@@ -33,6 +43,15 @@ export interface Order {
   takerReferral: BigNumberish
 }
 
+export interface Guarantee {
+  orders: BigNumberish
+  takerPos: BigNumberish
+  takerNeg: BigNumberish
+  notional: BigNumberish
+  takerFee: BigNumberish
+  referral: BigNumberish
+}
+
 export interface Position {
   timestamp: BigNumberish
   maker: BigNumberish
@@ -46,8 +65,8 @@ export interface Global {
   protocolFee: BigNumberish
   oracleFee: BigNumberish
   riskFee: BigNumberish
-  donation: BigNumberish
   latestPrice: BigNumberish
+  pAccumulator: PAccumulator
   exposure: BigNumberish
 }
 
@@ -60,17 +79,15 @@ export interface Local {
 
 export interface Version {
   valid: boolean
+  price: BigNumberish
   makerValue: Accumulator
   longValue: Accumulator
   shortValue: Accumulator
-  makerLinearFee: Accumulator
-  makerProportionalFee: Accumulator
-  takerLinearFee: Accumulator
-  takerProportionalFee: Accumulator
-  makerPosFee: Accumulator
-  makerNegFee: Accumulator
-  takerPosFee: Accumulator
-  takerNegFee: Accumulator
+  makerFee: Accumulator
+  takerFee: Accumulator
+  makerOffset: Accumulator
+  takerPosOffset: Accumulator
+  takerNegOffset: Accumulator
   settlementFee: Accumulator
   liquidationFee: Accumulator
 }
@@ -78,6 +95,75 @@ export interface Version {
 export interface Fee {
   protocol: BigNumberish
   market: BigNumberish
+}
+
+export interface MarketParameter {
+  fundingFee: BigNumberish
+  interestFee: BigNumberish
+  makerFee: BigNumberish
+  takerFee: BigNumberish
+  riskFee: BigNumberish
+  maxPendingGlobal: number
+  maxPendingLocal: number
+  maxPriceDeviation: BigNumberish
+  closed: boolean
+  settle: boolean
+}
+
+export interface AdiabaticFee {
+  linearFee: BigNumberish
+  proportionalFee: BigNumberish
+  adiabaticFee: BigNumberish
+  scale: BigNumberish
+}
+
+export interface UtilizationCurve {
+  minRate: BigNumberish
+  maxRate: BigNumberish
+  targetRate: BigNumberish
+  targetUtilization: BigNumberish
+}
+
+export interface PController {
+  k: BigNumberish
+  min: BigNumberish
+  max: BigNumberish
+}
+
+export interface RiskParameter {
+  margin: BigNumberish
+  maintenance: BigNumberish
+  takerFee: AdiabaticFee
+  makerFee: AdiabaticFee
+  makerLimit: BigNumberish
+  efficiencyLimit: BigNumberish
+  liquidationFee: BigNumberish
+  utilizationCurve: UtilizationCurve
+  pController: PController
+  minMargin: BigNumberish
+  minMaintenance: BigNumberish
+  staleAfter: BigNumberish
+  makerReceiveOnly: boolean
+}
+
+export interface Context {
+  account: string
+  marketParameter: MarketParameter
+  riskParameter: RiskParameter
+  latestOracleVersion: OracleVersion
+  currentTimestamp: number
+  global: Global
+  local: Local
+  latestPositionGlobal: Position
+  latestPositionLocal: Position
+  pendingGlobal: Order
+  pendingLocal: Order
+}
+
+export interface SettlementContext {
+  latestVersion: Version
+  latestCheckpoint: Checkpoint
+  orderOracleVersion: OracleVersion
 }
 
 export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
@@ -102,6 +188,15 @@ export function expectOrderEq(a: Order, b: Order): void {
   expect(a.takerReferral).to.equal(b.takerReferral, 'Order:TakerReferral')
 }
 
+export function expectGuaranteeEq(a: Guarantee, b: Guarantee): void {
+  expect(a.orders).to.equal(b.orders, 'Order:Orders')
+  expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
+  expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
+  expect(a.notional).to.equal(b.notional, 'Order:Notional')
+  expect(a.takerFee).to.equal(b.takerFee, 'Order:TakerFee')
+  expect(a.referral).to.equal(b.referral, 'Order:Referral')
+}
+
 export function expectPositionEq(a: Position, b: Position): void {
   expect(a.timestamp).to.equal(b.timestamp, 'Position:Timestamp')
   expect(a.maker).to.equal(b.maker, 'Position:Maker')
@@ -115,7 +210,6 @@ export function expectGlobalEq(a: Global, b: Global): void {
   expect(a.protocolFee).to.equal(b.protocolFee, 'Global:ProtocolFee')
   expect(a.oracleFee).to.equal(b.oracleFee, 'Global:OracleFee')
   expect(a.riskFee).to.equal(b.riskFee, 'Global:RiskFee')
-  expect(a.donation).to.equal(b.donation, 'Global:Donation')
   expect(a.latestPrice).to.equal(b.latestPrice, 'Global:LatestPrice')
   expect(a.exposure).to.equal(b.exposure, 'Global:Exposure')
 }
@@ -129,17 +223,15 @@ export function expectLocalEq(a: Local, b: Local): void {
 
 export function expectVersionEq(a: Version, b: Version): void {
   expect(a.valid).to.equal(b.valid, 'Version:Valid')
+  expect(a.price).to.equal(b.price, 'Version:Price')
   expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
   expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
   expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
-  expect(a.makerLinearFee._value).to.equal(b.makerLinearFee._value, 'Version:MakerLinearFee')
-  expect(a.makerProportionalFee._value).to.equal(b.makerProportionalFee._value, 'Version:MakerProportionalFee')
-  expect(a.takerLinearFee._value).to.equal(b.takerLinearFee._value, 'Version:TakerLinearFee')
-  expect(a.takerProportionalFee._value).to.equal(b.takerProportionalFee._value, 'Version:TakerProportionalFee')
-  expect(a.makerPosFee._value).to.equal(b.makerPosFee._value, 'Version:MakerPosFee')
-  expect(a.makerNegFee._value).to.equal(b.makerNegFee._value, 'Version:MakerNegFee')
-  expect(a.takerPosFee._value).to.equal(b.takerPosFee._value, 'Version:TakerPosFee')
-  expect(a.takerNegFee._value).to.equal(b.takerNegFee._value, 'Version:TakerNegFee')
+  expect(a.makerFee._value).to.equal(b.makerFee._value, 'Version:MakerFee')
+  expect(a.takerFee._value).to.equal(b.takerFee._value, 'Version:TakerFee')
+  expect(a.makerOffset._value).to.equal(b.makerOffset._value, 'Version:MakerOffset')
+  expect(a.takerPosOffset._value).to.equal(b.takerPosOffset._value, 'Version:TakerPosOffset')
+  expect(a.takerNegOffset._value).to.equal(b.takerNegOffset._value, 'Version:TakerNegOffset')
   expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
   expect(a.liquidationFee._value).to.equal(b.liquidationFee._value, 'Version:LiquidationFee')
 }
@@ -186,6 +278,20 @@ export const DEFAULT_POSITION: Position = {
   short: 0,
 }
 
+export const DEFAULT_GLOBAL: Global = {
+  currentId: 0,
+  latestId: 0,
+  protocolFee: 0,
+  oracleFee: 0,
+  riskFee: 0,
+  latestPrice: 0,
+  pAccumulator: {
+    _value: 0,
+    _skew: 0,
+  },
+  exposure: 0,
+}
+
 export const DEFAULT_LOCAL: Local = {
   currentId: 0,
   latestId: 0,
@@ -208,19 +314,106 @@ export const DEFAULT_ORDER: Order = {
   takerReferral: 0,
 }
 
+export const DEFAULT_GUARANTEE: Guarantee = {
+  orders: 0,
+  takerPos: 0,
+  takerNeg: 0,
+  notional: 0,
+  takerFee: 0,
+  referral: 0,
+}
+
 export const DEFAULT_VERSION: Version = {
   valid: true,
+  price: 0,
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
-  makerLinearFee: { _value: 0 },
-  makerProportionalFee: { _value: 0 },
-  takerLinearFee: { _value: 0 },
-  takerProportionalFee: { _value: 0 },
-  makerPosFee: { _value: 0 },
-  makerNegFee: { _value: 0 },
-  takerPosFee: { _value: 0 },
-  takerNegFee: { _value: 0 },
+  makerFee: { _value: 0 },
+  takerFee: { _value: 0 },
+  makerOffset: { _value: 0 },
+  takerPosOffset: { _value: 0 },
+  takerNegOffset: { _value: 0 },
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
+}
+
+export const DEFAULT_ORACLE_RECEIPT: OracleReceipt = {
+  settlementFee: 0,
+  oracleFee: 0,
+}
+
+export const DEFAULT_ORACLE_VERSION: OracleVersion = {
+  valid: true, // a valid version is the default
+  price: 0,
+  timestamp: 0,
+}
+
+export const DEFAULT_MARKET_PARAMETER: MarketParameter = {
+  fundingFee: 0,
+  interestFee: 0,
+  makerFee: 0,
+  takerFee: 0,
+  riskFee: 0,
+  maxPendingGlobal: 0,
+  maxPendingLocal: 0,
+  maxPriceDeviation: 0,
+  closed: false,
+  settle: false,
+}
+
+export const DEFAULT_ADIABATIC_FEE: AdiabaticFee = {
+  linearFee: 0,
+  proportionalFee: 0,
+  adiabaticFee: 0,
+  scale: 0,
+}
+
+export const DEFAULT_UTILIZATION_CURVE: UtilizationCurve = {
+  minRate: 0,
+  maxRate: 0,
+  targetRate: 0,
+  targetUtilization: 0,
+}
+
+export const DEFAULT_PCONTROLLER: PController = {
+  k: 0,
+  min: 0,
+  max: 0,
+}
+
+export const DEFAULT_RISK_PARAMETER: RiskParameter = {
+  margin: 0,
+  maintenance: 0,
+  takerFee: DEFAULT_ADIABATIC_FEE,
+  makerFee: DEFAULT_ADIABATIC_FEE,
+  makerLimit: 0,
+  efficiencyLimit: 0,
+  liquidationFee: 0,
+  utilizationCurve: DEFAULT_UTILIZATION_CURVE,
+  pController: DEFAULT_PCONTROLLER,
+  minMargin: 0,
+  minMaintenance: 0,
+  staleAfter: 0,
+  makerReceiveOnly: false,
+}
+
+export const DEFAULT_CONTEXT: Context = {
+  account: constants.AddressZero,
+  marketParameter: DEFAULT_MARKET_PARAMETER,
+  riskParameter: DEFAULT_RISK_PARAMETER,
+  latestOracleVersion: DEFAULT_ORACLE_VERSION,
+  currentTimestamp: 0,
+  global: DEFAULT_GLOBAL,
+  local: DEFAULT_LOCAL,
+  latestPositionGlobal: DEFAULT_POSITION,
+  latestPositionLocal: DEFAULT_POSITION,
+  pendingGlobal: DEFAULT_ORDER,
+  pendingLocal: DEFAULT_ORDER,
+}
+
+export const DEFAULT_SETTLEMENT_CONTEXT: SettlementContext = {
+  latestVersion: DEFAULT_VERSION,
+  latestCheckpoint: DEFAULT_CHECKPOINT,
+  orderOracleVersion: DEFAULT_ORACLE_VERSION,
 }

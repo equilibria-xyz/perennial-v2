@@ -57,7 +57,7 @@ export default task('check-solvency', 'Check the solvency of all markets')
       console.log(`${marketAddress}: Found ${users.length} users. Checking for shortfalls...`)
 
       const market = args.prevabi
-        ? ((await ethers.getContractAt((await getArtifact('MarketV2_1_1')).abi, marketAddress)) as IMarket)
+        ? ((await ethers.getContractAt((await getArtifact('MarketV2_2')).abi, marketAddress)) as IMarket)
         : await ethers.getContractAt('IMarket', marketAddress)
       const result = await readLocalsForUsers(multicall, market, users, args.batchsize, block)
 
@@ -96,7 +96,6 @@ export default task('check-solvency', 'Check the solvency of all markets')
         const globalFees = global.protocolFee
           .add(global.oracleFee)
           .add(global.riskFee)
-          .add(global.donation)
           .add(global.exposure)
           .add(totalClaimable)
           .toBigInt()

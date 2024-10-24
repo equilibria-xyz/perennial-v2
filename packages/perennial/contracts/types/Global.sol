@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/pid/types/PAccumulator6.sol";
-import "./ProtocolParameter.sol";
-import "./MarketParameter.sol";
-import "../libs/VersionLib.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { PAccumulator6 } from "@equilibria/root/pid/types/PAccumulator6.sol";
+import { MarketParameter } from "./MarketParameter.sol";
+import { RiskParameter } from "./RiskParameter.sol";
+import { Position } from "./Position.sol";
+import { OracleVersion } from "./OracleVersion.sol";
+import { OracleReceipt } from "./OracleReceipt.sol";
+import { VersionAccumulationResponse } from "../libs/VersionLib.sol";
 
 /// @dev Global type
 struct Global {
@@ -23,10 +28,7 @@ struct Global {
     /// @dev The accrued risk fee
     UFixed6 riskFee;
 
-    /// @dev The accrued donation
-    UFixed6 donation;
-
-    /// @dev The latest seen price
+    /// @dev The latest valid price in the market
     Fixed6 latestPrice;
 
     /// @dev The accumulated market exposure
@@ -40,42 +42,68 @@ struct GlobalStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain 
 using GlobalStorageLib for GlobalStorage global;
 
 /// @title Global
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the global market state
 library GlobalLib {
+    /// @notice Updates market exposure based on a change in the risk parameter configuration
+    /// @param self The Global object to update
+    /// @param latestRiskParameter The latest risk parameter configuration
+    /// @param newRiskParameter The new risk parameter configuration
+    /// @param latestPosition The latest position
+    function update(
+        Global memory self,
+        RiskParameter memory latestRiskParameter,
+        RiskParameter memory newRiskParameter,
+        Position memory latestPosition
+    ) internal pure {
+        Fixed6 exposureChange = latestRiskParameter.takerFee
+            .exposure(newRiskParameter.takerFee, latestPosition.skew(), self.latestPrice.abs());
+        self.exposure = self.exposure.sub(exposureChange);
+    }
+
     /// @notice Increments the fees by `amount` using current parameters
+    /// @dev Computes the fees based on the current market parameters
+    ///      market fee -> trade fee + market's trade offset + funding fee + interest fee
+    ///        1. oracle fee taken out as a percentage of what's left of market fee
+    ///        2. risk fee taken out as a percentage of what's left of market fee
+    ///        3. protocol fee is what's left of market fee
     /// @param self The Global object to update
     /// @param newLatestId The new latest position id
     /// @param accumulation The accumulation result
     /// @param marketParameter The current market parameters
-    /// @param protocolParameter The current protocol parameters
+    /// @param oracleReceipt The receipt of the corresponding oracle version
     function update(
         Global memory self,
         uint256 newLatestId,
-        VersionAccumulationResult memory accumulation,
+        VersionAccumulationResponse memory accumulation,
         MarketParameter memory marketParameter,
-        ProtocolParameter memory protocolParameter
+        OracleReceipt memory oracleReceipt
     ) internal pure {
-        UFixed6 marketFee = accumulation.positionFeeProtocol
-            .add(accumulation.fundingFee)
-            .add(accumulation.interestFee);
+        UFixed6 marketFee = accumulation.marketFee;
 
-        UFixed6 protocolFeeAmount = marketFee.mul(protocolParameter.protocolFee);
-        UFixed6 marketFeeAmount = marketFee.sub(protocolFeeAmount);
+        UFixed6 oracleFee = marketFee.mul(oracleReceipt.oracleFee);
+        marketFee = marketFee.sub(oracleFee);
 
-        UFixed6 oracleFeeAmount = marketFeeAmount.mul(marketParameter.oracleFee);
-        UFixed6 riskFeeAmount = marketFeeAmount.mul(marketParameter.riskFee);
-        UFixed6 donationAmount = marketFeeAmount.sub(oracleFeeAmount).sub(riskFeeAmount);
+        UFixed6 riskFee = marketFee.mul(marketParameter.riskFee);
+        marketFee = marketFee.sub(riskFee);
 
         self.latestId = newLatestId;
-        self.protocolFee = self.protocolFee.add(protocolFeeAmount);
-        self.oracleFee = self.oracleFee.add(accumulation.settlementFee).add(oracleFeeAmount);
-        self.riskFee = self.riskFee.add(riskFeeAmount);
-        self.donation = self.donation.add(donationAmount);
-        self.exposure = self.exposure.add(accumulation.positionFeeExposureProtocol);
+        self.protocolFee = self.protocolFee.add(marketFee);
+        self.oracleFee = self.oracleFee.add(accumulation.settlementFee).add(oracleFee);
+        self.riskFee = self.riskFee.add(riskFee);
+        self.exposure = self.exposure.add(accumulation.marketExposure);
+    }
+
+    /// @notice Overrides the price of the oracle with the latest global version if it is empty
+    /// @param self The Global object to read from
+    /// @param oracleVersion The oracle version to update
+    function overrideIfZero(Global memory self, OracleVersion memory oracleVersion) internal pure {
+        if (oracleVersion.price.isZero()) oracleVersion.price = self.latestPrice;
     }
 }
 
 /// @dev Manually encodes and decodes the Global struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredGlobal {
 ///         /* slot 0 */
@@ -84,7 +112,6 @@ library GlobalLib {
 ///         uint48 protocolFee;         // <= 281m
 ///         uint48 oracleFee;           // <= 281m
 ///         uint48 riskFee;             // <= 281m
-///         uint48 donation;            // <= 281m
 ///
 ///         /* slot 1 */
 ///         int32 pAccumulator.value;   // <= 214000%
@@ -105,7 +132,6 @@ library GlobalStorageLib {
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48 - 48)) >> (256 - 48)),
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48 - 48 - 48)) >> (256 - 48)),
             Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64)) >> (256 - 64)),
             Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64 - 64)) >> (256 - 64)),
             PAccumulator6(
@@ -121,7 +147,6 @@ library GlobalStorageLib {
         if (newValue.protocolFee.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();
         if (newValue.oracleFee.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();
         if (newValue.riskFee.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();
-        if (newValue.donation.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();
         if (newValue.latestPrice.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
         if (newValue.latestPrice.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
         if (newValue.exposure.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
@@ -136,8 +161,7 @@ library GlobalStorageLib {
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
             uint256(UFixed6.unwrap(newValue.protocolFee) << (256 - 48)) >> (256 - 32 - 32 - 48) |
             uint256(UFixed6.unwrap(newValue.oracleFee) << (256 - 48)) >> (256 - 32 - 32 - 48 - 48) |
-            uint256(UFixed6.unwrap(newValue.riskFee) << (256 - 48)) >> (256 - 32 - 32 - 48 - 48 - 48) |
-            uint256(UFixed6.unwrap(newValue.donation) << (256 - 48)) >> (256 - 32 - 32 - 48 - 48 - 48 - 48);
+            uint256(UFixed6.unwrap(newValue.riskFee) << (256 - 48)) >> (256 - 32 - 32 - 48 - 48 - 48);
 
         uint256 encoded1 =
             uint256(Fixed6.unwrap(newValue.pAccumulator._value) << (256 - 32)) >> (256 - 32) |

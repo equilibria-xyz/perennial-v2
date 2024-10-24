@@ -11,3 +11,9 @@ export * from './verifyIDs'
 export * from './verifyVaultIDs'
 
 export * from './multisig_ops/buildCreateMarket'
+
+export * from './v2.3_migration/01_upgradeImpls'
+export * from './v2.3_migration/02_setupOracles'
+export * from './v2.3_migration/03_associateMarketToOracle'
+export * from './v2.3_migration/04_updateVaultParameters'
+export * from './v2.3_migration/verifyMarketLatest'

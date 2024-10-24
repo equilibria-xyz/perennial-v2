@@ -1,6 +1,6 @@
 {
-  "name": "@equilibria/perennial-v2-deploy",
-  "version": "1.2.1",
+  "name": "@perennial/deploy",
+  "version": "1.3.0",
   "description": "Perennial V2 Deployment Tooling",
   "files": [
     "deployments/!(localhost)"
@@ -13,7 +13,7 @@
     "deploy": "OPTIMIZER_ENABLED=true hardhat deploy",
     "deploy:fork": "FORK_ENABLED=true FORK_BLOCK_NUMBER=17433260 OPTIMIZER_ENABLED=true hardhat deploy --network hardhat",
     "verify": "hardhat etherscan-verify --sleep --solc-input",
-    "test:verification:arbitrum": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=216721906 hardhat test test/verification/arbitrum/**/*",
+    "test:verification:arbitrum": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=267036153 hardhat test test/verification/arbitrum/**/*",
     "test:verification:arbitrumSepolia": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=arbitrumSepolia FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=40238474 hardhat test test/verification/arbitrum/**/*",
     "test:verification:base": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=base FORK_USE_REAL_DEPLOYS=true hardhat test test/verification/base/**/*",
     "lint": "eslint --fix --ext '.ts,.js' ./",
@@ -33,8 +33,9 @@
   "license": "APACHE-2.0",
   "dependencies": {
     "@defi-wonderland/smock": "^2.3.5",
-    "@equilibria/perennial-v2": "1.2.1",
-    "@perennial/sdk": "^0.0.2-beta25",
+    "@perennial/core": "1.3.0",
+    "@perennial/sdk": "0.0.3-beta.0",
+    "@perennial/sdk-0.0.2": "npm:@perennial/sdk@0.0.2-beta27",
     "@pythnetwork/pyth-evm-js": "^1.29.0",
     "@types/isomorphic-fetch": "^0.0.37",
     "graphql": "^16.8.1",

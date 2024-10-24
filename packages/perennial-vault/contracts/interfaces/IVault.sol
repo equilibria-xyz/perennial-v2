@@ -1,7 +1,8 @@
 //SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IMarket, Checkpoint as PerennialCheckpoint } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
@@ -13,9 +14,6 @@ import { Registration } from "../types/Registration.sol";
 
 interface IVault is IInstance {
     struct Context {
-        // parameters
-        UFixed6 settlementFee;
-
         // markets
         uint256 currentId;
         uint256 currentTimestamp;
@@ -82,7 +80,7 @@ interface IVault is IInstance {
     // sig: 0xfd9cbca5
     error StrategyLibInsufficientAssetsError();
 
-    function initialize(Token18 asset, IMarket initialMaker, UFixed6 cap, string calldata name_) external;
+    function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, string calldata name_) external;
     function name() external view returns (string memory);
     function settle(address account) external;
     function rebalance(address account) external;

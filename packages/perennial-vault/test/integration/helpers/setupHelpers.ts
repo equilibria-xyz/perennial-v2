@@ -1,11 +1,15 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { constants } from 'ethers'
+import { constants, BigNumberish } from 'ethers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { IERC20Metadata, IMarket, IMarket__factory, IMarketFactory } from '../../../types/generated'
-import { MarketParameterStruct, RiskParameterStruct } from '@equilibria/perennial-v2/types/generated/contracts/Market'
+import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
 
 export interface DeployProductParams
-  extends Partial<Omit<RiskParameterStruct & MarketParameterStruct, 'payoffDefinition'>> {
+  extends Partial<
+    Omit<RiskParameterStruct & Omit<MarketParameterStruct, 'makerFee' | 'takerFee'>, 'payoffDefinition'>
+  > {
+  marketMakerFee?: BigNumberish
+  marketTakerFee?: BigNumberish
   factory: IMarketFactory
   token: IERC20Metadata
   oracle: string
@@ -25,10 +29,11 @@ export async function deployProductOnMainnetFork({
   maintenance,
   fundingFee,
   interestFee,
+  makerLimit,
   makerFee,
   takerFee,
-  positionFee,
-  makerLimit,
+  marketMakerFee,
+  marketTakerFee,
   efficiencyLimit,
   utilizationCurve,
   minMargin,
@@ -48,7 +53,6 @@ export async function deployProductOnMainnetFork({
     makerFee: makerFee ?? {
       linearFee: parse6decimal('0.0'),
       proportionalFee: parse6decimal('0.0'),
-      adiabaticFee: parse6decimal('0.0'),
       scale: parse6decimal('0.0'),
     },
     makerLimit: makerLimit ?? parse6decimal('100'),
@@ -73,14 +77,14 @@ export async function deployProductOnMainnetFork({
   const marketParameter = {
     fundingFee: fundingFee ?? parse6decimal('0.00'),
     interestFee: interestFee ?? parse6decimal('0.00'),
-    positionFee: positionFee ?? parse6decimal('0.0'),
+    makerFee: marketMakerFee ?? parse6decimal('0.0'),
+    takerFee: marketTakerFee ?? parse6decimal('0.0'),
     riskFee: 0,
     oracleFee: 0,
     settlementFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
   }
@@ -90,15 +94,15 @@ export async function deployProductOnMainnetFork({
   }
 
   const protocolParameter = { ...(await factory.parameter()) }
-  protocolParameter.maxFeeAbsolute = parse6decimal('25000')
+  protocolParameter.maxLiquidationFee = parse6decimal('25')
   await factory.connect(owner).updateParameter(protocolParameter)
 
   const productAddress = await factory.connect(owner).callStatic.create(marketDefinition)
   await factory.connect(owner).create(marketDefinition)
 
   const market = IMarket__factory.connect(productAddress, owner)
-  await market.connect(owner).updateRiskParameter(riskParameter, false)
-  await market.connect(owner).updateParameter(constants.AddressZero, constants.AddressZero, marketParameter)
+  await market.connect(owner).updateRiskParameter(riskParameter)
+  await market.connect(owner).updateParameter(marketParameter)
 
   return market
 }

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/Global.sol";
+import { Global, GlobalStorage } from "../types/Global.sol";
+import { VersionAccumulationResponse } from "../libs/VersionLib.sol";
+import { MarketParameter } from "../types/MarketParameter.sol";
+import { OracleReceipt } from "../types/OracleReceipt.sol";
 
 contract GlobalTester {
     GlobalStorage public global;
@@ -16,12 +19,12 @@ contract GlobalTester {
 
     function update(
         uint256 newLatestId,
-        VersionAccumulationResult memory accumulation,
+        VersionAccumulationResponse memory accumulation,
         MarketParameter memory marketParameter,
-        ProtocolParameter memory protocolParameter
+        OracleReceipt memory oracleReceipt
     ) external {
         Global memory newGlobal = global.read();
-        newGlobal.update(newLatestId, accumulation, marketParameter, protocolParameter);
+        newGlobal.update(newLatestId, accumulation, marketParameter, oracleReceipt);
         global.store(newGlobal);
     }
 }

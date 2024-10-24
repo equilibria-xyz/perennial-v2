@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/UFixed6.sol";
-import "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
-import "@equilibria/perennial-v2/contracts/types/Position.sol";
-import "./InterfaceFee.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { Position } from "@perennial/core/contracts/types/Position.sol";
+import { InterfaceFee } from "./InterfaceFee.sol";
 
 struct TriggerOrder {
     uint8 side;
@@ -28,27 +29,24 @@ struct StoredTriggerOrder {
     /* slot 1 */
     address interfaceFeeReceiver1;
     uint48 interfaceFeeAmount1;      // <= 281m
-    bool interfaceFeeUnwrap1;
-    bytes5 __unallocated1__;
+    bytes6 __unallocated1__;         // Contains dirty data until updated post v2.3 migration.
 
     /* slot 2 */
     address interfaceFeeReceiver2;
     uint48 interfaceFeeAmount2;      // <= 281m
-    bool interfaceFeeUnwrap2;
-    bytes5 __unallocated2__;
+    bytes6 __unallocated2__;         // Contains dirty data until updated post v2.3 migration.
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
 
-/**
- * @title TriggerOrderLib
- * @notice Library for TriggerOrder logic and data.
- */
+/// @title TriggerOrderLib
+/// @dev (external-unsafe): this library must be used internally only
+/// @notice Library for TriggerOrder logic and data.
 library TriggerOrderLib {
-    // @notice Returns whether the trigger order is fillable at the latest price
-    // @param self The trigger order
-    // @param latestVersion The latest oracle version
-    // @return Whether the trigger order is fillable
+    /// @notice Returns whether the trigger order is fillable at the latest price
+    /// @param self The trigger order
+    /// @param latestVersion The latest oracle version
+    /// @return Whether the trigger order is fillable
     function fillable(TriggerOrder memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
         if (!latestVersion.valid) return false;
         if (self.comparison == 1) return latestVersion.price.gte(self.price);
@@ -56,10 +54,10 @@ library TriggerOrderLib {
         return false;
     }
 
-    // @notice Executes the trigger order on the given position
-    // @param self The trigger order
-    // @param currentPosition The current position
-    // @return The collateral delta, if any
+    /// @notice Executes the trigger order on the given position
+    /// @param self The trigger order
+    /// @param currentPosition The current position
+    /// @return collateral The collateral delta, if any
     function execute(
         TriggerOrder memory self,
         Position memory currentPosition
@@ -83,6 +81,7 @@ library TriggerOrderLib {
     }
 }
 
+/// @dev (external-safe): this library is safe to externalize
 library TriggerOrderStorageLib {
     // sig: 0xf3469aa7
     error TriggerOrderStorageInvalidError();
@@ -97,13 +96,11 @@ library TriggerOrderStorageLib {
             Fixed6.wrap(int256(storedValue.delta)),
             InterfaceFee(
                 UFixed6.wrap(uint256(storedValue.interfaceFeeAmount1)),
-                storedValue.interfaceFeeReceiver1,
-                storedValue.interfaceFeeUnwrap1
+                storedValue.interfaceFeeReceiver1
             ),
             InterfaceFee(
                 UFixed6.wrap(uint256(storedValue.interfaceFeeAmount2)),
-                storedValue.interfaceFeeReceiver2,
-                storedValue.interfaceFeeUnwrap2
+                storedValue.interfaceFeeReceiver2
             )
         );
     }
@@ -129,12 +126,10 @@ library TriggerOrderStorageLib {
             bytes6(0),
             newValue.interfaceFee1.receiver,
             uint48(UFixed6.unwrap(newValue.interfaceFee1.amount)),
-            newValue.interfaceFee1.unwrap,
-            bytes5(0),
+            bytes6(0),
             newValue.interfaceFee2.receiver,
             uint48(UFixed6.unwrap(newValue.interfaceFee2.amount)),
-            newValue.interfaceFee2.unwrap,
-            bytes5(0)
+            bytes6(0)
         );
     }
 }
