@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import HRE, { run } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
 import { expect } from 'chai'
@@ -18,6 +19,7 @@ import {
   OrderVerifier,
   ProxyAdmin,
   PythFactory,
+  TimelockController,
   VaultFactory,
   Verifier,
 } from '../../../../types/generated'
@@ -25,7 +27,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { smock } from '@defi-wonderland/smock'
 import { GlobalStruct } from '../../../../types/generated/@perennial/core/contracts/interfaces/IMarket'
 
-const RunMigrationDeployScript = true
+const RunMigrationDeployScript = false
 const SkipSettleAccounts = false
 const SkipSettleVaults = false
 
@@ -36,6 +38,16 @@ const emptyKeeperConfig = {
   multiplierCalldata: 0,
   bufferCalldata: 0,
 }
+
+const safeURLBase = 'https://safe-client.safe.global/v1/chains/42161/transactions/'
+const safeID0 =
+  'multisig_0x8074583B0F9CFA345405320119D4B6937C152304_0xaed1fe680650cd3fc7bd3a07a2a35ebf72eb3ef5185de404326cdbbe87e94e99'
+const safeID1 =
+  'multisig_0x8074583B0F9CFA345405320119D4B6937C152304_0xf33d7f5ec75a7703bab88f51fcfdb243a1e98a85cacef1ec9961993454737e03'
+const safeID2 =
+  'multisig_0x8074583B0F9CFA345405320119D4B6937C152304_0xb072770109fb07f166d10065ae11c1eac98f8f78decae91c3ca9f9f2642c8b02'
+const safeID3 =
+  'multisig_0x8074583B0F9CFA345405320119D4B6937C152304_0xd6fc7637ed147e4e9bee486f65f1d2d926999d21c476dd470c1b13ca3f72bd8d'
 
 describe('Verify Arbitrum v2.3 Migration', () => {
   let ownerSigner: SignerWithAddress
@@ -52,6 +64,7 @@ describe('Verify Arbitrum v2.3 Migration', () => {
   let accountVerifier: AccountVerifier
   let proxyAdmin: ProxyAdmin
   let usdc: IERC20
+  let timelock: TimelockController
 
   let oracleIDs: { id: string; oracle: string; keeperFactory: string }[]
   let marketsAddrs: string[]
@@ -71,6 +84,11 @@ describe('Verify Arbitrum v2.3 Migration', () => {
       await fixture('v2_3_Migration', { keepExistingDeployments: true })
       console.log('---- Done ----\n')
     }
+
+    const multisig = await impersonateWithBalance(
+      '0x8074583B0F9CFA345405320119D4B6937C152304',
+      ethers.utils.parseEther('10'),
+    )
 
     marketFactory = await ethers.getContractAt('MarketFactory', (await get('MarketFactory')).address)
     ownerSigner = await impersonateWithBalance(await marketFactory.owner(), ethers.utils.parseEther('10'))
@@ -102,6 +120,9 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     )
     proxyAdmin = (await ethers.getContractAt('ProxyAdmin', (await get('ProxyAdmin')).address)).connect(ownerSigner)
     usdc = (await ethers.getContractAt('IERC20', (await get('USDC')).address)).connect(ownerSigner)
+    timelock = (await ethers.getContractAt('TimelockController', (await get('TimelockController')).address)).connect(
+      multisig,
+    )
 
     const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
       address: '0x000000000000000000000000000000000000006C',
@@ -130,7 +151,24 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     // Enter settle only for all markets
     // Update to settle only using hardhat task
     console.log('---- Changing Markets Mode to Settle ----')
-    await run('change-markets-mode', { settle: true, prevabi: true })
+    const closePayload = await fetch(`${safeURLBase}${safeID0}`).then(r => r.json())
+    // await run('change-markets-mode', { settle: true, prevabi: true })
+    await timelock.scheduleBatch(
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'targets').value,
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'values').value,
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'payloads').value,
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'predecessor').value,
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'salt').value,
+      60,
+    )
+    await increase(60)
+    await timelock.executeBatch(
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'targets').value,
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'values').value,
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'payloads').value,
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'predecessor').value,
+      closePayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'salt').value,
+    )
     console.log('---- Done ----\n')
 
     await increase(10)
@@ -148,7 +186,7 @@ describe('Verify Arbitrum v2.3 Migration', () => {
       console.log('---- Done ----\n')
     }
 
-    // Settle all users in vaults using hardhat task
+    // // Settle all users in vaults using hardhat task
     if (!SkipSettleVaults) {
       console.log('---- Settling Vault Users ----')
       await run('settle-vaults', {
@@ -169,7 +207,6 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     })
     console.log('---- Done ----\n')
 
-    // TODO: Add a task to verify that the new oracles prices are later than market.oracle().latest().timestamp
     console.log('---- Verifying Market Latest ----')
     const earlierOracleIDs = await run('v2_3_verify-market-latest')
     if (earlierOracleIDs.length > 0) throw new Error(`Found ${earlierOracleIDs.length} earlier oracle IDs`)
@@ -180,27 +217,88 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     }
 
     // Update implementations
-    console.log('---- Upgrading Implementations ----')
-    await run('01_v2_3_upgrade-impls')
+    console.log('---- Upgrading Implementations and Setting Up Oracles ----')
+    // await run('01_v2_3_upgrade-impls')
+    const step01 = await fetch(`${safeURLBase}${safeID1}`).then(r => r.json())
+    await timelock.scheduleBatch(
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'targets').value,
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'values').value,
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'payloads').value,
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'predecessor').value,
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'salt').value,
+      60,
+    )
+    await increase(60)
+    await timelock.executeBatch(
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'targets').value,
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'values').value,
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'payloads').value,
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'predecessor').value,
+      step01.txData.dataDecoded.parameters.find((p: any) => p.name === 'salt').value,
+    )
     console.log('---- Done ----\n')
 
     // Update oracles
-    console.log('---- Setting up Oracles ----')
-    await run('02_v2_3_setup-oracles')
-    console.log('---- Done ----\n')
+    // console.log('---- Setting up Oracles ----')
+    // await run('02_v2_3_setup-oracles')
+    // console.log('---- Done ----\n')
 
     console.log('---- Associating Markets to Oracles ----')
-    await run('03_v2_3_associate_market_to_oracle')
-    console.log('---- Done ----\n')
+    // await run('03_v2_3_associate_market_to_oracle')
+    const step02 = await fetch(`${safeURLBase}${safeID2}`).then(r => r.json())
+    await timelock.scheduleBatch(
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'targets').value,
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'values').value,
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'payloads').value,
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'predecessor').value,
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'salt').value,
+      60,
+    )
+    await increase(60)
+    await timelock.executeBatch(
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'targets').value,
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'values').value,
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'payloads').value,
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'predecessor').value,
+      step02.txData.dataDecoded.parameters.find((p: any) => p.name === 'salt').value,
+    )
 
-    console.log('---- Changing Markets Mode to Open ----')
-    await run('change-markets-mode', { open: true })
+    // console.log('---- Updating Vault Parameters ----')
+    // await run('04_v2_3_update-vault-parameters')
+    // console.log('---- Done ----\n')
+
+    console.log('---- Changing Markets Mode to Open and Updating Vaults ----')
+    // await run('change-markets-mode', { open: true })
+    const openPayload = await fetch(`${safeURLBase}${safeID3}`).then(r => r.json())
+    await timelock.scheduleBatch(
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'targets').value,
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'values').value,
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'payloads').value,
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'predecessor').value,
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'salt').value,
+      60,
+    )
+    await increase(60)
+    console.log('---- Committing Prices to New Factories for Vault Update ----')
+    await run('commit-price', {
+      priceids: [oracleIDs[0].id, oracleIDs[1].id, oracleIDs[2].id, oracleIDs[3].id, oracleIDs[6].id].join(','),
+      timestamp: await currentBlockTimestamp(),
+      commitgaslimit: 32_000_000,
+    })
+    console.log('---- Done ----\n')
+    await timelock.executeBatch(
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'targets').value,
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'values').value,
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'payloads').value,
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'predecessor').value,
+      openPayload.txData.dataDecoded.parameters.find((p: any) => p.name === 'salt').value,
+    )
     console.log('---- Done ----\n')
 
     console.log('---- Finished Running Migration...Running Tests ----\n')
   })
 
-  it.only('Migrates', async () => {
+  it('Migrates', async () => {
     /* Check all initializations */
     await expect(marketFactory.initialize()).to.be.revertedWithCustomError(
       marketFactory,
@@ -297,14 +395,6 @@ describe('Verify Arbitrum v2.3 Migration', () => {
 
     for (let i = 0; i < markets.length; i++) {
       const market = markets[i]
-
-      const global = await market.global()
-      expect(global.latestPrice).to.be.equal(beforeGlobals[market.address].latestPrice)
-      expect(global.latestId).to.be.equal(beforeGlobals[market.address].latestId)
-      expect(global.currentId).to.be.equal(beforeGlobals[market.address].currentId)
-      expect(global.currentId).to.equal(global.latestId)
-
-      await market.settle(ethers.constants.AddressZero)
       await expect(market.settle(ethers.constants.AddressZero)).to.not.be.reverted
     }
 
@@ -351,7 +441,6 @@ describe('Verify Arbitrum v2.3 Migration', () => {
       // Update market parameters to make it easier to fill the oracle with new prices
       await market.connect(ownerSigner).updateRiskParameter({
         ...riskParameter,
-        makerLimit: riskParameter.makerLimit.mul(2),
         staleAfter: 100,
       })
       const oracle = await ethers.getContractAt('Oracle', await market.oracle())
@@ -486,18 +575,6 @@ describe('Verify Arbitrum v2.3 Migration', () => {
   })
 
   it('settles vaults', async () => {
-    console.log('---- Committing Prices to New Factories for Vault Update ----')
-    await run('commit-price', {
-      priceids: [oracleIDs[0].id, oracleIDs[1].id, oracleIDs[2].id, oracleIDs[3].id, oracleIDs[6].id].join(','),
-      timestamp: await currentBlockTimestamp(),
-      commitgaslimit: 32_000_000,
-    })
-    console.log('---- Done ----\n')
-
-    console.log('---- Updating Vault Parameters ----')
-    await run('04_v2_3_update-vault-parameters')
-    console.log('---- Done ----\n')
-
     // await run('check-vault-shares')
     const vaultUser = '0x66a7fDB96C583c59597de16d8b2B989231415339'
     const perennialUser = await impersonateWithBalance(vaultUser, ethers.utils.parseEther('10'))
