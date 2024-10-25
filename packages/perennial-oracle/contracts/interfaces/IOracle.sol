@@ -52,4 +52,5 @@ interface IOracle is IOracleProvider, IInstance {
     function market() external view returns (IMarket);
     function withdraw(Token18 token) external;
     function beneficiary() external view returns (address);
+    function global() external view returns (OracleGlobal memory);
 }
