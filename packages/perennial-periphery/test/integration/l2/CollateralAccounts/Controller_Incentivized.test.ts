@@ -5,10 +5,10 @@ import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { advanceBlock, currentBlockTimestamp } from '../../../../common/testutil/time'
-import { getEventArguments } from '../../../../common/testutil/transaction'
+import { advanceBlock, currentBlockTimestamp } from '../../../../../common/testutil/time'
+import { getEventArguments } from '../../../../../common/testutil/transaction'
 
-import { parse6decimal } from '../../../../common/testutil/types'
+import { parse6decimal } from '../../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -18,7 +18,7 @@ import {
   IERC20Metadata,
   IMarket,
   IMarketFactory,
-} from '../../../types/generated'
+} from '../../../../types/generated'
 
 import {
   signDeployAccount,
@@ -30,8 +30,8 @@ import {
   signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
   signWithdrawal,
-} from '../../helpers/erc712'
-import { advanceToPrice, DeploymentVars } from '../../helpers/setupHelpers'
+} from './eip712'
+import { advanceToPrice, DeploymentVars } from '../../../helpers/setupHelpers'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,

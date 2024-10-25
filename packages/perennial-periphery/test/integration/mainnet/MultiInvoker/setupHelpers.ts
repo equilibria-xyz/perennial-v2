@@ -2,7 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { BigNumber, utils, ContractTransaction, constants } from 'ethers'
 import HRE from 'hardhat'
 
-import { impersonate } from '../../../../common/testutil'
+import { impersonate } from '../../../../../common/testutil'
 
 import {
   IERC20Metadata,
@@ -39,13 +39,16 @@ import {
   MarketFactory,
   MarketFactory__factory,
   MagicValueLib__factory,
-} from '../../../types/generated'
-import { CheckpointStorageLib__factory } from '../../../types/generated/factories/@perennial/core/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
-import { CheckpointLib__factory } from '../../../types/generated/factories/@perennial/core/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
+} from '../../../../types/generated'
+import { CheckpointStorageLib__factory } from '../../../../types/generated/factories/@perennial/core/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
+import { CheckpointLib__factory } from '../../../../types/generated/factories/@perennial/core/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
 import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chainlinkHelpers'
-import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
-import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/@perennial/core/contracts/Market'
+import {
+  MarketParameterStruct,
+  RiskParameterStruct,
+} from '../../../../types/generated/@perennial/core/contracts/Market'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { deployProductOnMainnetFork } from '@perennial/vault/test/integration/helpers/setupHelpers'
 import {

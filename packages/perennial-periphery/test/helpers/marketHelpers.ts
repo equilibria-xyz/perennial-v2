@@ -22,8 +22,6 @@ import { IERC20Metadata } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
 
-// TODO: consider sharing this across extensions, possibly by moving to packages/common
-// Using a provided factory, create a new market and set some reasonable initial parameters
 export async function createMarket(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,

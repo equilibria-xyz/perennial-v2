@@ -1,14 +1,13 @@
 import { BigNumber, utils, constants, PayableOverrides } from 'ethers'
-import { InstanceVars, deployProtocol, createMarket, createInvoker, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, createInvoker, settle } from './setupHelpers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 import 'hardhat'
 
 import { expect } from 'chai'
-import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
-import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
-import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
+import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../../common/testutil/types'
+import { IMultiInvoker, Market, MultiInvoker } from '../../../../types/generated'
+import { Compare, Dir, openTriggerOrder } from './types'
 import {
   MAX_INT64,
   MAX_UINT48,
@@ -17,9 +16,9 @@ import {
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,
-} from '../../helpers/invoke'
+} from './invoke'
 
-import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker'
+import { TriggerOrderStruct } from '../../../../types/generated/contracts/MultiInvoker/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 

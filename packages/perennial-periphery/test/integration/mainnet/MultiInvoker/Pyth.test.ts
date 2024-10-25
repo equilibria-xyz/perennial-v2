@@ -2,9 +2,9 @@ import { expect } from 'chai'
 import { BigNumber, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { time } from '../../../../common/testutil'
-import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { time } from '../../../../../common/testutil'
+import { impersonateWithBalance } from '../../../../../common/testutil/impersonate'
+import { parse6decimal } from '../../../../../common/testutil/types'
 import HRE from 'hardhat'
 
 import {
@@ -19,8 +19,8 @@ import {
   PythFactory,
   PythFactory__factory,
   GasOracle__factory,
-} from '../../../types/generated'
-import { InstanceVars, createInvoker, createMarket, deployProtocol } from '../helpers/setupHelpers'
+} from '../../../../types/generated'
+import { InstanceVars, createInvoker, createMarket, deployProtocol } from './setupHelpers'
 
 const { ethers } = HRE
 

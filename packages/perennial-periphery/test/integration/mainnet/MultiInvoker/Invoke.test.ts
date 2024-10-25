@@ -9,7 +9,7 @@ import {
   IOracleProvider,
   IEmptySetReserve,
   IMultiInvoker,
-} from '../../../types/generated'
+} from '../../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
   BATCHER,
@@ -26,7 +26,7 @@ import {
   ETH_ORACLE,
   resetEthSubOracle,
   resetBtcSubOracle,
-} from '../helpers/setupHelpers'
+} from './setupHelpers'
 
 import {
   buildApproveTarget,
@@ -35,15 +35,15 @@ import {
   buildUpdateIntent,
   buildUpdateMarket,
   buildUpdateVault,
-} from '../../helpers/invoke'
+} from './invoke'
 
-import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
+import { Compare, Dir, openTriggerOrder } from './types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata } from '@perennial/core/types/generated'
 

@@ -17,7 +17,6 @@ import {
 } from '@perennial/oracle/types/generated'
 import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
 
-// TODO: consider sharing this across extensions, possibly by moving to packages/common
 // Simulates an oracle update from KeeperOracle.
 // If timestamp matches a requested version, callbacks implicitly settle the market.
 export async function advanceToPrice(

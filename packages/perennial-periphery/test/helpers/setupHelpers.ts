@@ -64,6 +64,7 @@ import { OracleVersionStruct } from '@perennial/core/types/generated/contracts/i
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
 
+// TODO: move out of this module
 export interface DeploymentVars {
   dsu: IERC20Metadata
   usdc: IERC20Metadata
@@ -78,6 +79,7 @@ export interface DeploymentVars {
   fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
 }
 
+// TODO: move out of this module
 export interface FixtureVars {
   dsu: IERC20Metadata
   usdc: IERC20Metadata
@@ -153,6 +155,7 @@ export async function createFactories(
   return [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed]
 }
 
+// TODO: remove this in favor of the implementation in marketHelpers module
 // Using a provided factory, create a new market and set some reasonable initial parameters
 export async function createMarket(
   owner: SignerWithAddress,

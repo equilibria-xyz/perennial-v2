@@ -33,10 +33,10 @@ import {
   MAX_UINT48,
   MAX_INT64,
   MIN_INT64,
-} from '../../helpers/invoke'
+} from '../../integration/mainnet/invoke'
 
 import { DEFAULT_LOCAL, DEFAULT_POSITION, Local, parse6decimal } from '../../../../common/testutil/types'
-import { openTriggerOrder, setGlobalPrice, setMarketPosition, Compare, Dir } from '../../helpers/types'
+import { openTriggerOrder, setGlobalPrice, setMarketPosition, Compare, Dir } from '../../integration/mainnet/types'
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { PositionStruct } from '@perennial/core/types/generated/contracts/Market'

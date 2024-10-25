@@ -1,9 +1,9 @@
 import { expect } from 'chai'
 import { BigNumber, constants, utils } from 'ethers'
-import { parse6decimal } from '../../../common/testutil/types'
+import { parse6decimal } from '../../../../../common/testutil/types'
 
-import { TriggerOrderStruct } from '../../types/generated/contracts/Manager'
-import { TriggerOrderStructOutput } from '../../types/generated/contracts/Manager'
+import { TriggerOrderStruct } from '../../../../types/generated/contracts/TriggerOrders/Manager'
+import { TriggerOrderStructOutput } from '../../../../types/generated/contracts/TriggerOrders/Manager'
 
 export enum Side {
   MAKER = 4,

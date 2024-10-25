@@ -2,7 +2,12 @@ import { smock } from '@defi-wonderland/smock'
 import { CallOverrides } from 'ethers'
 import HRE from 'hardhat'
 
-import { AccountVerifier__factory, AggregatorV3Interface, IAccountVerifier, OptGasInfo } from '../../../types/generated'
+import {
+  AccountVerifier__factory,
+  AggregatorV3Interface,
+  IAccountVerifier,
+  OptGasInfo,
+} from '../../../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerOptimism,
@@ -10,15 +15,15 @@ import {
   fundWalletUSDC,
   getDSUReserve,
   getStablecoins,
-} from '../../helpers/baseHelpers'
+} from '../../../helpers/baseHelpers'
 import {
   createMarketBTC as setupMarketBTC,
   createMarketETH as setupMarketETH,
   DeploymentVars,
-} from '../../helpers/setupHelpers'
+} from '../../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Controller_Incentivized, IMarketFactory } from '../../../types/generated'
+import { Controller_Incentivized, IMarketFactory } from '../../../../types/generated'
 import { RunAccountTests } from './Account.test'
 import { RunControllerBaseTests } from './Controller.test'
 
@@ -54,6 +59,7 @@ async function deployProtocol(
   return deployment
 }
 
+// TODO: rename deployController
 async function deployInstance(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
