@@ -49,7 +49,7 @@ contract Oracle is IOracle, Instance {
     }
 
     /// @notice Returns the global state of the oracle
-    /// @return The global state of the oracle
+    /// @return Returns current and latest epoch of the oracle
     function global() external view returns (OracleGlobal memory) {
         return _global;
     }
