@@ -1440,6 +1440,11 @@
     tweetnacl "^1.0.3"
     tweetnacl-util "^0.15.1"
 
+"@microsoft/tsdoc@^0.14.2":
+  version "0.14.2"
+  resolved "https://registry.yarnpkg.com/@microsoft/tsdoc/-/tsdoc-0.14.2.tgz#c3ec604a0b54b9a9b87e9735dfc59e1a5da6a5fb"
+  integrity sha512-9b8mPpKrfeGRuhFH5iO1iwCLeIIsV6+H1sRfxbkoGXIyQE2BTsPd9zqSqQJ+pv5sJ/hT5M1zvOFL02MnEezFug==
+
 "@noble/curves@1.2.0", "@noble/curves@~1.2.0":
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/@noble/curves/-/curves-1.2.0.tgz#92d7e12e4e49b23105a2555c6984d41733d65c35"
@@ -2057,10 +2062,45 @@
   resolved "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-4.8.0.tgz"
   integrity sha512-AGuwhRRL+NaKx73WKRNzeCxOCOCxpaqF+kp8TJ89QzAipSwZy/NoflkWaL9bywXFRhIzXt8j38sfF7KBKCPWLw==
 
+"@perennial/sdk-0.0.2@npm:@perennial/sdk@0.0.2-beta27":
+  version "0.0.2-beta27"
+  resolved "https://registry.yarnpkg.com/@perennial/sdk/-/sdk-0.0.2-beta27.tgz#19e818daed375233a73a8b4e420984904bd5835b"
+  integrity sha512-hYiOfN1wPoDW7IwlLi2sWR/4lpa4/XplQUaW5ttb4SriDjOgstoscH+MeJLjkvghtzawTh6q+9biWEwdwYZ6lA==
+  dependencies:
+    "@microsoft/tsdoc" "^0.14.2"
+    "@pythnetwork/hermes-client" "^1.0.4"
+    axios "^1.7.2"
+    date-fns "^2.30.0"
+    graphql "^16.6.0"
+    graphql-request "^6.0.0"
+    viem "2.9.9"
+
+"@perennial/sdk@0.0.3-beta.0":
+  version "0.0.3-beta.0"
+  resolved "https://registry.yarnpkg.com/@perennial/sdk/-/sdk-0.0.3-beta.0.tgz#fb1a64ee525f02c063de4e06a1e85b785be6c4fc"
+  integrity sha512-tx4dIKD1gCMJkO49xiaKVxDXKZkQckakpAS9gRSHHeEMEjc4xeItpYkPYKnv8ZYCSA2F8u8PS2QxKMuw/lZ66g==
+  dependencies:
+    "@microsoft/tsdoc" "^0.14.2"
+    "@pythnetwork/hermes-client" "^1.0.4"
+    axios "^1.7.2"
+    date-fns "^2.30.0"
+    graphql "^16.6.0"
+    graphql-request "^6.0.0"
+    viem "2.9.9"
+
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"
   resolved "https://registry.yarnpkg.com/@pkgjs/parseargs/-/parseargs-0.11.0.tgz#a77ea742fab25775145434eb1d2328cf5013ac33"
   integrity sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==
+
+"@pythnetwork/hermes-client@^1.0.4":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@pythnetwork/hermes-client/-/hermes-client-1.1.0.tgz#fe416b2676095ffd2c5a89959eff8a26175ae524"
+  integrity sha512-TMkH5RtkLhOyUi3cCWcSdwgOYfOx/gFjiOKUhD7A3Gpzh2TeVJg3Qk+Z697SGVE7DG+ZS6zc13BICJbEeMqQ7A==
+  dependencies:
+    "@zodios/core" "^10.9.6"
+    eventsource "^2.0.2"
+    zod "^3.23.8"
 
 "@pythnetwork/price-service-client@*":
   version "1.8.0"
@@ -2985,7 +3025,7 @@ axios@^0.21.1:
   dependencies:
     follow-redirects "^1.14.0"
 
-axios@^1.6.7:
+axios@^1.6.7, axios@^1.7.2:
   version "1.7.7"
   resolved "https://registry.yarnpkg.com/axios/-/axios-1.7.7.tgz#2f554296f9892a72ac8d8e4c5b79c14a91d0a47f"
   integrity sha512-S4kL7XrjgBmvdGut0sN3yJxqYzrDOnivkBiN0OFs6hLiUam3UPvswUo0kqGyhqUZGEOytHyumEdXsAkgCOUf3Q==
@@ -9764,6 +9804,20 @@ viem@2.7.14:
   version "2.7.14"
   resolved "https://registry.yarnpkg.com/viem/-/viem-2.7.14.tgz#347d316cb5400f0b896b2205b1bc8073aa5e27e0"
   integrity sha512-5b1KB1gXli02GOQHZIUsRluNUwssl2t4hqdFAzyWPwJ744N83jAOBOjOkrGz7K3qMIv9b0GQt3DoZIErSQTPkQ==
+  dependencies:
+    "@adraffy/ens-normalize" "1.10.0"
+    "@noble/curves" "1.2.0"
+    "@noble/hashes" "1.3.2"
+    "@scure/bip32" "1.3.2"
+    "@scure/bip39" "1.2.1"
+    abitype "1.0.0"
+    isows "1.0.3"
+    ws "8.13.0"
+
+viem@2.9.9:
+  version "2.9.9"
+  resolved "https://registry.yarnpkg.com/viem/-/viem-2.9.9.tgz#c89e6f402ae06601579a7e3069de76eb08c60adb"
+  integrity sha512-SUIHBL6M5IIlqDCMEQwAAvHzeglaM4FEqM6bCI+srLXtFYmrpV4tWhnpobQRNwh4f7HIksmKLLZ+cytv8FfnJQ==
   dependencies:
     "@adraffy/ens-normalize" "1.10.0"
     "@noble/curves" "1.2.0"
