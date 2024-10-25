@@ -31,7 +31,6 @@ import {
   signRelayedSignerUpdate,
   signWithdrawal,
 } from './eip712'
-import { advanceToPrice, DeploymentVars } from '../../../helpers/setupHelpers'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,
@@ -41,6 +40,8 @@ import {
 } from '@perennial/core/test/helpers/erc712'
 import { Verifier, Verifier__factory } from '@perennial/core/types/generated'
 import { AggregatorV3Interface } from '@perennial/oracle/types/generated'
+import { DeploymentVars } from './setupTypes'
+import { advanceToPrice } from '../../../helpers/oracleHelpers'
 
 const { ethers } = HRE
 
@@ -58,7 +59,7 @@ export function RunIncentivizedTests(
     createMarketBTC: boolean,
     overrides?: CallOverrides,
   ) => Promise<DeploymentVars>,
-  deployInstance: (
+  deployController: (
     owner: SignerWithAddress,
     marketFactory: IMarketFactory,
     chainlinkKeptFeed: AggregatorV3Interface,
@@ -202,7 +203,7 @@ export function RunIncentivizedTests(
         throw new Error('BTC market not created')
       }
 
-      ;[controller, accountVerifier] = await deployInstance(
+      ;[controller, accountVerifier] = await deployController(
         owner,
         deployment.marketFactory,
         deployment.chainlinkKeptFeed,

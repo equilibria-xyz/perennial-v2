@@ -18,7 +18,9 @@ import {
 } from '../../../../types/generated'
 import { IMarket, IMarketFactory } from '@perennial/core/types/generated'
 import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from './eip712'
-import { advanceToPrice, deployController, DeploymentVars, MarketWithOracle } from '../../../helpers/setupHelpers'
+import { deployController, MarketWithOracle } from '../../../helpers/setupHelpers'
+import { DeploymentVars } from './setupTypes'
+import { advanceToPrice } from '../../../helpers/oracleHelpers'
 
 const { ethers } = HRE
 

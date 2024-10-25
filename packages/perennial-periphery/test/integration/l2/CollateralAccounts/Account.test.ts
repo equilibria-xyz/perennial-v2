@@ -14,7 +14,7 @@ import {
   IERC20Metadata,
   IMarketFactory,
 } from '../../../../types/generated'
-import { DeploymentVars } from '../../../helpers/setupHelpers'
+import { DeploymentVars } from './setupTypes'
 
 const { ethers } = HRE
 
@@ -25,7 +25,7 @@ export function RunAccountTests(
     createMarketBTC: boolean,
     overrides?: CallOverrides,
   ) => Promise<DeploymentVars>,
-  deployInstance: (
+  deployController: (
     owner: SignerWithAddress,
     marketFactory: IMarketFactory,
     chainlinkKeptFeed: AggregatorV3Interface,
@@ -53,7 +53,7 @@ export function RunAccountTests(
       deployment = await deployProtocol(owner, false, false)
       dsu = deployment.dsu
       usdc = deployment.usdc
-      ;[controller] = await deployInstance(owner, deployment.marketFactory, deployment.chainlinkKeptFeed)
+      ;[controller] = await deployController(owner, deployment.marketFactory, deployment.chainlinkKeptFeed)
 
       // fund users with some DSU and USDC
       await fundWallet(userA)

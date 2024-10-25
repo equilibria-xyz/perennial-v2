@@ -19,20 +19,19 @@ import {
 import { impersonate } from '../../../../../common/testutil'
 import { parse6decimal } from '../../../../../common/testutil/types'
 import { transferCollateral } from '../../../helpers/marketHelpers'
-import { createMarketETH, deployProtocol, deployPythOracleFactory, FixtureVars } from '../../../helpers/setupHelpers'
+import { createMarketETH, deployProtocol, deployPythOracleFactory } from '../../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
+import { FixtureVars } from './setupTypes'
+import {
+  CHAINLINK_ETH_USD_FEED,
+  DSU_ADDRESS,
+  DSU_HOLDER,
+  DSU_RESERVE,
+  PYTH_ADDRESS,
+  USDC_ADDRESS,
+} from '../../../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
-
-// TODO: import addresses from arbitrumHelpers module
-const DSU_ADDRESS = '0x52C64b8998eB7C80b6F526E99E29ABdcC86B841b' // Digital Standard Unit, an 18-decimal token
-const DSU_HOLDER = '0x90a664846960aafa2c164605aebb8e9ac338f9a0' // Perennial Market has 4.7mm at height 243648015
-const DSU_RESERVE = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
-const USDC_ADDRESS = '0xaf88d065e77c8cC2239327C5EDb3A432268e5831' // Arbitrum native USDC, a 6-decimal token
-
-const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
-
-const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612' // price feed used for keeper compensation
 
 export async function fundWalletDSU(
   wallet: SignerWithAddress,
@@ -98,14 +97,14 @@ const fixture = async (): Promise<FixtureVars> => {
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
 
-  // TODO: can user setup be handled by the test in such a way that the test calls loadFixture
-  // after some nested setup?
   // fund accounts and deposit all into market
   const amount = parse6decimal('100000')
   await setupUser(dsu, marketFactory, market, manager, userA, amount)
   await setupUser(dsu, marketFactory, market, manager, userB, amount)
   await setupUser(dsu, marketFactory, market, manager, userC, amount)
   await setupUser(dsu, marketFactory, market, manager, userD, amount)
+
+  await mockGasInfo()
 
   return {
     dsu,
@@ -134,11 +133,10 @@ async function getFixture(): Promise<FixtureVars> {
 
 async function mockGasInfo() {
   // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-  /*const gasInfo = */ await smock.fake<ArbGasInfo>('ArbGasInfo', {
+  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
     address: '0x000000000000000000000000000000000000006C',
   })
-  // TODO: is this needed/useful?
-  // gasInfo.getL1BaseFeeEstimate.returns(0)
+  gasInfo.getL1BaseFeeEstimate.returns(1)
 }
 
-if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture, mockGasInfo)
+if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture)

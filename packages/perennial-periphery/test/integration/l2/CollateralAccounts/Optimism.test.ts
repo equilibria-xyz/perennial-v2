@@ -16,16 +16,13 @@ import {
   getDSUReserve,
   getStablecoins,
 } from '../../../helpers/baseHelpers'
-import {
-  createMarketBTC as setupMarketBTC,
-  createMarketETH as setupMarketETH,
-  DeploymentVars,
-} from '../../../helpers/setupHelpers'
+import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Controller_Incentivized, IMarketFactory } from '../../../../types/generated'
 import { RunAccountTests } from './Account.test'
 import { RunControllerBaseTests } from './Controller.test'
+import { DeploymentVars } from './setupTypes'
 
 const { ethers } = HRE
 
@@ -59,8 +56,7 @@ async function deployProtocol(
   return deployment
 }
 
-// TODO: rename deployController
-async function deployInstance(
+async function deployController(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
   chainlinkKeptFeed: AggregatorV3Interface,
@@ -114,7 +110,7 @@ async function mockGasInfo() {
 }
 
 if (process.env.FORK_NETWORK === 'base') {
-  RunAccountTests(deployProtocol, deployInstance)
+  RunAccountTests(deployProtocol, deployController)
   RunControllerBaseTests(deployProtocol)
-  RunIncentivizedTests('Controller_Optimism', deployProtocol, deployInstance, mockGasInfo)
+  RunIncentivizedTests('Controller_Optimism', deployProtocol, deployController, mockGasInfo)
 }

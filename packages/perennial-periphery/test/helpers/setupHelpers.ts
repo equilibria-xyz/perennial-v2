@@ -1,23 +1,18 @@
 import { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { BigNumber, CallOverrides, constants, ContractTransaction, utils } from 'ethers'
+import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { smock } from '@defi-wonderland/smock'
 import { parse6decimal } from '../../../common/testutil/types'
-import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'
-import { getTimestamp } from '../../../common/testutil/transaction'
 
 import {
   Account__factory,
   AggregatorV3Interface,
   Controller,
   Controller__factory,
-  IEmptySetReserve,
   IERC20Metadata,
   IERC20Metadata__factory,
-  IManager,
-  IOrderVerifier,
 } from '../../types/generated'
 import {
   CheckpointLib__factory,
@@ -43,98 +38,26 @@ import {
   VersionLib__factory,
   VersionStorageLib__factory,
 } from '@perennial/core/types/generated'
-import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
 
 import {
-  OracleFactory__factory,
   IKeeperOracle,
-  Oracle__factory,
   IOracleFactory,
-  IOracle,
   PythFactory,
   GasOracle__factory,
   KeeperOracle__factory,
   PythFactory__factory,
-  KeeperOracle,
-  Oracle,
   AggregatorV3Interface__factory,
 } from '@perennial/oracle/types/generated'
-import { OracleVersionStruct } from '@perennial/core/types/generated/contracts/interfaces/IOracleProvider'
+import { createMarket, deployMarketImplementation } from './marketHelpers'
+import { createPythOracle, deployOracleFactory } from './oracleHelpers'
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
-
-// TODO: move out of this module
-export interface DeploymentVars {
-  dsu: IERC20Metadata
-  usdc: IERC20Metadata
-  oracleFactory: IOracleFactory
-  pythOracleFactory: PythFactory
-  marketFactory: IMarketFactory
-  ethMarket: MarketWithOracle | undefined
-  btcMarket: MarketWithOracle | undefined
-  chainlinkKeptFeed: AggregatorV3Interface
-  dsuReserve: IEmptySetReserve
-  fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
-  fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides): Promise<undefined>
-}
-
-// TODO: move out of this module
-export interface FixtureVars {
-  dsu: IERC20Metadata
-  usdc: IERC20Metadata
-  reserve: IEmptySetReserve
-  keeperOracle: IKeeperOracle
-  manager: IManager
-  marketFactory: IMarketFactory
-  market: IMarket
-  oracle: IOracleProvider
-  verifier: IOrderVerifier
-  owner: SignerWithAddress
-  userA: SignerWithAddress
-  userB: SignerWithAddress
-  userC: SignerWithAddress
-  userD: SignerWithAddress
-  keeper: SignerWithAddress
-  oracleFeeReceiver: SignerWithAddress
-}
 
 export interface MarketWithOracle {
   market: IMarket
   oracle: IOracleProvider
   keeperOracle: IKeeperOracle
-}
-
-// Simulates an oracle update from KeeperOracle.
-// If timestamp matches a requested version, callbacks implicitly settle the market.
-export async function advanceToPrice(
-  keeperOracle: IKeeperOracle,
-  receiver: SignerWithAddress,
-  timestamp: BigNumber,
-  price: BigNumber,
-  overrides?: CallOverrides,
-): Promise<number> {
-  const keeperFactoryAddress = await keeperOracle.factory()
-  const oracleFactory = await impersonateWithBalance(keeperFactoryAddress, utils.parseEther('10'))
-
-  // a keeper cannot commit a future price, so advance past the block
-  const currentBlockTime = BigNumber.from(await currentBlockTimestamp())
-  if (currentBlockTime < timestamp) {
-    await increaseTo(timestamp.toNumber() + 2)
-  }
-
-  // create a version with the desired parameters and commit to the KeeperOracle
-  const oracleVersion: OracleVersionStruct = {
-    timestamp: timestamp,
-    price: price,
-    valid: true,
-  }
-  const tx: ContractTransaction = await keeperOracle
-    .connect(oracleFactory)
-    .commit(oracleVersion, receiver.address, 0, overrides ?? {})
-
-  // inform the caller of the current timestamp
-  return await getTimestamp(tx)
 }
 
 // deploys market and oracle factories
@@ -153,80 +76,6 @@ export async function createFactories(
   const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, pythAddress, chainlinkKeptFeed.address)
 
   return [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed]
-}
-
-// TODO: remove this in favor of the implementation in marketHelpers module
-// Using a provided factory, create a new market and set some reasonable initial parameters
-export async function createMarket(
-  owner: SignerWithAddress,
-  marketFactory: IMarketFactory,
-  dsu: IERC20Metadata,
-  oracle: IOracle,
-  riskParamOverrides?: Partial<RiskParameterStruct>,
-  marketParamOverrides?: Partial<MarketParameterStruct>,
-  overrides?: CallOverrides,
-): Promise<IMarket> {
-  const definition = {
-    token: dsu.address,
-    oracle: oracle.address,
-  }
-  const riskParameter = {
-    margin: parse6decimal('0.3'),
-    maintenance: parse6decimal('0.3'),
-    takerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('10000'),
-    },
-    makerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('10000'),
-    },
-    makerLimit: parse6decimal('1000'),
-    efficiencyLimit: parse6decimal('0.2'),
-    liquidationFee: parse6decimal('10.00'),
-    utilizationCurve: {
-      minRate: 0,
-      maxRate: parse6decimal('5.00'),
-      targetRate: parse6decimal('0.80'),
-      targetUtilization: parse6decimal('0.80'),
-    },
-
-    pController: {
-      k: parse6decimal('40000'),
-      min: parse6decimal('-1.20'),
-      max: parse6decimal('1.20'),
-    },
-    minMargin: parse6decimal('500'),
-    minMaintenance: parse6decimal('500'),
-    staleAfter: 7200,
-    makerReceiveOnly: false,
-    ...riskParamOverrides,
-  }
-  const marketParameter = {
-    fundingFee: parse6decimal('0.1'),
-    interestFee: parse6decimal('0.1'),
-    riskFee: 0,
-    makerFee: 0,
-    takerFee: 0,
-    maxPendingGlobal: 8,
-    maxPendingLocal: 8,
-    maxPriceDeviation: parse6decimal('0.1'),
-    closed: false,
-    settle: false,
-    ...marketParamOverrides,
-  }
-  const marketAddress = await marketFactory.callStatic.create(definition)
-  await marketFactory.create(definition, overrides ?? {})
-
-  const market = Market__factory.connect(marketAddress, owner)
-  await market.updateRiskParameter(riskParameter, overrides ?? {})
-  await market.updateParameter(marketParameter, overrides ?? {})
-
-  return market
 }
 
 // creates an ETH market using a locally deployed factory and oracle
@@ -279,38 +128,7 @@ export async function createMarketBTC(
   return { market, oracle, keeperOracle }
 }
 
-export async function createPythOracle(
-  owner: SignerWithAddress,
-  oracleFactory: IOracleFactory,
-  pythOracleFactory: PythFactory,
-  pythFeedId: string,
-  name: string,
-  overrides?: CallOverrides,
-): Promise<[KeeperOracle, Oracle]> {
-  // Create the keeper oracle, which tests may use to meddle with prices
-  const keeperOracle = KeeperOracle__factory.connect(
-    await pythOracleFactory.callStatic.create(pythFeedId, pythFeedId, {
-      provider: constants.AddressZero,
-      decimals: 0,
-    }),
-    owner,
-  )
-  await pythOracleFactory.create(
-    pythFeedId,
-    pythFeedId,
-    { provider: constants.AddressZero, decimals: 0 },
-    overrides ?? {},
-  )
-
-  // Create the oracle, which markets created by the market factory will query
-  const oracle = Oracle__factory.connect(
-    await oracleFactory.callStatic.create(pythFeedId, pythOracleFactory.address, name),
-    owner,
-  )
-  await oracleFactory.create(pythFeedId, pythOracleFactory.address, name, overrides ?? {})
-  return [keeperOracle, oracle]
-}
-
+// Deploys an unincentivized collateral account controller for unit testing
 export async function deployController(
   owner: SignerWithAddress,
   usdcAddress: Address,
@@ -320,8 +138,7 @@ export async function deployController(
 ): Promise<Controller> {
   const accountImpl = await new Account__factory(owner).deploy(usdcAddress, dsuAddress, reserveAddress)
   accountImpl.initialize(constants.AddressZero)
-  const controller = await new Controller__factory(owner).deploy(accountImpl.address, marketFactoryAddress)
-  return controller
+  return await new Controller__factory(owner).deploy(accountImpl.address, marketFactoryAddress)
 }
 
 // Deploys OracleFactory and then MarketFactory
@@ -358,6 +175,7 @@ export async function deployProtocolForOracle(
   return marketFactory
 }
 
+// TODO: move to oracleHelpers module
 export async function deployPythOracleFactory(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
@@ -399,6 +217,7 @@ export async function deployPythOracleFactory(
   return pythOracleFactory
 }
 
+// TODO: move to marketHelpers
 // Creates a market for a specified collateral token, which can't do much of anything
 export async function mockMarket(token: Address): Promise<IMarket> {
   const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
@@ -444,14 +263,6 @@ export async function mockMarket(token: Address): Promise<IMarket> {
   return market
 }
 
-export async function deployOracleFactory(owner: SignerWithAddress): Promise<IOracleFactory> {
-  // Deploy oracle factory to a proxy
-  const oracleImpl = await new Oracle__factory(owner).deploy()
-  const oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
-  await oracleFactory.connect(owner).initialize()
-  return oracleFactory
-}
-
 // Deploys the market factory and configures default protocol parameters
 async function deployMarketFactory(
   owner: SignerWithAddress,
@@ -489,35 +300,4 @@ async function deployMarketFactory(
   })
 
   return marketFactory
-}
-
-// Deploys an empty market used by the factory as a template for creating new markets
-async function deployMarketImplementation(owner: SignerWithAddress, verifierAddress: Address): Promise<Market> {
-  const marketImpl = await new Market__factory(
-    {
-      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
-      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
-      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
-      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-        await new MarketParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageGlobalLib': (
-        await new PositionStorageGlobalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageLocalLib': (
-        await new PositionStorageLocalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-        await new RiskParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy(verifierAddress)
-  return marketImpl
 }

@@ -25,7 +25,7 @@ import {
 import { advanceToPrice } from '../../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { impersonate } from '../../../../../common/testutil'
-import { FixtureVars } from '../../../helpers/setupHelpers'
+import { FixtureVars } from './setupTypes'
 
 const MAX_FEE = utils.parseEther('0.88')
 
@@ -41,11 +41,7 @@ const NO_INTERFACE_FEE = {
 // because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
 const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 150_000_000 }
 
-export function RunManagerTests(
-  name: string,
-  getFixture: (overrides?: CallOverrides) => Promise<FixtureVars>,
-  mockGasInfo: () => Promise<void>,
-): void {
+export function RunManagerTests(name: string, getFixture: (overrides?: CallOverrides) => Promise<FixtureVars>): void {
   describe(name, () => {
     let dsu: IERC20Metadata
     let usdc: IERC20Metadata
@@ -309,9 +305,6 @@ export function RunManagerTests(
 
       // commit a start price
       await commitPrice(parse6decimal('4444'))
-
-      // TODO: maybe just move this into the fixture?
-      await mockGasInfo()
     })
 
     beforeEach(async () => {

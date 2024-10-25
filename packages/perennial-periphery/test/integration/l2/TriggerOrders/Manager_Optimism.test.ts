@@ -19,20 +19,19 @@ import {
 import { impersonate } from '../../../../../common/testutil'
 import { parse6decimal } from '../../../../../common/testutil/types'
 import { transferCollateral } from '../../../helpers/marketHelpers'
-import { createMarketETH, deployProtocol, deployPythOracleFactory, FixtureVars } from '../../../helpers/setupHelpers'
+import { createMarketETH, deployProtocol, deployPythOracleFactory } from '../../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
+import { FixtureVars } from './setupTypes'
+import {
+  CHAINLINK_ETH_USD_FEED,
+  DSU_ADDRESS,
+  DSU_RESERVE,
+  PYTH_ADDRESS,
+  USDC_ADDRESS,
+  USDC_HOLDER,
+} from '../../../helpers/baseHelpers'
 
 const { ethers } = HRE
-
-// TODO: import addresses from baseHelpers module
-const DSU_ADDRESS = '0x7b4Adf64B0d60fF97D672E473420203D52562A84' // Digital Standard Unit, an 18-decimal token
-const DSU_RESERVE = '0x5FA881826AD000D010977645450292701bc2f56D'
-const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // USDC, a 6-decimal token, used by DSU reserve above
-const USDC_HOLDER = '0xF977814e90dA44bFA03b6295A0616a897441aceC' // EOA has 302mm USDC at height 21067741
-
-const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
-
-const CHAINLINK_ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
 
 export async function fundWalletDSU(
   wallet: SignerWithAddress,
@@ -116,14 +115,14 @@ const fixture = async (): Promise<FixtureVars> => {
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
 
-  // TODO: can user setup be handled by the test in such a way that the test calls loadFixture
-  // after some nested setup?
   // fund accounts and deposit all into market
   const amount = parse6decimal('100000')
   await setupUser(dsu, marketFactory, market, manager, userA, amount)
   await setupUser(dsu, marketFactory, market, manager, userB, amount)
   await setupUser(dsu, marketFactory, market, manager, userC, amount)
   await setupUser(dsu, marketFactory, market, manager, userD, amount)
+
+  await mockGasInfo()
 
   return {
     dsu,
@@ -160,4 +159,4 @@ async function mockGasInfo() {
   gasInfo.decimals.returns(6)
 }
 
-if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture, mockGasInfo)
+if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture)

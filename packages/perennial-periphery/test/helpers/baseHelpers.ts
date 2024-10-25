@@ -18,14 +18,14 @@ import {
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
 
-const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
-const CHAINLINK_ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
+export const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
+export const CHAINLINK_ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
 
-const DSU_ADDRESS = '0x7b4Adf64B0d60fF97D672E473420203D52562A84' // Digital Standard Unit, an 18-decimal token
-const DSU_RESERVE = '0x5FA881826AD000D010977645450292701bc2f56D'
+export const DSU_ADDRESS = '0x7b4Adf64B0d60fF97D672E473420203D52562A84' // Digital Standard Unit, an 18-decimal token
+export const DSU_RESERVE = '0x5FA881826AD000D010977645450292701bc2f56D'
 
-const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // USDC, a 6-decimal token, used by DSU reserve above
-const USDC_HOLDER = '0xF977814e90dA44bFA03b6295A0616a897441aceC' // EOA has 302mm USDC at height 21067741
+export const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' // USDC, a 6-decimal token, used by DSU reserve above
+export const USDC_HOLDER = '0xF977814e90dA44bFA03b6295A0616a897441aceC' // EOA has 302mm USDC at height 21067741
 
 // deploys protocol
 export async function createFactoriesForChain(
