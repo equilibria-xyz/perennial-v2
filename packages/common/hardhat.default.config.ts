@@ -43,6 +43,7 @@ const FORK_USE_REAL_DEPLOYS = process.env.FORK_USE_REAL_DEPLOYS === 'true' || fa
 const FORK_USE_REAL_ACCOUNT = process.env.FORK_USE_REAL_ACCOUNT === 'true' || false
 
 const NODE_INTERVAL_MINING = process.env.NODE_INTERVAL_MINING ? parseInt(process.env.NODE_INTERVAL_MINING) : undefined
+export const AUTO_IMPERSONATE = process.env.AUTO_IMPERSONATE === 'true' || false
 
 const MOCHA_PARALLEL = process.env.MOCHA_PARALLEL === 'true' || false
 const MOCHA_REPORTER = process.env.MOCHA_REPORTER || 'spec'
@@ -97,6 +98,9 @@ function createNetworkConfig(network: SupportedChain): NetworkUserConfig {
     cfg.accounts = PRIVATE_KEY_MAINNET ? [PRIVATE_KEY_MAINNET] : []
   }
 
+  // If we are impersonating, we can omit the accounts as it causes errors with Hardhat's provider
+  if (AUTO_IMPERSONATE) cfg.accounts = []
+
   return cfg
 }
 // You need to export an object to set up your config
@@ -147,23 +151,6 @@ export default function defaultConfig({
       compilers: [
         {
           version: SOLIDITY_VERSION,
-          settings: {
-            optimizer: {
-              enabled: OPTIMIZER_ENABLED,
-              runs: 1000000, // Max allowed by Etherscan verify
-            },
-            outputSelection: OPTIMIZER_ENABLED
-              ? {}
-              : {
-                  '*': {
-                    '*': ['storageLayout'], // This is needed by Smock for mocking functions
-                  },
-                },
-            viaIR: OPTIMIZER_ENABLED,
-          },
-        },
-        {
-          version: '0.8.24',
           settings: {
             optimizer: {
               enabled: OPTIMIZER_ENABLED,
