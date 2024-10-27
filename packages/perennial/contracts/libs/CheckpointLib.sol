@@ -73,7 +73,7 @@ library CheckpointLib {
         CheckpointAccumulationResult memory result;
 
         // accumulate
-        result.collateral = _accumulateCollateral(context.latestPositionLocal, fromVersion, toVersion);
+        result.collateral = _accumulateCollateral(context.latestPositionLocal, order, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
         (result.tradeFee, result.subtractiveFee, result.solverFee) = _accumulateFee(order, guarantee, toVersion);
         result.spread = _accumulateSpread(order, guarantee, toVersion);
@@ -119,12 +119,21 @@ library CheckpointLib {
     /// @param toVersion The next version
     function _accumulateCollateral(
         Position memory fromPosition,
+        Order memory order,
         Version memory fromVersion,
         Version memory toVersion
-    ) private pure returns (Fixed6) {
-        return toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
+    ) private pure returns (Fixed6 collateral) {
+        // accumulate pnl
+        collateral = collateral
+            .add(toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker))
             .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
             .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
+
+        // accumulate received spread (process position closures prior to accumulation)
+        collateral = collateral
+            .add(toVersion.makerSpreadValue.accumulated(fromVersion.makerSpreadValue, fromPosition.maker.sub(order.makerNeg)))
+            .add(toVersion.longSpreadValue.accumulated(fromVersion.longSpreadValue, fromPosition.long.sub(order.longNeg)))
+            .add(toVersion.shortSpreadValue.accumulated(fromVersion.shortSpreadValue, fromPosition.short.sub(order.shortNeg)));
     }
 
     /// @notice Accumulate trade fees for the next position
@@ -174,7 +183,7 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (Fixed6) {
         (UFixed6 exposurePos, UFixed6 exposureNeg) =
-            (order.exposurePos(toVersion.makerExposure._value), order.exposureNeg(toVersion.makerExposure._value));
+            (order.exposurePos(toVersion.makerPosExposure), order.exposureNeg(toVersion.makerNegExposure)); // TODO: wrong matching of pos / neg
         (exposurePos, exposureNeg) =
             (exposurePos.sub(guarantee.takerPos), exposureNeg.sub(guarantee.takerNeg));
 

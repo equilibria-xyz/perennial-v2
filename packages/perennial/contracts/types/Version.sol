@@ -37,10 +37,10 @@ struct Version {
     Accumulator6 shortSpreadValue;
 
     /// @dev The accumulated spread for positive taker or maker orders (open long / close short)
-    Accumulator6 takerSpreadPos;
+    Accumulator6 spreadPos;
 
     /// @dev The accumulated spread for negative  taker or maker orders (close long / open short)
-    Accumulator6 takerSpreadNeg;
+    Accumulator6 spreadNeg;
 
     /// @dev The accumulated fee for maker orders
     Accumulator6 makerFee;
@@ -72,8 +72,8 @@ using VersionStorageLib for VersionStorage global;
 ///         int64 price;
 ///         int24 makerPosExposure;
 ///         int24 makerNegExposure;
-///         int48 takerSpreadPos;
-///         int48 takerSpreadNeg;
+///         int48 spreadPos;
+///         int48 spreadNeg;
 ///         uint48 settlementFee;
 ///
 ///         /* slot 2 */
@@ -134,10 +134,10 @@ library VersionStorageLib {
         if (newValue.longSpreadValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.shortSpreadValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
         if (newValue.shortSpreadValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
-        if (newValue.takerSpreadPos._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.takerSpreadPos._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.takerSpreadNeg._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.takerSpreadNeg._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.spreadPos._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.spreadPos._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.spreadNeg._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.spreadNeg._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.makerFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
         if (newValue.makerFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.takerFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
@@ -157,8 +157,8 @@ library VersionStorageLib {
             uint256(Fixed6.unwrap(newValue.price) << (256 - 64)) >> (256 - 64) |
             uint256(Fixed6.unwrap(newValue.makerPosExposure) << (256 - 24)) >> (256 - 64 - 24) |
             uint256(Fixed6.unwrap(newValue.makerNegExposure) << (256 - 24)) >> (256 - 64 - 24 - 24) |
-            uint256(Fixed6.unwrap(newValue.takerSpreadPos._value) << (256 - 48)) >> (256 - 64 - 24 - 24 - 48) |
-            uint256(Fixed6.unwrap(newValue.takerSpreadPos._value) << (256 - 48)) >> (256 - 64 - 24 - 24 - 48 - 48) |
+            uint256(Fixed6.unwrap(newValue.spreadPos._value) << (256 - 48)) >> (256 - 64 - 24 - 24 - 48) |
+            uint256(Fixed6.unwrap(newValue.spreadNeg._value) << (256 - 48)) >> (256 - 64 - 24 - 24 - 48 - 48) |
             uint256(Fixed6.unwrap(newValue.settlementFee._value) << (256 - 48)) >> (256 - 64 - 24 - 24 - 48 - 48 - 48);
         uint256 encoded2 =
             uint256(Fixed6.unwrap(newValue.makerFee._value) << (256 - 48)) >> (256 - 48) |
