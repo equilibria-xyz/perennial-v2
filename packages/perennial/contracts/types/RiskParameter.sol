@@ -62,7 +62,7 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 ///        uint24 maintenance;                         // <= 1677%
 ///        uint24 takerLinearFee;                      // <= 1677%
 ///        uint24 takerProportionalFee;                // <= 1677%
-///        uint24 takerAdiabaticFee;                   // <= 1677% (must maintain location due to updateRiskParameter)
+///        uint24 takerAdiabaticFee;                   // <= 1677%
 ///        uint24 makerLinearFee;                      // <= 1677%
 ///        uint24 makerProportionalFee;                // <= 1677%
 ///        uint48 makerLimit;                          // <= 281t (no decimals)
@@ -70,8 +70,8 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 ///
 ///        /* slot 1 */ (31)
 ///        bytes3 __unallocated__;
-///        uint48 makerSkewScale;                      // <= 281t (no decimals) (must maintain location due to updateRiskParameter)
-///        uint48 takerSkewScale;                      // <= 281t (no decimals) (must maintain location due to updateRiskParameter)
+///        uint48 makerSkewScale;                      // <= 281t (no decimals)
+///        uint48 takerSkewScale;                      // <= 281t (no decimals)
 ///        uint24 utilizationCurveMinRate;             // <= 1677%
 ///        uint24 utilizationCurveMaxRate;             // <= 1677%
 ///        uint24 utilizationCurveTargetRate;          // <= 1677%
