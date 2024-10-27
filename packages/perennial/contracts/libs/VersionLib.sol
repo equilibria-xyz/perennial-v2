@@ -272,7 +272,7 @@ library VersionLib {
         UFixed6 makerTotal = context.fromPosition.maker.sub(context.order.makerNeg);
         Fixed6 makerExposure = Fixed6Lib.NEG_ONE
             .mul(context.fromPosition.skew())
-            .div(Fixed6Lib.from(makerTotal))
+            .div(Fixed6Lib.from(context.fromPosition.maker)) // use maker order's current exposure for close, TODO for open?
             .min(Fixed6Lib.ONE);
         next.makerExposure.increment(makerExposure, UFixed6Lib.ONE);
 
