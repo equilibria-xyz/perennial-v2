@@ -28,7 +28,7 @@ struct Version {
     Accumulator6 takerFee;
 
     /// @dev The maker's percentage exposure at time of version (positive for long, negative for short)
-    Accumulator6 makerExposure;
+    Accumulator6 makerExposure; // TODO: might make more sense to have makerPos / makerNeg instead
 
     /// @dev The accumulated spread for positive orders (open long / close short / decrease exposure maker)
     Accumulator6 spreadPos;

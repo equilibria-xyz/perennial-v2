@@ -303,6 +303,16 @@ library OrderLib {
         return self.makerNeg.add(self.longNeg).add(self.shortNeg);
     }
 
+    function exposurePos(Order memory self, Fixed6 makerExposure) internal pure returns (UFixed6) {
+        return takerPos(self)
+            .add(makerExposure.abs().mulOut(makerExposure.mul(maker(self)).sign() > 0 ? self.makerPos : self.makerNeg));
+    }
+
+    function exposureNeg(Order memory self, Fixed6 makerExposure) internal pure returns (UFixed6) {
+        return takerNeg(self)
+            .add(makerExposure.abs().mulOut(makerExposure.mul(maker(self)).sign() < 0 ? self.makerNeg : self.makerPos));
+    }
+
     /// @notice Updates the current global order with a new local order
     /// @param self The order object to update
     /// @param order The new order

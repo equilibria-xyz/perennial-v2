@@ -97,7 +97,7 @@ library PositionLib {
     function filledBy(
         Position memory self,
         Order memory order
-    ) private pure returns (UFixed6 filledByMaker, UFixed6 filledByLong, UFixed6 filledByShort) {
+    ) internal pure returns (UFixed6 filledByMaker, UFixed6 filledByLong, UFixed6 filledByShort) {
         UFixed6 makerTotal = self.maker.sub(order.makerNeg);
 
         (Fixed6 latestSkew, Fixed6 nextSkew) = (

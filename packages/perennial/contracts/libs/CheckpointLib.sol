@@ -35,8 +35,8 @@ struct CheckpointAccumulationResult {
     /// @dev Trade fee accumulated for this checkpoint
     UFixed6 tradeFee;
 
-    /// @dev Trade price impact accumulated for this checkpoint
-    Fixed6 offset;
+    /// @dev Spread accumulated for this checkpoint
+    Fixed6 spread;
 
     /// @dev Settlement fee charged for this checkpoint
     UFixed6 settlementFee;
@@ -76,7 +76,7 @@ library CheckpointLib {
         result.collateral = _accumulateCollateral(context.latestPositionLocal, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
         (result.tradeFee, result.subtractiveFee, result.solverFee) = _accumulateFee(order, guarantee, toVersion);
-        result.offset = _accumulateOffset(order, guarantee, toVersion);
+        result.spread = _accumulateSpread(order, guarantee, toVersion);
         result.settlementFee = _accumulateSettlementFee(order, guarantee, toVersion);
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
@@ -89,7 +89,7 @@ library CheckpointLib {
             .add(result.collateral)                                                 // incorporate collateral change at this settlement
             .add(result.priceOverride);                                             // incorporate price override pnl at this settlement
         next.transfer = order.collateral;
-        next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
+        next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.spread);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
 
         emit IMarket.AccountPositionProcessed(context.account, orderId, order, result);
@@ -106,7 +106,7 @@ library CheckpointLib {
         response.collateral = result.collateral
             .add(result.priceOverride)
             .sub(Fixed6Lib.from(result.tradeFee))
-            .sub(result.offset)
+            .sub(result.spread)
             .sub(Fixed6Lib.from(result.settlementFee));
         response.liquidationFee = result.liquidationFee;
         response.subtractiveFee = result.subtractiveFee;
@@ -161,27 +161,26 @@ library CheckpointLib {
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
-
     }
 
-    /// @notice Accumulate price offset for the next position
+    /// @notice Accumulate spread for the next position
     /// @dev This includes adjustment for linear, proportional, and adiabatic order fees
     /// @param order The next order
     /// @param guarantee The next guarantee
     /// @param toVersion The next version
-    function _accumulateOffset(
+    function _accumulateSpread(
         Order memory order,
         Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (Fixed6) {
-        // TODO: compute effective takerPos/Neg for maker orders
-
-        (UFixed6 takerPos, UFixed6 takerNeg) =
-            (order.takerPos().sub(guarantee.takerPos), order.takerNeg().sub(guarantee.takerNeg));
+        (UFixed6 exposurePos, UFixed6 exposureNeg) =
+            (order.exposurePos(toVersion.makerExposure._value), order.exposureNeg(toVersion.makerExposure._value));
+        (exposurePos, exposureNeg) =
+            (exposurePos.sub(guarantee.takerPos), exposureNeg.sub(guarantee.takerNeg));
 
         return Fixed6Lib.ZERO
-            .sub(toVersion.takerPosOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), takerPos))
-            .sub(toVersion.takerNegOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), takerNeg));
+            .sub(toVersion.spreadPos.accumulated(Accumulator6(Fixed6Lib.ZERO), exposurePos))
+            .sub(toVersion.spreadNeg.accumulated(Accumulator6(Fixed6Lib.ZERO), exposureNeg));
     }
 
 

@@ -270,17 +270,19 @@ library VersionLib {
     ) private pure {
         // compute maker exposure
         UFixed6 makerTotal = context.fromPosition.maker.sub(context.order.makerNeg);
-        next.makerExposure = context.fromPosition.skew().div(makerTotal); // TODO: cap at one for socailization
+        Fixed6 makerExposure = Fixed6Lib.NEG_ONE
+            .mul(context.fromPosition.skew())
+            .div(Fixed6Lib.from(makerTotal))
+            .min(Fixed6Lib.ONE);
+        next.makerExposure.increment(makerExposure, UFixed6Lib.ONE);
+
         // TODO: maker orders during socialization?
 
         // both taker and maker orders pay spread
-        (UFixed6 makerTakerPos, UFixed6 makerTakerNeg) = next.makerExposure.gt(Fixed6Lib.ZERO)
-            ? (context.order.makerNeg, context.order.makerPos)
-            : (context.order.makerNeg, context.order.makerPos);
-        (UFixed6 exposurePos, UFixed6 exposureNeg) = (
-            context.order.takerPos().sub(context.guarantee.takerPos).add(makerTakerPos.mulOut(next.makerExposure)),
-            context.order.takerNeg().sub(context.guarantee.takerNeg).add(makerTakerNeg.mulOut(next.makerExposure))
-        );
+        (UFixed6 exposurePos, UFixed6 exposureNeg) =
+            (context.order.exposurePos(makerExposure), context.order.exposureNeg(makerExposure));
+        (exposurePos, exposureNeg) =
+            (exposurePos.sub(context.guarantee.takerPos), exposureNeg.sub(context.guarantee.takerNeg));
 
         // charge spread
         UFixed6 spreadPos = __SynBook6_compute(
@@ -300,20 +302,21 @@ library VersionLib {
         // distribute spread
         (UFixed6 filledbyMaker, UFixed6 filledbyLong, UFixed6 filledbyShort) = // TODO: doesn't take into account maker orders skew?
             context.fromPosition.filledBy(context.order);
+        UFixed6 totalFilled = filledbyMaker.add(filledbyLong).add(filledbyShort);
 
         (UFixed6 spreadMaker, UFixed6 spreadLong, UFixed6 spreadShort) = (
-            spread.muldiv(filledbyMaker, context.order.taker().abs()),
-            spread.muldiv(filledbyLong, context.order.taker().abs()),
-            spread.muldiv(filledbyShort, context.order.taker().abs())
+            spread.muldiv(filledbyMaker, totalFilled),
+            spread.muldiv(filledbyLong, totalFilled),
+            spread.muldiv(filledbyShort, totalFilled)
         );
 
         next.makerValue.increment(Fixed6Lib.from(spreadMaker), context.fromPosition.maker); // TODO: this doesn't use maker total??
-        next.longValue.increment(Fixed6Lib.from(filledbyLong), context.fromPosition.long);
-        next.shortValue.increment(Fixed6Lib.from(filledbyShort), context.fromPosition.short);
+        next.longValue.increment(Fixed6Lib.from(spreadLong), context.fromPosition.long);
+        next.shortValue.increment(Fixed6Lib.from(spreadShort), context.fromPosition.short);
 
         result.spreadMaker = result.spreadMaker.add(Fixed6Lib.from(spreadMaker));
-        result.spreadLong = result.spreadLong.add(Fixed6Lib.from(filledbyLong));
-        result.spreadShort = result.spreadShort.add(Fixed6Lib.from(filledbyShort));
+        result.spreadLong = result.spreadLong.add(Fixed6Lib.from(spreadLong));
+        result.spreadShort = result.spreadShort.add(Fixed6Lib.from(spreadShort));
     }
 
     // TODO: replace with root implementation
