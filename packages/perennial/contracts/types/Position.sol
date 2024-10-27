@@ -87,6 +87,30 @@ library PositionLib {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short));
     }
 
+    /// @notice Returns the breakdown of which sides of the market fill the new order
+    /// @dev During socialization, long and short sides fill orders instead of the maker side
+    /// @param self The position object to check
+    /// @param order The new order
+    /// @return filledByMaker The quantity filled by the maker side
+    /// @return filledByLong The quantity filled by the long side
+    /// @return filledByShort The quantity filled by the short side
+    function filledBy(
+        Position memory self,
+        Order memory order
+    ) private pure returns (UFixed6 filledByMaker, UFixed6 filledByLong, UFixed6 filledByShort) {
+        UFixed6 makerTotal = self.maker.sub(order.makerNeg);
+
+        (Fixed6 latestSkew, Fixed6 nextSkew) = (
+            skew(self),
+            skew(self).add(order.long()).sub(order.short())
+        );
+        (Fixed6 maxSkew, Fixed6 minSkew) = (latestSkew.max(nextSkew), latestSkew.min(nextSkew));
+
+        filledByLong = UFixed6Lib.unsafeFrom(maxSkew.sub(Fixed6Lib.from(1, makerTotal)));
+        filledByShort = UFixed6Lib.unsafeFrom(Fixed6Lib.from(-1, makerTotal).sub(minSkew));
+        filledByMaker = maxSkew.sub(minSkew).abs().sub(filledByLong).sub(filledByShort);
+    }
+
     /// @notice Returns the utilization of the position
     /// @dev utilization = major / (maker + minor)
     /// @param self The position object to check

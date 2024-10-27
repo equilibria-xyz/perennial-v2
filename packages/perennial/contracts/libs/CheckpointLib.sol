@@ -174,11 +174,12 @@ library CheckpointLib {
         Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (Fixed6) {
+        // TODO: compute effective takerPos/Neg for maker orders
+
         (UFixed6 takerPos, UFixed6 takerNeg) =
             (order.takerPos().sub(guarantee.takerPos), order.takerNeg().sub(guarantee.takerNeg));
 
         return Fixed6Lib.ZERO
-            .sub(toVersion.makerOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
             .sub(toVersion.takerPosOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), takerPos))
             .sub(toVersion.takerNegOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), takerNeg));
     }
