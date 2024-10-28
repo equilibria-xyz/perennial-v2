@@ -210,6 +210,7 @@ export default function defaultConfig({
       currency: 'USD',
       gasPrice: 100,
       enabled: process.env.REPORT_GAS ? true : false,
+      trackGasDeltas: true,
     },
     typechain: {
       outDir: 'types/generated',
