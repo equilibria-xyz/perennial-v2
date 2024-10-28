@@ -3,39 +3,22 @@
 # Run the gas report command and filter lines that start with optional spaces followed by '|' or '·'
 filtered_output=$(yarn workspace @perennial/core run gasReport | grep -E '^\s*(\||·)' | sed -r 's/\x1B\[[0-9;]*[mK]//g')
 
-# Insert a blank line between the two tables
-processed_output=$(echo "$filtered_output" | awk '
-    /·--/ {
-        if (in_table == 2) {
-            print ""  # Insert blank line once between the two tables
-        }
-        in_table = in_table + 1
-    }
-    {
-        print
-    }
-')
-
-# Function to extract Code Size table
-extract_code_size() {
-    echo "$processed_output" | awk '
-    /·--/ && blank_inserted == 1 { exit }  # Stop before the last boundary line
-    {
-        if (NF == 0) exit  # Exit when the blank line is encountered
-        print
-    }'
-}
-
-# Function to extract Gas Report table
+# Function to extract the gas report
 extract_gas_report() {
-    echo "$processed_output" | awk '
-    found_blank_line == 1 { print }
-    NF == 0 { found_blank_line = 1 }  # Start printing after the blank line
+    echo "$filtered_output" | awk '
+    /·--/ { 
+        table_count++           # Increment table count at each boundary
+        if (table_count == 4) {  # Start capturing when reaching the third table
+            capturing = 1
+        }
+        next
+    }
+    capturing { print }         # Print only lines within the third table
     '
 }
 
-code_size_output=$(extract_code_size)
+# Capture the gas report table output
 gas_report_output=$(extract_gas_report)
 
-# Write the Gas Report output to a file
+# Write the gas report table output to a file
 echo "$gas_report_output" > gas_report.txt
