@@ -54,7 +54,7 @@ jobs:
             const prNumber = context.payload.pull_request.number;
 
             const isWorkflowComment = (comment) => {
-              return (comment.body.includes('### Code Size:') || comment.body.includes('### Gas Report:'));   
+              return (comment.body.includes('### Code Size Diff:') || comment.body.includes('### Gas Report Diff:'));   
             };
 
             const { data: comments } = await github.rest.issues.listComments({
