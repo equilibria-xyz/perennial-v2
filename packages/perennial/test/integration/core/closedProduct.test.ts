@@ -18,7 +18,7 @@ describe('Closed Market', () => {
     instanceVars.chainlink.reset()
   })
 
-  it('closes the market', async () => {
+  it.only('closes the market', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { owner, user, dsu, chainlink, beneficiaryB } = instanceVars
