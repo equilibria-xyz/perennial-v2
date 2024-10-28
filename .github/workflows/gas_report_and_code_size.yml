@@ -18,12 +18,6 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
 
-      - name: Cache Hardhat files
-        uses: actions/cache@v3
-        with:
-          path: packages/perennial/cache
-          key: ${{ runner.os }}-hardhat-${{ github.base_ref }}
-
       - name: Install packages
         run: yarn --frozen-lockfile
 
@@ -34,11 +28,23 @@ jobs:
         env:
             MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: yarn workspace @perennial/core run gasReport
+
+      - name: Upload cache folder
+        uses: actions/upload-artifact@v3
+        with:
+          name: perennial-cache
+          path: packages/perennial/cache
       
       - name: Checkout PR branch
         uses: actions/checkout@v3
         with:
           ref: ${{ github.head_ref }}
+
+      - name: Download cache folder
+        uses: actions/download-artifact@v3
+        with:
+          name: perennial-cache
+          path: packages/perennial/cache
 
       - name: Install packages
         run: yarn --frozen-lockfile
