@@ -18,6 +18,12 @@ jobs:
         with:
           ref: ${{ github.base_ref }}
 
+      - name: Cache Hardhat files
+        uses: actions/cache@v3
+        with:
+          path: packages/perennial/cache
+          key: ${{ runner.os }}-hardhat-${{ github.base_ref }}
+
       - name: Install packages
         run: yarn --frozen-lockfile
 
