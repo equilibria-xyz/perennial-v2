@@ -1,5 +1,5 @@
 import { BigNumber, utils, constants, PayableOverrides } from 'ethers'
-import { InstanceVars, deployProtocol, createMarket, createInvoker, settle } from './setupHelpers'
+import { InstanceVars, deployProtocol, createInvoker, settle } from './setupHelpers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 import 'hardhat'
@@ -21,6 +21,7 @@ import {
 import { TriggerOrderStruct } from '../../../../types/generated/contracts/MultiInvoker/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
+import { createMarket } from '../../../helpers/marketHelpers'
 
 const ethers = { HRE }
 
@@ -42,9 +43,13 @@ describe('Orders', () => {
   const fixture = async () => {
     instanceVars = await loadFixture(deployProtocol)
     await instanceVars.chainlink.reset()
-    const { user, userB, dsu } = instanceVars
+    const { owner, user, userB, dsu, oracle } = instanceVars
 
-    market = await createMarket(instanceVars)
+    const riskParamOverrides = {
+      makerLimit: parse6decimal('2000'),
+    }
+    market = await createMarket(owner, instanceVars.marketFactory, dsu, oracle, riskParamOverrides)
+    await oracle.register(market.address)
     multiInvoker = await createInvoker(instanceVars)
 
     dsuCollateral = await instanceVars.dsu.balanceOf(instanceVars.user.address)

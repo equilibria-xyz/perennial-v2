@@ -16,7 +16,6 @@ import {
   InstanceVars,
   RESERVE,
   createInvoker,
-  createMarket,
   deployProtocol,
   fundWallet,
   createVault,
@@ -46,6 +45,7 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from './types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata } from '@perennial/core/types/generated'
+import { createMarket } from '../../../helpers/marketHelpers'
 
 use(smock.matchers)
 
@@ -103,7 +103,8 @@ describe('Invoke', () => {
   const fixture = async () => {
     instanceVars = await loadFixture(deployProtocol)
     ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
-    market = await createMarket(instanceVars)
+    market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.dsu, instanceVars.oracle)
+    await instanceVars.oracle.register(market.address)
   }
 
   beforeEach(async () => {

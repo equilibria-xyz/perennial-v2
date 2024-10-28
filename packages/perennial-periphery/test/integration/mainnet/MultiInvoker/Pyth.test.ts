@@ -20,7 +20,8 @@ import {
   PythFactory__factory,
   GasOracle__factory,
 } from '../../../../types/generated'
-import { InstanceVars, createInvoker, createMarket, deployProtocol } from './setupHelpers'
+import { InstanceVars, createInvoker, deployProtocol } from './setupHelpers'
+import { createMarket } from '../../../helpers/marketHelpers'
 
 const { ethers } = HRE
 
@@ -115,7 +116,9 @@ describe('PythOracleFactory', () => {
     await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
 
     multiInvoker = await createInvoker(instanceVars)
-    market = await createMarket(instanceVars, 'Ether', 'ETH', oracle)
+    market = await createMarket(owner, instanceVars.marketFactory, dsu, oracle, undefined, undefined, {
+      maxFeePerGas: 100000000,
+    })
 
     await dsu.connect(user).approve(market.address, utils.parseEther('200000'))
     await keeperOracle.register(oracle.address)
@@ -348,7 +351,7 @@ describe('PythOracleFactory', () => {
         ],
         {
           value: 1,
-          gasPrice: 10000,
+          maxFeePerGas: 100000000,
         },
       )
 

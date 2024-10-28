@@ -28,20 +28,9 @@ import {
   IOracle,
   IOracle__factory,
   IOracleFactory,
-  InvariantLib__factory,
-  VersionLib__factory,
-  GlobalStorageLib__factory,
-  MarketParameterStorageLib__factory,
-  PositionStorageGlobalLib__factory,
-  PositionStorageLocalLib__factory,
-  RiskParameterStorageLib__factory,
-  VersionStorageLib__factory,
   MarketFactory,
   MarketFactory__factory,
-  MagicValueLib__factory,
 } from '../../../../types/generated'
-import { CheckpointStorageLib__factory } from '../../../../types/generated/factories/@perennial/core/contracts/types/Checkpoint.sol' // Import directly from path due to name collision with vault type
-import { CheckpointLib__factory } from '../../../../types/generated/factories/@perennial/core/contracts/libs/CheckpointLib__factory' // Import directly from path due to name collision with vault type
 import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chainlinkHelpers'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
@@ -58,6 +47,7 @@ import {
   IVerifier,
 } from '@perennial/core/types/generated'
 import { Verifier__factory } from '@perennial/core/types/generated'
+import { deployMarketImplementation } from '../../../helpers/marketHelpers'
 
 const { ethers } = HRE
 
@@ -95,6 +85,7 @@ export interface InstanceVars {
   marketImpl: Market
 }
 
+// TODO: parameterize DSU and USDC
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
@@ -132,44 +123,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   const verifier = Verifier__factory.connect(verifierProxy.address, owner)
 
-  const marketImpl = await new Market__factory(
-    {
-      '@perennial/core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
-        await new CheckpointLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/libs/InvariantLib.sol:InvariantLib': (
-        await new InvariantLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/libs/VersionLib.sol:VersionLib': (
-        await new VersionLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
-        await new MagicValueLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/types/Global.sol:GlobalStorageLib': (
-        await new GlobalStorageLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-        await new MarketParameterStorageLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/types/Position.sol:PositionStorageGlobalLib': (
-        await new PositionStorageGlobalLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/types/Position.sol:PositionStorageLocalLib': (
-        await new PositionStorageLocalLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-        await new RiskParameterStorageLib__factory(owner).deploy()
-      ).address,
-      '@perennial/core/contracts/types/Version.sol:VersionStorageLib': (
-        await new VersionStorageLib__factory(owner).deploy()
-      ).address,
-    },
-    owner,
-  ).deploy(verifierProxy.address)
+  const marketImpl = await deployMarketImplementation(owner, verifier.address)
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
@@ -194,7 +148,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
     maxFee: parse6decimal('0.01'),
-    maxLiquidationFee: parse6decimal('5'),
+    maxLiquidationFee: parse6decimal('10'),
     maxCut: parse6decimal('0.50'),
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
@@ -270,83 +224,6 @@ export async function fundWalletUSDC(
   await usdc
     .connect(usdcHolder)
     .transfer(wallet.address, amountOverride ? amountOverride : BigNumber.from('1000000000'))
-}
-
-export async function createMarket(
-  instanceVars: InstanceVars,
-  name?: string,
-  symbol?: string,
-  oracleOverride?: IOracle,
-  riskParamOverrides?: Partial<RiskParameterStruct>,
-  marketParamOverrides?: Partial<MarketParameterStruct>,
-): Promise<Market> {
-  const { owner, marketFactory, beneficiaryB, oracle, dsu } = instanceVars
-
-  const definition = {
-    token: dsu.address,
-    oracle: (oracleOverride ?? oracle).address,
-  }
-  const riskParameter = {
-    margin: parse6decimal('0.3'),
-    maintenance: parse6decimal('0.3'),
-    takerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('100'),
-    },
-    makerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('10'),
-    },
-    makerLimit: parse6decimal('2000'),
-    efficiencyLimit: parse6decimal('0.2'),
-    liquidationFee: parse6decimal('0.50'),
-    utilizationCurve: {
-      minRate: 0,
-      maxRate: parse6decimal('5.00'),
-      targetRate: parse6decimal('0.80'),
-      targetUtilization: parse6decimal('0.80'),
-    },
-    pController: {
-      k: parse6decimal('40000'),
-      min: parse6decimal('-1.20'),
-      max: parse6decimal('1.20'),
-    },
-    minMargin: parse6decimal('500'),
-    minMaintenance: parse6decimal('500'),
-    staleAfter: 7200,
-    makerReceiveOnly: false,
-    ...riskParamOverrides,
-  }
-  const marketParameter = {
-    fundingFee: parse6decimal('0.1'),
-    interestFee: parse6decimal('0.1'),
-    riskFee: 0,
-    makerFee: 0,
-    takerFee: 0,
-    maxPendingGlobal: 8,
-    maxPendingLocal: 8,
-    maxPriceDeviation: parse6decimal('0.1'),
-    closed: false,
-    settle: false,
-    ...marketParamOverrides,
-  }
-
-  const marketAddress = await marketFactory.callStatic.create(definition)
-  await marketFactory.create(definition)
-
-  const market = Market__factory.connect(marketAddress, owner)
-
-  await market.updateRiskParameter(riskParameter)
-  await market.updateBeneficiary(beneficiaryB.address)
-  await market.updateParameter(marketParameter)
-
-  await oracle.register(market.address)
-
-  return market
 }
 
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
