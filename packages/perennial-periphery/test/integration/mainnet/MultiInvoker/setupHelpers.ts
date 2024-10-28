@@ -31,6 +31,10 @@ import {
   IOracleFactory,
   MarketFactory,
   MarketFactory__factory,
+  IBatcher,
+  IEmptySetReserve,
+  IBatcher__factory,
+  IEmptySetReserve__factory,
 } from '../../../../types/generated'
 import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chainlinkHelpers'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
@@ -50,7 +54,6 @@ const { ethers } = HRE
 
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 
-export const BATCHER = '0xAEf566ca7E84d1E736f999765a804687f39D9094'
 export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
 
@@ -74,6 +77,8 @@ export interface InstanceVars {
   usdc: IERC20Metadata
   usdcHolder: SignerWithAddress
   dsuMinterAddress: Address
+  dsuReserve: IEmptySetReserve
+  dsuBatcher: IBatcher | undefined
   chainlink: ChainlinkContext
   oracle: IOracle
   marketImpl: Market
@@ -83,6 +88,8 @@ export async function deployProtocol(
   dsu: IERC20Metadata,
   usdc: IERC20Metadata,
   dsuMinterAddress: Address,
+  dsuBatcherAddress: Address,
+  dsuReserveAddress: Address,
   chainlinkContext?: ChainlinkContext,
 ): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
@@ -186,6 +193,9 @@ export async function deployProtocol(
     usdc,
     dsuMinterAddress,
     usdcHolder,
+    dsuBatcher:
+      dsuBatcherAddress === constants.AddressZero ? undefined : IBatcher__factory.connect(dsuBatcherAddress, owner),
+    dsuReserve: IEmptySetReserve__factory.connect(dsuReserveAddress, owner),
     oracle,
     marketImpl,
   }
@@ -361,14 +371,7 @@ export async function createVault(
   await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256)
   await fundWallet(asset, instanceVars.usdc, liquidator)
-  // TODO: each fundWallet funds 2mm; could we just pass override of 14mm instead of making 7 calls?
   await fundWallet(asset, instanceVars.usdc, perennialUser, parse6decimal('14000000'))
-  /*await fundWallet(asset, usdc, perennialUser)
-  await fundWallet(asset, usdc, perennialUser)
-  await fundWallet(asset, usdc, perennialUser)
-  await fundWallet(asset, usdc, perennialUser)
-  await fundWallet(asset, usdc, perennialUser)
-  await fundWallet(asset, usdc, perennialUser)*/
   await asset.connect(user).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256)
@@ -454,7 +457,7 @@ export function resetBtcSubOracle(btcSubOracle: FakeContract<IOracleProvider>) {
 export async function createInvoker(
   instanceVars: InstanceVars,
   vaultFactory?: VaultFactory,
-  noBatcher?: boolean,
+  withBatcher = false,
 ): Promise<MultiInvoker> {
   const { owner, user, userB } = instanceVars
 
@@ -463,7 +466,7 @@ export async function createInvoker(
     instanceVars.dsu.address,
     instanceVars.marketFactory.address,
     vaultFactory ? vaultFactory.address : constants.AddressZero,
-    noBatcher ? constants.AddressZero : BATCHER,
+    withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
     instanceVars.dsuMinterAddress,
     500_000,
     500_000,

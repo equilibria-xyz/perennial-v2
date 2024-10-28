@@ -22,7 +22,7 @@ import { TriggerOrderStruct } from '../../../../types/generated/contracts/MultiI
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 import { createMarket } from '../../../helpers/marketHelpers'
-import { InstanceVars, createInvoker, settle } from './setupHelpers'
+import { InstanceVars, settle } from './setupHelpers'
 
 const ethers = { HRE }
 
@@ -32,7 +32,10 @@ function payoff(number: BigNumber): BigNumber {
   return number.mul(number).div(utils.parseEther('1')).div(100000)
 }
 
-export function RunOrderTests(getFixture: () => Promise<InstanceVars>): void {
+export function RunOrderTests(
+  getFixture: () => Promise<InstanceVars>,
+  createInvoker: (instanceVars: InstanceVars) => Promise<MultiInvoker>,
+): void {
   describe('Orders', () => {
     let instanceVars: InstanceVars
     let dsuCollateral: BigNumber
