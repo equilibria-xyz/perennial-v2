@@ -1,8 +1,10 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { BigNumber, utils, ContractTransaction, constants } from 'ethers'
+import { Address } from 'hardhat-deploy/dist/types'
 import HRE from 'hardhat'
 
 import { impersonate } from '../../../../../common/testutil'
+import { FakeContract, smock } from '@defi-wonderland/smock'
 
 import {
   IERC20Metadata,
@@ -13,7 +15,6 @@ import {
   MultiInvoker,
   MultiInvoker__factory,
   Market,
-  Market__factory,
   PowerTwo__factory,
   IMarket,
   IVault,
@@ -34,12 +35,8 @@ import {
 import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chainlinkHelpers'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
-import {
-  MarketParameterStruct,
-  RiskParameterStruct,
-} from '../../../../types/generated/@perennial/core/contracts/Market'
-import { FakeContract, smock } from '@defi-wonderland/smock'
-import { deployProductOnMainnetFork } from '@perennial/vault/test/integration/helpers/setupHelpers'
+
+import { deployProductOnFork } from '@perennial/vault/test/integration/helpers/setupHelpers'
 import {
   ProxyAdmin,
   ProxyAdmin__factory,
@@ -51,15 +48,11 @@ import { deployMarketImplementation } from '../../../helpers/marketHelpers'
 
 const { ethers } = HRE
 
-export const ZERO_ADDR = ethers.utils.hexZeroPad('0x', 20)
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
 
 export const BATCHER = '0xAEf566ca7E84d1E736f999765a804687f39D9094'
 export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
-export const DSU = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
-export const USDC = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
-const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 const LEGACY_ORACLE_DELAY = 3600
 const STARTING_TIMESTAMP = BigNumber.from(1646456563)
@@ -80,18 +73,21 @@ export interface InstanceVars {
   dsu: IERC20Metadata
   usdc: IERC20Metadata
   usdcHolder: SignerWithAddress
+  dsuMinterAddress: Address
   chainlink: ChainlinkContext
   oracle: IOracle
   marketImpl: Market
 }
 
-// TODO: parameterize DSU and USDC
-export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
+export async function deployProtocol(
+  dsu: IERC20Metadata,
+  usdc: IERC20Metadata,
+  dsuMinterAddress: Address,
+  chainlinkContext?: ChainlinkContext,
+): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
-  const dsu = IERC20Metadata__factory.connect(DSU, owner)
-  const usdc = IERC20Metadata__factory.connect(USDC, owner)
 
   const chainlink =
     chainlinkContext ??
@@ -188,12 +184,14 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     payoff,
     dsu,
     usdc,
+    dsuMinterAddress,
     usdcHolder,
     oracle,
     marketImpl,
   }
 }
 
+// TODO: both fundWallets are called by Invoke tests, and need to move to chain-specific runner
 export async function fundWallet(
   dsu: IERC20Metadata,
   usdc: IERC20Metadata,
@@ -292,12 +290,11 @@ export async function createVault(
   )
   await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD')
 
-  const ethMarket = await deployProductOnMainnetFork({
+  const ethMarket = await deployProductOnFork({
     factory: marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: ethOracle.address,
-    payoff: constants.AddressZero,
     makerLimit: parse6decimal('1000'),
     minMaintenance: parse6decimal('50'),
     takerFee: {
@@ -312,12 +309,11 @@ export async function createVault(
       scale: parse6decimal('100'),
     },
   })
-  const btcMarket = await deployProductOnMainnetFork({
+  const btcMarket = await deployProductOnFork({
     factory: marketFactory,
     token: instanceVars.dsu,
     owner: owner,
     oracle: btcOracle.address,
-    payoff: constants.AddressZero,
     makerLimit: parse6decimal('100'),
     minMaintenance: parse6decimal('50'),
     takerFee: {
@@ -360,19 +356,19 @@ export async function createVault(
     maxDeposit: maxCollateral ?? parse6decimal('500000'),
     minDeposit: 0,
   })
-  const usdc = IERC20Metadata__factory.connect(USDC, owner)
   const asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
 
   await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256)
-  await fundWallet(asset, usdc, liquidator)
+  await fundWallet(asset, instanceVars.usdc, liquidator)
+  // TODO: each fundWallet funds 2mm; could we just pass override of 14mm instead of making 7 calls?
+  await fundWallet(asset, instanceVars.usdc, perennialUser, parse6decimal('14000000'))
+  /*await fundWallet(asset, usdc, perennialUser)
   await fundWallet(asset, usdc, perennialUser)
   await fundWallet(asset, usdc, perennialUser)
   await fundWallet(asset, usdc, perennialUser)
   await fundWallet(asset, usdc, perennialUser)
-  await fundWallet(asset, usdc, perennialUser)
-  await fundWallet(asset, usdc, perennialUser)
-  await fundWallet(asset, usdc, perennialUser)
+  await fundWallet(asset, usdc, perennialUser)*/
   await asset.connect(user).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256)
@@ -463,12 +459,12 @@ export async function createInvoker(
   const { owner, user, userB } = instanceVars
 
   const multiInvoker = await new MultiInvoker__factory(owner).deploy(
-    USDC,
-    DSU,
+    instanceVars.usdc.address,
+    instanceVars.dsu.address,
     instanceVars.marketFactory.address,
-    vaultFactory ? vaultFactory.address : ZERO_ADDR,
-    noBatcher ? ZERO_ADDR : BATCHER,
-    DSU_MINTER,
+    vaultFactory ? vaultFactory.address : constants.AddressZero,
+    noBatcher ? constants.AddressZero : BATCHER,
+    instanceVars.dsuMinterAddress,
     500_000,
     500_000,
   )
