@@ -16,6 +16,16 @@ processed_output=$(echo "$filtered_output" | awk '
     }
 ')
 
+# Function to extract Code Size table
+extract_code_size() {
+    echo "$processed_output" | awk '
+    /·--/ && blank_inserted == 1 { exit }  # Stop before the last boundary line
+    {
+        if (NF == 0) exit  # Exit when the blank line is encountered
+        print
+    }'
+}
+
 # Function to extract Gas Report table
 extract_gas_report() {
     echo "$processed_output" | awk '
@@ -24,6 +34,7 @@ extract_gas_report() {
     '
 }
 
+code_size_output=$(extract_code_size)
 gas_report_output=$(extract_gas_report)
 
 # Write the Gas Report output to a file
