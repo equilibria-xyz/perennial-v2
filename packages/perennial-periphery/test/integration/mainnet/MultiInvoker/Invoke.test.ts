@@ -50,6 +50,7 @@ export function RunInvokerTests(
     amountOverride?: BigNumber,
   ) => Promise<void>,
   fundWalletUSDC: (usdc: IERC20Metadata, wallet: SignerWithAddress, amountOverride?: BigNumber) => Promise<void>,
+  advanceToPrice: () => Promise<void>,
   initialOracleVersionEth: OracleVersionStruct,
   initialOracleVersionBtc: OracleVersionStruct,
 ): void {
@@ -782,7 +783,7 @@ export function RunInvokerTests(
           })
 
           it('fills an intent update', async () => {
-            const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier, chainlink } = instanceVars
+            const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier, oracle } = instanceVars
 
             await marketFactory.updateParameter({
               ...(await marketFactory.parameter()),
@@ -851,8 +852,8 @@ export function RunInvokerTests(
                 intent,
               }),
             )
-            const intentTimestamp = await chainlink.oracle.current()
 
+            const intentTimestamp = await oracle.current()
             expectOrderEq(await market.pendingOrders(user.address, 1), {
               ...DEFAULT_ORDER,
               timestamp: intentTimestamp,
@@ -881,7 +882,7 @@ export function RunInvokerTests(
               userB = instanceVars.userB
               dsu = instanceVars.dsu
               usdc = instanceVars.usdc
-              const { marketFactory, owner, chainlink } = instanceVars
+              const { marketFactory, owner } = instanceVars
               await dsu.connect(user).approve(market.address, parse6decimal('600').mul(1e12))
               await dsu.connect(userB).approve(market.address, parse6decimal('600').mul(1e12))
               // set up the market to pay out a maker referral fee
@@ -908,7 +909,7 @@ export function RunInvokerTests(
                   false,
                   user.address,
                 )
-              await chainlink.next()
+              await advanceToPrice()
               await market.connect(user).settle(user.address)
               await market.connect(userB).settle(userB.address)
             })

@@ -12,6 +12,7 @@ export const DSU_RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' // Arbitrum native USDC (not USDC.e), a 6-decimal token
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199' // Maker PSM has 520mm USDC at height 17433155
 
+// TODO: no need to pass implementations into these methods; assimilate interface used by arbitrumHelpers (wallet, amount)
 export async function fundWalletDSU(
   dsu: IERC20Metadata,
   usdc: IERC20Metadata,

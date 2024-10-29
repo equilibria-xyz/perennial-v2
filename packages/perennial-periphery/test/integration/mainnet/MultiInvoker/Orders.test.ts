@@ -35,6 +35,7 @@ function payoff(number: BigNumber): BigNumber {
 export function RunOrderTests(
   getFixture: () => Promise<InstanceVars>,
   createInvoker: (instanceVars: InstanceVars) => Promise<MultiInvoker>,
+  advanceToPrice: (price?: BigNumber) => Promise<void>,
 ): void {
   describe('Orders', () => {
     let instanceVars: InstanceVars
@@ -47,7 +48,8 @@ export function RunOrderTests(
 
     const fixture = async () => {
       instanceVars = await getFixture()
-      await instanceVars.chainlink.reset()
+      // FIXME: do we really need this?
+      // await instanceVars.chainlink.reset()
       const { owner, user, userB, dsu, oracle } = instanceVars
 
       const riskParamOverrides = {
@@ -79,7 +81,7 @@ export function RunOrderTests(
 
     beforeEach(async () => {
       await loadFixture(fixture)
-      await instanceVars.chainlink.nextWithPriceModification(() => PRICE)
+      await advanceToPrice(PRICE)
       settle(market, instanceVars.userB)
     })
 
@@ -179,7 +181,7 @@ export function RunOrderTests(
         })
 
         it('executes a long limit order', async () => {
-          const { user, userC, chainlink } = instanceVars
+          const { user, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
@@ -199,7 +201,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -210,7 +212,7 @@ export function RunOrderTests(
         })
 
         it('executes a short limit order', async () => {
-          const { user, userC, chainlink } = instanceVars
+          const { user, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
@@ -230,7 +232,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -241,7 +243,7 @@ export function RunOrderTests(
         })
 
         it('executes a long tp order', async () => {
-          const { user, userC, chainlink } = instanceVars
+          const { user, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
@@ -262,7 +264,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -273,7 +275,7 @@ export function RunOrderTests(
         })
 
         it('executes a short tp order', async () => {
-          const { user, userC, chainlink } = instanceVars
+          const { user, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.0011'))).div(1e12)
 
@@ -294,7 +296,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -305,7 +307,7 @@ export function RunOrderTests(
         })
 
         it('executes a long sl order', async () => {
-          const { user, userC, chainlink } = instanceVars
+          const { user, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
@@ -326,7 +328,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -337,7 +339,7 @@ export function RunOrderTests(
         })
 
         it('executes a short sl order', async () => {
-          const { user, userC, chainlink } = instanceVars
+          const { user, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
@@ -357,7 +359,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
@@ -368,7 +370,7 @@ export function RunOrderTests(
         })
 
         it('executes a maker limit order', async () => {
-          const { userB, userC, chainlink } = instanceVars
+          const { userB, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
@@ -388,7 +390,7 @@ export function RunOrderTests(
           await expect(multiInvoker.connect(userB)['invoke((uint8,bytes)[])'](placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, userB)
 
           const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
@@ -399,7 +401,7 @@ export function RunOrderTests(
         })
 
         it('executes a maker above market price order', async () => {
-          const { userB, userC, chainlink } = instanceVars
+          const { userB, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.sub(utils.parseEther('0.001'))).div(1e12)
 
@@ -420,7 +422,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder, userB)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, userB)
 
           const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
@@ -431,7 +433,7 @@ export function RunOrderTests(
         })
 
         it('executes a maker below price order', async () => {
-          const { userB, userC, chainlink } = instanceVars
+          const { userB, userC } = instanceVars
 
           const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
@@ -453,7 +455,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder, userB)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, userB)
 
           const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
@@ -464,7 +466,7 @@ export function RunOrderTests(
         })
 
         it('executes an order with interface fee', async () => {
-          const { marketFactory, user, userB, userC, chainlink, dsu } = instanceVars
+          const { marketFactory, user, userB, userC, dsu, oracle } = instanceVars
           await marketFactory.updateParameter({
             ...(await marketFactory.parameter()),
             referralFee: parse6decimal('0.05'),
@@ -489,12 +491,12 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const balanceBefore = await dsu.balanceOf(userB.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-          const currentTimestamp = await chainlink.oracle.current()
+          const currentTimestamp = await oracle.current()
 
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
@@ -535,7 +537,7 @@ export function RunOrderTests(
         })
 
         it('executes an order with interface fee (unwrap)', async () => {
-          const { marketFactory, user, userB, userC, chainlink, usdc } = instanceVars
+          const { marketFactory, user, userB, userC, usdc, oracle } = instanceVars
           await marketFactory.updateParameter({
             ...(await marketFactory.parameter()),
             referralFee: parse6decimal('0.05'),
@@ -560,12 +562,12 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const balanceBefore = await usdc.balanceOf(userB.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-          const currentTimestamp = await chainlink.oracle.current()
+          const currentTimestamp = await oracle.current()
 
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
@@ -600,7 +602,7 @@ export function RunOrderTests(
         })
 
         it('executes an order with multiple interface fees', async () => {
-          const { marketFactory, user, userB, userC, userD, chainlink, dsu, usdc } = instanceVars
+          const { marketFactory, user, userB, userC, userD, dsu, usdc, oracle } = instanceVars
           await marketFactory.updateParameter({
             ...(await marketFactory.parameter()),
             referralFee: parse6decimal('0.05'),
@@ -626,13 +628,13 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const balanceBefore = await usdc.balanceOf(userB.address)
           const balanceBefore2 = await dsu.balanceOf(userD.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-          const currentTimestamp = await chainlink.oracle.current()
+          const currentTimestamp = await oracle.current()
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
             .withArgs(user.address, market.address, 1)
@@ -670,7 +672,7 @@ export function RunOrderTests(
         })
 
         it('executes a withdrawal order', async () => {
-          const { user, userB, userC, chainlink, usdc } = instanceVars
+          const { user, userB, userC, usdc, oracle } = instanceVars
 
           const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
@@ -692,12 +694,12 @@ export function RunOrderTests(
           await expect(invoke(placeOrder, userB)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(userB.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, userB)
 
           const balanceBefore = await usdc.balanceOf(userB.address)
           const execute = buildExecOrder({ user: userB.address, market: market.address, orderId: 1 })
-          const currentTimestamp = await chainlink.oracle.current()
+          const currentTimestamp = await oracle.current()
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
             .withArgs(userB.address, market.address, 1)
@@ -716,7 +718,7 @@ export function RunOrderTests(
         })
 
         it('executes a max withdrawal order with order fee', async () => {
-          const { user, userC, chainlink, dsu, usdc } = instanceVars
+          const { user, userC, dsu, usdc } = instanceVars
 
           const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
@@ -737,7 +739,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, user)
 
           const executorBalanceBefore = await dsu.balanceOf(userC.address)
@@ -758,7 +760,7 @@ export function RunOrderTests(
         })
 
         it('executes a maker, long, and short magic close all order', async () => {
-          const { user, userC, chainlink } = instanceVars
+          const { user, userC } = instanceVars
 
           // ------------------- Maker close all ------------------------- //
 
@@ -781,7 +783,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, user)
 
           expect((await market.positions(user.address)).maker).to.be.eq(userPosition)
@@ -796,7 +798,7 @@ export function RunOrderTests(
             .to.emit(multiInvoker, 'OrderExecuted')
             .withArgs(user.address, market.address, 1)
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           expect((await market.positions(user.address)).maker).to.be.eq(0)
@@ -810,7 +812,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 2)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, user)
 
           expect((await market.positions(user.address)).long).to.be.eq(userPosition)
@@ -820,7 +822,7 @@ export function RunOrderTests(
             .to.emit(multiInvoker, 'OrderExecuted')
             .withArgs(user.address, market.address, 2)
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           expect((await market.positions(user.address)).long).to.be.eq(0)
@@ -834,7 +836,7 @@ export function RunOrderTests(
           await expect(invoke(placeOrder)).to.not.be.reverted
           expect(await multiInvoker.canExecuteOrder(user.address, market.address, 3)).to.be.false
 
-          await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
           await settle(market, user)
 
           expect((await market.positions(user.address)).short).to.be.eq(userPosition)
@@ -844,7 +846,7 @@ export function RunOrderTests(
             .to.emit(multiInvoker, 'OrderExecuted')
             .withArgs(user.address, market.address, 3)
 
-          await chainlink.nextWithPriceModification(() => PRICE.sub(utils.parseEther('0.0011')))
+          await advanceToPrice(PRICE.sub(utils.parseEther('0.0011')))
           await settle(market, user)
 
           expect((await market.positions(user.address)).short).to.be.eq(0)
@@ -957,7 +959,7 @@ export function RunOrderTests(
           })
 
           it('exceeds max trigger fee on execution', async () => {
-            const { user, chainlink } = instanceVars
+            const { user, oracle } = instanceVars
 
             const triggerPrice = payoff(PRICE.add(utils.parseEther('0.001'))).div(1e12)
 
@@ -978,12 +980,12 @@ export function RunOrderTests(
             await expect(invoke(placeOrder)).to.not.be.reverted
             expect(await multiInvoker.canExecuteOrder(user.address, market.address, 1)).to.be.false
 
-            await chainlink.nextWithPriceModification(() => PRICE.add(utils.parseEther('0.0011')))
+            await advanceToPrice(PRICE.add(utils.parseEther('0.0011')))
             await settle(market, user)
 
             await ethers.HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x1000000'])
             const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
-            const currentTimestamp = await chainlink.oracle.current()
+            const currentTimestamp = await oracle.current()
             await expect(invoke(execute, undefined, { maxFeePerGas: 16777216 }))
               .to.emit(market, 'OrderCreated')
               .withArgs(

@@ -34,9 +34,7 @@ import {
   IBatcher__factory,
   IEmptySetReserve__factory,
 } from '../../../../types/generated'
-import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chainlinkHelpers'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
 
 import { deployProductOnFork } from '@perennial/vault/test/integration/helpers/setupHelpers'
 import {
@@ -71,7 +69,6 @@ export interface InstanceVars {
   usdc: IERC20Metadata
   dsuReserve: IEmptySetReserve
   dsuBatcher: IBatcher | undefined
-  chainlink: ChainlinkContext
   chainlinkKeptFeed: AggregatorV3Interface
   oracle: IOracle
   marketImpl: Market
@@ -83,20 +80,10 @@ export async function deployProtocol(
   dsuBatcherAddress: Address,
   dsuReserveAddress: Address,
   chainlinkKeptFeedAddress: Address,
-  chainlinkContext?: ChainlinkContext,
 ): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
-
-  const chainlink =
-    chainlinkContext ??
-    (await new ChainlinkContext(
-      CHAINLINK_CUSTOM_CURRENCIES.ETH,
-      CHAINLINK_CUSTOM_CURRENCIES.USD,
-      { provider: payoff, decimals: -5 },
-      1,
-    ).init(BigNumber.from(0), BigNumber.from(0)))
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -153,12 +140,6 @@ export async function deployProtocol(
     minScale: parse6decimal('0.001'),
     maxStaleAfter: 7200,
   })
-  await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
-  const oracle = IOracle__factory.connect(
-    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD'),
-    owner,
-  )
-  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
   return {
     owner,
@@ -171,7 +152,6 @@ export async function deployProtocol(
     oracleFactory,
     marketFactory,
     verifier,
-    chainlink,
     chainlinkKeptFeed: AggregatorV3Interface__factory.connect(chainlinkKeptFeedAddress, owner),
     payoff,
     dsu,
@@ -179,7 +159,7 @@ export async function deployProtocol(
     dsuBatcher:
       dsuBatcherAddress === constants.AddressZero ? undefined : IBatcher__factory.connect(dsuBatcherAddress, owner),
     dsuReserve: IEmptySetReserve__factory.connect(dsuReserveAddress, owner),
-    oracle,
+    oracle: oracleImpl, // placeholder until real oracle is deployed in chain-specific test setup
     marketImpl,
   }
 }
