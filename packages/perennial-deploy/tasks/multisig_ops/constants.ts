@@ -15,7 +15,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '860000000000',
     },
     makerLimit: '2500000000000',
@@ -49,7 +48,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '600000000',
     },
     makerLimit: '3010000000',
@@ -83,7 +81,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '230000000000',
     },
     makerLimit: '552630000000',
@@ -117,7 +114,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '570000000000',
     },
     makerLimit: '1200000000000',
@@ -151,7 +147,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '7900000000',
     },
     makerLimit: '15650000000',
@@ -185,7 +180,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '34000000',
     },
     makerLimit: '99000000',
@@ -219,7 +213,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '260000000',
     },
     makerLimit: '240000000',
@@ -253,7 +246,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '36000000000',
     },
     makerLimit: '94740000000',
@@ -287,7 +279,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '360000000000',
     },
     makerLimit: '250009000000',
@@ -321,7 +312,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '9000000000',
     },
     makerLimit: '5410000000',
@@ -355,7 +345,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '360000000000',
     },
     makerLimit: '384616000000',
@@ -389,7 +378,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '30000000000',
     },
     makerLimit: '12730000000',
@@ -423,7 +411,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '1700000000',
     },
     makerLimit: '1170000000',
@@ -457,7 +444,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '4500000000',
     },
     makerLimit: '450000000',
@@ -491,7 +477,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '50000000000',
     },
     makerLimit: '50000000000',
@@ -525,7 +510,6 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
     makerFee: {
       linearFee: '100',
       proportionalFee: '0',
-      adiabaticFee: '0',
       scale: '1500000000000',
     },
     makerLimit: '150000000000',
@@ -550,28 +534,28 @@ export const NewRiskParams: Record<string, RiskParameterStruct> = {
 }
 
 export const NewMarketParameter: MarketParameterStruct = {
-  fundingFee: utils.parseUnits('0.10', 6),
-  interestFee: utils.parseUnits('0.10', 6),
-  positionFee: utils.parseUnits('0.10', 6),
-  oracleFee: 0,
-  riskFee: utils.parseUnits('1', 6),
+  fundingFee: utils.parseUnits('0.10', 6), // Overriden in migration to current market value
+  interestFee: utils.parseUnits('0.10', 6), // Overriden in migration to current market value
+  makerFee: utils.parseUnits('0', 6),
+  takerFee: utils.parseUnits('0.0002', 6),
+  riskFee: utils.parseUnits('0.25', 6),
   maxPendingGlobal: 12,
   maxPendingLocal: 6,
-  settlementFee: utils.parseUnits('0.2', 6),
-  takerCloseAlways: true,
-  makerCloseAlways: false,
   closed: false,
   settle: false,
+  maxPriceDeviation: utils.parseUnits('0.15', 6),
 }
 
 export const NewProtocolParameter: ProtocolParameterStruct = {
-  protocolFee: 0,
-  maxFee: 14200,
+  minScale: utils.parseUnits('0.04', 6),
+  maxFee: 30000,
   maxLiquidationFee: 50000000,
-  maxCut: 100000,
+  maxCut: 130000,
   maxRate: 15000000,
   minMaintenance: 4000,
   minEfficiency: 250000,
-  referralFee: 0,
-  maxStaleAfter: 172800, // 2 days
+  referralFee: utils.parseUnits('0.40', 6),
+  maxStaleAfter: 3600, // 1 hour
 }
+
+export const VaultMinimumDeposit = utils.parseUnits('20', 6)
