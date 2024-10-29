@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { RiskParameter } from "@perennial/core/contracts/types/RiskParameter.sol";
 import { Ownable } from "@equilibria/root/attribute/Ownable.sol";
-import { ICoordinator, IMarket, RiskParameter, Token18 } from "./interfaces/ICoordinator.sol";
+import { ICoordinator } from "./interfaces/ICoordinator.sol";
 
 /// @title Coordinator
 /// @notice Manages claiming fees and updating risk parameters for markets
@@ -36,7 +38,7 @@ contract Coordinator is ICoordinator, Ownable {
     /// @param market The market to claim the fee for
     function claimFee(IMarket market) external {
         if (msg.sender != comptroller) revert NotComptroller();
-        market.claimFee();
+        market.claimFee(address(this));
         market.token().push(comptroller);
     }
 
@@ -45,6 +47,6 @@ contract Coordinator is ICoordinator, Ownable {
     /// @param riskParameter The new risk parameter
     function updateRiskParameter(IMarket market, RiskParameter calldata riskParameter) external {
         if (msg.sender != coordinator) revert NotCoordinator();
-        market.updateRiskParameter(riskParameter, false);
+        market.updateRiskParameter(riskParameter);
     }
 }

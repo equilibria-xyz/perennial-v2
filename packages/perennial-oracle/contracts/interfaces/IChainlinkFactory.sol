@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "./IKeeperFactory.sol";
+import { IKeeperFactory } from "./IKeeperFactory.sol";
 
 interface IChainlinkFactory is IKeeperFactory {
     error ChainlinkFactoryInputLengthMismatchError();
@@ -55,4 +55,7 @@ interface IFeeManager {
     bytes memory report,
     address quoteAddress
   ) external view returns (Asset memory, Asset memory, uint256);
+
+  function s_nativeSurcharge() external view returns (uint256);
+  function s_subscriberDiscounts(address subscriber, bytes32 feedId, address feeToken) external view returns (uint256);
 }

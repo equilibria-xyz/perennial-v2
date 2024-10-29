@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { utils, ContractTransaction, constants } from 'ethers'
+import { utils, BigNumber, ContractTransaction, constants } from 'ethers'
 
 import { impersonate } from '../../../../common/testutil'
 import {
@@ -25,10 +25,11 @@ import {
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
   VersionLib__factory,
+  MagicValueLib__factory,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@equilibria/perennial-v2-oracle/util/constants'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
 import { MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import {
   OracleFactory,
@@ -38,7 +39,8 @@ import {
   PowerTwo__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+} from '@perennial/oracle/types/generated'
+import { Verifier, Verifier__factory } from '../../../../perennial-verifier/types/generated'
 const { deployments, ethers } = HRE
 
 export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'
@@ -46,6 +48,7 @@ const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 export interface InstanceVars {
   owner: SignerWithAddress
+  coordinator: SignerWithAddress
   pauser: SignerWithAddress
   user: SignerWithAddress
   userB: SignerWithAddress
@@ -62,10 +65,11 @@ export interface InstanceVars {
   chainlink: ChainlinkContext
   oracle: IOracleProvider
   marketImpl: Market
+  verifier: Verifier
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
-  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD, beneficiaryB, coordinator] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
   const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
@@ -78,7 +82,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       CHAINLINK_CUSTOM_CURRENCIES.USD,
       { provider: payoff, decimals: -5 },
       1,
-    ).init())
+    ).init(BigNumber.from(0), BigNumber.from(0)))
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -92,6 +96,13 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     [],
   )
   const oracleFactory = new OracleFactory__factory(owner).attach(oracleFactoryProxy.address)
+
+  const verifierImpl = await new Verifier__factory(owner).deploy()
+  const verifierProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    verifierImpl.address,
+    proxyAdmin.address,
+    [],
+  )
 
   const marketImpl = await new Market__factory(
     {
@@ -115,11 +126,16 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy()
+  ).deploy(verifierProxy.address)
 
-  const factoryImpl = await new MarketFactory__factory(owner).deploy(oracleFactory.address, marketImpl.address)
+  const factoryImpl = await new MarketFactory__factory(owner).deploy(
+    oracleFactory.address,
+    verifierProxy.address,
+    marketImpl.address,
+  )
 
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -128,30 +144,37 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
 
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
+  const verifier = new Verifier__factory(owner).attach(verifierProxy.address)
 
   // Init
-  await oracleFactory.connect(owner).initialize(dsu.address)
+  await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
+  await verifier.connect(owner).initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
   await marketFactory.updateParameter({
-    protocolFee: parse6decimal('0.50'),
     maxFee: parse6decimal('0.01'),
-    maxFeeAbsolute: parse6decimal('1000'),
+    maxLiquidationFee: parse6decimal('20'),
     maxCut: parse6decimal('0.50'),
     maxRate: parse6decimal('10.00'),
     minMaintenance: parse6decimal('0.01'),
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
+    minScale: parse6decimal('0.001'),
+    maxStaleAfter: 172800, // 2 days
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
-  await oracleFactory.connect(owner).authorize(marketFactory.address)
+  await oracleFactory.connect(owner).updateParameter({
+    maxGranularity: 10000,
+    maxSettlementFee: parse6decimal('1000'),
+    maxOracleFee: parse6decimal('0.5'),
+  })
   const oracle = IOracle__factory.connect(
-    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address),
+    await oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD'),
     owner,
   )
-  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address)
+  await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
   // Set state
   await fundWallet(dsu, user)
@@ -162,6 +185,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   return {
     owner,
+    coordinator,
     pauser,
     user,
     userB,
@@ -178,6 +202,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     marketFactory,
     oracle,
     marketImpl,
+    verifier,
   }
 }
 
@@ -198,7 +223,7 @@ export async function createMarket(
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
-  const { owner, marketFactory, beneficiaryB, oracle, dsu } = instanceVars
+  const { owner, marketFactory, coordinator, beneficiaryB, oracle, dsu } = instanceVars
 
   const definition = {
     token: dsu.address,
@@ -216,7 +241,6 @@ export async function createMarket(
     makerFee: {
       linearFee: 0,
       proportionalFee: 0,
-      adiabaticFee: 0,
       scale: parse6decimal('10000'),
     },
     makerLimit: parse6decimal('1000'),
@@ -242,14 +266,12 @@ export async function createMarket(
   const marketParameter = {
     fundingFee: parse6decimal('0.1'),
     interestFee: parse6decimal('0.1'),
-    oracleFee: 0,
     riskFee: 0,
-    positionFee: 0,
+    makerFee: 0,
+    takerFee: 0,
     maxPendingGlobal: 8,
     maxPendingLocal: 8,
-    settlementFee: 0,
-    makerCloseAlways: false,
-    takerCloseAlways: false,
+    maxPriceDeviation: parse6decimal('0.1'),
     closed: false,
     settle: false,
     ...marketParamOverrides,
@@ -258,25 +280,16 @@ export async function createMarket(
   await marketFactory.create(definition)
 
   const market = Market__factory.connect(marketAddress, owner)
-  await market.updateRiskParameter(riskParameter, false)
-  await market.updateParameter(beneficiaryB.address, constants.AddressZero, marketParameter)
+  await market.updateRiskParameter(riskParameter)
+  await market.updateBeneficiary(beneficiaryB.address)
+  await market.updateParameter(marketParameter)
+  await market.updateCoordinator(coordinator.address)
+
+  await oracle.register(market.address)
 
   return market
-}
-
-export async function updateNoOp(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  return market
-    .connect(account)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
-      account.address,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      0,
-      false,
-    )
 }
 
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  return market.connect(account)['settle(address)'](account.address)
+  return market.connect(account).settle(account.address)
 }

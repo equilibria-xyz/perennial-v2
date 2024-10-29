@@ -1,6 +1,8 @@
 import defaultConfig, { AUTO_IMPERSONATE } from '../common/hardhat.default.config'
-import { solidityOverrides as coreOverrides } from '@equilibria/perennial-v2/hardhat.config'
-import { solidityOverrides as vaultOverrides } from '@equilibria/perennial-v2-vault/hardhat.config'
+import { solidityOverrides as coreOverrides } from '@perennial/core/hardhat.config'
+import { solidityOverrides as vaultOverrides } from '@perennial/vault/hardhat.config'
+import { solidityOverrides as extensionsOverrides } from '@perennial/extensions/hardhat.config'
+import { solidityOverrides as accountOverrides } from '@perennial/account/hardhat.config'
 import './tasks'
 import { extendEnvironment } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, HttpNetworkUserConfig } from 'hardhat/types'
@@ -10,34 +12,52 @@ const config = defaultConfig({
     '@openzeppelin/contracts/governance/TimelockController.sol',
     '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol',
     '@openzeppelin/contracts/interfaces/IERC20.sol',
-    '@equilibria/perennial-v2-oracle/contracts/payoff/PowerHalf.sol',
-    '@equilibria/perennial-v2-oracle/contracts/payoff/PowerTwo.sol',
-    '@equilibria/perennial-v2-oracle/contracts/payoff/Inverse.sol',
-    '@equilibria/perennial-v2-oracle/contracts/Oracle.sol',
-    '@equilibria/perennial-v2-oracle/contracts/OracleFactory.sol',
-    '@equilibria/perennial-v2-oracle/contracts/keeper/KeeperFactory.sol',
-    '@equilibria/perennial-v2-oracle/contracts/keeper/KeeperOracle.sol',
-    '@equilibria/perennial-v2-oracle/contracts/pyth/PythFactory.sol',
-    '@equilibria/perennial-v2-oracle/contracts/pyth/PythFactory_Arbitrum.sol',
-    '@equilibria/perennial-v2-oracle/contracts/pyth/PythFactory_Optimism.sol',
-    '@equilibria/perennial-v2-oracle/contracts/metaquants/MetaQuantsFactory.sol',
-    '@equilibria/perennial-v2-oracle/contracts/metaquants/MetaQuantsFactory_Arbitrum.sol',
-    '@equilibria/perennial-v2-oracle/contracts/metaquants/MetaQuantsFactory_Optimism.sol',
-    '@equilibria/perennial-v2/contracts/Market.sol',
-    '@equilibria/perennial-v2/contracts/MarketFactory.sol',
-    '@equilibria/perennial-v2-vault/contracts/Vault.sol',
-    '@equilibria/perennial-v2-vault/contracts/VaultFactory.sol',
-    '@equilibria/perennial-v2-extensions/contracts/MultiInvoker.sol',
-    '@equilibria/perennial-v2-extensions/contracts/MultiInvoker_Arbitrum.sol',
-    '@equilibria/perennial-v2-extensions/contracts/MultiInvoker_Optimism.sol',
-    '@equilibria/perennial-v2-extensions/contracts/Coordinator.sol',
+    '@equilibria/root/gas/GasOracle.sol',
+    '@equilibria/root/gas/GasOracle_Arbitrum.sol',
+    '@equilibria/root/gas/GasOracle_Optimism.sol',
+    '@perennial/oracle/contracts/payoff/PowerHalf.sol',
+    '@perennial/oracle/contracts/payoff/PowerTwo.sol',
+    '@perennial/oracle/contracts/payoff/Inverse.sol',
+    '@perennial/oracle/contracts/Oracle.sol',
+    '@perennial/oracle/contracts/OracleFactory.sol',
+    '@perennial/oracle/contracts/keeper/KeeperFactory.sol',
+    '@perennial/oracle/contracts/keeper/KeeperOracle.sol',
+    '@perennial/oracle/contracts/keeper/KeeperOracle_Migration.sol',
+    '@perennial/oracle/contracts/pyth/PythFactory.sol',
+    '@perennial/oracle/contracts/metaquants/MetaQuantsFactory.sol',
+    '@perennial/core/contracts/Market.sol',
+    '@perennial/core/contracts/MarketFactory.sol',
+    '@perennial/vault/contracts/Vault.sol',
+    '@perennial/vault/contracts/VaultFactory.sol',
+    '@perennial/extensions/contracts/MultiInvoker.sol',
+    '@perennial/extensions/contracts/MultiInvoker_Arbitrum.sol',
+    '@perennial/extensions/contracts/MultiInvoker_Optimism.sol',
+    '@perennial/extensions/contracts/Coordinator.sol',
+    '@perennial/verifier/contracts/Verifier.sol',
+    '@perennial/account/contracts/Account.sol',
+    '@perennial/account/contracts/AccountVerifier.sol',
+    '@perennial/account/contracts/Controller_Arbitrum.sol',
+    '@perennial/order/contracts/OrderVerifier.sol',
+    '@perennial/order/contracts/Manager_Arbitrum.sol',
   ],
   solidityOverrides: {
-    '@equilibria/perennial-v2/contracts/Market.sol': {
+    '@perennial/core/contracts/Market.sol': {
       ...coreOverrides['contracts/Market.sol'],
     },
-    '@equilibria/perennial-v2-vault/contracts/Vault.sol': {
+    '@perennial/vault/contracts/Vault.sol': {
       ...vaultOverrides['contracts/Vault.sol'],
+    },
+    '@perennial/extensions/contracts/MultiInvoker.sol': {
+      ...extensionsOverrides['contracts/MultiInvoker.sol'],
+    },
+    '@perennial/extensions/contracts/MultiInvoker_Arbitrum.sol': {
+      ...extensionsOverrides['contracts/MultiInvoker_Arbitrum.sol'],
+    },
+    '@perennial/extensions/contracts/MultiInvoker_Optimism.sol': {
+      ...extensionsOverrides['contracts/MultiInvoker_Optimism.sol'],
+    },
+    '@perennial/account/contracts/Controller_Arbitrum.sol': {
+      ...accountOverrides['contracts/Controller_Arbitrum.sol'],
     },
   },
 })

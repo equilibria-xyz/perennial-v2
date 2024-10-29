@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "./OracleVersion.sol";
-import "./RiskParameter.sol";
-import "./Global.sol";
-import "./Local.sol";
-import "./Position.sol";
-import "./MarketParameter.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { OracleVersion } from "./OracleVersion.sol";
+import { Position } from "./Position.sol";
+import { MarketParameter } from "./MarketParameter.sol";
 
 /// @dev Order type
 struct Order {
@@ -37,13 +36,13 @@ struct Order {
     /// @dev The negative skew short order size
     UFixed6 shortNeg;
 
-    /// @dev The protection status semaphore
+    /// @dev The protection status semaphore (local only)
     uint256 protection;
 
-    /// @dev The referral fee
+    /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 makerReferral;
 
-    /// @dev The referral fee
+    /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 takerReferral;
 }
 using OrderLib for Order global;
@@ -53,6 +52,7 @@ struct OrderStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must rem
 using OrderStorageLocalLib for OrderStorageLocal global;
 
 /// @title Order
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for an account's update order
 library OrderLib {
     /// @notice Returns whether the order is ready to be settled
@@ -78,6 +78,37 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+    }
+
+    /// @notice Creates a new order from the an intent order request
+    /// @param timestamp The current timestamp
+    /// @param position The current position
+    /// @param amount The magnitude and direction of the order
+    /// @param collateral The change in the collateral
+    /// @param referralFee The referral fee
+    /// @return newOrder The resulting order
+    function from(
+        uint256 timestamp,
+        Position memory position,
+        Fixed6 amount,
+        Fixed6 collateral,
+        UFixed6 referralFee
+    ) internal pure returns (Order memory newOrder) {
+        newOrder.timestamp = timestamp;
+        newOrder.collateral = collateral;
+        newOrder.orders = amount.isZero() ? 0 : 1;
+        newOrder.takerReferral = amount.abs().mul(referralFee);
+
+        // If the order is not counter to the current position, it is opening
+        if (amount.sign() == 0 || position.skew().sign() == 0 || position.skew().sign() == amount.sign()) {
+            newOrder.longPos = amount.max(Fixed6Lib.ZERO).abs();
+            newOrder.shortPos = amount.min(Fixed6Lib.ZERO).abs();
+
+        // If the order is counter to the current position, it is closing
+        } else {
+            newOrder.shortNeg = amount.max(Fixed6Lib.ZERO).abs();
+            newOrder.longNeg = amount.min(Fixed6Lib.ZERO).abs();
+        }
     }
 
     /// @notice Creates a new order from the current position and an update request
@@ -170,8 +201,11 @@ library OrderLib {
         MarketParameter memory marketParameter
     ) internal pure returns (bool) {
         return !marketParameter.closed &&
-            ((maker(self).isZero()) || !marketParameter.makerCloseAlways || increasesMaker(self)) &&
-            ((long(self).isZero() && short(self).isZero()) || !marketParameter.takerCloseAlways || increasesTaker(self));
+        // not "a taker order that is increasing" ->
+        // not (any of the following)
+        //  - taker is empty (not a taker order)
+        //  - taker is increasing (position going more long or short)
+            ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
     /// @notice Returns whether the order is protected
@@ -315,6 +349,7 @@ library OrderLib {
 }
 
 /// @dev Manually encodes and decodes the global Order struct into storage.
+///      (external-safe): this library is safe to externalize
 ///
 ///     struct StoredOrderGlobal {
 ///         /* slot 0 */

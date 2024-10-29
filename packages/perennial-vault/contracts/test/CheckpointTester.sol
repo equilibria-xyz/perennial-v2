@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "../types/Checkpoint.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
+import { Checkpoint, CheckpointStorage } from "../types/Checkpoint.sol";
+import { Account } from "../types/Account.sol";
 
 contract CheckpointTester {
     CheckpointStorage public checkpoint;
@@ -57,8 +60,8 @@ contract CheckpointTester {
         return checkpoint.read().toAssetsLocal(shares);
     }
 
-    function toAssets(UFixed6 shares, UFixed6 settlementFee) external view returns (UFixed6) {
-        return checkpoint.read().toAssets(shares, settlementFee);
+    function toAssets(UFixed6 shares) external view returns (UFixed6) {
+        return checkpoint.read().toAssets(shares);
     }
 
     function unhealthy() external view returns (bool) {

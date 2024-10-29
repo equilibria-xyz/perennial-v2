@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Checkpoint as PerennialCheckpoint } from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+import { Checkpoint as PerennialCheckpoint } from "@perennial/core/contracts/types/Checkpoint.sol";
 import { Account } from "./Account.sol";
 
 /// @dev Checkpoint type
@@ -55,6 +55,7 @@ struct CheckpointStorage { StoredCheckpoint value; }
 using CheckpointStorageLib for CheckpointStorage global;
 
 /// @title Checkpoint
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for the checkpoint type
 library CheckpointLib {
     /// @notice Initializes the checkpoint
@@ -137,13 +138,12 @@ library CheckpointLib {
     }
 
     /// @notice Converts a given amount of shares to assets with checkpoint in the global context
-    /// @dev Dev used in limit calculations when a non-historical settlement fee must be used
+    /// @dev Dev used in limit calculations when no settlement fee is available
     /// @param shares Number of shares to convert to shares
-    /// @param settlementFee Custom settlement fee
     /// @return Amount of assets for the given shares at checkpoint
-    function toAssets(Checkpoint memory self, UFixed6 shares, UFixed6 settlementFee) internal pure returns (UFixed6) {
+    function toAssets(Checkpoint memory self, UFixed6 shares) internal pure returns (UFixed6) {
         // vault is fresh, use par value
-        return (self.shares.isZero() ? shares : _toAssets(self, shares)).unsafeSub(settlementFee);
+        return (self.shares.isZero() ? shares : _toAssets(self, shares));
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint
@@ -196,6 +196,7 @@ library CheckpointLib {
     }
 }
 
+/// @dev (external-safe): this library is safe to externalize
 library CheckpointStorageLib {
     // sig: 0xba85116a
     error CheckpointStorageInvalidError();

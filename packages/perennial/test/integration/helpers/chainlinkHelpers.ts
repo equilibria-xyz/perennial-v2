@@ -3,12 +3,8 @@ import { BigNumber } from 'ethers'
 import { smock, FakeContract } from '@defi-wonderland/smock'
 
 import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
-import { buildChainlinkRoundId } from '@equilibria/perennial-v2-oracle/util/buildChainlinkRoundId'
-import {
-  IOracleFactory,
-  IOracleFactory__factory,
-  IPayoffProvider,
-} from '@equilibria/perennial-v2-oracle/types/generated'
+import { buildChainlinkRoundId } from '@perennial/oracle/util/buildChainlinkRoundId'
+import { IOracleFactory, IOracleFactory__factory, IPayoffProvider } from '@perennial/oracle/types/generated'
 
 const { ethers, deployments } = HRE
 
@@ -16,7 +12,7 @@ export const INITIAL_PHASE_ID = 1
 export const INITIAL_AGGREGATOR_ROUND_ID = 10000
 
 interface Payoff {
-  provider: IPayoffProvider
+  provider?: IPayoffProvider
   decimals: number
 }
 
@@ -28,6 +24,8 @@ export class ChainlinkContext {
   public payoff: Payoff
   public delay: number
   private decimals!: number
+  public settlementFee!: BigNumber
+  public oracleFee!: BigNumber
   private readonly base: string
   private readonly quote: string
   public readonly id: string
@@ -47,7 +45,7 @@ export class ChainlinkContext {
     this.delay = delay
   }
 
-  public async init(): Promise<ChainlinkContext> {
+  public async init(settlementFee: BigNumber, oracleFee: BigNumber): Promise<ChainlinkContext> {
     const [owner] = await ethers.getSigners()
 
     this.feedRegistryExternal = FeedRegistryInterface__factory.connect(
@@ -61,6 +59,7 @@ export class ChainlinkContext {
     this.oracleFactory.instances.whenCalledWith(this.oracle.address).returns(true)
     this.oracleFactory.oracles.whenCalledWith(this.id).returns(this.oracle.address)
 
+    this.updateParams(settlementFee, oracleFee)
     await this.next()
 
     return this
@@ -84,7 +83,6 @@ export class ChainlinkContext {
         : latestData.answer.div(BigNumber.from(10).pow(this.decimals - 18))
 
     const latestVersion = {
-      version: latestData.startedAt,
       timestamp: latestData.startedAt,
       price: await this._payoff(priceFn(latestPrice)),
       valid: true,
@@ -98,7 +96,14 @@ export class ChainlinkContext {
     this.oracle.current.whenCalledWith().returns(currentData.startedAt)
     this.oracle.latest.reset()
     this.oracle.latest.whenCalledWith().returns(latestVersion)
-    this.oracle.at.whenCalledWith(latestData.startedAt).returns(latestVersion)
+    this.oracle.at
+      .whenCalledWith(latestData.startedAt)
+      .returns([latestVersion, { settlementFee: this.settlementFee, oracleFee: this.oracleFee }])
+  }
+
+  public updateParams(settlementFee: BigNumber, oracleFee: BigNumber): void {
+    this.settlementFee = settlementFee
+    this.oracleFee = oracleFee
   }
 
   public async reset(): Promise<void> {
@@ -110,9 +115,30 @@ export class ChainlinkContext {
     await this.next()
   }
 
+  public async setInvalidVersion(): Promise<void> {
+    await this.next()
+
+    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
+
+    const latestPrice =
+      this.decimals < 18
+        ? latestData.answer.mul(BigNumber.from(10).pow(18 - this.decimals))
+        : latestData.answer.div(BigNumber.from(10).pow(this.decimals - 18))
+
+    const latestVersion = {
+      timestamp: latestData.startedAt,
+      price: await this._payoff(latestPrice),
+      valid: false,
+    }
+
+    this.oracle.at
+      .whenCalledWith(latestData.startedAt)
+      .returns([latestVersion, { settlementFee: this.settlementFee, oracleFee: this.oracleFee }])
+  }
+
   private async _payoff(price: BigNumber): Promise<BigNumber> {
     // apply payoff
-    let priceAfterPayoff = this.payoff !== undefined ? await this.payoff.provider.payoff(price) : price
+    let priceAfterPayoff = this.payoff.provider ? await this.payoff.provider.payoff(price) : price
 
     // adjust decimals
     if (this.payoff.decimals > 0) priceAfterPayoff = priceAfterPayoff.mul(BigNumber.from(10).pow(this.payoff.decimals))

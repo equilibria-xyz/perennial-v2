@@ -5,6 +5,7 @@ import { gql, request } from 'graphql-request'
 import { IMarket } from '../types/generated'
 import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUtils'
 import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
+import { constants } from 'ethers'
 
 const GRAPHQL_QUERY_PAGE_SIZE = 1000
 const SETTLE_MULTICALL_BATCH_SIZE = 150
@@ -16,6 +17,8 @@ export default task('settle-markets', 'Settles users across all markets')
   .addOptionalParam('buffergas', 'The buffer gas to add to the estimate', 1, types.int)
   .addOptionalParam('timestamp', 'Timestamp to commit prices for', undefined, types.int)
   .addOptionalParam('factoryaddress', 'Address of the PythFactory contract', undefined, types.string)
+  .addOptionalParam('commitgaslimit', 'The gas limit for the transaction', undefined, types.int)
+  .addOptionalParam('wait', 'Wait for each transaction to be confirmed', 1, types.int)
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Settle Markets] Running Settle Markets Task')
     const {
@@ -36,20 +39,25 @@ export default task('settle-markets', 'Settles users across all markets')
       (await ethers.getSigners())[0],
     )
 
-    const keeperFactory = await ethers.getContractAt(
-      'PythFactory',
-      args.factoryaddress ?? (await get('PythFactory')).address,
-    )
-    const oracles = await keeperFactory.queryFilter(keeperFactory.filters.OracleCreated())
-    const idsToCommit = oracles.map(oracle => oracle.args.id)
+    const factoryAddresses = args.factoryaddress?.split(',') ?? [
+      (await get('PythFactory')).address,
+      (await get('CryptexFactory')).address,
+    ]
+    for (const factoryAddress of factoryAddresses) {
+      const keeperFactory = await ethers.getContractAt('IKeeperFactory', factoryAddress)
+      const oracles = await keeperFactory.queryFilter(keeperFactory.filters.OracleCreated())
+      const idsToCommit = oracles.map(oracle => oracle.args.id)
 
-    console.log('[Settle Markets] Committing prices for all oracle ids at timestamp:', args.timestamp)
-    await run('commit-price', {
-      priceids: idsToCommit.join(','),
-      dry: args.dry,
-      timestamp: args.timestamp,
-      factoryaddress: args.factoryaddress,
-    })
+      console.log('[Settle Markets] Committing prices for all oracle ids at timestamp:', args.timestamp)
+      await run('commit-price', {
+        priceids: idsToCommit.join(','),
+        dry: args.dry,
+        timestamp: args.timestamp,
+        factoryaddress: keeperFactory.address,
+        prevabi: args.prevabi,
+        gaslimit: args.commitgaslimit,
+      })
+    }
 
     console.log('[Settle Markets]  Fetching Users to Settle')
     const requireSettles: { market: string; address: string }[] = await run('verify-ids', {
@@ -105,7 +113,7 @@ export default task('settle-markets', 'Settles users across all markets')
           if (!args.dry) {
             process.stdout.write('[Settle Markets]        Sending Transaction...')
             const tx = await multicall.aggregate3(multicallPayload, { gasLimit: gasUsage.mul(args.buffergas) })
-            await tx.wait()
+            await tx.wait(Number(args.wait))
             process.stdout.write(`done. Hash: ${tx.hash}\n`)
           }
           txCount += 1
@@ -153,7 +161,7 @@ export async function getAllMarketUsers(
   const result: { [key: string]: Set<string> } = {}
   for (const raw of rawData.marketAccountPositions) {
     if (raw.market in result) result[raw.market].add(raw.account)
-    else result[raw.market] = new Set([raw.account])
+    else result[raw.market] = new Set([raw.account, constants.AddressZero])
   }
 
   return { result, numQueries }

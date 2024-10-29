@@ -1,0 +1,28 @@
+{
+  "name": "@perennial/order",
+  "version": "1.3.0",
+  "description": "Perennial V2 Trigger Orders",
+  "files": [
+    "contracts/interfaces",
+    "contracts/types",
+    "artifacts/contracts/interfaces"
+  ],
+  "scripts": {
+    "build": "yarn compile",
+    "compile": "hardhat compile",
+    "gasReport": "REPORT_GAS=true OPTIMIZER_ENABLED=true yarn test:integration",
+    "test": "hardhat test test/unit/*",
+    "test:integration": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_BLOCK_NUMBER=243648015 hardhat test test/integration/*",
+    "coverage": "hardhat coverage --testfiles 'test/unit/*'",
+    "coverage:integration": "FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_BLOCK_NUMBER=243648015 hardhat coverage --testfiles 'test/integration/*'",
+    "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
+    "format": "prettier -w .",
+    "clean": "rm -rf cache artifacts types/generated dist deployments/localhost",
+    "prepack": "yarn clean && yarn build && find artifacts/contracts -name '*.dbg.json' -type f -delete"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@perennial/core": "1.3.0"
+  }
+}

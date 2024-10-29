@@ -10,7 +10,7 @@ import { VaultParameterStruct } from '../../../types/generated/contracts/Vault'
 const { ethers } = HRE
 use(smock.matchers)
 
-const VALID_VAULT_PARAMETER: VaultParameterStruct = { cap: 1 }
+const VALID_VAULT_PARAMETER: VaultParameterStruct = { maxDeposit: 1, minDeposit: 2 }
 
 describe('VaultParameter', () => {
   let owner: SignerWithAddress
@@ -29,22 +29,40 @@ describe('VaultParameter', () => {
 
       const value = await vaultParameter.read()
 
-      expect(value.cap).to.equal(1)
+      expect(value.maxDeposit).to.equal(1)
+      expect(value.minDeposit).to.equal(2)
     })
 
-    describe('.cap', () => {
+    describe('.maxDeposit', () => {
       const STORAGE_SIZE = 64
 
       it('saves if in range', async () => {
-        await vaultParameter.store({ ...VALID_VAULT_PARAMETER, cap: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) })
+        await vaultParameter.store({ ...VALID_VAULT_PARAMETER, maxDeposit: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) })
 
         const value = await vaultParameter.read()
-        expect(value.cap).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxDeposit).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('reverts if out of range', async () => {
         await expect(
-          vaultParameter.store({ ...VALID_VAULT_PARAMETER, cap: BigNumber.from(2).pow(STORAGE_SIZE) }),
+          vaultParameter.store({ ...VALID_VAULT_PARAMETER, maxDeposit: BigNumber.from(2).pow(STORAGE_SIZE) }),
+        ).to.be.revertedWithCustomError(vaultParameter, 'VaultParameterStorageInvalidError')
+      })
+    })
+
+    describe('.minDeposit', () => {
+      const STORAGE_SIZE = 64
+
+      it('saves if in range', async () => {
+        await vaultParameter.store({ ...VALID_VAULT_PARAMETER, minDeposit: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) })
+
+        const value = await vaultParameter.read()
+        expect(value.minDeposit).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          vaultParameter.store({ ...VALID_VAULT_PARAMETER, minDeposit: BigNumber.from(2).pow(STORAGE_SIZE) }),
         ).to.be.revertedWithCustomError(vaultParameter, 'VaultParameterStorageInvalidError')
       })
     })

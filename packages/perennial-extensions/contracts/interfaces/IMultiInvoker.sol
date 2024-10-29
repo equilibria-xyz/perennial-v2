@@ -1,21 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
-import {
-    IFactory,
-    IMarket,
-    Position,
-    Local,
-    UFixed18Lib,
-    UFixed18,
-    OracleVersion,
-    RiskParameter
-} from "@equilibria/perennial-v2/contracts/interfaces/IMarket.sol";
+
+import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { TriggerOrder } from "../types/TriggerOrder.sol";
 import { InterfaceFee } from "../types/InterfaceFee.sol";
 
@@ -29,7 +19,9 @@ interface IMultiInvoker {
         EXEC_ORDER,      // 5
         COMMIT_PRICE,    // 6
         __LIQUIDATE__DEPRECATED,
-        APPROVE          // 8
+        APPROVE,         // 8
+        UPDATE_INTENT,   // 9
+        CLAIM_FEE        // 10
     }
 
     struct Invocation {
@@ -61,6 +53,7 @@ interface IMultiInvoker {
     function operators(address account, address operator) external view returns (bool);
     function invoke(address account, Invocation[] calldata invocations) external payable;
     function invoke(Invocation[] calldata invocations) external payable;
+    function claim(address account, bool unwrap) external;
     function marketFactory() external view returns (IFactory);
     function vaultFactory() external view returns (IFactory);
     function batcher() external view returns (IBatcher);

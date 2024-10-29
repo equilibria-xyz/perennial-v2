@@ -4,6 +4,7 @@ import {
   Market,
   MultiInvoker,
   IEmptySetReserve__factory,
+  IBatcher,
   IBatcher__factory,
   IOracleProvider,
   IEmptySetReserve,
@@ -23,17 +24,28 @@ import {
   ZERO_ADDR,
   DSU,
   ETH_ORACLE,
+  resetEthSubOracle,
+  resetBtcSubOracle,
 } from '../helpers/setupHelpers'
 
-import { buildApproveTarget, buildPlaceOrder, buildUpdateMarket, buildUpdateVault } from '../../helpers/invoke'
+import {
+  buildApproveTarget,
+  buildClaimFee,
+  buildPlaceOrder,
+  buildUpdateIntent,
+  buildUpdateMarket,
+  buildUpdateVault,
+} from '../../helpers/invoke'
 
-import { parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
 import { expect, use } from 'chai'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { ethers } from 'hardhat'
-import { BigNumber } from 'ethers'
-import { anyUint, anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { BigNumber, constants } from 'ethers'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../helpers/types'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { IERC20Metadata } from '@perennial/core/types/generated'
 
 use(smock.matchers)
 
@@ -48,13 +60,19 @@ describe('Invoke', () => {
   let ethSubOracle: FakeContract<IOracleProvider>
   let btcSubOracle: FakeContract<IOracleProvider>
 
-  async function updateVaultOracle(newEthPrice?: BigNumber, newPriceBtc?: BigNumber) {
-    await _updateVaultOracleEth(newEthPrice)
-    await _updateVaultOracleBtc(newPriceBtc)
+  async function updateVaultOracle(
+    newEthPrice?: BigNumber,
+    newPriceBtc?: BigNumber,
+    newEthReceipt?: OracleReceipt,
+    newBtcReceipt?: OracleReceipt,
+  ) {
+    await _updateVaultOracleEth(newEthPrice, newEthReceipt)
+    await _updateVaultOracleBtc(newPriceBtc, newBtcReceipt)
   }
 
-  async function _updateVaultOracleEth(newPrice?: BigNumber) {
+  async function _updateVaultOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
     const [currentTimestamp, currentPrice] = await ethSubOracle.latest()
+    const [, currentReceipt] = await ethSubOracle.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
@@ -64,11 +82,12 @@ describe('Invoke', () => {
     ethSubOracle.request.returns()
     ethSubOracle.latest.returns(newVersion)
     ethSubOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    ethSubOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+    ethSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
-  async function _updateVaultOracleBtc(newPrice?: BigNumber) {
+  async function _updateVaultOracleBtc(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
     const [currentTimestamp, currentPrice] = await btcSubOracle.latest()
+    const [, currentReceipt] = await btcSubOracle.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
@@ -78,14 +97,24 @@ describe('Invoke', () => {
     btcSubOracle.request.returns()
     btcSubOracle.latest.returns(newVersion)
     btcSubOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns(newVersion)
+    btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
-  beforeEach(async () => {
+  const fixture = async () => {
     instanceVars = await loadFixture(deployProtocol)
     ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
     market = await createMarket(instanceVars)
+  }
+
+  beforeEach(async () => {
+    await loadFixture(fixture)
+    // TODO: move into fixture
     multiInvoker = await createInvoker(instanceVars, vaultFactory)
+  })
+
+  afterEach(async () => {
+    resetEthSubOracle(ethSubOracle)
+    resetBtcSubOracle(btcSubOracle)
   })
 
   it('constructs correctly', async () => {
@@ -116,7 +145,6 @@ describe('Invoke', () => {
 
   it('reverts on bad target approval', async () => {
     const { user, userB } = instanceVars
-    multiInvoker = await createInvoker(instanceVars, vaultFactory)
 
     await expect(
       multiInvoker.connect(user)['invoke((uint8,bytes)[])'](buildApproveTarget(userB.address)),
@@ -455,7 +483,7 @@ describe('Invoke', () => {
           await updateVaultOracle()
           await vault.settle(user.address)
 
-          const funding = BigNumber.from('18411')
+          const funding = BigNumber.from('14352')
           // claim from vault
           await expect(
             invoke(
@@ -509,14 +537,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
         })
 
@@ -537,14 +565,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
         })
 
@@ -567,14 +595,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
         })
 
@@ -597,14 +625,14 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, false])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt.mul(1e12))
         })
 
@@ -627,78 +655,242 @@ describe('Invoke', () => {
                 interfaceFee1: {
                   amount: feeAmt,
                   receiver: owner.address,
-                  unwrap: true,
                 },
                 interfaceFee2: {
                   amount: feeAmt2,
                   receiver: userB.address,
-                  unwrap: false,
                 },
               }),
             ),
           )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt, owner.address, true])
+            .withArgs(user.address, market.address, [feeAmt, owner.address])
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
-            .withArgs(user.address, market.address, [feeAmt2, userB.address, false])
+            .withArgs(user.address, market.address, [feeAmt2, userB.address])
 
+          await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
           expect((await usdc.balanceOf(owner.address)).sub(balanceBefore)).to.eq(feeAmt)
+          await expect(multiInvoker.connect(userB).claim(userB.address, false)).to.not.be.reverted
           expect((await dsu.balanceOf(userB.address)).sub(balanceBefore2)).to.eq(feeAmt2.mul(1e12))
         })
 
         it('sets subtractive fee referrer as interface1.receiver if set', async () => {
-          const { owner, user, usdc, dsu } = instanceVars
+          const { marketFactory, owner, user, usdc, dsu } = instanceVars
 
+          await marketFactory.updateParameter({
+            ...(await marketFactory.parameter()),
+            referralFee: parse6decimal('0.05'),
+          })
           await usdc.connect(user).approve(multiInvoker.address, collateral)
           await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
           await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
-          await expect(
-            invoke(
-              buildUpdateMarket({
-                market: market.address,
-                collateral: collateral,
-                maker: parse6decimal('0.01'),
-                interfaceFee1: {
-                  amount: 0,
-                  receiver: owner.address,
-                  unwrap: true,
-                },
-              }),
-            ),
+          await invoke(
+            buildUpdateMarket({
+              market: market.address,
+              collateral: collateral,
+              maker: parse6decimal('0.02'),
+              interfaceFee1: {
+                amount: 0,
+                receiver: owner.address,
+              },
+            }),
           )
-            .to.emit(market, 'Updated')
-            .withArgs(anyValue, user.address, anyUint, anyUint, anyUint, anyUint, anyValue, false, owner.address)
+
+          expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
+            owner.address,
+          )
         })
 
         it('sets subtractive fee referrer as interfaceFee2.receiver if interfaceFee1.receiver is not set', async () => {
-          const { user, userB, usdc, dsu } = instanceVars
+          const { marketFactory, userB, user, usdc, dsu } = instanceVars
 
+          await marketFactory.updateParameter({
+            ...(await marketFactory.parameter()),
+            referralFee: parse6decimal('0.05'),
+          })
           await usdc.connect(user).approve(multiInvoker.address, collateral)
           await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
           await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
-          await expect(
-            invoke(
-              buildUpdateMarket({
-                market: market.address,
-                collateral: collateral,
-                maker: parse6decimal('0.01'),
-                interfaceFee1: {
-                  amount: 0,
-                  receiver: ethers.constants.AddressZero,
-                  unwrap: false,
-                },
-                interfaceFee2: {
-                  amount: 0,
-                  receiver: userB.address,
-                  unwrap: false,
-                },
-              }),
-            ),
+          await invoke(
+            buildUpdateMarket({
+              market: market.address,
+              collateral: collateral,
+              maker: parse6decimal('0.01'),
+              interfaceFee1: {
+                amount: 0,
+                receiver: ethers.constants.AddressZero,
+              },
+              interfaceFee2: {
+                amount: 0,
+                receiver: userB.address,
+              },
+            }),
           )
-            .to.emit(market, 'Updated')
-            .withArgs(anyValue, user.address, anyUint, anyUint, anyUint, anyUint, anyValue, false, userB.address)
+
+          expect(await market.orderReferrers(user.address, (await market.locals(user.address)).currentId)).to.eq(
+            userB.address,
+          )
+        })
+
+        it('fills an intent update', async () => {
+          const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier, chainlink } = instanceVars
+
+          await marketFactory.updateParameter({
+            ...(await marketFactory.parameter()),
+            referralFee: parse6decimal('0.05'),
+          })
+          await usdc.connect(user).approve(multiInvoker.address, collateral)
+          await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+          await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+          const intent = {
+            amount: parse6decimal('1'),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: userC.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: userB.address,
+              signer: userB.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: constants.MaxUint256,
+            },
+          }
+
+          await dsu.connect(user).approve(market.address, ethers.utils.parseUnits('1000', 18))
+          await dsu.connect(userB).approve(market.address, ethers.utils.parseUnits('1000', 18))
+          await dsu.connect(userC).approve(market.address, ethers.utils.parseUnits('1000', 18))
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              0,
+              0,
+              ethers.utils.parseUnits('1000', 6),
+              false,
+            )
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              0,
+              0,
+              0,
+              ethers.utils.parseUnits('1000', 6),
+              false,
+            )
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userC.address,
+              parse6decimal('1'),
+              0,
+              0,
+              ethers.utils.parseUnits('1000', 6),
+              false,
+            )
+
+          await invoke(
+            await buildUpdateIntent({
+              signer: userB,
+              verifier: verifier,
+              market: market.address,
+              intent,
+            }),
+          )
+          const intentTimestamp = await chainlink.oracle.current()
+
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: intentTimestamp,
+            orders: 1,
+            shortPos: parse6decimal('1'),
+            collateral: ethers.utils.parseUnits('1000', 6),
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: intentTimestamp,
+            orders: 1,
+            longPos: parse6decimal('1'),
+            collateral: ethers.utils.parseUnits('1000', 6),
+            takerReferral: parse6decimal('0.05'),
+          })
+        })
+
+        describe('#market with claimable fee', async () => {
+          let user: SignerWithAddress
+          let userB: SignerWithAddress
+          let batcher: IBatcher
+          let dsu: IERC20Metadata
+          let usdc: IERC20Metadata
+
+          beforeEach(async () => {
+            user = instanceVars.user
+            userB = instanceVars.userB
+            dsu = instanceVars.dsu
+            usdc = instanceVars.usdc
+            const { marketFactory, owner, chainlink } = instanceVars
+            batcher = IBatcher__factory.connect(BATCHER, owner)
+            await dsu.connect(user).approve(market.address, parse6decimal('600').mul(1e12))
+            await dsu.connect(userB).approve(market.address, parse6decimal('600').mul(1e12))
+            // set up the market to pay out a maker referral fee
+            const protocolParameters = await marketFactory.parameter()
+            await marketFactory.connect(owner).updateParameter({
+              ...protocolParameters,
+              referralFee: parse6decimal('0.15'),
+            })
+            const marketParams = await market.parameter()
+            await market.connect(owner).updateParameter({
+              ...marketParams,
+              makerFee: parse6decimal('0.05'),
+            })
+
+            // userB creates a maker position, referred by user
+            await market
+              .connect(userB)
+              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                userB.address,
+                parse6decimal('3'),
+                0,
+                0,
+                parse6decimal('600'),
+                false,
+                user.address,
+              )
+            await chainlink.next()
+            await market.connect(user).settle(user.address)
+            await market.connect(userB).settle(userB.address)
+          })
+
+          it('claims fee from a market', async () => {
+            const expectedFee = (await market.locals(user.address)).claimable
+
+            // user invokes to claim their fee
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: true })))
+              .to.emit(market, 'FeeClaimed')
+              .withArgs(user.address, multiInvoker.address, expectedFee)
+              .to.emit(batcher, 'Unwrap')
+              .withArgs(user.address, expectedFee.mul(1e12))
+              .to.emit(usdc, 'Transfer')
+              .withArgs(batcher.address, user.address, expectedFee)
+          })
+
+          it('claims fee from a market without unwrapping', async () => {
+            const expectedFee = (await market.locals(user.address)).claimable
+
+            // user invokes to claim their fee
+            await expect(invoke(buildClaimFee({ market: market.address, unwrap: false })))
+              .to.emit(market, 'FeeClaimed')
+              .withArgs(user.address, multiInvoker.address, expectedFee)
+              .to.emit(dsu, 'Transfer')
+              .withArgs(multiInvoker.address, user.address, expectedFee.mul(1e12))
+          })
         })
 
         it('Only allows updates to factory created markets', async () => {
@@ -734,14 +926,10 @@ describe('Invoke', () => {
         })
 
         describe('#batcher 0 address', async () => {
-          let instanceVars: InstanceVars
-          let market: Market
           let reserve: IEmptySetReserve
 
           beforeEach(async () => {
-            instanceVars = await loadFixture(deployProtocol)
-            ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
-            market = await createMarket(instanceVars)
+            // deploy multiinvoker with batcher == 0 address
             multiInvoker = await createInvoker(instanceVars, vaultFactory, true)
             await setup()
             reserve = IEmptySetReserve__factory.connect(RESERVE, instanceVars.owner)

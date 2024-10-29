@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import "@equilibria/root/number/types/UFixed6.sol";
-import "./Checkpoint.sol";
+import { UFixed6 } from"@equilibria/root/number/types/UFixed6.sol";
+import { Checkpoint } from "./Checkpoint.sol";
 
 /// @dev Account type
 struct Account {
@@ -12,10 +12,10 @@ struct Account {
     /// @dev The latest position id
     uint256 latest;
 
-    /// @dev The total shares
+    /// @dev Measures ownership of the vault, convertable to assets
     UFixed6 shares;
 
-    /// @dev The total assets
+    /// @dev Redeemed shares converted to funds set aside to be claimed
     UFixed6 assets;
 
     /// @dev The amount of pending deposits
@@ -42,6 +42,7 @@ using AccountStorageLib for AccountStorage global;
 
 
 /// @title Account
+/// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the state for the account type
 library AccountLib {
     /// @notice Processes the position in a global context
@@ -107,6 +108,7 @@ library AccountLib {
     }
 }
 
+/// @dev (external-safe): this library is safe to externalize
 library AccountStorageLib {
     // sig: 0xb8a09499
     error AccountStorageInvalidError();
