@@ -3,6 +3,8 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { impersonate } from '../../../common/testutil'
 import { IERC20Metadata } from '../../types/generated'
 
+export const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
+
 export const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109' // Digital Standard Unit, an 18-decimal token
 export const DSU_BATCHER = '0xAEf566ca7E84d1E736f999765a804687f39D9094'
 export const DSU_RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'

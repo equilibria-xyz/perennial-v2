@@ -9,7 +9,7 @@ import {
 } from '../../../../types/generated'
 import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { InstanceVars, createVault, ETH_ORACLE, resetEthSubOracle, resetBtcSubOracle } from './setupHelpers'
+import { InstanceVars, createVault, resetEthSubOracle, resetBtcSubOracle } from './setupHelpers'
 
 import {
   buildApproveTarget,
@@ -30,6 +30,7 @@ import { Compare, Dir, openTriggerOrder } from './types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata } from '@perennial/core/types/generated'
 import { createMarket } from '../../../helpers/marketHelpers'
+import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
 
 use(smock.matchers)
 
@@ -49,6 +50,8 @@ export function RunInvokerTests(
     amountOverride?: BigNumber,
   ) => Promise<void>,
   fundWalletUSDC: (usdc: IERC20Metadata, wallet: SignerWithAddress, amountOverride?: BigNumber) => Promise<void>,
+  initialOracleVersionEth: OracleVersionStruct,
+  initialOracleVersionBtc: OracleVersionStruct,
 ): void {
   describe('Invoke', () => {
     let instanceVars: InstanceVars
@@ -101,7 +104,11 @@ export function RunInvokerTests(
 
     const fixture = async () => {
       instanceVars = await getFixture()
-      ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(instanceVars)
+      ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(
+        instanceVars,
+        initialOracleVersionEth,
+        initialOracleVersionBtc,
+      )
       market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.dsu, instanceVars.oracle)
       await instanceVars.oracle.register(market.address)
     }
@@ -113,8 +120,8 @@ export function RunInvokerTests(
     })
 
     afterEach(async () => {
-      resetEthSubOracle(ethSubOracle)
-      resetBtcSubOracle(btcSubOracle)
+      resetEthSubOracle(ethSubOracle, initialOracleVersionEth)
+      resetBtcSubOracle(btcSubOracle, initialOracleVersionBtc)
     })
 
     it('constructs correctly', async () => {
@@ -130,10 +137,10 @@ export function RunInvokerTests(
     })
 
     it('initializes correctly', async () => {
-      const { owner, dsu, usdc, dsuBatcher, dsuReserve } = instanceVars
+      const { owner, dsu, usdc, dsuBatcher, dsuReserve, chainlinkKeptFeed } = instanceVars
 
       expect(await multiInvoker.keeperToken()).to.eq(instanceVars.dsu.address)
-      expect(await multiInvoker.ethTokenOracleFeed()).to.eq(ETH_ORACLE)
+      expect(await multiInvoker.ethTokenOracleFeed()).to.eq(chainlinkKeptFeed.address)
 
       if (dsuBatcher) {
         expect(await dsu.allowance(multiInvoker.address, dsuBatcher.address)).to.eq(ethers.constants.MaxUint256)
@@ -142,7 +149,7 @@ export function RunInvokerTests(
       expect(await usdc.allowance(multiInvoker.address, dsuReserve.address)).to.eq(ethers.constants.MaxUint256)
       expect(await usdc.allowance(multiInvoker.address, dsuReserve.address)).to.eq(ethers.constants.MaxUint256)
 
-      await expect(multiInvoker.connect(owner).initialize(ETH_ORACLE)).to.be.revertedWithCustomError(
+      await expect(multiInvoker.connect(owner).initialize(chainlinkKeptFeed.address)).to.be.revertedWithCustomError(
         multiInvoker,
         'InitializableAlreadyInitializedError',
       )
