@@ -1,10 +1,8 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { BigNumber, utils, ContractTransaction, constants } from 'ethers'
 import { Address } from 'hardhat-deploy/dist/types'
-import HRE from 'hardhat'
-
-import { impersonate } from '../../../../../common/testutil'
 import { FakeContract, smock } from '@defi-wonderland/smock'
+import HRE from 'hardhat'
 
 import {
   IERC20Metadata,
@@ -49,7 +47,6 @@ import {
 } from '@perennial/core/types/generated'
 import { Verifier__factory } from '@perennial/core/types/generated'
 import { deployMarketImplementation } from '../../../helpers/marketHelpers'
-import { fundWalletDSU, fundWalletUSDC, USDC_HOLDER } from '../../../helpers/mainnetHelpers'
 
 const { ethers } = HRE
 
@@ -65,7 +62,6 @@ export interface InstanceVars {
   userB: SignerWithAddress
   userC: SignerWithAddress
   userD: SignerWithAddress
-  beneficiaryB: SignerWithAddress
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   marketFactory: MarketFactory
@@ -87,7 +83,7 @@ export async function deployProtocol(
   dsuReserveAddress: Address,
   chainlinkContext?: ChainlinkContext,
 ): Promise<InstanceVars> {
-  const [owner, pauser, user, userB, userC, userD, beneficiaryB] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
 
@@ -162,15 +158,6 @@ export async function deployProtocol(
   )
   await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
-  // TODO: move outside somehow
-  // Set state
-  await fundWalletDSU(dsu, usdc, user)
-  await fundWalletDSU(dsu, usdc, userB)
-  await fundWalletDSU(dsu, usdc, userC)
-  await fundWalletDSU(dsu, usdc, userD)
-  // const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  await fundWalletUSDC(usdc, user)
-
   return {
     owner,
     pauser,
@@ -178,7 +165,6 @@ export async function deployProtocol(
     userB,
     userC,
     userD,
-    beneficiaryB,
     proxyAdmin,
     oracleFactory,
     marketFactory,
@@ -216,7 +202,7 @@ export async function createVault(
   const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
   const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
-  const [owner, , user, user2, btcUser1, btcUser2, liquidator, perennialUser] = await ethers.getSigners()
+  const [owner, , user, userB, userC, userD, liquidator, perennialUser] = await ethers.getSigners()
   const marketFactory = instanceVars.marketFactory
   const oracleFactory = instanceVars.oracleFactory
 
@@ -331,17 +317,14 @@ export async function createVault(
 
   await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256)
-  // TODO: move outside somehow
-  await fundWalletDSU(asset, instanceVars.usdc, liquidator)
-  await fundWalletDSU(asset, instanceVars.usdc, perennialUser, parse6decimal('14000000'))
   await asset.connect(user).approve(vault.address, ethers.constants.MaxUint256)
-  await asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256)
-  await asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256)
-  await asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256)
+  await asset.connect(userB).approve(vault.address, ethers.constants.MaxUint256)
+  await asset.connect(userC).approve(vault.address, ethers.constants.MaxUint256)
+  await asset.connect(userD).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(user).approve(ethMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(user2).approve(ethMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256)
+  await asset.connect(userB).approve(ethMarket.address, ethers.constants.MaxUint256)
+  await asset.connect(userC).approve(btcMarket.address, ethers.constants.MaxUint256)
+  await asset.connect(userD).approve(btcMarket.address, ethers.constants.MaxUint256)
 
   // Seed markets with some activity
   await ethMarket
@@ -355,9 +338,9 @@ export async function createVault(
       false,
     )
   await ethMarket
-    .connect(user2)
+    .connect(userB)
     ['update(address,uint256,uint256,uint256,int256,bool)'](
-      user2.address,
+      userB.address,
       0,
       parse6decimal('50'),
       0,
@@ -365,9 +348,9 @@ export async function createVault(
       false,
     )
   await btcMarket
-    .connect(btcUser1)
+    .connect(userC)
     ['update(address,uint256,uint256,uint256,int256,bool)'](
-      btcUser1.address,
+      userC.address,
       parse6decimal('20'),
       0,
       0,
@@ -375,9 +358,9 @@ export async function createVault(
       false,
     )
   await btcMarket
-    .connect(btcUser2)
+    .connect(userD)
     ['update(address,uint256,uint256,uint256,int256,bool)'](
-      btcUser2.address,
+      userD.address,
       0,
       parse6decimal('10'),
       0,
