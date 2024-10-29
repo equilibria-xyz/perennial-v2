@@ -49,12 +49,10 @@ import {
 } from '@perennial/core/types/generated'
 import { Verifier__factory } from '@perennial/core/types/generated'
 import { deployMarketImplementation } from '../../../helpers/marketHelpers'
+import { fundWalletDSU, fundWalletUSDC, USDC_HOLDER } from '../../../helpers/mainnetHelpers'
 
 const { ethers } = HRE
 
-export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199'
-
-export const RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const ETH_ORACLE = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
 
 const LEGACY_ORACLE_DELAY = 3600
@@ -75,8 +73,6 @@ export interface InstanceVars {
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
-  usdcHolder: SignerWithAddress
-  dsuMinterAddress: Address
   dsuReserve: IEmptySetReserve
   dsuBatcher: IBatcher | undefined
   chainlink: ChainlinkContext
@@ -87,7 +83,6 @@ export interface InstanceVars {
 export async function deployProtocol(
   dsu: IERC20Metadata,
   usdc: IERC20Metadata,
-  dsuMinterAddress: Address,
   dsuBatcherAddress: Address,
   dsuReserveAddress: Address,
   chainlinkContext?: ChainlinkContext,
@@ -167,12 +162,13 @@ export async function deployProtocol(
   )
   await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
+  // TODO: move outside somehow
   // Set state
-  await fundWallet(dsu, usdc, user)
-  await fundWallet(dsu, usdc, userB)
-  await fundWallet(dsu, usdc, userC)
-  await fundWallet(dsu, usdc, userD)
-  const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
+  await fundWalletDSU(dsu, usdc, user)
+  await fundWalletDSU(dsu, usdc, userB)
+  await fundWalletDSU(dsu, usdc, userC)
+  await fundWalletDSU(dsu, usdc, userD)
+  // const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   await fundWalletUSDC(usdc, user)
 
   return {
@@ -191,47 +187,12 @@ export async function deployProtocol(
     payoff,
     dsu,
     usdc,
-    dsuMinterAddress,
-    usdcHolder,
     dsuBatcher:
       dsuBatcherAddress === constants.AddressZero ? undefined : IBatcher__factory.connect(dsuBatcherAddress, owner),
     dsuReserve: IEmptySetReserve__factory.connect(dsuReserveAddress, owner),
     oracle,
     marketImpl,
   }
-}
-
-// TODO: both fundWallets are called by Invoke tests, and need to move to chain-specific runner
-export async function fundWallet(
-  dsu: IERC20Metadata,
-  usdc: IERC20Metadata,
-  wallet: SignerWithAddress,
-  amountOverride?: BigNumber,
-): Promise<void> {
-  const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  const dsuIface = new utils.Interface(['function mint(uint256)'])
-  await usdc.connect(usdcHolder).approve(RESERVE, amountOverride ? amountOverride : BigNumber.from('2000000000000'))
-  await usdcHolder.sendTransaction({
-    to: RESERVE,
-    value: 0,
-    data: dsuIface.encodeFunctionData('mint', [
-      amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'),
-    ]),
-  })
-  await dsu
-    .connect(usdcHolder)
-    .transfer(wallet.address, amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'))
-}
-
-export async function fundWalletUSDC(
-  usdc: IERC20Metadata,
-  wallet: SignerWithAddress,
-  amountOverride?: BigNumber,
-): Promise<void> {
-  const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  await usdc
-    .connect(usdcHolder)
-    .transfer(wallet.address, amountOverride ? amountOverride : BigNumber.from('1000000000'))
 }
 
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
@@ -370,8 +331,9 @@ export async function createVault(
 
   await asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(perennialUser).approve(vault.address, ethers.constants.MaxUint256)
-  await fundWallet(asset, instanceVars.usdc, liquidator)
-  await fundWallet(asset, instanceVars.usdc, perennialUser, parse6decimal('14000000'))
+  // TODO: move outside somehow
+  await fundWalletDSU(asset, instanceVars.usdc, liquidator)
+  await fundWalletDSU(asset, instanceVars.usdc, perennialUser, parse6decimal('14000000'))
   await asset.connect(user).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(user2).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(btcUser1).approve(vault.address, ethers.constants.MaxUint256)
@@ -467,7 +429,7 @@ export async function createInvoker(
     instanceVars.marketFactory.address,
     vaultFactory ? vaultFactory.address : constants.AddressZero,
     withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
-    instanceVars.dsuMinterAddress,
+    instanceVars.dsuReserve.address,
     500_000,
     500_000,
   )

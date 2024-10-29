@@ -9,15 +9,7 @@ import {
 } from '../../../../types/generated'
 import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import {
-  InstanceVars,
-  fundWallet,
-  createVault,
-  fundWalletUSDC,
-  ETH_ORACLE,
-  resetEthSubOracle,
-  resetBtcSubOracle,
-} from './setupHelpers'
+import { InstanceVars, createVault, ETH_ORACLE, resetEthSubOracle, resetBtcSubOracle } from './setupHelpers'
 
 import {
   buildApproveTarget,
@@ -50,6 +42,13 @@ export function RunInvokerTests(
     vaultFactory?: VaultFactory,
     withBatcher?: boolean,
   ) => Promise<MultiInvoker>,
+  fundWalletDSU: (
+    dsu: IERC20Metadata,
+    usdc: IERC20Metadata,
+    wallet: SignerWithAddress,
+    amountOverride?: BigNumber,
+  ) => Promise<void>,
+  fundWalletUSDC: (usdc: IERC20Metadata, wallet: SignerWithAddress, amountOverride?: BigNumber) => Promise<void>,
 ): void {
   describe('Invoke', () => {
     let instanceVars: InstanceVars
@@ -373,7 +372,7 @@ export function RunInvokerTests(
             if (dsuBatcher) {
               // userB uses collateral - 1 from batcher wrap
               const drainBatcherByFixed6 = (await usdc.balanceOf(dsuBatcher.address)).sub(collateral).add(1)
-              await fundWallet(dsu, usdc, userB, drainBatcherByFixed6)
+              await fundWalletDSU(dsu, usdc, userB, drainBatcherByFixed6)
               await dsu.connect(userB).approve(multiInvoker.address, drainBatcherByFixed6.mul(1e12))
               await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
