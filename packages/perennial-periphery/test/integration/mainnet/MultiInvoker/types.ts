@@ -30,8 +30,8 @@ export enum Dir {
 }
 
 export enum Compare {
-  ABOVE_MARKET = -1,
-  BELOW_MARKET = 1,
+  ABOVE_MARKET = -1, // order is executable when the oracle price is >= order price
+  BELOW_MARKET = 1, // order is executable when the oracle price is <= order price
 }
 
 export type TriggerOrder = {

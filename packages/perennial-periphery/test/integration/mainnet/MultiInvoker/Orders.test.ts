@@ -32,6 +32,9 @@ function payoff(number: BigNumber): BigNumber {
   return number.mul(number).div(utils.parseEther('1')).div(100000)
 }
 
+// TODO: only needed for Arbitrum, but works with mainnet too
+const TX_OVERRIDES = { gasLimit: 3_000_000 }
+
 export function RunOrderTests(
   getFixture: () => Promise<InstanceVars>,
   createInvoker: (instanceVars: InstanceVars) => Promise<MultiInvoker>,
@@ -48,8 +51,6 @@ export function RunOrderTests(
 
     const fixture = async () => {
       instanceVars = await getFixture()
-      // FIXME: do we really need this?
-      // await instanceVars.chainlink.reset()
       const { owner, user, userB, dsu, oracle } = instanceVars
 
       const riskParamOverrides = {
@@ -60,12 +61,18 @@ export function RunOrderTests(
       multiInvoker = await createInvoker(instanceVars)
 
       dsuCollateral = await instanceVars.dsu.balanceOf(instanceVars.user.address)
-      collateral = parse6decimal('100000')
+      // TODO: revert the old values and fund wallets with enough DSU
+      /*collateral = parse6decimal('100000')
       position = parse6decimal('1000')
-      userPosition = parse6decimal('100')
+      userPosition = parse6decimal('100')*/
+      collateral = parse6decimal('9000')
+      position = parse6decimal('2')
+      userPosition = parse6decimal('1')
 
       // deposit maker up to maker limit (UFixed6)
       await dsu.connect(userB).approve(market.address, dsuCollateral)
+
+      await advanceToPrice(PRICE)
 
       await market
         .connect(userB)
@@ -81,7 +88,9 @@ export function RunOrderTests(
 
     beforeEach(async () => {
       await loadFixture(fixture)
+      // TODO: move this settlement into the fixture
       await advanceToPrice(PRICE)
+      // FIXME: why isn't this awaited?
       settle(market, instanceVars.userB)
     })
 
@@ -96,7 +105,7 @@ export function RunOrderTests(
         invoke: async (
           args: IMultiInvoker.InvocationStruct[],
           forUser?: SignerWithAddress,
-          overrides: PayableOverrides = {},
+          overrides: PayableOverrides = TX_OVERRIDES,
         ) => {
           const { user } = instanceVars
           return multiInvoker.connect(forUser ?? user)['invoke((uint8,bytes)[])'](args, overrides)
@@ -145,7 +154,7 @@ export function RunOrderTests(
 
           const userMarketPosition = await market.positions(user.address)
 
-          // // long limit not triggered yet
+          // long limit not triggered yet
           expect(userMarketPosition.long.eq(0)).to.be.true
           expect(await multiInvoker.latestNonce()).to.eq(1)
         })
@@ -497,6 +506,7 @@ export function RunOrderTests(
           const balanceBefore = await dsu.balanceOf(userB.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
           const currentTimestamp = await oracle.current()
+          const expectedReferralFee = parse6decimal('0.05')
 
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
@@ -519,7 +529,7 @@ export function RunOrderTests(
                 timestamp: currentTimestamp,
                 orders: 1,
                 longPos: userPosition,
-                takerReferral: 5e6,
+                takerReferral: expectedReferralFee,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -568,6 +578,7 @@ export function RunOrderTests(
           const balanceBefore = await usdc.balanceOf(userB.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
           const currentTimestamp = await oracle.current()
+          const expectedReferralFee = parse6decimal('0.05')
 
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
@@ -585,7 +596,13 @@ export function RunOrderTests(
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              { ...DEFAULT_ORDER, timestamp: currentTimestamp, orders: 1, longPos: userPosition, takerReferral: 5e6 },
+              {
+                ...DEFAULT_ORDER,
+                timestamp: currentTimestamp,
+                orders: 1,
+                longPos: userPosition,
+                takerReferral: expectedReferralFee,
+              },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
               userB.address,
@@ -635,6 +652,8 @@ export function RunOrderTests(
           const balanceBefore2 = await dsu.balanceOf(userD.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
           const currentTimestamp = await oracle.current()
+          const expectedReferralFee = parse6decimal('0.05')
+
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
             .withArgs(user.address, market.address, 1)
@@ -651,7 +670,13 @@ export function RunOrderTests(
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              { ...DEFAULT_ORDER, timestamp: currentTimestamp, orders: 1, longPos: userPosition, takerReferral: 5e6 },
+              {
+                ...DEFAULT_ORDER,
+                timestamp: currentTimestamp,
+                orders: 1,
+                longPos: userPosition,
+                takerReferral: expectedReferralFee,
+              },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
               userB.address,

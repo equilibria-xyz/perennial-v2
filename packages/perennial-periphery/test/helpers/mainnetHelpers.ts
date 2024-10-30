@@ -1,7 +1,7 @@
 import { BigNumber, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { impersonate } from '../../../common/testutil'
-import { IERC20Metadata } from '../../types/generated'
+import { IERC20Metadata__factory } from '../../types/generated'
 
 export const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
 
@@ -12,35 +12,28 @@ export const DSU_RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' // Arbitrum native USDC (not USDC.e), a 6-decimal token
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199' // Maker PSM has 520mm USDC at height 17433155
 
-// TODO: no need to pass implementations into these methods; assimilate interface used by arbitrumHelpers (wallet, amount)
 export async function fundWalletDSU(
-  dsu: IERC20Metadata,
-  usdc: IERC20Metadata,
   wallet: SignerWithAddress,
-  amountOverride?: BigNumber,
+  amount: BigNumber, // old impl defaulted to utils.parseEther('2000000')
 ): Promise<void> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
+  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, usdcHolder)
   const dsuIface = new utils.Interface(['function mint(uint256)'])
-  await usdc.connect(usdcHolder).approve(DSU_RESERVE, amountOverride ? amountOverride : BigNumber.from('2000000000000'))
+  await usdc.connect(usdcHolder).approve(DSU_RESERVE, amount)
   await usdcHolder.sendTransaction({
     to: DSU_RESERVE,
     value: 0,
-    data: dsuIface.encodeFunctionData('mint', [
-      amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'),
-    ]),
+    data: dsuIface.encodeFunctionData('mint', [amount]),
   })
-  await dsu
-    .connect(usdcHolder)
-    .transfer(wallet.address, amountOverride ? amountOverride.mul(1e12) : utils.parseEther('2000000'))
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, usdcHolder)
+  await dsu.transfer(wallet.address, amount)
 }
 
 export async function fundWalletUSDC(
-  usdc: IERC20Metadata,
   wallet: SignerWithAddress,
-  amountOverride?: BigNumber,
+  amount: BigNumber, // old impl defaulted to BigNumber.from('1000000000')
 ): Promise<void> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  await usdc
-    .connect(usdcHolder)
-    .transfer(wallet.address, amountOverride ? amountOverride : BigNumber.from('1000000000'))
+  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, usdcHolder)
+  await usdc.connect(usdcHolder).transfer(wallet.address, amount)
 }

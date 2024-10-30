@@ -43,13 +43,8 @@ export function RunInvokerTests(
     vaultFactory?: VaultFactory,
     withBatcher?: boolean,
   ) => Promise<MultiInvoker>,
-  fundWalletDSU: (
-    dsu: IERC20Metadata,
-    usdc: IERC20Metadata,
-    wallet: SignerWithAddress,
-    amountOverride?: BigNumber,
-  ) => Promise<void>,
-  fundWalletUSDC: (usdc: IERC20Metadata, wallet: SignerWithAddress, amountOverride?: BigNumber) => Promise<void>,
+  fundWalletDSU: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
+  fundWalletUSDC: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
   advanceToPrice: () => Promise<void>,
   initialOracleVersionEth: OracleVersionStruct,
   initialOracleVersionBtc: OracleVersionStruct,
@@ -294,7 +289,7 @@ export function RunInvokerTests(
                 .div(1e12)
                 .sub(collateral)
                 .add(parse6decimal('1'))
-              await fundWalletUSDC(usdc, userB, drainBatcherByFixed6)
+              await fundWalletUSDC(userB, drainBatcherByFixed6)
 
               await usdc.connect(userB).approve(multiInvoker.address, drainBatcherByFixed6)
               await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
@@ -346,10 +341,10 @@ export function RunInvokerTests(
             if (dsuBatcher) {
               const userUSDCBalanceBefore = await usdc.balanceOf(user.address)
 
-              await fundWalletUSDC(usdc, userB)
+              await fundWalletUSDC(userB, parse6decimal('1000'))
               await usdc.connect(userB).transfer(dsuBatcher.address, collateral)
 
-              await fundWalletUSDC(usdc, user)
+              await fundWalletUSDC(user, parse6decimal('1000'))
               await usdc.connect(user).approve(multiInvoker.address, collateral)
               await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
               await invoke(buildApproveTarget(market.address))
@@ -380,7 +375,7 @@ export function RunInvokerTests(
             if (dsuBatcher) {
               // userB uses collateral - 1 from batcher wrap
               const drainBatcherByFixed6 = (await usdc.balanceOf(dsuBatcher.address)).sub(collateral).add(1)
-              await fundWalletDSU(dsu, usdc, userB, drainBatcherByFixed6)
+              await fundWalletDSU(userB, drainBatcherByFixed6)
               await dsu.connect(userB).approve(multiInvoker.address, drainBatcherByFixed6.mul(1e12))
               await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 

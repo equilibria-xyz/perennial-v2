@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { BigNumber, constants } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { parse6decimal } from '../../../../../common/testutil/types'
@@ -8,11 +8,11 @@ import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chain
 import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
 
-import { IERC20Metadata__factory, IOracle__factory } from '../../../../types/generated'
+import { IERC20Metadata__factory, IOracle__factory, IOracleProvider } from '../../../../types/generated'
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
-import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
+import { createInvoker, deployProtocol, InstanceVars, resetBtcSubOracle, resetEthSubOracle } from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
@@ -22,6 +22,7 @@ import {
   fundWalletUSDC,
   USDC_ADDRESS,
 } from '../../../helpers/mainnetHelpers'
+import { FakeContract } from '@defi-wonderland/smock'
 
 const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1646456563)
 
@@ -48,13 +49,13 @@ const fixture = async (): Promise<InstanceVars> => {
   const vars = await deployProtocol(dsu, usdc, DSU_BATCHER, DSU_RESERVE, CHAINLINK_ETH_USD_FEED)
 
   // fund wallets used in the tests
-  await fundWalletDSU(dsu, usdc, user)
-  await fundWalletDSU(dsu, usdc, userB)
-  await fundWalletDSU(dsu, usdc, userC)
-  await fundWalletDSU(dsu, usdc, userD)
-  await fundWalletUSDC(usdc, user)
-  await fundWalletDSU(dsu, usdc, liquidator)
-  await fundWalletDSU(dsu, usdc, perennialUser, parse6decimal('14000000'))
+  await fundWalletDSU(user, utils.parseEther('2000000'))
+  await fundWalletDSU(userB, utils.parseEther('2000000'))
+  await fundWalletDSU(userC, utils.parseEther('2000000'))
+  await fundWalletDSU(userD, utils.parseEther('2000000'))
+  await fundWalletUSDC(user, parse6decimal('1000'))
+  await fundWalletDSU(liquidator, utils.parseEther('2000000'))
+  await fundWalletDSU(perennialUser, parse6decimal('14000000'))
 
   // configure this deployment with a chainlink oracle
   chainlink = await new ChainlinkContext(
@@ -81,6 +82,11 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
   if (price) await chainlink.nextWithPriceModification(() => price)
   else await chainlink.next()
 }
+
+/*async function resetSubOracles(ethSubOracle: FakeContract<IOracleProvider>, btcSubOracle: FakeContract<IOracleProvider>): Promise<void> {
+  resetEthSubOracle(ethSubOracle, INITIAL_ORACLE_VERSION_ETH)
+  resetBtcSubOracle(btcSubOracle, INITIAL_ORACLE_VERSION_BTC)
+}*/
 
 if (process.env.FORK_NETWORK === undefined) {
   RunInvokerTests(
