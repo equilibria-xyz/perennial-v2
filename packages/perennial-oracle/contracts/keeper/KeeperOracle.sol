@@ -12,6 +12,7 @@ import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol
 import { OracleReceipt } from "@perennial/core/contracts/types/OracleReceipt.sol";
 import { IKeeperFactory } from "../interfaces/IKeeperFactory.sol";
 import { IKeeperOracle } from "../interfaces/IKeeperOracle.sol";
+import { OracleParameter } from "../types/OracleParameter.sol";
 import { PriceResponse, PriceResponseStorage, PriceResponseLib } from "./types/PriceResponse.sol";
 import { KeeperOracleParameter } from "./types/KeeperOracleParameter.sol";
 import { IOracle } from "../interfaces/IOracle.sol";
@@ -192,6 +193,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
     ) private returns (PriceResponse memory priceResponse) {
         IKeeperFactory factory = IKeeperFactory(address(factory()));
         KeeperOracleParameter memory keeperOracleParameter = factory.parameter();
+        OracleParameter memory oracleParameter = factory.oracleFactory().parameter();
 
         if (block.timestamp <= (next() + timeout)) {
             if (!oracleVersion.valid) revert KeeperOracleInvalidPriceError();
@@ -206,6 +208,10 @@ contract KeeperOracle is IKeeperOracle, Instance {
         priceResponse.syncFee = UFixed6Lib.from(factory.commitmentGasOracle().cost(value), true);
         priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true);
         priceResponse.oracleFee = keeperOracleParameter.oracleFee;
+        priceResponse.applyFeeMaximum(
+            oracleParameter.maxSettlementFee,
+            _localCallbacks[oracleVersion.timestamp].length()
+        );
 
         _responses[oracleVersion.timestamp].store(priceResponse);
         _global.latestIndex++;

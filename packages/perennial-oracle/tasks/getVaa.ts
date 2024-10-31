@@ -14,7 +14,7 @@ export default task('get-vaa', 'Retrieves and decodes a Pyth Validator Action Ap
     'timestamp',
     'Unix UTC timestamp to request; should be at least a few seconds old; defaults to 15 seconds ago',
   )
-  .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
+  .setAction(async (args: TaskArguments) => {
     // choose/validate timestamp to request
     let timestamp: number
     const currentTimestamp = Math.floor(Date.now() / 1000)

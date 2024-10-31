@@ -58,7 +58,26 @@ library PriceResponseLib {
     /// @param callbacks The number of settlement callbacks to be made
     /// @return The corresponding oracle receipt
     function toOracleReceipt(PriceResponse memory self, uint256 callbacks) internal pure returns (OracleReceipt memory) {
-        return OracleReceipt(self.syncFee.add(self.asyncFee.mul(UFixed6Lib.from(callbacks))), self.oracleFee);
+        return OracleReceipt(settlementFee(self, callbacks), self.oracleFee);
+    }
+
+    /// @notice Returns the total settlement fee for the price response
+    /// @param self The price response object
+    /// @param callbacks The number of settlement callbacks to be made
+    /// @return The total settlement fee
+    function settlementFee(PriceResponse memory self, uint256 callbacks) internal pure returns (UFixed6) {
+        return self.syncFee.add(self.asyncFee.mul(UFixed6Lib.from(callbacks)));
+    }
+
+    /// @notice Scales down sync and async fees if they exceed the maximum settlement fee
+    /// @param self The price response object
+    /// @param maxSettlementFee The maximum settlement fee
+    function applyFeeMaximum(PriceResponse memory self, UFixed6 maxSettlementFee, uint256 callbacks) internal pure {
+        UFixed6 totalSettlementFee = settlementFee(self, callbacks);
+        if (totalSettlementFee.gt(maxSettlementFee)) {
+            self.syncFee = self.syncFee.muldiv(maxSettlementFee, totalSettlementFee);
+            self.asyncFee = self.asyncFee.muldiv(maxSettlementFee, totalSettlementFee);
+        }
     }
 }
 
