@@ -73,6 +73,19 @@ export async function fundWalletDSU(
   const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, dsuOwner)
 
+  // if there isn't enough DSU, mint some using the reserve interface
+  if ((await dsu.balanceOf(DSU_HOLDER)).lt(amount)) {
+    await fundWalletUSDC(dsuOwner, amount.div(1e12), overrides)
+    const dsuIface = new utils.Interface(['function mint(uint256)'])
+    const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, dsuOwner)
+    await usdc.connect(dsuOwner).approve(DSU_RESERVE, amount)
+    await dsuOwner.sendTransaction({
+      to: DSU_RESERVE,
+      value: 0,
+      data: dsuIface.encodeFunctionData('mint', [amount]),
+    })
+  }
+
   expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
   await dsu.transfer(wallet.address, amount, overrides ?? {})
 }

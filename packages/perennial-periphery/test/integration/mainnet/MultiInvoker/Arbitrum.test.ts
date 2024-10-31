@@ -38,14 +38,13 @@ const fixture = async (): Promise<InstanceVars> => {
   const vars = await deployProtocol(dsu, usdc, constants.AddressZero, DSU_RESERVE, CHAINLINK_ETH_USD_FEED)
 
   // fund wallets used in the tests
-  // TODO: these are smaller amounts than mainnet tests
-  await fundWalletDSU(user, utils.parseEther('10000'))
-  await fundWalletDSU(userB, utils.parseEther('10000'))
-  await fundWalletDSU(userC, utils.parseEther('10000'))
-  await fundWalletDSU(userD, utils.parseEther('10000'))
+  await fundWalletDSU(user, utils.parseEther('2000000'))
+  await fundWalletDSU(userB, utils.parseEther('2000000'))
+  await fundWalletDSU(userC, utils.parseEther('2000000'))
+  await fundWalletDSU(userD, utils.parseEther('2000000'))
   await fundWalletUSDC(user, parse6decimal('1000'))
-  await fundWalletDSU(liquidator, utils.parseEther('10000'))
-  await fundWalletDSU(perennialUser, utils.parseEther('10000'))
+  await fundWalletDSU(liquidator, utils.parseEther('2000000'))
+  await fundWalletDSU(perennialUser, utils.parseEther('14000000'))
 
   // configure this deployment with a pyth oracle
   const pythOracleFactory = await deployPythOracleFactory(

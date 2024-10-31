@@ -62,12 +62,9 @@ export function RunOrderTests(
 
       dsuCollateral = await instanceVars.dsu.balanceOf(instanceVars.user.address)
       // TODO: revert the old values and fund wallets with enough DSU
-      /*collateral = parse6decimal('100000')
+      collateral = parse6decimal('100000')
       position = parse6decimal('1000')
-      userPosition = parse6decimal('100')*/
-      collateral = parse6decimal('9000')
-      position = parse6decimal('2')
-      userPosition = parse6decimal('1')
+      userPosition = parse6decimal('100')
 
       // deposit maker up to maker limit (UFixed6)
       await dsu.connect(userB).approve(market.address, dsuCollateral)
@@ -90,8 +87,7 @@ export function RunOrderTests(
       await loadFixture(fixture)
       // TODO: move this settlement into the fixture
       await advanceToPrice(PRICE)
-      // FIXME: why isn't this awaited?
-      settle(market, instanceVars.userB)
+      await settle(market, instanceVars.userB)
     })
 
     after(async () => {
@@ -505,8 +501,9 @@ export function RunOrderTests(
 
           const balanceBefore = await dsu.balanceOf(userB.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
+          // FIXME: timestamp 1 second off on Arbitrum
           const currentTimestamp = await oracle.current()
-          const expectedReferralFee = parse6decimal('0.05')
+          const expectedReferralFee = parse6decimal('5')
 
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
@@ -578,7 +575,7 @@ export function RunOrderTests(
           const balanceBefore = await usdc.balanceOf(userB.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
           const currentTimestamp = await oracle.current()
-          const expectedReferralFee = parse6decimal('0.05')
+          const expectedReferralFee = parse6decimal('5')
 
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
@@ -652,7 +649,7 @@ export function RunOrderTests(
           const balanceBefore2 = await dsu.balanceOf(userD.address)
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
           const currentTimestamp = await oracle.current()
-          const expectedReferralFee = parse6decimal('0.05')
+          const expectedReferralFee = parse6decimal('5')
 
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
