@@ -7,7 +7,7 @@ import 'hardhat'
 import { expect } from 'chai'
 import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../../common/testutil/types'
 import { IMultiInvoker, Market, MultiInvoker } from '../../../../types/generated'
-import { Compare, Dir, openTriggerOrder } from './types'
+import { Compare, Dir, openTriggerOrder } from '../../../helpers/MultiInvoker/types'
 import {
   MAX_INT64,
   MAX_UINT48,
@@ -16,7 +16,7 @@ import {
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,
-} from './invoke'
+} from '../../../helpers/MultiInvoker/invoke'
 
 import { TriggerOrderStruct } from '../../../../types/generated/contracts/MultiInvoker/MultiInvoker'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
