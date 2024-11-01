@@ -1,20 +1,20 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ActionStruct, CommonStruct } from '../../../../types/generated/contracts/CollateralAccounts/Controller'
-import { IAccountVerifier } from '../../../../types/generated'
+import { ActionStruct, CommonStruct } from '../../../types/generated/contracts/CollateralAccounts/Controller'
+import { IAccountVerifier } from '../../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
 import {
   DeployAccountStruct,
   MarketTransferStruct,
   RebalanceConfigChangeStruct,
   WithdrawalStruct,
-} from '../../../../types/generated/contracts/CollateralAccounts/Controller'
+} from '../../../types/generated/contracts/CollateralAccounts/Controller'
 import {
   RelayedAccessUpdateBatchStruct,
   RelayedNonceCancellationStruct,
   RelayedGroupCancellationStruct,
   RelayedOperatorUpdateStruct,
   RelayedSignerUpdateStruct,
-} from '../../../../types/generated/contracts/CollateralAccounts/Controller_Incentivized'
+} from '../../../types/generated/contracts/CollateralAccounts/Controller_Incentivized'
 
 function erc721Domain(verifier: IAccountVerifier | FakeContract<IAccountVerifier>): {
   name: string

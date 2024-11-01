@@ -13,7 +13,7 @@ import { IKeeperOracle } from '@perennial/oracle/types/generated'
 import { IEmptySetReserve, IManager, IOrderVerifier } from '../../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../../types/generated/contracts/TriggerOrders/Manager'
 
-import { signAction, signCancelOrderAction, signPlaceOrderAction } from './eip712'
+import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../../helpers/TriggerOrders/eip712'
 import {
   Compare,
   compareOrders,
@@ -21,7 +21,7 @@ import {
   MAGIC_VALUE_CLOSE_POSITION,
   orderFromStructOutput,
   Side,
-} from './order'
+} from '../../../helpers/TriggerOrders/order'
 import { advanceToPrice } from '../../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { impersonate } from '../../../../../common/testutil'

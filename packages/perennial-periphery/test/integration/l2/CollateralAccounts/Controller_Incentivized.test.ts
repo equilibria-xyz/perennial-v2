@@ -30,7 +30,7 @@ import {
   signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
   signWithdrawal,
-} from './eip712'
+} from '../../../helpers/CollateralAccounts/eip712'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,

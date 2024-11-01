@@ -17,7 +17,12 @@ import {
   IERC20Metadata,
 } from '../../../../types/generated'
 import { IMarket, IMarketFactory } from '@perennial/core/types/generated'
-import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from './eip712'
+import {
+  signDeployAccount,
+  signMarketTransfer,
+  signRebalanceConfigChange,
+  signWithdrawal,
+} from '../../../helpers/CollateralAccounts/eip712'
 import { deployController, MarketWithOracle } from '../../../helpers/setupHelpers'
 import { DeploymentVars } from './setupTypes'
 import { advanceToPrice } from '../../../helpers/oracleHelpers'

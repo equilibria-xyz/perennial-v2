@@ -9,8 +9,8 @@ import { impersonate } from '../../../../common/testutil'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 
-import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/eip712'
-import { DEFAULT_TRIGGER_ORDER } from '../../helpers/order'
+import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
+import { DEFAULT_TRIGGER_ORDER } from '../../helpers/TriggerOrders/order'
 import { IMarket } from '@perennial/core/types/generated'
 import {
   IManager,

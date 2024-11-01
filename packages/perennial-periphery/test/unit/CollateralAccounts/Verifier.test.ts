@@ -18,7 +18,7 @@ import {
   signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
   signWithdrawal,
-} from '../../helpers/erc712'
+} from '../../helpers/CollateralAccounts/eip712'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,

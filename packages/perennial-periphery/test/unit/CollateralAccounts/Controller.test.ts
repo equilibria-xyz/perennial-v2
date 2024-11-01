@@ -16,7 +16,12 @@ import {
   AccountVerifier__factory,
 } from '../../../types/generated'
 
-import { signDeployAccount, signMarketTransfer, signRebalanceConfigChange, signWithdrawal } from '../../helpers/erc712'
+import {
+  signDeployAccount,
+  signMarketTransfer,
+  signRebalanceConfigChange,
+  signWithdrawal,
+} from '../../helpers/CollateralAccounts/eip712'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { getEventArguments } from '../../../../common/testutil/transaction'
 import { FakeContract, smock } from '@defi-wonderland/smock'
