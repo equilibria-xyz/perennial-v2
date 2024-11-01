@@ -98,6 +98,6 @@ if (process.env.FORK_NETWORK === undefined) {
     INITIAL_ORACLE_VERSION_ETH,
     INITIAL_ORACLE_VERSION_BTC,
   )
-  RunOrderTests(getFixture, createInvoker, advanceToPrice)
+  RunOrderTests(getFixture, createInvoker, advanceToPrice, true)
   RunPythOracleTests(getFixture, createInvoker)
 }

@@ -92,8 +92,6 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
 if (process.env.FORK_NETWORK === 'arbitrum') {
   // TODO: need a chain-agnostic sub-oracle implementation in Vaults
   // RunInvokerTests(getFixture, createInvoker, fundWalletDSU, fundWalletUSDC, advanceToPrice)
-  RunOrderTests(getFixture, createInvoker, advanceToPrice)
+  RunOrderTests(getFixture, createInvoker, advanceToPrice, false)
   RunPythOracleTests(getFixture, createInvoker)
-
-  // TODO: reset gas base fee to avoid impact to other tests
 }

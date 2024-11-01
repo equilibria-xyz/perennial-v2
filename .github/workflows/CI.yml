@@ -507,7 +507,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
 
   # [PERIPHERY COMBINED COVERAGE]
-  Periphery-test-coverage:
+  periphery-test-coverage:
     name: 'Periphery Combined Tests Coverage'
     runs-on: ubuntu-latest
     needs: [periphery-unit-test-coverage, periphery-integration-test-coverage]
