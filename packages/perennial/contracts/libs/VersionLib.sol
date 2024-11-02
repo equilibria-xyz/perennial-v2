@@ -278,39 +278,42 @@ library VersionLib {
             .div(Fixed6Lib.from(context.fromPosition.maker))
             .min(Fixed6Lib.ONE);
 
-        // TODO: maker orders during socialization?
-
         // both taker and maker orders pay spread
         (UFixed6 exposurePos, UFixed6 exposureNeg) =
             (context.order.exposurePos(next.makerPosExposure), context.order.exposureNeg(next.makerNegExposure)); // TODO: not correctly match pos / neg
         (exposurePos, exposureNeg) =
             (exposurePos.sub(context.guarantee.takerPos), exposureNeg.sub(context.guarantee.takerNeg));
 
-        // charge spread
-        UFixed6 spreadPos = __SynBook6_compute(
-            context.fromPosition.skew(),
-            Fixed6Lib.from(1, exposurePos),
-            context.toOracleVersion.price.abs()
-        );
-        next.spreadPos.decrement(Fixed6Lib.from(spreadPos), exposurePos);
-        UFixed6 spreadNeg = __SynBook6_compute(
-            context.fromPosition.skew(),
-            Fixed6Lib.from(-1, exposureNeg),
-            context.toOracleVersion.price.abs()
-        );
-        next.spreadNeg.decrement(Fixed6Lib.from(spreadNeg), exposureNeg);
-        UFixed6 spread = spreadPos.add(spreadNeg);
+        // process positive and negative spread separately
+        _accumulateSpreadComponent(next, context, result, Fixed6Lib.from(exposurePos));
+        _accumulateSpreadComponent(next, context, result, Fixed6Lib.from(-1, exposureNeg));
+    }
 
+    function _accumulateSpreadComponent(
+        Version memory next,
+        VersionAccumulationContext memory context,
+        VersionAccumulationResult memory result,
+        Fixed6 exposure
+    ) internal pure returns (Fixed6 spread) {
         // distribute spread
-        (UFixed6 filledbyMaker, UFixed6 filledbyLong, UFixed6 filledbyShort) = // TODO: doesn't take into account maker orders skew? socialization interfearing with indirect maker exposure?
-            context.fromPosition.filledBy(context.order);
-        UFixed6 totalFilled = filledbyMaker.add(filledbyLong).add(filledbyShort);
+        (UFixed6 exposureStart, UFixed6 exposureEnd) = context.fromPosition.filledBy(context.order.makerNeg, exposure); // TODO: exposure needs to be signed
 
-        (UFixed6 spreadMaker, UFixed6 spreadLong, UFixed6 spreadShort) = (
-            spread.muldiv(filledbyMaker, totalFilled),
-            spread.muldiv(filledbyLong, totalFilled),
-            spread.muldiv(filledbyShort, totalFilled)
+        UFixed6 spreadTaker = __SynBook6_compute( // TODO: \long and short could also be matched in one version?
+            context.fromPosition.skew(),
+            exposureStart,
+            context.toOracleVersion.price.abs()
         );
+        UFixed6 spreadMaker = __SynBook6_compute(
+            context.fromPosition.skew().add(exposureStart),
+            exposureEnd.sub(exposureStart),
+            context.toOracleVersion.price.abs()
+        );
+        spreadTaker = spreadTaker.add(__SynBook6_compute(
+            context.fromPosition.skew().add(exposureEnd),
+            exposure.sub(exposureEnd),
+            context.toOracleVersion.price.abs()
+        ));
+        spread = spreadTaker.add(spreadMaker);
 
         next.makerSpreadValue.increment(Fixed6Lib.from(spreadMaker), context.fromPosition.maker.sub(context.order.makerNeg));
         next.longSpreadValue.increment(Fixed6Lib.from(spreadLong), context.fromPosition.long.sub(context.order.longNeg));
@@ -319,6 +322,8 @@ library VersionLib {
         result.spreadMaker = result.spreadMaker.add(Fixed6Lib.from(spreadMaker));
         result.spreadLong = result.spreadLong.add(Fixed6Lib.from(spreadLong));
         result.spreadShort = result.spreadShort.add(Fixed6Lib.from(spreadShort));
+
+
     }
 
     // TODO: replace with root implementation

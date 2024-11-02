@@ -87,28 +87,25 @@ library PositionLib {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short));
     }
 
-    /// @notice Returns the breakdown of which sides of the market fill the new order
+    /// @notice Returns the bounds of the order that are filled by the maker side
     /// @dev During socialization, long and short sides fill orders instead of the maker side
     /// @param self The position object to check
-    /// @param order The new order
-    /// @return filledByMaker The quantity filled by the maker side
-    /// @return filledByLong The quantity filled by the long side
-    /// @return filledByShort The quantity filled by the short side
-    function filledBy(
+    /// @param makerNeg The negative maker quantity
+    /// @param exposure The exposure of the order
+    /// @return exposureStart The start of the quantity filled by the make side
+    /// @return exposureEnd The end of the quantity filled by the make side
+    function filledByMaker(
         Position memory self,
-        Order memory order
-    ) internal pure returns (UFixed6 filledByMaker, UFixed6 filledByLong, UFixed6 filledByShort) {
-        UFixed6 makerTotal = self.maker.sub(order.makerNeg);
+        UFixed6 makerNeg,
+        Fixed6 exposure
+    ) internal pure returns (UFixed6 exposureStart, UFixed6 exposureEnd) {
+        UFixed6 makerTotal = self.maker.sub(makerNeg);
 
-        (Fixed6 latestSkew, Fixed6 nextSkew) = (
-            skew(self),
-            skew(self).add(order.long()).sub(order.short())
-        );
+        (Fixed6 latestSkew, Fixed6 nextSkew) = (skew(self),skew(self).add(exposure));
         (Fixed6 maxSkew, Fixed6 minSkew) = (latestSkew.max(nextSkew), latestSkew.min(nextSkew));
 
-        filledByLong = UFixed6Lib.unsafeFrom(maxSkew.sub(Fixed6Lib.from(1, makerTotal)));
-        filledByShort = UFixed6Lib.unsafeFrom(Fixed6Lib.from(-1, makerTotal).sub(minSkew));
-        filledByMaker = maxSkew.sub(minSkew).abs().sub(filledByLong).sub(filledByShort);
+        exposureStart = UFixed6Lib.unsafeFrom(maxSkew.sub(Fixed6Lib.from(1, makerTotal)));
+        exposureEnd = UFixed6Lib.unsafeFrom(Fixed6Lib.from(-1, makerTotal).sub(minSkew)).add(exposure.abs());
     }
 
     /// @notice Returns the utilization of the position
