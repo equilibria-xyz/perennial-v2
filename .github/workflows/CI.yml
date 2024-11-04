@@ -6,8 +6,7 @@ on:
   pull_request:
     branches:
       - main
-      - v2.3
-      - v2.3-fix-review
+      - v2.4
   workflow_dispatch:
 
 env:

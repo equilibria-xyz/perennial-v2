@@ -43,6 +43,7 @@ interface IOracle is IOracleProvider, IInstance {
     }
 
     function initialize(IOracleProvider initialProvider, string calldata name_) external;
+    function name() external view returns (string memory);
     function register(IMarket newMarket) external;
     function update(IOracleProvider newProvider) external;
     function updateBeneficiary(address newBeneficiary) external;
@@ -51,4 +52,5 @@ interface IOracle is IOracleProvider, IInstance {
     function market() external view returns (IMarket);
     function withdraw(Token18 token) external;
     function beneficiary() external view returns (address);
+    function global() external view returns (OracleGlobal memory);
 }
