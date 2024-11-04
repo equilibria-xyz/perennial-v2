@@ -53,4 +53,5 @@ interface IOracle is IOracleProvider, IInstance {
     function withdraw(Token18 token) external;
     function beneficiary() external view returns (address);
     function global() external view returns (OracleGlobal memory);
+    function oracles(uint256) external view returns (IOracleProvider provider, uint96 timestamp);
 }
