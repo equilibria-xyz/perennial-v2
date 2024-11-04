@@ -21,11 +21,15 @@ import {
 } from '../../../helpers/arbitrumHelpers'
 import { deployPythOracleFactory } from '../../../helpers/setupHelpers'
 import { parse6decimal } from '../../../../../common/testutil/types'
-import { advanceToPrice as advanceToPriceImpl, createPythOracle } from '../../../helpers/oracleHelpers'
+import {
+  advanceToPrice as advanceToPriceImpl,
+  createPythOracle,
+  PYTH_ETH_USD_PRICE_FEED,
+} from '../../../helpers/oracleHelpers'
 import { time } from '../../../../../common/testutil'
+import { KeeperOracle, PythFactory } from '@perennial/oracle/types/generated'
 
-const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
-
+let pythOracleFactory: PythFactory
 let keeperOracle: IKeeperOracle
 let lastPrice: BigNumber = utils.parseEther('2620.237388') // advanceToPrice converts to 6 decimals
 
@@ -47,12 +51,7 @@ const fixture = async (): Promise<InstanceVars> => {
   await fundWalletDSU(perennialUser, utils.parseEther('14000000'))
 
   // configure this deployment with a pyth oracle
-  const pythOracleFactory = await deployPythOracleFactory(
-    owner,
-    vars.oracleFactory,
-    PYTH_ADDRESS,
-    CHAINLINK_ETH_USD_FEED,
-  )
+  pythOracleFactory = await deployPythOracleFactory(owner, vars.oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
   await vars.oracleFactory.connect(owner).register(pythOracleFactory.address)
   const [keeperOracle_, oracle] = await createPythOracle(
     owner,
@@ -73,6 +72,10 @@ async function getFixture(): Promise<InstanceVars> {
   return vars
 }
 
+async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
+  return [pythOracleFactory, keeperOracle]
+}
+
 async function advanceToPrice(price?: BigNumber): Promise<void> {
   // send oracle fee to an unused user
   const [, , , , , , , , oracleFeeReceiver] = await ethers.getSigners()
@@ -81,7 +84,6 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
   const latest = (await keeperOracle.global()).latestVersion
   const next = await keeperOracle.next()
   const timestamp = next.eq(constants.Zero) ? BigNumber.from(current) : next
-  // console.log( 'current', current, 'latest', latest.toString(), 'next', next.toString(), 'advancing to price at', timestamp.toString())
   // adjust for payoff and convert 18-decimal price from tests to a 6-decimal price
   // TODO: seems dirty that the test is running the payoff;
   // we should commit a raw price and let the oracle process the payoff
@@ -93,5 +95,5 @@ if (process.env.FORK_NETWORK === 'arbitrum') {
   // TODO: need a chain-agnostic sub-oracle implementation in Vaults
   // RunInvokerTests(getFixture, createInvoker, fundWalletDSU, fundWalletUSDC, advanceToPrice)
   RunOrderTests(getFixture, createInvoker, advanceToPrice, false)
-  RunPythOracleTests(getFixture, createInvoker)
+  RunPythOracleTests(getFixture, createInvoker, getKeeperOracle, fundWalletDSU)
 }

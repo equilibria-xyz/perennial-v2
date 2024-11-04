@@ -8,7 +8,17 @@ import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chain
 import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
 
-import { IERC20Metadata__factory, IOracle__factory, IOracleProvider } from '../../../../types/generated'
+import {
+  GasOracle__factory,
+  IERC20Metadata__factory,
+  IOracle__factory,
+  KeeperOracle,
+  KeeperOracle__factory,
+  Oracle__factory,
+  OracleFactory,
+  PythFactory,
+  PythFactory__factory,
+} from '../../../../types/generated'
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
@@ -20,9 +30,10 @@ import {
   DSU_RESERVE,
   fundWalletDSU,
   fundWalletUSDC,
+  PYTH_ADDRESS,
   USDC_ADDRESS,
 } from '../../../helpers/mainnetHelpers'
-import { FakeContract } from '@defi-wonderland/smock'
+import { PYTH_ETH_USD_PRICE_FEED } from '../../../helpers/oracleHelpers'
 
 const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1646456563)
 
@@ -39,6 +50,7 @@ const INITIAL_ORACLE_VERSION_BTC = {
 }
 
 let chainlink: ChainlinkContext
+let vars: InstanceVars
 
 const fixture = async (): Promise<InstanceVars> => {
   // get users and token addresses
@@ -46,7 +58,7 @@ const fixture = async (): Promise<InstanceVars> => {
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
   // deploy perennial core factories
-  const vars = await deployProtocol(dsu, usdc, DSU_BATCHER, DSU_RESERVE, CHAINLINK_ETH_USD_FEED)
+  vars = await deployProtocol(dsu, usdc, DSU_BATCHER, DSU_RESERVE, CHAINLINK_ETH_USD_FEED)
 
   // fund wallets used in the tests
   await fundWalletDSU(user, utils.parseEther('2000000'))
@@ -83,6 +95,62 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
   else await chainlink.next()
 }
 
+async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
+  if (!vars.oracleFactory || !vars.owner) throw new Error('Fixture not yet created')
+
+  const commitmentGasOracle = await new GasOracle__factory(vars.owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    1_000_000,
+    utils.parseEther('1.02'),
+    1_000_000,
+    0,
+    0,
+    0,
+  )
+  const settlementGasOracle = await new GasOracle__factory(vars.owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    200_000,
+    utils.parseEther('1.02'),
+    500_000,
+    0,
+    0,
+    0,
+  )
+  const keeperOracleImpl = await new KeeperOracle__factory(vars.owner).deploy(60)
+  const pythOracleFactory = await new PythFactory__factory(vars.owner).deploy(
+    PYTH_ADDRESS,
+    commitmentGasOracle.address,
+    settlementGasOracle.address,
+    keeperOracleImpl.address,
+  )
+
+  await pythOracleFactory.initialize(vars.oracleFactory.address)
+  // TODO: move this into Pyth.test module
+  await pythOracleFactory.updateParameter(1, 0, 4, 10)
+  await vars.oracleFactory.register(pythOracleFactory.address)
+
+  const keeperOracle = KeeperOracle__factory.connect(
+    await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+      provider: ethers.constants.AddressZero,
+      decimals: 0,
+    }),
+    vars.owner,
+  )
+  await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
+    provider: ethers.constants.AddressZero,
+    decimals: 0,
+  })
+
+  vars.oracle = Oracle__factory.connect(
+    await vars.oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD'),
+    vars.owner,
+  )
+  await vars.oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD')
+  return [pythOracleFactory, keeperOracle]
+}
+
 /*async function resetSubOracles(ethSubOracle: FakeContract<IOracleProvider>, btcSubOracle: FakeContract<IOracleProvider>): Promise<void> {
   resetEthSubOracle(ethSubOracle, INITIAL_ORACLE_VERSION_ETH)
   resetBtcSubOracle(btcSubOracle, INITIAL_ORACLE_VERSION_BTC)
@@ -99,5 +167,5 @@ if (process.env.FORK_NETWORK === undefined) {
     INITIAL_ORACLE_VERSION_BTC,
   )
   RunOrderTests(getFixture, createInvoker, advanceToPrice, true)
-  RunPythOracleTests(getFixture, createInvoker)
+  RunPythOracleTests(getFixture, createInvoker, getKeeperOracle, fundWalletDSU)
 }

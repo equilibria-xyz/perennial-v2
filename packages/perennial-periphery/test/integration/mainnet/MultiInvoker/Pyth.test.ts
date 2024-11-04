@@ -4,33 +4,25 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { time } from '../../../../../common/testutil'
-import { impersonateWithBalance } from '../../../../../common/testutil/impersonate'
 import { parse6decimal } from '../../../../../common/testutil/types'
 import HRE from 'hardhat'
 
 import {
   IERC20Metadata,
   KeeperOracle,
-  KeeperOracle__factory,
   Market,
   MultiInvoker,
   Oracle,
   OracleFactory,
-  Oracle__factory,
   PythFactory,
-  PythFactory__factory,
-  GasOracle__factory,
 } from '../../../../types/generated'
 import { InstanceVars } from './setupHelpers'
 import { createMarket } from '../../../helpers/marketHelpers'
+import { PYTH_ETH_USD_PRICE_FEED } from '../../../helpers/oracleHelpers'
 
 const { ethers } = HRE
 
-const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
-const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
-const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
-const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
-
+// TODO: this, along with VAAs, will differ on different forks
 const STARTING_TIME = 1686198981
 
 // This VAA has timestamp 1686198987 (STARTING_TIME + 6)
@@ -44,6 +36,8 @@ const FailingVAA =
 export function RunPythOracleTests(
   getFixture: () => Promise<InstanceVars>,
   createInvoker: (instanceVars: InstanceVars) => Promise<MultiInvoker>,
+  getKeeperOracle: () => Promise<[PythFactory, KeeperOracle]>,
+  fundWalletDSU: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
 ): void {
   describe('PythOracleFactory', () => {
     let instanceVars: InstanceVars
@@ -60,65 +54,23 @@ export function RunPythOracleTests(
 
     const fixture = async () => {
       instanceVars = await getFixture()
-      ;({ dsu, oracleFactory, owner, user } = instanceVars)
+      dsu = instanceVars.dsu
+      oracleFactory = instanceVars.oracleFactory
+      // TODO: check Arbitrum implementation to ensure correct oracle is being assigned to instanceVars
+      // oracle = Oracle__factory.connect(instanceVars.oracle.address, owner)
+      owner = instanceVars.owner
+      user = instanceVars.user
 
       await oracleFactory.updateParameter({
         maxGranularity: 1,
         maxSettlementFee: parse6decimal('1.5'),
         maxOracleFee: parse6decimal('0.5'),
       })
+      ;[pythOracleFactory, keeperOracle] = await getKeeperOracle()
+      oracle = instanceVars.oracle
 
-      const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
-        CHAINLINK_ETH_USD_FEED,
-        8,
-        1_000_000,
-        utils.parseEther('1.02'),
-        1_000_000,
-        0,
-        0,
-        0,
-      )
-      const settlementGasOracle = await new GasOracle__factory(owner).deploy(
-        CHAINLINK_ETH_USD_FEED,
-        8,
-        200_000,
-        utils.parseEther('1.02'),
-        500_000,
-        0,
-        0,
-        0,
-      )
-      const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-      pythOracleFactory = await new PythFactory__factory(owner).deploy(
-        PYTH_ADDRESS,
-        commitmentGasOracle.address,
-        settlementGasOracle.address,
-        keeperOracleImpl.address,
-      )
-      await pythOracleFactory.initialize(oracleFactory.address)
-      await pythOracleFactory.updateParameter(1, 0, 4, 10)
-      await oracleFactory.register(pythOracleFactory.address)
-
-      keeperOracle = KeeperOracle__factory.connect(
-        await pythOracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
-          provider: ethers.constants.AddressZero,
-          decimals: 0,
-        }),
-        owner,
-      )
-      await pythOracleFactory.create(PYTH_ETH_USD_PRICE_FEED, PYTH_ETH_USD_PRICE_FEED, {
-        provider: ethers.constants.AddressZero,
-        decimals: 0,
-      })
-
-      oracle = Oracle__factory.connect(
-        await oracleFactory.callStatic.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD'),
-        owner,
-      )
-      await oracleFactory.create(PYTH_ETH_USD_PRICE_FEED, pythOracleFactory.address, 'ETH-USD')
-
-      const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-      await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('100000'))
+      await fundWalletDSU(owner, utils.parseEther('100000'))
+      await dsu.connect(owner).transfer(oracleFactory.address, utils.parseEther('100000'))
 
       multiInvoker = await createInvoker(instanceVars)
       market = await createMarket(owner, instanceVars.marketFactory, dsu, oracle, undefined, undefined, {
@@ -127,8 +79,9 @@ export function RunPythOracleTests(
 
       await dsu.connect(user).approve(market.address, utils.parseEther('200000'))
       await keeperOracle.register(oracle.address)
-      await oracle.register(market.address)
+      await oracle.connect(owner).register(market.address)
 
+      // TODO: On Arbitrum, this reverts with 0x2acbe915, Pyth InvalidWormholeVaa(), as currently expected
       await pythOracleFactory.commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 3, VAA, { value: 1 })
       // block.timestamp of the next call will be STARTING_TIME
       await time.increaseTo(STARTING_TIME - 5)

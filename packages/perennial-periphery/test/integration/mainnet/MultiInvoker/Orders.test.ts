@@ -24,8 +24,6 @@ import HRE from 'hardhat'
 import { createMarket } from '../../../helpers/marketHelpers'
 import { InstanceVars, settle } from './setupHelpers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { getTimestamp } from '../../../../../common/testutil/transaction'
-import { advanceBlock, setNextBlockTimestamp } from '../../../../../common/testutil/time'
 
 const ethers = { HRE }
 
@@ -65,7 +63,6 @@ export function RunOrderTests(
       multiInvoker = await createInvoker(instanceVars)
 
       dsuCollateral = await instanceVars.dsu.balanceOf(instanceVars.user.address)
-      // TODO: revert the old values and fund wallets with enough DSU
       collateral = parse6decimal('100000')
       position = parse6decimal('1000')
       userPosition = parse6decimal('100')
@@ -507,7 +504,6 @@ export function RunOrderTests(
           const execute = buildExecOrder({ user: user.address, market: market.address, orderId: 1 })
           const currentTimestamp = await oracle.current()
           const expectedReferralFee = parse6decimal('5')
-          console.log('oracle current before invoke', currentTimestamp)
 
           await expect(multiInvoker.connect(userC)['invoke((uint8,bytes)[])'](execute))
             .to.emit(multiInvoker, 'OrderExecuted')
@@ -545,7 +541,6 @@ export function RunOrderTests(
             )
             .to.emit(multiInvoker, 'InterfaceFeeCharged')
             .withArgs(user.address, market.address, { receiver: userB.address, amount: 50e6 })
-          console.log('oracle current after invoke', await oracle.current())
 
           await expect(multiInvoker.connect(userB).claim(userB.address, false)).to.not.be.reverted
           expect(await dsu.balanceOf(userB.address)).to.eq(balanceBefore.add(utils.parseEther('50')))

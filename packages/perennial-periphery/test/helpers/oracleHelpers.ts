@@ -17,6 +17,10 @@ import {
 } from '@perennial/oracle/types/generated'
 import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
 
+// feed ids are chain-agnostic
+export const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
+export const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
+
 // Simulates an oracle update from KeeperOracle.
 // If timestamp matches a requested version, callbacks implicitly settle the market.
 export async function advanceToPrice(
