@@ -87,6 +87,15 @@ library PositionLib {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short));
     }
 
+    // TODO
+    function exposure(Position memory self) internal pure returns (Fixed6, UFixed6, UFixed6) {
+        return (
+            makerSocialized(self).div(Fixed6Lib.from(self.maker)),
+            longSocialized(self).div(self.long),
+            shortSocialized(self).div(self.short)
+        );
+    }
+
     /// @notice Returns the bounds of the order that are filled by the maker side
     /// @dev During socialization, long and short sides fill orders instead of the maker side
     /// @param self The position object to check
@@ -152,6 +161,14 @@ library PositionLib {
     /// @return The major position with socialization taken into account
     function takerSocialized(Position memory self) internal pure returns (UFixed6) {
         return major(self).min(minor(self).add(self.maker));
+    }
+
+    /// @notice Returns the major position with socialization taken into account
+    /// @param self The position object to check
+    /// @return The major position with socialization taken into account
+    function makerSocialized(Position memory self) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short))
+            .min(Fixed6Lib.from(1, self.maker)).max(Fixed6Lib.from(-1, self.maker));
     }
 
     /// @notice Returns the efficiency of the position

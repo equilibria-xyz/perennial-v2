@@ -5,6 +5,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { OracleVersion } from "./OracleVersion.sol";
 import { Position } from "./Position.sol";
+import { Guarantee } from "./Guarantee.sol";
 import { MarketParameter } from "./MarketParameter.sol";
 
 /// @dev Order type
@@ -208,6 +209,35 @@ library OrderLib {
             ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
+    // TODO
+    function exposure(
+        Order memory self,
+        Guarantee memory guarantee,
+        Fixed6 makerPosExposure,
+        Fixed6 makerNegExposure,
+        UFixed6 longPosExposure,
+        UFixed6 longNegExposure,
+        UFixed6 shortPosExposure,
+        UFixed6 shortNegExposure
+    ) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
+        (exposurePos, exposureNeg) = (
+            longPosExposure.mul(self.longPos.sub(guarantee.longPos))
+                .add(shortNegExposure.mul(self.shortNeg.sub(guarantee.shortNeg))),
+            longNegExposure.mul(self.longNeg.sub(guarantee.longNeg))
+                .add(shortPosExposure.mul(self.shortPos.sub(guarantee.shortPos)))
+        );
+
+        if (makerPosExposure.gt(Fixed6Lib.ZERO))
+            exposurePos = exposurePos.add(self.makerPos.mul(makerPosExposure.abs()));
+        else
+            exposureNeg = exposureNeg.add(self.makerNeg.mul(makerNegExposure.abs()));
+
+        if (makerNegExposure.gt(Fixed6Lib.ZERO))
+            exposurePos = exposurePos.add(self.makerNeg.mul(makerNegExposure.abs()));
+        else
+            exposureNeg = exposureNeg.add(self.makerPos.mul(makerPosExposure.abs()));
+    }
+
     /// @notice Returns whether the order is protected
     /// @param self The order object to check
     /// @return Whether the order is protected
@@ -301,16 +331,6 @@ library OrderLib {
     /// @return The positive delta of the order
     function neg(Order memory self) internal pure returns (UFixed6) {
         return self.makerNeg.add(self.longNeg).add(self.shortNeg);
-    }
-
-    function exposurePos(Order memory self, Fixed6 makerExposure) internal pure returns (UFixed6) {
-        return takerPos(self)
-            .add(makerExposure.abs().mulOut(makerExposure.mul(maker(self)).sign() > 0 ? self.makerPos : self.makerNeg));
-    }
-
-    function exposureNeg(Order memory self, Fixed6 makerExposure) internal pure returns (UFixed6) {
-        return takerNeg(self)
-            .add(makerExposure.abs().mulOut(makerExposure.mul(maker(self)).sign() < 0 ? self.makerNeg : self.makerPos));
     }
 
     /// @notice Updates the current global order with a new local order
