@@ -381,6 +381,8 @@ jobs:
           key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
       - name: Install
         run: yarn --frozen-lockfile
+      - name: Print package versions
+        run: yarn list --depth 0
       - name: Compile
         run: yarn workspaces run compile # compile all packages
       - name: Run tests with coverage on Arbitrum
