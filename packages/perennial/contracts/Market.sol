@@ -692,8 +692,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // fund
         if (newOrder.collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
         if (newOrder.collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
-
-        // events
     }
 
     /// @notice Processes the referrer for the given order
