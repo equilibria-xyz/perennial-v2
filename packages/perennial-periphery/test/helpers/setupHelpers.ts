@@ -48,7 +48,12 @@ import {
   AggregatorV3Interface__factory,
 } from '@perennial/oracle/types/generated'
 import { createMarket, deployMarketImplementation } from './marketHelpers'
-import { createPythOracle, deployOracleFactory } from './oracleHelpers'
+import {
+  createPythOracle,
+  deployOracleFactory,
+  PYTH_BTC_USD_PRICE_FEED,
+  PYTH_ETH_USD_PRICE_FEED,
+} from './oracleHelpers'
 
 export interface MarketWithOracle {
   market: IMarket
