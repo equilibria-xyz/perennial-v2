@@ -76,7 +76,9 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         oidBefore.toString(),
         'after',
         nextOrderId[user.address].toString(),
+        'called by',
       )
+      console.trace()
     }
 
     async function checkCompensation(priceCommitments = 0) {
