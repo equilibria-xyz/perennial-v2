@@ -378,7 +378,7 @@ jobs:
       - name: Run tests with coverage on Arbitrum
         env:
           MOCHA_REPORTER: spec
-          MOCHA_RETRY_COUNT: 2
+          MOCHA_RETRY_COUNT: 0
           ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
         run: |
           yarn workspace @perennial/periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
