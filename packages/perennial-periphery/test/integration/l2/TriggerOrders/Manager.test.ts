@@ -69,7 +69,14 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
     function advanceOrderId(user: SignerWithAddress) {
       const oidBefore = nextOrderId[user.address]
       nextOrderId[user.address] = nextOrderId[user.address].add(BigNumber.from(1))
-      console.log('oid for', user.address, 'before', oidBefore, 'after', nextOrderId[user.address])
+      console.log(
+        'oid for',
+        user.address,
+        'before',
+        oidBefore.toString(),
+        'after',
+        nextOrderId[user.address].toString(),
+      )
     }
 
     async function checkCompensation(priceCommitments = 0) {
