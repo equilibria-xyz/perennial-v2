@@ -74,6 +74,13 @@ export interface InstanceVars {
   marketImpl: Market
 }
 
+// used to pass Verifyable Action Approvals to MultiInvoker Pyth tests
+export interface PythVAAVars {
+  startingTime: number
+  vaaValid: string
+  vaaInvalid: string
+}
+
 export async function deployProtocol(
   dsu: IERC20Metadata,
   usdc: IERC20Metadata,

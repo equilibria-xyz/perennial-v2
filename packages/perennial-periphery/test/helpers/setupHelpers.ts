@@ -172,6 +172,7 @@ export async function deployProtocolForOracle(
 }
 
 // TODO: move to oracleHelpers module
+// Deploys a Pyth KeeperOracleFactory
 export async function deployPythOracleFactory(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
