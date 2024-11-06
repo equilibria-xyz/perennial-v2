@@ -27,13 +27,7 @@ import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import {
-  signAccessUpdateBatch,
-  signIntent,
-  signOperatorUpdate,
-  signSignerUpdate,
-} from '../../../../perennial-verifier/test/helpers/erc712'
-import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
+import { signAccessUpdateBatch, signIntent, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904

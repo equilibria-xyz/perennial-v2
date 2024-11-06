@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Intent } from "@perennial/verifier/contracts/interfaces/IVerifier.sol";
+import { Intent } from "../interfaces/IVerifier.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 
 contract MockToken is ERC20 {

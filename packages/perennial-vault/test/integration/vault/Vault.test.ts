@@ -1,6 +1,6 @@
 import HRE from 'hardhat'
 import { impersonate } from '../../../../common/testutil'
-import { deployProductOnMainnetFork } from '../helpers/setupHelpers'
+import { deployProductOnFork } from '../helpers/setupHelpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
@@ -226,12 +226,11 @@ describe('Vault', () => {
     )
     await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD')
 
-    market = await deployProductOnMainnetFork({
+    market = await deployProductOnFork({
       factory: instanceVars.marketFactory,
       token: instanceVars.dsu,
       owner: owner,
       oracle: rootOracle.address,
-      payoff: constants.AddressZero,
       makerLimit: parse6decimal('1000'),
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
@@ -247,12 +246,11 @@ describe('Vault', () => {
         scale: parse6decimal('100'),
       },
     })
-    btcMarket = await deployProductOnMainnetFork({
+    btcMarket = await deployProductOnFork({
       factory: instanceVars.marketFactory,
       token: instanceVars.dsu,
       owner: owner,
       oracle: btcRootOracle.address,
-      payoff: constants.AddressZero,
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
       takerFee: {
@@ -447,12 +445,11 @@ describe('Vault', () => {
       )
       await oracleFactory.connect(owner).create(LINK_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK-USD')
 
-      market3 = await deployProductOnMainnetFork({
+      market3 = await deployProductOnFork({
         factory: factory,
         token: asset,
         owner: owner,
         oracle: rootOracle3.address,
-        payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
         takerFee: {
           linearFee: 0,
@@ -519,12 +516,11 @@ describe('Vault', () => {
       )
       await oracleFactory.connect(owner).create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK0-USD')
 
-      const marketBadAsset = await deployProductOnMainnetFork({
+      const marketBadAsset = await deployProductOnFork({
         factory: factory,
         token: IERC20Metadata__factory.connect(constants.AddressZero, owner),
         owner: owner,
         oracle: rootOracle4.address,
-        payoff: constants.AddressZero,
         makerLimit: parse6decimal('1000000'),
         takerFee: {
           linearFee: 0,

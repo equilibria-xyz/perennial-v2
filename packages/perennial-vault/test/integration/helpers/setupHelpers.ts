@@ -13,17 +13,15 @@ export interface DeployProductParams
   factory: IMarketFactory
   token: IERC20Metadata
   oracle: string
-  payoff: string
   owner: SignerWithAddress
 }
 
 // Deploys a product that uses an oracle based on an oracle in the Chainlink feed registry.
 // Returns the address of the deployed product.
-export async function deployProductOnMainnetFork({
+export async function deployProductOnFork({
   token,
   factory,
   oracle,
-  payoff,
   owner,
   margin,
   maintenance,
@@ -38,7 +36,6 @@ export async function deployProductOnMainnetFork({
   utilizationCurve,
   minMargin,
   minMaintenance,
-  liquidationFee,
   staleAfter,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
