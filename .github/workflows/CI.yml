@@ -66,12 +66,12 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: core_unit_test_coverage
-          path: ./packages/perennial/coverage/lcov.info
+          path: ./packages/core/coverage/lcov.info
       - name: '[Core] Unit Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
           title: '[Core] Unit Test Coverage Report'
-          lcov-file: ./packages/perennial/coverage/lcov.info
+          lcov-file: ./packages/core/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
@@ -104,12 +104,12 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: core_integration_test_coverage
-          path: ./packages/perennial/coverage/lcov.info
+          path: ./packages/core/coverage/lcov.info
       - name: '[Core] Integration Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
           title: '[Core] Integration Test Coverage Report'
-          lcov-file: ./packages/perennial/coverage/lcov.info
+          lcov-file: ./packages/core/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
@@ -174,7 +174,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: oracle_unit_test_coverage
-          path: ./packages/perennial-oracle/coverage/lcov.info
+          path: ./packages/oracle/coverage/lcov.info
   oracle-integration-test:
     name: '[Oracle] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -204,7 +204,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: oracle_integration_test_coverage
-          path: ./packages/perennial-oracle/coverage/lcov.info
+          path: ./packages/oracle/coverage/lcov.info
   oracle-integrationSepolia-test:
     name: '[Oracle] Sepolia Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -234,7 +234,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: oracle_sepolia_integration_test_coverage
-          path: ./packages/perennial-oracle/coverage/lcov.info
+          path: ./packages/oracle/coverage/lcov.info
 
   # [VAULT]
   vault-unit-test:
@@ -265,7 +265,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: vault_unit_test_coverage
-          path: ./packages/perennial-vault/coverage/lcov.info
+          path: ./packages/vault/coverage/lcov.info
   vault-integration-test:
     name: '[Vault] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -295,7 +295,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: vault_integration_test_coverage
-          path: ./packages/perennial-vault/coverage/lcov.info
+          path: ./packages/vault/coverage/lcov.info
 
   # [PERIPHERY]
   periphery-unit-test:
@@ -326,7 +326,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: periphery_unit_test_coverage
-          path: ./packages/perennial-periphery/coverage/lcov.info
+          path: ./packages/periphery/coverage/lcov.info
   periphery-integration-test:
     name: '[Periphery] Mainnet Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -356,7 +356,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: periphery_integration_test_coverage
-          path: ./packages/perennial-periphery/coverage/lcov.info
+          path: ./packages/periphery/coverage/lcov.info
   periphery-integrationL2-test:
     name: '[Periphery] L2 Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -386,7 +386,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: periphery_arbitrum_integration_test_coverage
-          path: ./packages/perennial-periphery/coverage/lcov.info
+          path: ./packages/periphery/coverage/lcov.info
       - name: Run tests on Base
         env:
           MOCHA_REPORTER: dot
