@@ -10,8 +10,8 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IController } from "./interfaces/IController.sol";

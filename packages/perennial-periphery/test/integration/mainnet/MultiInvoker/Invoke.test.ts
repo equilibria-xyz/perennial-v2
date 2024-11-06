@@ -28,9 +28,9 @@ import { BigNumber, constants } from 'ethers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../../helpers/MultiInvoker/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IERC20Metadata } from '@perennial/core/types/generated'
+import { IERC20Metadata } from '@perennial/v2-core/types/generated'
 import { createMarket } from '../../../helpers/marketHelpers'
-import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
+import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 use(smock.matchers)
 

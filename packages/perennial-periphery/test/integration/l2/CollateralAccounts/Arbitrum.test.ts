@@ -17,7 +17,7 @@ import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Controller_Incentivized, IMarketFactory } from '../../../../types/generated'
 import { RunAccountTests } from './Account.test'
-import { AggregatorV3Interface } from '@perennial/oracle/types/generated'
+import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { RunControllerBaseTests } from './Controller.test'
 import { DeploymentVars } from './setupTypes'
 

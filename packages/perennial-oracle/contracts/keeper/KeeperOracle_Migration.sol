@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
-import { OracleReceipt } from "@perennial/core/contracts/types/OracleReceipt.sol";
+import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { OracleVersion } from "@perennial/v2-core/contracts/types/OracleVersion.sol";
+import { OracleReceipt } from "@perennial/v2-core/contracts/types/OracleReceipt.sol";
 import { PriceResponse } from "./types/PriceResponse.sol";
 import { KeeperOracle } from "./KeeperOracle.sol";
 

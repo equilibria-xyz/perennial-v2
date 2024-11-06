@@ -36,7 +36,7 @@ import {
 } from '../../../../types/generated'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
 
-import { deployProductOnFork } from '@perennial/vault/test/integration/helpers/setupHelpers'
+import { deployProductOnFork } from '@perennial/v2-vault/test/integration/helpers/setupHelpers'
 import {
   ProxyAdmin,
   ProxyAdmin__factory,
@@ -44,10 +44,10 @@ import {
   IVerifier,
   AggregatorV3Interface,
   AggregatorV3Interface__factory,
-} from '@perennial/core/types/generated'
-import { Verifier__factory } from '@perennial/core/types/generated'
+} from '@perennial/v2-core/types/generated'
+import { Verifier__factory } from '@perennial/v2-core/types/generated'
 import { deployMarketImplementation } from '../../../helpers/marketHelpers'
-import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
+import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 const { ethers } = HRE
 

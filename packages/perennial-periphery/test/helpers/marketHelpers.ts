@@ -15,12 +15,12 @@ import {
   VersionLib__factory,
   VersionStorageLib__factory,
   MagicValueLib__factory,
-} from '@perennial/core/types/generated'
-import { IOracle } from '@perennial/oracle/types/generated'
+} from '@perennial/v2-core/types/generated'
+import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
-import { MarketParameterStruct, RiskParameterStruct } from '@perennial/core/types/generated/contracts/Market'
+import { MarketParameterStruct, RiskParameterStruct } from '@perennial/v2-core/types/generated/contracts/Market'
 
 export async function createMarket(
   owner: SignerWithAddress,

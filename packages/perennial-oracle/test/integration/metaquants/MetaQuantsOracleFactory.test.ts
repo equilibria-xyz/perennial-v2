@@ -304,37 +304,37 @@ testOracles.forEach(testOracle => {
 
       const marketImpl = await new Market__factory(
         {
-          '@perennial/core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
+          '@perennial/v2-core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
             await new CheckpointLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/libs/InvariantLib.sol:InvariantLib': (
+          '@perennial/v2-core/contracts/libs/InvariantLib.sol:InvariantLib': (
             await new InvariantLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/libs/VersionLib.sol:VersionLib': (
+          '@perennial/v2-core/contracts/libs/VersionLib.sol:VersionLib': (
             await new VersionLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+          '@perennial/v2-core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
             await new CheckpointStorageLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/types/Global.sol:GlobalStorageLib': (
+          '@perennial/v2-core/contracts/types/Global.sol:GlobalStorageLib': (
             await new GlobalStorageLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+          '@perennial/v2-core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
             await new MarketParameterStorageLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/types/Position.sol:PositionStorageGlobalLib': (
+          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageGlobalLib': (
             await new PositionStorageGlobalLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/types/Position.sol:PositionStorageLocalLib': (
+          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageLocalLib': (
             await new PositionStorageLocalLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+          '@perennial/v2-core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
             await new RiskParameterStorageLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/types/Version.sol:VersionStorageLib': (
+          '@perennial/v2-core/contracts/types/Version.sol:VersionStorageLib': (
             await new VersionStorageLib__factory(owner).deploy()
           ).address,
-          '@perennial/core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
+          '@perennial/v2-core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
             await new MagicValueLib__factory(owner).deploy()
           ).address,
         },

@@ -3,8 +3,8 @@ pragma solidity ^0.8.13;
 
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { PriceResponse, PriceResponseLib, PriceResponseStorage } from "../keeper/types/PriceResponse.sol";
-import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
-import { OracleReceipt } from "@perennial/core/contracts/types/OracleReceipt.sol";
+import { OracleVersion } from "@perennial/v2-core/contracts/types/OracleVersion.sol";
+import { OracleReceipt } from "@perennial/v2-core/contracts/types/OracleReceipt.sol";
 
 contract PriceResponseTester {
     PriceResponseStorage public priceResponse;

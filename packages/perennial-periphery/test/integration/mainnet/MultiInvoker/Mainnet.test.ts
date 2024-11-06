@@ -4,9 +4,9 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { parse6decimal } from '../../../../../common/testutil/types'
 
-import { ChainlinkContext } from '@perennial/core/test/integration/helpers/chainlinkHelpers'
-import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/oracle/util/constants'
+import { ChainlinkContext } from '@perennial/v2-core/test/integration/helpers/chainlinkHelpers'
+import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
+import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 
 import { IERC20Metadata__factory, IOracle__factory, KeeperOracle, PythFactory } from '../../../../types/generated'
 import { RunInvokerTests } from './Invoke.test'

@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "../interfaces/IAccount.sol";
 import { IAccountVerifier } from "../interfaces/IAccountVerifier.sol";

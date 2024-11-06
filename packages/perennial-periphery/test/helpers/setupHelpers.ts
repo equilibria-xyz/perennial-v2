@@ -36,7 +36,7 @@ import {
   Verifier__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
-} from '@perennial/core/types/generated'
+} from '@perennial/v2-core/types/generated'
 
 import {
   IKeeperOracle,
@@ -46,7 +46,7 @@ import {
   KeeperOracle__factory,
   PythFactory__factory,
   AggregatorV3Interface__factory,
-} from '@perennial/oracle/types/generated'
+} from '@perennial/v2-oracle/types/generated'
 import { createMarket, deployMarketImplementation } from './marketHelpers'
 import {
   createPythOracle,

@@ -3,8 +3,8 @@ import { BigNumber } from 'ethers'
 import { smock, FakeContract } from '@defi-wonderland/smock'
 
 import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
-import { buildChainlinkRoundId } from '@perennial/oracle/util/buildChainlinkRoundId'
-import { IOracleFactory, IOracleFactory__factory, IPayoffProvider } from '@perennial/oracle/types/generated'
+import { buildChainlinkRoundId } from '@perennial/v2-oracle/util/buildChainlinkRoundId'
+import { IOracleFactory, IOracleFactory__factory, IPayoffProvider } from '@perennial/v2-oracle/types/generated'
 
 const { ethers, deployments } = HRE
 

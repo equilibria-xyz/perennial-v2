@@ -37,9 +37,9 @@ import {
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
-} from '@perennial/core/test/helpers/erc712'
-import { Verifier, Verifier__factory } from '@perennial/core/types/generated'
-import { AggregatorV3Interface } from '@perennial/oracle/types/generated'
+} from '@perennial/v2-core/test/helpers/erc712'
+import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
+import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { DeploymentVars } from './setupTypes'
 import { advanceToPrice } from '../../../helpers/oracleHelpers'
 

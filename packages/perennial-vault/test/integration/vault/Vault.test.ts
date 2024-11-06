@@ -20,10 +20,10 @@ import {
   IMarketFactory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
-import { deployProtocol, fundWallet, settle } from '@perennial/core/test/integration/helpers/setupHelpers'
+import { deployProtocol, fundWallet, settle } from '@perennial/v2-core/test/integration/helpers/setupHelpers'
 import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
-import { MarketFactory, ProxyAdmin, TransparentUpgradeableProxy__factory } from '@perennial/core/types/generated'
-import { IOracle, IOracle__factory, OracleFactory } from '@perennial/oracle/types/generated'
+import { MarketFactory, ProxyAdmin, TransparentUpgradeableProxy__factory } from '@perennial/v2-core/types/generated'
+import { IOracle, IOracle__factory, OracleFactory } from '@perennial/v2-oracle/types/generated'
 
 const { ethers } = HRE
 use(smock.matchers)

@@ -39,8 +39,8 @@ import { DEFAULT_LOCAL, DEFAULT_POSITION, Local, parse6decimal } from '../../../
 import { openTriggerOrder, setGlobalPrice, setMarketPosition, Compare, Dir } from '../../helpers/MultiInvoker/types'
 
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { PositionStruct } from '@perennial/core/types/generated/contracts/Market'
-import { OracleVersionStruct } from '../../../types/generated/@perennial/oracle/contracts/Oracle'
+import { PositionStruct } from '@perennial/v2-core/types/generated/contracts/Market'
+import { OracleVersionStruct } from '../../../types/generated/@perennial/v2-oracle/contracts/Oracle'
 
 const ethers = { HRE }
 use(smock.matchers)

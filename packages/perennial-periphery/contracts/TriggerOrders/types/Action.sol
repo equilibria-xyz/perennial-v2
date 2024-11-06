@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 
 /// @notice Fields which need to be hashed for each order action
 struct Action {

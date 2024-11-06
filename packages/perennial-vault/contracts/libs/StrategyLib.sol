@@ -3,13 +3,13 @@ pragma solidity ^0.8.13;
 
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { MarketParameter } from "@perennial/core/contracts/types/MarketParameter.sol";
-import { RiskParameter } from "@perennial/core/contracts/types/RiskParameter.sol";
-import { Local } from "@perennial/core/contracts/types/Local.sol";
-import { Global } from "@perennial/core/contracts/types/Global.sol";
-import { Position, PositionLib } from "@perennial/core/contracts/types/Position.sol";
-import { Order } from "@perennial/core/contracts/types/Order.sol";
-import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { MarketParameter } from "@perennial/v2-core/contracts/types/MarketParameter.sol";
+import { RiskParameter } from "@perennial/v2-core/contracts/types/RiskParameter.sol";
+import { Local } from "@perennial/v2-core/contracts/types/Local.sol";
+import { Global } from "@perennial/v2-core/contracts/types/Global.sol";
+import { Position, PositionLib } from "@perennial/v2-core/contracts/types/Position.sol";
+import { Order } from "@perennial/v2-core/contracts/types/Order.sol";
+import { OracleVersion } from "@perennial/v2-core/contracts/types/OracleVersion.sol";
 import { Registration } from "../types/Registration.sol";
 
 /// @dev The context of an underlying market

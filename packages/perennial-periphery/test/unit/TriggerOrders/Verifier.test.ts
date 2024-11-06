@@ -11,7 +11,7 @@ import { currentBlockTimestamp } from '../../../../common/testutil/time'
 
 import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import { DEFAULT_TRIGGER_ORDER } from '../../helpers/TriggerOrders/order'
-import { IMarket } from '@perennial/core/types/generated'
+import { IMarket } from '@perennial/v2-core/types/generated'
 import {
   IManager,
   IMarketFactory,

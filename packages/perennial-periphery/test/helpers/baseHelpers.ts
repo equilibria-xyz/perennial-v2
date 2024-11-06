@@ -1,7 +1,7 @@
 import { expect } from 'chai'
 import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IOracleFactory, PythFactory } from '@perennial/oracle/types/generated'
+import { IOracleFactory, PythFactory } from '@perennial/v2-oracle/types/generated'
 import { createFactories, deployController } from './setupHelpers'
 import {
   Account__factory,

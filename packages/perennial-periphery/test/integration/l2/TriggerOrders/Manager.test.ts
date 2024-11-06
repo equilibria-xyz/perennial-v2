@@ -8,8 +8,8 @@ import { advanceBlock, currentBlockTimestamp, increase } from '../../../../../co
 import { getEventArguments, getTimestamp } from '../../../../../common/testutil/transaction'
 import { parse6decimal } from '../../../../../common/testutil/types'
 
-import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/core/types/generated'
-import { IKeeperOracle } from '@perennial/oracle/types/generated'
+import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
+import { IKeeperOracle } from '@perennial/v2-oracle/types/generated'
 import { IEmptySetReserve, IManager, IOrderVerifier } from '../../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../../types/generated/contracts/TriggerOrders/Manager'
 

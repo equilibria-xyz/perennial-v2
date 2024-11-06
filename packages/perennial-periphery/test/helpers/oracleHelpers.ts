@@ -14,8 +14,8 @@ import {
   OracleFactory,
   OracleFactory__factory,
   PythFactory,
-} from '@perennial/oracle/types/generated'
-import { OracleVersionStruct } from '@perennial/oracle/types/generated/contracts/Oracle'
+} from '@perennial/v2-oracle/types/generated'
+import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 // feed ids are chain-agnostic
 export const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'

@@ -16,7 +16,7 @@ import {
   IAccountVerifier,
   IERC20Metadata,
 } from '../../../../types/generated'
-import { IMarket, IMarketFactory } from '@perennial/core/types/generated'
+import { IMarket, IMarketFactory } from '@perennial/v2-core/types/generated'
 import {
   signDeployAccount,
   signMarketTransfer,

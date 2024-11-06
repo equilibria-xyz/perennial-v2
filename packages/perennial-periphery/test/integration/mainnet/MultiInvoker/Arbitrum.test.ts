@@ -27,7 +27,7 @@ import {
   PYTH_ETH_USD_PRICE_FEED,
 } from '../../../helpers/oracleHelpers'
 import { time } from '../../../../../common/testutil'
-import { KeeperOracle, PythFactory } from '@perennial/oracle/types/generated'
+import { KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
 
 let pythOracleFactory: PythFactory
 let keeperOracle: IKeeperOracle

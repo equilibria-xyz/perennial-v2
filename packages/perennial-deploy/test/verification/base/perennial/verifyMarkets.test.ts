@@ -10,7 +10,7 @@ import {
 } from '../../../../types/generated'
 import { utils, constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { OracleFactory } from '@perennial/oracle/types/generated'
+import { OracleFactory } from '@perennial/v2-oracle/types/generated'
 import { getLabsMultisig } from '../../../../../common/testutil/constants'
 
 const GAUNTLET_ADDRESS = '0x9B08824A87D79a65dD30Fc5c6B9e734A313E4235'

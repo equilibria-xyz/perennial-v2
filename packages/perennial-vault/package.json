@@ -1,5 +1,5 @@
 {
-  "name": "@perennial/vault",
+  "name": "@perennial/v2-vault",
   "version": "1.3.0",
   "description": "Perennial V2 Vault",
   "files": [
@@ -30,6 +30,6 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
-    "@perennial/core": "1.3.0"
+    "@perennial/v2-core": "1.3.0"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@perennial/periphery",
+  "name": "@perennial/v2-periphery",
   "version": "1.3.0",
   "description": "Perennial V2 Periphery",
   "files": [
@@ -33,8 +33,8 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@equilibria/emptyset-batcher": "^0.1.0",
-    "@perennial/core": "1.3.0",
-    "@perennial/oracle": "1.3.0"
+    "@perennial/v2-core": "1.3.0",
+    "@perennial/v2-oracle": "1.3.0"
   },
   "devDependencies": {
     "@ethersproject/abstract-provider": "^5"

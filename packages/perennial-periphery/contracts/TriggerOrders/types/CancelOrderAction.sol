@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Common, CommonLib } from "@equilibria/root/verifier/types/Common.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { Action, ActionLib } from "./Action.sol";
 
 /// @notice Request to cancel a persisted ("placed") order

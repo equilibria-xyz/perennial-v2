@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { SignerUpdate, SignerUpdateLib } from "@perennial/core/contracts/types/SignerUpdate.sol";
+import { SignerUpdate, SignerUpdateLib } from "@perennial/v2-core/contracts/types/SignerUpdate.sol";
 import { Action, ActionLib } from "./Action.sol";
 
 struct RelayedSignerUpdate {

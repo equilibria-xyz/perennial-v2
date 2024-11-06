@@ -25,11 +25,11 @@ import {
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
-} from '@perennial/core/test/helpers/erc712'
+} from '@perennial/v2-core/test/helpers/erc712'
 import { impersonate } from '../../../../common/testutil'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { parse6decimal } from '../../../../common/testutil/types'
-import { Verifier, Verifier__factory } from '@perennial/core/types/generated'
+import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
 import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../../types/generated'
 
 const { ethers } = HRE

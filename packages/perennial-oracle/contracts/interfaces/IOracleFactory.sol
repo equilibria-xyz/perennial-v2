@@ -3,8 +3,8 @@ pragma solidity ^0.8.13;
 
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
-import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
-import { IOracleProviderFactory } from "@perennial/core/contracts/interfaces/IOracleProviderFactory.sol";
+import { IOracleProvider } from "@perennial/v2-core/contracts/interfaces/IOracleProvider.sol";
+import { IOracleProviderFactory } from "@perennial/v2-core/contracts/interfaces/IOracleProviderFactory.sol";
 import { IOracle } from "./IOracle.sol";
 import { OracleParameter } from "../types/OracleParameter.sol";
 

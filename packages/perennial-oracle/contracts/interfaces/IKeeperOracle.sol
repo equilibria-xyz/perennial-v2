@@ -2,9 +2,9 @@
 pragma solidity ^0.8.13;
 
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
-import { IOracleProvider } from "@perennial/core/contracts/interfaces/IOracleProvider.sol";
-import { IMarket } from "@perennial/core/contracts/interfaces/IMarket.sol";
-import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
+import { IOracleProvider } from "@perennial/v2-core/contracts/interfaces/IOracleProvider.sol";
+import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { OracleVersion } from "@perennial/v2-core/contracts/types/OracleVersion.sol";
 import { IOracle } from "./IOracle.sol";
 import { PriceResponse } from "../keeper/types/PriceResponse.sol";
 

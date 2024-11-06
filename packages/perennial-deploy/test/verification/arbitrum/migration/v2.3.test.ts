@@ -25,7 +25,7 @@ import {
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { smock } from '@defi-wonderland/smock'
-import { GlobalStruct } from '../../../../types/generated/@perennial/core/contracts/interfaces/IMarket'
+import { GlobalStruct } from '../../../../types/generated/@perennial/v2-core/contracts/interfaces/IMarket'
 
 const RunMigrationDeployScript = false
 const SkipSettleAccounts = false

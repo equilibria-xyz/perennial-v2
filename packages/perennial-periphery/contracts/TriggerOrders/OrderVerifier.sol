@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { SignatureChecker } from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import { VerifierBase } from "@equilibria/root/verifier/VerifierBase.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action, ActionLib } from "./types/Action.sol";

@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Kept, Kept_Arbitrum, Token18, UFixed18 } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 
 import { IOrderVerifier, Manager } from "./Manager.sol";
 

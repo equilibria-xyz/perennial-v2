@@ -1,5 +1,5 @@
 {
-  "name": "@perennial/oracle",
+  "name": "@perennial/v2-oracle",
   "version": "1.3.0",
   "description": "Perennial V2 Oracle",
   "files": [
@@ -34,6 +34,6 @@
   "author": "",
   "license": "APACHE-2.0",
   "dependencies": {
-    "@perennial/core": "1.3.0"
+    "@perennial/v2-core": "1.3.0"
   }
 }
