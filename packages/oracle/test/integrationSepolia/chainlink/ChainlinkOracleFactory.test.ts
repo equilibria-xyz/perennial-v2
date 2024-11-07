@@ -11,7 +11,6 @@ import {
   IERC20Metadata__factory,
   Market__factory,
   MarketFactory,
-  MarketFactory__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -23,22 +22,12 @@ import {
   ChainlinkFactory,
   PowerTwo__factory,
   PowerTwo,
-  CheckpointLib__factory,
-  CheckpointStorageLib__factory,
-  GlobalStorageLib__factory,
-  InvariantLib__factory,
-  MarketParameterStorageLib__factory,
-  PositionStorageGlobalLib__factory,
-  PositionStorageLocalLib__factory,
-  RiskParameterStorageLib__factory,
-  VersionLib__factory,
-  VersionStorageLib__factory,
   GasOracle,
   GasOracle__factory,
-  MagicValueLib__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
+import { deployMarketFactory } from '../../setupHelpers'
 
 const { ethers } = HRE
 
@@ -267,51 +256,7 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address, 'BTC-USD')
 
-      const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
-
-      const marketImpl = await new Market__factory(
-        {
-          '@perennial/v2-core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
-            await new CheckpointLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/InvariantLib.sol:InvariantLib': (
-            await new InvariantLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/VersionLib.sol:VersionLib': (
-            await new VersionLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-            await new CheckpointStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Global.sol:GlobalStorageLib': (
-            await new GlobalStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-            await new MarketParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageGlobalLib': (
-            await new PositionStorageGlobalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageLocalLib': (
-            await new PositionStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-            await new RiskParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Version.sol:VersionStorageLib': (
-            await new VersionStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
-            await new MagicValueLib__factory(owner).deploy()
-          ).address,
-        },
-        owner,
-      ).deploy(verifierImpl.address)
-      marketFactory = await new MarketFactory__factory(owner).deploy(
-        oracleFactory.address,
-        verifierImpl.address,
-        marketImpl.address,
-      )
+      marketFactory = await deployMarketFactory(owner, oracleFactory)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
