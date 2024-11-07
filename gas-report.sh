@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run the gas report command and filter lines that start with optional spaces followed by '|' or '·'
-filtered_output=$(yarn workspace @perennial/core run gasReport | grep -E '^\s*(\||·)' | sed -r 's/\x1B\[[0-9;]*[mK]//g')
+filtered_output=$(yarn workspace @perennial/v2-core run gasReport | grep -E '^\s*(\||·)' | sed -r 's/\x1B\[[0-9;]*[mK]//g')
 
 # Insert a blank line between the two tables
 processed_output=$(echo "$filtered_output" | awk '
