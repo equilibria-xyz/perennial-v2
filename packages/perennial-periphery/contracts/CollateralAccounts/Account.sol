@@ -30,14 +30,6 @@ contract Account is IAccount, Instance {
     /// @dev DSU Reserve address
     IEmptySetReserve public immutable reserve;
 
-    bytes32 public tempStorage; // Only doing this to test gas diffs on PR 488; please remove this line
-
-    bytes32 public constant tempLine1 = keccak256("Line 1: Only doing this to test gas diffs on PR 488; please remove this line");
-
-    bytes32 public constant tempLine2 = keccak256("Line 2: Only doing this to test gas diffs on PR 488; please remove this line");
-
-    bytes32 public constant tempLine3 = keccak256("Line 3: Only doing this to test gas diffs on PR 488; please remove this line");
-
     /// @dev Construct collateral account and set approvals for controller and DSU reserve
     /// @param usdc_ USDC stablecoin
     /// @param dsu_ Digital Standard Unit stablecoin
@@ -46,7 +38,6 @@ contract Account is IAccount, Instance {
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
-        tempStorage = tempLine1;
     }
 
     /// @inheritdoc IAccount
@@ -65,7 +56,6 @@ contract Account is IAccount, Instance {
     /// @inheritdoc IAccount
     function deposit(UFixed6 amount) external {
         USDC.pull(msg.sender, amount);
-        tempStorage = tempLine2;
     }
 
     /// @inheritdoc IAccount
@@ -92,7 +82,6 @@ contract Account is IAccount, Instance {
         }
         UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
         USDC.push(owner, pushAmount);
-        tempStorage = tempLine3;
     }
 
     /// @inheritdoc IAccount
