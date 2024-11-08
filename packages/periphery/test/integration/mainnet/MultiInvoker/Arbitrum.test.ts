@@ -92,6 +92,7 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
 }
 
 if (process.env.FORK_NETWORK === 'arbitrum') {
+  // TODO: instead of passing createInvoker which creates baseclass, deploy a MultiInvoker_Optimism
   // TODO: need a chain-agnostic sub-oracle implementation in Vaults
   // RunInvokerTests(getFixture, createInvoker, fundWalletDSU, fundWalletUSDC, advanceToPrice)
   RunOrderTests(getFixture, createInvoker, advanceToPrice, false)
