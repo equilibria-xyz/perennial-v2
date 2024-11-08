@@ -5,7 +5,6 @@ import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
-import { Intent } from "@perennial/verifier/contracts/types/Intent.sol";
 import { IOracleProvider } from "./IOracleProvider.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { MarketParameter } from "../types/MarketParameter.sol";
@@ -17,6 +16,7 @@ import { Position } from "../types/Position.sol";
 import { Checkpoint } from "../types/Checkpoint.sol";
 import { Order } from "../types/Order.sol";
 import { Guarantee } from "../types/Guarantee.sol";
+import { Intent } from "../types/Intent.sol";
 import { VersionAccumulationResult } from "../libs/VersionLib.sol";
 import { CheckpointAccumulationResult } from "../libs/CheckpointLib.sol";
 

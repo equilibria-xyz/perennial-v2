@@ -3,11 +3,11 @@ pragma solidity ^0.8.13;
 
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
-import { IVerifier } from "@perennial/verifier/contracts/interfaces/IVerifier.sol";
-import { OperatorUpdate } from "@perennial/verifier/contracts/types/OperatorUpdate.sol";
-import { SignerUpdate } from "@perennial/verifier/contracts/types/SignerUpdate.sol";
-import { AccessUpdate } from "@perennial/verifier/contracts/types/AccessUpdate.sol";
-import { AccessUpdateBatch } from "@perennial/verifier/contracts/types/AccessUpdateBatch.sol";
+import { IVerifier } from "../interfaces/IVerifier.sol";
+import { OperatorUpdate } from "../types/OperatorUpdate.sol";
+import { SignerUpdate } from "../types/SignerUpdate.sol";
+import { AccessUpdate } from "../types/AccessUpdate.sol";
+import { AccessUpdateBatch } from "../types/AccessUpdateBatch.sol";
 import { ProtocolParameter } from "../types/ProtocolParameter.sol";
 import { IMarket } from "./IMarket.sol";
 import { IOracleProvider } from "./IOracleProvider.sol";

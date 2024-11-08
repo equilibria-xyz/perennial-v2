@@ -27,11 +27,7 @@ import {
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { constants } from 'ethers'
-import {
-  signAccessUpdateBatch,
-  signOperatorUpdate,
-  signSignerUpdate,
-} from '../../../../perennial-verifier/test/helpers/erc712'
+import { signAccessUpdateBatch, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
 
 const { ethers } = HRE
 

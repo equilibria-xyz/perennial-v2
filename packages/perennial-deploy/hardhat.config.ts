@@ -1,8 +1,7 @@
 import defaultConfig, { AUTO_IMPERSONATE } from '../common/hardhat.default.config'
 import { solidityOverrides as coreOverrides } from '@perennial/core/hardhat.config'
 import { solidityOverrides as vaultOverrides } from '@perennial/vault/hardhat.config'
-import { solidityOverrides as extensionsOverrides } from '@perennial/extensions/hardhat.config'
-import { solidityOverrides as accountOverrides } from '@perennial/account/hardhat.config'
+import { solidityOverrides as peripheryOverrides } from '@perennial/periphery/hardhat.config'
 import './tasks'
 import { extendEnvironment } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, HttpNetworkUserConfig } from 'hardhat/types'
@@ -29,16 +28,15 @@ const config = defaultConfig({
     '@perennial/core/contracts/MarketFactory.sol',
     '@perennial/vault/contracts/Vault.sol',
     '@perennial/vault/contracts/VaultFactory.sol',
-    '@perennial/extensions/contracts/MultiInvoker.sol',
-    '@perennial/extensions/contracts/MultiInvoker_Arbitrum.sol',
-    '@perennial/extensions/contracts/MultiInvoker_Optimism.sol',
-    '@perennial/extensions/contracts/Coordinator.sol',
-    '@perennial/verifier/contracts/Verifier.sol',
-    '@perennial/account/contracts/Account.sol',
-    '@perennial/account/contracts/AccountVerifier.sol',
-    '@perennial/account/contracts/Controller_Arbitrum.sol',
-    '@perennial/order/contracts/OrderVerifier.sol',
-    '@perennial/order/contracts/Manager_Arbitrum.sol',
+    '@perennial/periphery/contracts/CollateralAccounts/Account.sol',
+    '@perennial/periphery/contracts/CollateralAccounts/AccountVerifier.sol',
+    '@perennial/periphery/contracts/CollateralAccounts/Controller_Arbitrum.sol',
+    '@perennial/periphery/contracts/Coordinator/Coordinator.sol',
+    '@perennial/periphery/contracts/MultiInvoker/MultiInvoker.sol',
+    '@perennial/periphery/contracts/MultiInvoker/MultiInvoker_Arbitrum.sol',
+    '@perennial/periphery/contracts/MultiInvoker/MultiInvoker_Optimism.sol',
+    '@perennial/periphery/contracts/TriggerOrders/OrderVerifier.sol',
+    '@perennial/periphery/contracts/TriggerOrders/Manager_Arbitrum.sol',
   ],
   solidityOverrides: {
     '@perennial/core/contracts/Market.sol': {
@@ -47,17 +45,17 @@ const config = defaultConfig({
     '@perennial/vault/contracts/Vault.sol': {
       ...vaultOverrides['contracts/Vault.sol'],
     },
-    '@perennial/extensions/contracts/MultiInvoker.sol': {
-      ...extensionsOverrides['contracts/MultiInvoker.sol'],
+    '@perennial/periphery/contracts/MultiInvoker.sol': {
+      ...peripheryOverrides['contracts/MultiInvoker.sol'],
     },
-    '@perennial/extensions/contracts/MultiInvoker_Arbitrum.sol': {
-      ...extensionsOverrides['contracts/MultiInvoker_Arbitrum.sol'],
+    '@perennial/periphery/contracts/MultiInvoker_Arbitrum.sol': {
+      ...peripheryOverrides['contracts/MultiInvoker_Arbitrum.sol'],
     },
-    '@perennial/extensions/contracts/MultiInvoker_Optimism.sol': {
-      ...extensionsOverrides['contracts/MultiInvoker_Optimism.sol'],
+    '@perennial/periphery/contracts/MultiInvoker_Optimism.sol': {
+      ...peripheryOverrides['contracts/MultiInvoker_Optimism.sol'],
     },
-    '@perennial/account/contracts/Controller_Arbitrum.sol': {
-      ...accountOverrides['contracts/Controller_Arbitrum.sol'],
+    '@perennial/periphery/contracts/Controller_Arbitrum.sol': {
+      ...peripheryOverrides['contracts/Controller_Arbitrum.sol'],
     },
   },
 })

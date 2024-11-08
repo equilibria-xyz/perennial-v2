@@ -19,15 +19,14 @@ import {
   DEFAULT_GUARANTEE,
   expectGuaranteeEq,
 } from '../../../../common/testutil/types'
-import { Market } from '../../../types/generated'
+import { Market, Verifier__factory } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
   AccountPositionProcessedEventObject,
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
-import { Verifier__factory } from '../../../../perennial-verifier/types/generated'
-import { signIntent } from '../../../../perennial-verifier/test/helpers/erc712'
+import { signIntent } from '../../helpers/erc712'
 
 export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
 
