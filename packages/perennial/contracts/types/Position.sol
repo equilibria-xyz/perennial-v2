@@ -96,27 +96,6 @@ library PositionLib {
         );
     }
 
-    /// @notice Returns the bounds of the order that are filled by the maker side
-    /// @dev During socialization, long and short sides fill orders instead of the maker side
-    /// @param self The position object to check
-    /// @param makerNeg The negative maker quantity
-    /// @param exposure The exposure of the order
-    /// @return exposureStart The start of the quantity filled by the make side
-    /// @return exposureEnd The end of the quantity filled by the make side
-    function filledByMaker(
-        Position memory self,
-        UFixed6 makerNeg,
-        Fixed6 exposure
-    ) internal pure returns (UFixed6 exposureStart, UFixed6 exposureEnd) {
-        UFixed6 makerTotal = self.maker.sub(makerNeg);
-
-        (Fixed6 latestSkew, Fixed6 nextSkew) = (skew(self),skew(self).add(exposure));
-        (Fixed6 maxSkew, Fixed6 minSkew) = (latestSkew.max(nextSkew), latestSkew.min(nextSkew));
-
-        exposureStart = UFixed6Lib.unsafeFrom(maxSkew.sub(Fixed6Lib.from(1, makerTotal)));
-        exposureEnd = UFixed6Lib.unsafeFrom(Fixed6Lib.from(-1, makerTotal).sub(minSkew)).add(exposure.abs());
-    }
-
     /// @notice Returns the utilization of the position
     /// @dev utilization = major / (maker + minor)
     /// @param self The position object to check
