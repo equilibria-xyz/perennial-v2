@@ -27,7 +27,7 @@ jobs:
       - name: Run gas report script for base branch
         env:
             MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
-        run: yarn workspace @perennial/core run gasReport
+        run: yarn workspace @perennial/v2-core run gasReport
 
       - name: Upload cache folder
         uses: actions/upload-artifact@v4

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Output file path
-output_file="code_size.md"
+output_file="code_size.txt"
 
 # Run the command and capture output directly
 filtered_output=$(yarn workspaces run build | grep -E '^\s*(\||·)' | sed -r 's/\x1B\[[0-9;]*[mK]//g')
