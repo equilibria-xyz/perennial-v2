@@ -3,31 +3,24 @@
 # Output file path
 output_file="code_size.txt"
 
-# Run the command and capture output directly
+# Run the command and filter lines that start with '|' or '·', removing color codes
 filtered_output=$(yarn workspaces run build | grep -E '^\s*(\||·)' | sed -r 's/\x1B\[[0-9;]*[mK]//g')
 
 # Extract only the core contracts table
 core_code_size_table=$(echo "$filtered_output" | awk '
-    /·--/ {  # Boundary line indicates the start of a new table
+    /·--/ {
+        # Capture first table starting and ending with ·--
         if (capturing) {
-            # Save the current table content as the last table, including this boundary line
-            last_table_content = table_content $0 "\n"
+            exit
         }
-        # Start a new table capture, and include the boundary line in table_content
         capturing = 1
-        table_content = $0 "\n"  # Reset and start with boundary line
-        next
     }
-    capturing {  # Collect lines for the current table, including boundaries
-        table_content = table_content $0 "\n"
-    }
-    END {
-        # Output the last captured table with both boundaries
-        print last_table_content
+    capturing {
+        print
     }
 ')
 
-# Format the core_code_size_table for a GitHub comment collapse section with details and summary tags
+# Format the captured table for GitHub comment with collapsible section
 formatted_core_code_size_table="<details><summary>View Report</summary>\n\n\`\`\`markdown\n$core_code_size_table\n\`\`\`\n</details>"
 
 # Write the formatted table to the output file

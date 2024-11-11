@@ -47,7 +47,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: perennial-cache
-          path: packages/perennial/cache
+          path: packages/core/cache
 
       - name: Install packages
         run: yarn --frozen-lockfile

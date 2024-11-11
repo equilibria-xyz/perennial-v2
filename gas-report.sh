@@ -20,7 +20,7 @@ extract_gas_report() {
 # Capture the gas report table output
 gas_report_output=$(extract_gas_report)
 
-# Format the gas report table output for a GitHub comment collapse section with details and summary tags
+# Format the gas report table output for a GitHub comment collapse section
 formatted_gas_report_output="<details><summary>View Report</summary>\n\n\`\`\`markdown\n$gas_report_output\n\`\`\`\n</details>"
 
 # Write the formatted gas report table output to a file
