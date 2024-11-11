@@ -93,12 +93,12 @@ jobs:
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: prNumber,
-              body: `### Code Size Diff:\n\`\`\`\n${code_size}\n\`\`\``
+              body: `### Code Size Diff:\n\n${code_size}\n`
             });
 
             // Post the Gas Report comment
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: prNumber,
-              body: `### Gas Report Diff:\n\`\`\`\n${gas_report}\n\`\`\``
+              body: `### Gas Report Diff:\n\n${gas_report}\n`
             });
