@@ -61,17 +61,17 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @perennial/core run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/v2-core run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: core_unit_test_coverage
-          path: ./packages/perennial/coverage/lcov.info
+          path: ./packages/core/coverage/lcov.info
       - name: '[Core] Unit Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
           title: '[Core] Unit Test Coverage Report'
-          lcov-file: ./packages/perennial/coverage/lcov.info
+          lcov-file: ./packages/core/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
@@ -99,17 +99,17 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
-          yarn workspace @perennial/core run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/v2-core run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: core_integration_test_coverage
-          path: ./packages/perennial/coverage/lcov.info
+          path: ./packages/core/coverage/lcov.info
       - name: '[Core] Integration Test Code Coverage Report'
         uses: romeovs/lcov-reporter-action@v0.3.1
         with:
           title: '[Core] Integration Test Coverage Report'
-          lcov-file: ./packages/perennial/coverage/lcov.info
+          lcov-file: ./packages/core/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
@@ -169,12 +169,12 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @perennial/oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: oracle_unit_test_coverage
-          path: ./packages/perennial-oracle/coverage/lcov.info
+          path: ./packages/oracle/coverage/lcov.info
   oracle-integration-test:
     name: '[Oracle] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -199,12 +199,12 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
-          yarn workspace @perennial/oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: oracle_integration_test_coverage
-          path: ./packages/perennial-oracle/coverage/lcov.info
+          path: ./packages/oracle/coverage/lcov.info
   oracle-integrationSepolia-test:
     name: '[Oracle] Sepolia Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -229,12 +229,12 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           ARBITRUM_SEPOLIA_NODE_URL: ${{ secrets.ARBITRUM_SEPOLIA_NODE_URL }}
         run: |
-          yarn workspace @perennial/oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
+          yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: oracle_sepolia_integration_test_coverage
-          path: ./packages/perennial-oracle/coverage/lcov.info
+          path: ./packages/oracle/coverage/lcov.info
 
   # [VAULT]
   vault-unit-test:
@@ -260,12 +260,12 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @perennial/vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: vault_unit_test_coverage
-          path: ./packages/perennial-vault/coverage/lcov.info
+          path: ./packages/vault/coverage/lcov.info
   vault-integration-test:
     name: '[Vault] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -290,12 +290,12 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
-          yarn workspace @perennial/vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: vault_integration_test_coverage
-          path: ./packages/perennial-vault/coverage/lcov.info
+          path: ./packages/vault/coverage/lcov.info
 
   # [PERIPHERY]
   periphery-unit-test:
@@ -321,12 +321,12 @@ jobs:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
         run: |
-          yarn workspace @perennial/periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
+          yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: periphery_unit_test_coverage
-          path: ./packages/perennial-periphery/coverage/lcov.info
+          path: ./packages/periphery/coverage/lcov.info
   periphery-integration-test:
     name: '[Periphery] Mainnet Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -351,12 +351,12 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
-          yarn workspace @perennial/periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
+          yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: periphery_integration_test_coverage
-          path: ./packages/perennial-periphery/coverage/lcov.info
+          path: ./packages/periphery/coverage/lcov.info
   periphery-integrationL2-test:
     name: '[Periphery] L2 Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
@@ -381,19 +381,19 @@ jobs:
           MOCHA_RETRY_COUNT: 2
           ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
         run: |
-          yarn workspace @perennial/periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
+          yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v3
         with:
           name: periphery_arbitrum_integration_test_coverage
-          path: ./packages/perennial-periphery/coverage/lcov.info
+          path: ./packages/periphery/coverage/lcov.info
       - name: Run tests on Base
         env:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
           BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
         run: |
-          yarn workspace @perennial/periphery run test:integrationBase
+          yarn workspace @perennial/v2-periphery run test:integrationBase
 
   # [PERIPHERY UNIT COVERAGE]
   periphery-unit-test-coverage:
