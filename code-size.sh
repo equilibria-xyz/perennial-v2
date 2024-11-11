@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Output file path
-output_file="code_size.txt"
+output_file="code_size.md"
 
 # Run the command and capture output directly
 filtered_output=$(yarn workspaces run build | grep -E '^\s*(\||·)' | sed -r 's/\x1B\[[0-9;]*[mK]//g')
@@ -27,5 +27,8 @@ core_code_size_table=$(echo "$filtered_output" | awk '
     }
 ')
 
-# Write the last table to the output file
-echo "$core_code_size_table" > "$output_file"
+# Format the core_code_size_table for a GitHub comment collapse section with details and summary tags
+formatted_core_code_size_table="<details><summary>View Report</summary>\n\n\`\`\`markdown\n$core_code_size_table\n\`\`\`\n</details>"
+
+# Write the formatted table to the output file
+echo "$formatted_core_code_size_table" > "$output_file"
