@@ -33,7 +33,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perennial-cache
-          path: packages/perennial/cache
+          path: packages/core/cache
           if-no-files-found: error
           retention-days: 1
           include-hidden-files: true
