@@ -29,6 +29,20 @@ import {
 import { time } from '../../../../../common/testutil'
 import { KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
 
+const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1684116265)
+
+const INITIAL_ORACLE_VERSION_ETH: OracleVersionStruct = {
+  timestamp: ORACLE_STARTING_TIMESTAMP,
+  price: BigNumber.from('2620237388'),
+  valid: true,
+}
+
+const INITIAL_ORACLE_VERSION_BTC = {
+  timestamp: ORACLE_STARTING_TIMESTAMP,
+  price: BigNumber.from('38838362695'),
+  valid: true,
+}
+
 let pythOracleFactory: PythFactory
 let keeperOracle: IKeeperOracle
 let lastPrice: BigNumber = utils.parseEther('2620.237388') // advanceToPrice converts to 6 decimals
@@ -94,7 +108,15 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
 if (process.env.FORK_NETWORK === 'arbitrum') {
   // TODO: instead of passing createInvoker which creates baseclass, deploy a MultiInvoker_Optimism
   // TODO: need a chain-agnostic sub-oracle implementation in Vaults
-  // RunInvokerTests(getFixture, createInvoker, fundWalletDSU, fundWalletUSDC, advanceToPrice)
+  RunInvokerTests(
+    getFixture,
+    createInvoker,
+    fundWalletDSU,
+    fundWalletUSDC,
+    advanceToPrice,
+    INITIAL_ORACLE_VERSION_ETH,
+    INITIAL_ORACLE_VERSION_BTC,
+  )
   RunOrderTests(getFixture, createInvoker, advanceToPrice, false)
   RunPythOracleTests(getFixture, createInvoker, getKeeperOracle, fundWalletDSU, {
     startingTime: 1723858683, // VAA timestamp minus 5 seconds
