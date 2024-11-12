@@ -21,7 +21,7 @@ extract_gas_report() {
 gas_report_output=$(extract_gas_report)
 
 # Format the gas report table output for a GitHub comment collapse section
-formatted_gas_report_output="<details><summary>View Report</summary><code>$gas_report_output</code></details>"
+formatted_gas_report_output="<details>\n<summary>View Report</summary>\n\n\`\`\`\n$gas_report_output\n\`\`\`\n</details>"
 
 # Write the formatted gas report table output to a file
-echo "$formatted_gas_report_output" > gas_report.txt
+printf "%b" "$formatted_gas_report_output" > gas_report.txt
