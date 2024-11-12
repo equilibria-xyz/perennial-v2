@@ -22,7 +22,7 @@ core_code_size_table=$(echo "$filtered_output" | awk '
 ')
 
 # Format the captured table for GitHub comment with collapsible section
-formatted_core_code_size_table="<details>\n<summary>View Report</summary>\n\n\`\`\`\n$core_code_size_table\n\`\`\`\n</details>"
+formatted_core_code_size_table="<details><summary>View Report</summary><code>$core_code_size_table</code></details>"
 
 # Write the formatted table to the output file
 echo "$formatted_core_code_size_table" > "$output_file"
