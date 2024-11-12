@@ -201,7 +201,6 @@ export async function createVault(
   const vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
   await oracleFactory.connect(owner).register(vaultOracleFactory.address)
 
-  // TODO: Do we still want to fake the sub-oracle implementation on Arbitrum?
   const ethSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
   resetEthSubOracle(ethSubOracle, initialOracleVersionEth)
 

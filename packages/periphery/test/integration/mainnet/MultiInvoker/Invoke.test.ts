@@ -31,8 +31,6 @@ import { Compare, Dir, openTriggerOrder } from '../../../helpers/MultiInvoker/ty
 import { IERC20Metadata } from '@perennial/v2-core/types/generated'
 import { createMarket } from '../../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
-import { currentBlockTimestamp } from '../../../../../common/testutil/time'
-import { getTimestamp } from '../../../../../common/testutil/transaction'
 
 use(smock.matchers)
 
@@ -116,7 +114,7 @@ export function RunInvokerTests(
 
     beforeEach(async () => {
       await loadFixture(fixture)
-      // TODO: move into fixture
+      // locks up if done within fixture
       multiInvoker = await createInvoker(instanceVars, vaultFactory, true)
     })
 

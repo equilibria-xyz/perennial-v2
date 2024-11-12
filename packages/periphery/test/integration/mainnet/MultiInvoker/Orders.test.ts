@@ -1,11 +1,12 @@
 import { BigNumber, utils, constants, PayableOverrides } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-
-import 'hardhat'
-
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { expect } from 'chai'
+import HRE from 'hardhat'
+
 import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../../common/testutil/types'
+
 import { IMultiInvoker, Market, MultiInvoker } from '../../../../types/generated'
 import { Compare, Dir, openTriggerOrder } from '../../../helpers/MultiInvoker/types'
 import {
@@ -17,13 +18,9 @@ import {
   buildExecOrder,
   buildPlaceOrder,
 } from '../../../helpers/MultiInvoker/invoke'
-
 import { TriggerOrderStruct } from '../../../../types/generated/contracts/MultiInvoker/MultiInvoker'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import HRE from 'hardhat'
 import { createMarket } from '../../../helpers/marketHelpers'
 import { InstanceVars, settle } from './setupHelpers'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const ethers = { HRE }
 
@@ -33,7 +30,7 @@ function payoff(number: BigNumber): BigNumber {
   return number.mul(number).div(utils.parseEther('1')).div(100000)
 }
 
-// TODO: only needed for Arbitrum, but works with mainnet too
+// override gas limit, needed when running on Arbitrum fork
 const TX_OVERRIDES = { gasLimit: 3_000_000 }
 
 export function RunOrderTests(
@@ -86,7 +83,7 @@ export function RunOrderTests(
 
     beforeEach(async () => {
       await loadFixture(fixture)
-      // TODO: move this settlement into the fixture
+      // since mainnet oracle implementation is mocked, price cannot be set within the fixture
       await advanceToPrice(PRICE)
       await settle(market, instanceVars.userB)
     })

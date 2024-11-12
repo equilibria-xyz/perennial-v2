@@ -97,16 +97,14 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
   const current = await time.currentBlockTimestamp()
   const next = await keeperOracle.next()
   const timestamp = next.eq(constants.Zero) ? BigNumber.from(current) : next
-  // adjust for payoff and convert 18-decimal price from tests to a 6-decimal price
-  // TODO: seems dirty that the test is running the payoff;
-  // we should commit a raw price and let the oracle process the payoff
+  // mainnet setup mocks the post-payoff price, so here we adjust for payoff and
+  // convert 18-decimal price sent from tests to a 6-decimal price committed to keeper oracle
   if (price) lastPrice = price.mul(price).div(utils.parseEther('1')).div(100000).div(1e12)
   await advanceToPriceImpl(keeperOracle, oracleFeeReceiver, timestamp, lastPrice)
 }
 
 if (process.env.FORK_NETWORK === 'arbitrum') {
   // TODO: instead of passing createInvoker which creates baseclass, deploy a MultiInvoker_Optimism
-  // TODO: need a chain-agnostic sub-oracle implementation in Vaults
   RunInvokerTests(
     getFixture,
     createInvoker,
