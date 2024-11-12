@@ -5,10 +5,10 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { expect } from 'chai'
 import HRE from 'hardhat'
 
-import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../../common/testutil/types'
+import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 
-import { IMultiInvoker, Market, MultiInvoker } from '../../../../types/generated'
-import { Compare, Dir, openTriggerOrder } from '../../../helpers/MultiInvoker/types'
+import { IMultiInvoker, Market, MultiInvoker } from '../../../types/generated'
+import { Compare, Dir, openTriggerOrder } from '../../helpers/MultiInvoker/types'
 import {
   MAX_INT64,
   MAX_UINT48,
@@ -17,9 +17,9 @@ import {
   buildCancelOrder,
   buildExecOrder,
   buildPlaceOrder,
-} from '../../../helpers/MultiInvoker/invoke'
-import { TriggerOrderStruct } from '../../../../types/generated/contracts/MultiInvoker/MultiInvoker'
-import { createMarket } from '../../../helpers/marketHelpers'
+} from '../../helpers/MultiInvoker/invoke'
+import { TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker/MultiInvoker'
+import { createMarket } from '../../helpers/marketHelpers'
 import { InstanceVars, settle } from './setupHelpers'
 
 const ethers = { HRE }

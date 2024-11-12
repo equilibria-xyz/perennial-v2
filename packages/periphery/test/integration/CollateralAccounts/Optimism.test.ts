@@ -1,29 +1,25 @@
 import { smock } from '@defi-wonderland/smock'
-import { use } from 'chai'
 import { CallOverrides } from 'ethers'
 import HRE from 'hardhat'
 
-import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../../../types/generated'
+import { AccountVerifier__factory, AggregatorV3Interface, IAccountVerifier, OptGasInfo } from '../../../types/generated'
 import {
   createFactoriesForChain,
-  deployControllerArbitrum,
+  deployControllerOptimism,
   fundWalletDSU,
   fundWalletUSDC,
   getDSUReserve,
   getStablecoins,
-} from '../../../helpers/arbitrumHelpers'
-import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../../helpers/setupHelpers'
+} from '../../helpers/baseHelpers'
+import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Controller_Incentivized, IMarketFactory } from '../../../../types/generated'
+import { Controller_Incentivized, IMarketFactory } from '../../../types/generated'
 import { RunAccountTests } from './Account.test'
-import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { RunControllerBaseTests } from './Controller.test'
 import { DeploymentVars } from './setupTypes'
 
 const { ethers } = HRE
-
-use(smock.matchers)
 
 async function deployProtocol(
   owner: SignerWithAddress,
@@ -61,25 +57,25 @@ async function deployController(
   chainlinkKeptFeed: AggregatorV3Interface,
   overrides?: CallOverrides,
 ): Promise<[Controller_Incentivized, IAccountVerifier]> {
-  const controller = await deployControllerArbitrum(owner, marketFactory, overrides ?? {})
+  const controller = await deployControllerOptimism(owner, marketFactory, overrides ?? {})
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 357_500, // buffer for handling the keeper fee
+    bufferBase: 0, // buffer for handling the keeper fee
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('1.08'),
+    multiplierBase: ethers.utils.parseEther('1'),
     bufferBase: 2_000_000, // for price commitment
-    multiplierCalldata: ethers.utils.parseEther('1.08'),
-    bufferCalldata: 35_200,
+    multiplierCalldata: ethers.utils.parseEther('1'),
+    bufferCalldata: 0,
   }
   const keepConfigWithdrawal = {
-    multiplierBase: ethers.utils.parseEther('1.05'),
-    bufferBase: 2_000_000,
-    multiplierCalldata: ethers.utils.parseEther('1.05'),
-    bufferCalldata: 35_200,
+    multiplierBase: ethers.utils.parseEther('1'),
+    bufferBase: 1_500_000,
+    multiplierCalldata: ethers.utils.parseEther('1'),
+    bufferCalldata: 0,
   }
 
   const accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address, {
@@ -99,15 +95,17 @@ async function deployController(
 }
 
 async function mockGasInfo() {
-  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-    address: '0x000000000000000000000000000000000000006C',
+  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
+    address: '0x420000000000000000000000000000000000000F',
   })
-  gasInfo.getL1BaseFeeEstimate.returns(1)
+  gasInfo.getL1GasUsed.returns(2000)
+  gasInfo.l1BaseFee.returns(3000000000)
+  gasInfo.baseFeeScalar.returns(5214379)
+  gasInfo.decimals.returns(6)
 }
 
-if (process.env.FORK_NETWORK === 'arbitrum') {
+if (process.env.FORK_NETWORK === 'base') {
   RunAccountTests(deployProtocol, deployController)
   RunControllerBaseTests(deployProtocol)
-  RunIncentivizedTests('Controller_Arbitrum', deployProtocol, deployController, mockGasInfo)
+  RunIncentivizedTests('Controller_Optimism', deployProtocol, deployController, mockGasInfo)
 }

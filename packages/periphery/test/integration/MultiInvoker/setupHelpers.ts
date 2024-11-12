@@ -33,8 +33,8 @@ import {
   IEmptySetReserve,
   IBatcher__factory,
   IEmptySetReserve__factory,
-} from '../../../../types/generated'
-import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
+} from '../../../types/generated'
+import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 
 import { deployProductOnFork } from '@perennial/v2-vault/test/integration/helpers/setupHelpers'
 import {
@@ -46,7 +46,7 @@ import {
   AggregatorV3Interface__factory,
 } from '@perennial/v2-core/types/generated'
 import { Verifier__factory } from '@perennial/v2-core/types/generated'
-import { deployMarketImplementation } from '../../../helpers/marketHelpers'
+import { deployMarketImplementation } from '../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 const { ethers } = HRE

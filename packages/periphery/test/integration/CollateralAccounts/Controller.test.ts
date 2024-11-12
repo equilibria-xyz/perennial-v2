@@ -5,9 +5,9 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { currentBlockTimestamp } from '../../../../../common/testutil/time'
-import { getEventArguments } from '../../../../../common/testutil/transaction'
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import { getEventArguments } from '../../../../common/testutil/transaction'
+import { parse6decimal } from '../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -15,17 +15,17 @@ import {
   Controller,
   IAccountVerifier,
   IERC20Metadata,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 import { IMarket, IMarketFactory } from '@perennial/v2-core/types/generated'
 import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
   signWithdrawal,
-} from '../../../helpers/CollateralAccounts/eip712'
-import { deployController, MarketWithOracle } from '../../../helpers/setupHelpers'
+} from '../../helpers/CollateralAccounts/eip712'
+import { deployController, MarketWithOracle } from '../../helpers/setupHelpers'
 import { DeploymentVars } from './setupTypes'
-import { advanceToPrice } from '../../../helpers/oracleHelpers'
+import { advanceToPrice } from '../../helpers/oracleHelpers'
 
 const { ethers } = HRE
 

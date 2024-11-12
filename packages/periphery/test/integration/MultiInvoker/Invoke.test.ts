@@ -14,7 +14,7 @@ import {
   IOracleProvider,
   IMultiInvoker,
   VaultFactory,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 import { InstanceVars, createVault, resetEthSubOracle, resetBtcSubOracle } from './setupHelpers'
 
 import {
@@ -24,12 +24,12 @@ import {
   buildUpdateIntent,
   buildUpdateMarket,
   buildUpdateVault,
-} from '../../../helpers/MultiInvoker/invoke'
+} from '../../helpers/MultiInvoker/invoke'
 
-import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../../common/testutil/types'
-import { Compare, Dir, openTriggerOrder } from '../../../helpers/MultiInvoker/types'
+import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
+import { Compare, Dir, openTriggerOrder } from '../../helpers/MultiInvoker/types'
 import { IERC20Metadata } from '@perennial/v2-core/types/generated'
-import { createMarket } from '../../../helpers/marketHelpers'
+import { createMarket } from '../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 use(smock.matchers)

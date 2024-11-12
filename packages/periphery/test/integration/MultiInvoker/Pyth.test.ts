@@ -1,10 +1,9 @@
 import { expect } from 'chai'
 import { BigNumber, utils } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { time } from '../../../../../common/testutil'
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { time } from '../../../../common/testutil'
+import { parse6decimal } from '../../../../common/testutil/types'
 import HRE from 'hardhat'
 
 import {
@@ -16,10 +15,10 @@ import {
   Oracle,
   OracleFactory,
   PythFactory,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 import { InstanceVars, PythVAAVars } from './setupHelpers'
-import { createMarket } from '../../../helpers/marketHelpers'
-import { PYTH_ETH_USD_PRICE_FEED } from '../../../helpers/oracleHelpers'
+import { createMarket } from '../../helpers/marketHelpers'
+import { PYTH_ETH_USD_PRICE_FEED } from '../../helpers/oracleHelpers'
 import { AggregatorV3Interface__factory } from '@perennial/v2-oracle/types/generated'
 const { ethers } = HRE
 
