@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import { BigNumber, CallOverrides, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { smock } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 
@@ -26,10 +25,12 @@ import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
   DSU_RESERVE,
+  mockGasInfo,
   PYTH_ADDRESS,
   USDC_ADDRESS,
   USDC_HOLDER,
 } from '../../helpers/baseHelpers'
+import { smock } from '@defi-wonderland/smock'
 
 const { ethers } = HRE
 
@@ -109,7 +110,7 @@ const fixture = async (): Promise<FixtureVars> => {
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 900_000, // for price commitment
+    bufferBase: 650_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }

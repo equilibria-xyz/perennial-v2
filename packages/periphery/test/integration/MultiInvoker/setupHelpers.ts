@@ -11,7 +11,6 @@ import {
   IPayoffProvider__factory,
   IOracleProvider,
   MultiInvoker,
-  MultiInvoker__factory,
   Market,
   PowerTwo__factory,
   IMarket,
@@ -379,23 +378,12 @@ export function resetBtcSubOracle(btcSubOracle: FakeContract<IOracleProvider>, r
   btcSubOracle.at.whenCalledWith(realVersion.timestamp).returns([realVersion, DEFAULT_ORACLE_RECEIPT])
 }
 
-export async function createInvoker(
+export async function configureInvoker(
+  multiInvoker: MultiInvoker,
   instanceVars: InstanceVars,
   vaultFactory?: VaultFactory,
-  withBatcher = false,
-): Promise<MultiInvoker> {
-  const { owner, user, userB } = instanceVars
-
-  const multiInvoker = await new MultiInvoker__factory(owner).deploy(
-    instanceVars.usdc.address,
-    instanceVars.dsu.address,
-    instanceVars.marketFactory.address,
-    vaultFactory ? vaultFactory.address : constants.AddressZero,
-    withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
-    instanceVars.dsuReserve.address,
-    500_000,
-    500_000,
-  )
+): Promise<undefined> {
+  const { user, userB } = instanceVars
 
   await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)
   await instanceVars.marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
@@ -404,6 +392,4 @@ export async function createInvoker(
     await vaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
   }
   await multiInvoker.initialize(instanceVars.chainlinkKeptFeed.address)
-
-  return multiInvoker
 }

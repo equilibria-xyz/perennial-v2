@@ -7,11 +7,19 @@ import { ChainlinkContext } from '@perennial/v2-core/test/integration/helpers/ch
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 
-import { IERC20Metadata__factory, IOracle__factory, KeeperOracle, PythFactory } from '../../../types/generated'
+import {
+  IERC20Metadata__factory,
+  IOracle__factory,
+  KeeperOracle,
+  MultiInvoker,
+  MultiInvoker__factory,
+  PythFactory,
+  VaultFactory,
+} from '../../../types/generated'
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
-import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
+import { configureInvoker, createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
@@ -76,13 +84,35 @@ const fixture = async (): Promise<InstanceVars> => {
   return vars
 }
 
-async function getFixture(): Promise<InstanceVars> {
-  return loadFixture(fixture)
-}
-
 async function advanceToPrice(price?: BigNumber): Promise<void> {
   if (price) await chainlink.nextWithPriceModification(() => price)
   else await chainlink.next()
+}
+
+async function createInvoker(
+  instanceVars: InstanceVars,
+  vaultFactory?: VaultFactory,
+  withBatcher = false,
+): Promise<MultiInvoker> {
+  const { owner, user, userB } = instanceVars
+
+  const multiInvoker = await new MultiInvoker__factory(owner).deploy(
+    instanceVars.usdc.address,
+    instanceVars.dsu.address,
+    instanceVars.marketFactory.address,
+    vaultFactory ? vaultFactory.address : constants.AddressZero,
+    withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
+    instanceVars.dsuReserve.address,
+    500_000,
+    500_000,
+  )
+
+  await configureInvoker(multiInvoker, instanceVars, vaultFactory)
+  return multiInvoker
+}
+
+async function getFixture(): Promise<InstanceVars> {
+  return loadFixture(fixture)
 }
 
 async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {

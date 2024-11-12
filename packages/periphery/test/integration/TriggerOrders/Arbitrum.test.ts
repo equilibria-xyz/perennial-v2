@@ -1,12 +1,10 @@
 import { expect } from 'chai'
 import { BigNumber, CallOverrides, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { smock } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 
 import {
-  ArbGasInfo,
   IEmptySetReserve__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
@@ -27,6 +25,7 @@ import {
   DSU_ADDRESS,
   DSU_HOLDER,
   DSU_RESERVE,
+  mockGasInfo,
   PYTH_ADDRESS,
   USDC_ADDRESS,
 } from '../../helpers/arbitrumHelpers'
@@ -129,14 +128,6 @@ const fixture = async (): Promise<FixtureVars> => {
 async function getFixture(): Promise<FixtureVars> {
   const vars = loadFixture(fixture)
   return vars
-}
-
-async function mockGasInfo() {
-  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-    address: '0x000000000000000000000000000000000000006C',
-  })
-  gasInfo.getL1BaseFeeEstimate.returns(1)
 }
 
 if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture)

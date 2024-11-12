@@ -2,18 +2,25 @@ import { ethers } from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
-import { IERC20Metadata__factory, IKeeperOracle } from '../../../types/generated'
+import {
+  IERC20Metadata__factory,
+  IKeeperOracle,
+  MultiInvoker,
+  MultiInvoker_Arbitrum__factory,
+  VaultFactory,
+} from '../../../types/generated'
 
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
-import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
+import { configureInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
   DSU_RESERVE,
   fundWalletDSU,
   fundWalletUSDC,
+  mockGasInfo,
   PYTH_ADDRESS,
   USDC_ADDRESS,
 } from '../../helpers/arbitrumHelpers'
@@ -25,7 +32,8 @@ import {
   PYTH_ETH_USD_PRICE_FEED,
 } from '../../helpers/oracleHelpers'
 import { time } from '../../../../common/testutil'
-import { KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
+import { ArbGasInfo, KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
+import { smock } from '@defi-wonderland/smock'
 
 const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1684116265)
 
@@ -76,16 +84,9 @@ const fixture = async (): Promise<InstanceVars> => {
   await keeperOracle.register(oracle.address)
   vars.oracle = oracle
 
-  return vars
-}
+  await mockGasInfo()
 
-async function getFixture(): Promise<InstanceVars> {
-  const vars = loadFixture(fixture)
   return vars
-}
-
-async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
-  return [pythOracleFactory, keeperOracle]
 }
 
 async function advanceToPrice(price?: BigNumber): Promise<void> {
@@ -99,6 +100,37 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
   // convert 18-decimal price sent from tests to a 6-decimal price committed to keeper oracle
   if (price) lastPrice = price.mul(price).div(utils.parseEther('1')).div(100000).div(1e12)
   await advanceToPriceImpl(keeperOracle, oracleFeeReceiver, timestamp, lastPrice)
+}
+
+async function createInvoker(
+  instanceVars: InstanceVars,
+  vaultFactory?: VaultFactory,
+  withBatcher = false,
+): Promise<MultiInvoker> {
+  const { owner, user, userB } = instanceVars
+
+  const multiInvoker = await new MultiInvoker_Arbitrum__factory(owner).deploy(
+    instanceVars.usdc.address,
+    instanceVars.dsu.address,
+    instanceVars.marketFactory.address,
+    vaultFactory ? vaultFactory.address : constants.AddressZero,
+    withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
+    instanceVars.dsuReserve.address,
+    500_000,
+    500_000,
+  )
+
+  await configureInvoker(multiInvoker, instanceVars, vaultFactory)
+  return multiInvoker
+}
+
+async function getFixture(): Promise<InstanceVars> {
+  const vars = loadFixture(fixture)
+  return vars
+}
+
+async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
+  return [pythOracleFactory, keeperOracle]
 }
 
 if (process.env.FORK_NETWORK === 'arbitrum') {
