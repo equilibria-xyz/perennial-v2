@@ -95,7 +95,6 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
   const [, , , , , , , , oracleFeeReceiver] = await ethers.getSigners()
   // note that in Manager tests, I would set timestamp to oracle.current() where not otherwise defined
   const current = await time.currentBlockTimestamp()
-  const latest = (await keeperOracle.global()).latestVersion
   const next = await keeperOracle.next()
   const timestamp = next.eq(constants.Zero) ? BigNumber.from(current) : next
   // adjust for payoff and convert 18-decimal price from tests to a 6-decimal price

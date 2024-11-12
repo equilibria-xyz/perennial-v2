@@ -1,3 +1,11 @@
+import { ethers } from 'hardhat'
+import { expect, use } from 'chai'
+import { BigNumber, constants, utils } from 'ethers'
+import { FakeContract, smock } from '@defi-wonderland/smock'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+
 import {
   IVault,
   IVaultFactory,
@@ -7,8 +15,6 @@ import {
   IMultiInvoker,
   VaultFactory,
 } from '../../../../types/generated'
-import { Address } from 'hardhat-deploy/dist/types'
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { InstanceVars, createVault, resetEthSubOracle, resetBtcSubOracle } from './setupHelpers'
 
 import {
@@ -21,20 +27,17 @@ import {
 } from '../../../helpers/MultiInvoker/invoke'
 
 import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../../common/testutil/types'
-import { expect, use } from 'chai'
-import { FakeContract, smock } from '@defi-wonderland/smock'
-import { ethers } from 'hardhat'
-import { BigNumber, constants } from 'ethers'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { Compare, Dir, openTriggerOrder } from '../../../helpers/MultiInvoker/types'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { IERC20Metadata } from '@perennial/v2-core/types/generated'
 import { createMarket } from '../../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
+import { currentBlockTimestamp } from '../../../../../common/testutil/time'
+import { getTimestamp } from '../../../../../common/testutil/transaction'
 
 use(smock.matchers)
 
 const LEGACY_ORACLE_DELAY = 3600
+const PRICE = utils.parseEther('3535.533906') // 113.882975  // 125.000000
 
 export function RunInvokerTests(
   getFixture: () => Promise<InstanceVars>,
@@ -45,7 +48,7 @@ export function RunInvokerTests(
   ) => Promise<MultiInvoker>,
   fundWalletDSU: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
   fundWalletUSDC: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
-  advanceToPrice: () => Promise<void>,
+  advanceToPrice: (price?: BigNumber, withPayoff?: boolean) => Promise<void>,
   initialOracleVersionEth: OracleVersionStruct,
   initialOracleVersionBtc: OracleVersionStruct,
 ): void {
@@ -721,8 +724,6 @@ export function RunInvokerTests(
           it('sets subtractive fee referrer as interface1.receiver if set', async () => {
             const { marketFactory, owner, user, usdc, dsu } = instanceVars
 
-            // FIXME: getting a MarketStalePriceError (0xab1e3a00) somewhere in here, assumedly due to position change
-
             await marketFactory.updateParameter({
               ...(await marketFactory.parameter()),
               referralFee: parse6decimal('0.05'),
@@ -730,6 +731,8 @@ export function RunInvokerTests(
             await usdc.connect(user).approve(multiInvoker.address, collateral)
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
             await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+            await advanceToPrice(PRICE)
 
             await invoke(
               buildUpdateMarket({
@@ -758,6 +761,8 @@ export function RunInvokerTests(
             await usdc.connect(user).approve(multiInvoker.address, collateral)
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
             await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+            await advanceToPrice(PRICE)
 
             await invoke(
               buildUpdateMarket({
@@ -790,6 +795,8 @@ export function RunInvokerTests(
             await usdc.connect(user).approve(multiInvoker.address, collateral)
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
             await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+            await advanceToPrice(PRICE)
 
             const intent = {
               amount: parse6decimal('1'),
@@ -842,6 +849,8 @@ export function RunInvokerTests(
                 false,
               )
 
+            // set a price which matches the guarantee
+            await advanceToPrice(PRICE)
             await invoke(
               await buildUpdateIntent({
                 signer: userB,
@@ -852,19 +861,19 @@ export function RunInvokerTests(
             )
 
             const intentTimestamp = await oracle.current()
-            expectOrderEq(await market.pendingOrders(user.address, 1), {
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
               ...DEFAULT_ORDER,
               timestamp: intentTimestamp,
               orders: 1,
               shortPos: parse6decimal('1'),
-              collateral: ethers.utils.parseUnits('1000', 6),
+              collateral: 0,
             })
-            expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            expectOrderEq(await market.pendingOrders(userB.address, 2), {
               ...DEFAULT_ORDER,
               timestamp: intentTimestamp,
               orders: 1,
               longPos: parse6decimal('1'),
-              collateral: ethers.utils.parseUnits('1000', 6),
+              collateral: 0,
               takerReferral: parse6decimal('0.05'),
             })
           })
@@ -894,6 +903,8 @@ export function RunInvokerTests(
                 ...marketParams,
                 makerFee: parse6decimal('0.05'),
               })
+
+              await advanceToPrice(PRICE)
 
               // userB creates a maker position, referred by user
               await market
@@ -929,9 +940,11 @@ export function RunInvokerTests(
                   .to.emit(market, 'FeeClaimed')
                   .withArgs(user.address, multiInvoker.address, expectedFee)
                   .to.emit(instanceVars.dsuReserve, 'Redeem')
-                  .withArgs(user.address, expectedFee.mul(1e12), anyValue)
+                  .withArgs(multiInvoker.address, expectedFee.mul(1e12), anyValue)
                   .to.emit(usdc, 'Transfer')
-                  .withArgs(instanceVars.dsuReserve.address, user.address, expectedFee)
+                  .withArgs(instanceVars.dsuReserve.address, multiInvoker.address, expectedFee)
+                  .to.emit(usdc, 'Transfer')
+                  .withArgs(multiInvoker.address, user.address, expectedFee)
               }
             })
 

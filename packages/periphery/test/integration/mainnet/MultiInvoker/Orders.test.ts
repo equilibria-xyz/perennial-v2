@@ -27,7 +27,7 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const ethers = { HRE }
 
-export const PRICE = utils.parseEther('3374.655169')
+const PRICE = utils.parseEther('3374.655169')
 
 function payoff(number: BigNumber): BigNumber {
   return number.mul(number).div(utils.parseEther('1')).div(100000)
