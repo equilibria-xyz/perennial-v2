@@ -44,10 +44,40 @@ library PositionLib {
     function update(Position memory self, Order memory order) internal pure {
         self.timestamp = order.timestamp;
 
+        updatePos(self, order);
+        updateNeg(self, order);
+    }
+
+    /// @notice Updates the position with only the positive side of a new order
+    /// @param self The position object to update
+    /// @param order The new order
+    function updatePos(Position memory self, Order memory order) internal pure {
         (self.maker, self.long, self.short) = (
-            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker())),
-            UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long())),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short()))
+            self.long.gte(self.short) ? self.maker.sub(order.makerNeg) : self.maker.add(order.makerPos),
+            self.long.add(order.longPos),
+            self.short.sub(order.shortNeg)
+        );
+    }
+
+    /// @notice Updates the position with only the negative side of a new order
+    /// @param self The position object to update
+    /// @param order The new order
+    function updateNeg(Position memory self, Order memory order) internal pure {
+        (self.maker, self.long, self.short) = (
+            self.short.gt(self.long) ? self.maker.sub(order.makerNeg) : self.maker.add(order.makerPos),
+            self.long.sub(order.longNeg),
+            self.short.add(order.shortPos)
+        );
+    }
+
+    /// @notice Updates the position with only the closing sides of a new order
+    /// @param self The position object to update
+    /// @param order The new order
+    function updateClose(Position memory self, Order memory order) internal pure {
+        (self.maker, self.long, self.short) = (
+            self.maker.sub(order.makerNeg),
+            self.long.sub(order.longNeg),
+            self.short.sub(order.shortNeg)
         );
     }
 

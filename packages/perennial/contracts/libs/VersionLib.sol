@@ -35,14 +35,20 @@ struct VersionAccumulationResult {
     /// @dev The subtractive fee charged
     UFixed6 subtractiveFee;
 
+    /// @dev The total notional spread paid by positive exposure orders
+    UFixed6 spreadPos;
+
+    /// @dev The total notional spread paid by negative exposure orders
+    UFixed6 spreadNeg;
+
     /// @dev The total notional spread received by the makers
-    Fixed6 spreadMaker;
+    UFixed6 spreadMaker;
 
     /// @dev The total notional spread received by the longs (socialization)
-    Fixed6 spreadLong;
+    UFixed6 spreadLong;
 
     /// @dev The total notional spread received by the shorts (socialization)
-    Fixed6 spreadShort;
+    UFixed6 spreadShort;
 
     /// @dev Funding accrued by makers
     Fixed6 fundingMaker;
@@ -204,6 +210,9 @@ library VersionLib {
         next.makerValue._value = self.makerValue._value;
         next.longValue._value = self.longValue._value;
         next.shortValue._value = self.shortValue._value;
+        next.makerSpreadValue._value = self.makerSpreadValue._value;
+        next.longSpreadValue._value = self.longSpreadValue._value;
+        next.shortSpreadValue._value = self.shortSpreadValue._value;
     }
 
     /// @notice Globally accumulates settlement fees since last oracle update
@@ -268,15 +277,19 @@ library VersionLib {
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
-        // calculate exposure
-        (next.makerNegExposure, next.longNegExposure, next.shortNegExposure) = context.fromPosition.exposure();
+        // calculate position after closes
+        Position memory closedPosition = context.fromPosition.clone();
+        closedPosition.updateClose(context.order);
 
+        // calculate position after order
         Position memory toPosition = context.fromPosition.clone();
         toPosition.update(context.order);
 
-        (next.makerPosExposure, next.longPosExposure, next.shortPosExposure) = context.fromPosition.exposure();
+        // calculate exposure before and after order
+        (next.makerNegExposure, next.longNegExposure, next.shortNegExposure) = context.fromPosition.exposure();
+        (next.makerPosExposure, next.longPosExposure, next.shortPosExposure) = toPosition.exposure();
 
-        // compute exposure from taker orders
+        // compute exposure delta incurred by the positive and negative sides of the order
         (UFixed6 exposurePos, UFixed6 exposureNeg) = context.order.exposure(
             context.guarantee,
             next.makerPosExposure,
@@ -287,98 +300,65 @@ library VersionLib {
             next.shortNegExposure
         );
 
-        // process positive and negative spread separately
-        _accumulateSpreadComponent(next, context, result, exposurePos, exposureNeg);
+        // apply spread for positive exposure
+        toPosition = context.fromPosition.clone();
+        toPosition.updatePos(context.order);
+        (result.spreadPos) = _accumulateSpreadComponent(
+            next,
+            context,
+            result,
+            toPosition,
+            closedPosition,
+            Fixed6Lib.from(1, exposurePos)
+        );
+        next.spreadPos.decrement(Fixed6Lib.from(result.spreadPos), exposurePos);
+
+        // apply spread for negative exposure
+        toPosition = context.fromPosition.clone();
+        toPosition.updateNeg(context.order);
+        (result.spreadNeg) = _accumulateSpreadComponent(
+            next,
+            context,
+            result,
+            toPosition,
+            closedPosition,
+            Fixed6Lib.from(-1, exposureNeg)
+        );
+        next.spreadNeg.decrement(Fixed6Lib.from(result.spreadNeg), exposureNeg);
     }
 
     function _accumulateSpreadComponent(
         Version memory next,
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result,
-        UFixed6 exposurePos,
-        UFixed6 exposureNeg
-    ) internal pure {
-        // TODO: cleanup
-
-        // pos
-
+        Position memory closedPosition,
+        Position memory toPosition,
+        Fixed6 exposure
+    ) internal pure returns (UFixed6 spread) {
         // compute spread
-        UFixed6 spreadPos = __SynBook6_compute(
-            context.fromPosition.skew(),
-            Fixed6Lib.from(1, exposurePos),
-            context.toOracleVersion.price.abs()
-        );
+        spread = __SynBook6_compute(context.fromPosition.skew(), exposure, context.toOracleVersion.price.abs());
 
-        // compute new position
-        Position memory posPosition = context.fromPosition.clone();
-        posPosition.long = posPosition.long.add(context.order.longPos);
-        posPosition.short = posPosition.short.sub(context.order.shortNeg);
-        if (next.makerNegExposure.gt(Fixed6Lib.ZERO))
-            posPosition.maker = posPosition.maker.add(context.order.makerPos);
-        else
-            posPosition.maker = posPosition.maker.sub(context.order.makerNeg);
+        // compute exposure after order
+        (, UFixed6 longExposureFrom, UFixed6 shortExposureFrom) = context.fromPosition.exposure();
+        (, UFixed6 longExposureTo, UFixed6 shortExposureTo) = toPosition.exposure();
 
-        // compute change in exposure
-        (Fixed6 makerPosExposure, UFixed6 longPosExposure, UFixed6 shortPosExposure) = posPosition.exposure();
-        (UFixed6 makerPosChange, UFixed6 longPosChange, UFixed6 shortPosChange) = (
-            makerPosExposure.sub(next.makerPosExposure).abs(),
-            Fixed6Lib.from(longPosExposure).sub(Fixed6Lib.from(next.longPosExposure)).abs(),
-            Fixed6Lib.from(shortPosExposure).sub(Fixed6Lib.from(next.shortPosExposure)).abs()
-        );
-        (UFixed6 spreadPosMaker, UFixed6 spreadPosLong, UFixed6 spreadPosShort) = (
-            spreadPos.mul(makerPosChange).div(exposurePos),
-            spreadPos.mul(longPosChange).div(exposurePos),
-            spreadPos.mul(shortPosChange).div(exposurePos)
-        );
+        // compute exposure change
+        UFixed6 longExposureChange = Fixed6Lib.from(longExposureTo).sub(Fixed6Lib.from(longExposureFrom)).abs();
+        UFixed6 shortExposureChange = Fixed6Lib.from(shortExposureTo).sub(Fixed6Lib.from(shortExposureFrom)).abs();
 
-        // apply spread
-        next.makerSpreadValue.increment(Fixed6Lib.from(spreadPosMaker), context.fromPosition.maker.sub(context.order.makerNeg));
-        next.longSpreadValue.increment(Fixed6Lib.from(spreadPosLong), context.fromPosition.long.sub(context.order.longNeg));
-        next.shortSpreadValue.increment(Fixed6Lib.from(spreadPosShort), context.fromPosition.short.sub(context.order.shortNeg));
+        // compute spread components
+        UFixed6 spreadLong = spread.mul(closedPosition.long).mul(longExposureChange).div(exposure.abs());
+        UFixed6 spreadShort = spread.mul(closedPosition.short).mul(shortExposureChange).div(exposure.abs());
+        UFixed6 spreadMaker = spread.sub(spreadLong).sub(spreadShort);
 
-        result.spreadMaker = result.spreadMaker.add(Fixed6Lib.from(spreadPosMaker));
-        result.spreadLong = result.spreadLong.add(Fixed6Lib.from(spreadPosLong));
-        result.spreadShort = result.spreadShort.add(Fixed6Lib.from(spreadPosShort));
+        // accrue spread
+        next.makerSpreadValue.increment(Fixed6Lib.from(spreadMaker), closedPosition.maker);
+        next.longSpreadValue.increment(Fixed6Lib.from(spreadLong), closedPosition.long);
+        next.shortSpreadValue.increment(Fixed6Lib.from(spreadShort), closedPosition.short);
 
-        // neg
-
-        // compute spread
-        UFixed6 spreadNeg = __SynBook6_compute(
-            context.fromPosition.skew(),
-            Fixed6Lib.from(-1, exposureNeg),
-            context.toOracleVersion.price.abs()
-        );
-
-        // compute new position
-        Position memory negPosition = context.fromPosition.clone();
-        negPosition.long = negPosition.long.add(context.order.longPos);
-        negPosition.short = negPosition.short.sub(context.order.shortNeg);
-        if (next.makerNegExposure.gt(Fixed6Lib.ZERO))
-            negPosition.maker = negPosition.maker.sub(context.order.makerNeg);
-        else
-            negPosition.maker = negPosition.maker.add(context.order.makerPos);
-
-        // compute change in exposure
-        (Fixed6 makerNegExposure, UFixed6 longNegExposure, UFixed6 shortNegExposure) = negPosition.exposure();
-        (UFixed6 makerNegChange, UFixed6 longNegChange, UFixed6 shortNegChange) = (
-            makerNegExposure.sub(next.makerNegExposure).abs(),
-            Fixed6Lib.from(longNegExposure).sub(Fixed6Lib.from(next.longNegExposure)).abs(),
-            Fixed6Lib.from(shortNegExposure).sub(Fixed6Lib.from(next.shortNegExposure)).abs()
-        );
-        (UFixed6 spreadNegMaker, UFixed6 spreadNegLong, UFixed6 spreadNegShort) = (
-            spreadNeg.mul(makerNegChange).div(exposureNeg),
-            spreadNeg.mul(longNegChange).div(exposureNeg),
-            spreadNeg.mul(shortNegChange).div(exposureNeg)
-        );
-
-        // apply spread
-        next.makerSpreadValue.increment(Fixed6Lib.from(spreadNegMaker), context.fromPosition.maker.sub(context.order.makerNeg));
-        next.longSpreadValue.increment(Fixed6Lib.from(spreadNegLong), context.fromPosition.long.sub(context.order.longNeg));
-        next.shortSpreadValue.increment(Fixed6Lib.from(spreadNegShort), context.fromPosition.short.sub(context.order.shortNeg));
-
-        result.spreadMaker = result.spreadMaker.add(Fixed6Lib.from(spreadNegMaker));
-        result.spreadLong = result.spreadLong.add(Fixed6Lib.from(spreadNegLong));
-        result.spreadShort = result.spreadShort.add(Fixed6Lib.from(spreadNegShort));
+        result.spreadMaker = result.spreadMaker.add(spreadMaker);
+        result.spreadLong = result.spreadLong.add(spreadLong);
+        result.spreadShort = result.spreadShort.add(spreadShort);
     }
 
     // TODO: replace with root implementation
