@@ -7,8 +7,8 @@ import {
   IMarketFactory,
   IOracleFactory,
   PythFactory,
-} from '../../../../types/generated'
-import { MarketWithOracle } from '../../../helpers/setupHelpers'
+} from '../../../types/generated'
+import { MarketWithOracle } from '../../helpers/setupHelpers'
 
 export interface DeploymentVars {
   dsu: IERC20Metadata

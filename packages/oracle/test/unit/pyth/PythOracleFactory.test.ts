@@ -1,4 +1,5 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { mine } from '@nomicfoundation/hardhat-network-helpers'
 import { expect } from 'chai'
 import HRE from 'hardhat'
 
@@ -143,6 +144,8 @@ describe('PythOracleFactory', () => {
 
   it('factoryType is PythFactory', async () => {
     expect(await pythOracleFactory.factoryType()).to.equal('PythFactory')
+    // hacks around issue mocking market.settle on subsequent test
+    mine()
   })
 
   it('parses Pyth exponents correctly', async () => {

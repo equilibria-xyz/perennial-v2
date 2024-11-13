@@ -3,7 +3,7 @@ import HRE from 'hardhat'
 import { CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { parse6decimal } from '../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -13,7 +13,7 @@ import {
   IController,
   IERC20Metadata,
   IMarketFactory,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 import { DeploymentVars } from './setupTypes'
 
 const { ethers } = HRE

@@ -1,9 +1,6 @@
-import { ethers } from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { BigNumber, CallOverrides, constants, utils } from 'ethers'
-import { impersonateWithBalance } from '../../../common/testutil/impersonate'
-import { smock } from '@defi-wonderland/smock'
+import { CallOverrides, constants } from 'ethers'
 import { parse6decimal } from '../../../common/testutil/types'
 
 import {
@@ -15,42 +12,28 @@ import {
   IERC20Metadata__factory,
 } from '../../types/generated'
 import {
-  CheckpointLib__factory,
-  CheckpointStorageLib__factory,
-  GlobalStorageLib__factory,
   IMarket,
   IMarketFactory,
-  InvariantLib__factory,
   IOracleProvider,
   IVerifier,
-  MagicValueLib__factory,
-  Market__factory,
   MarketFactory,
   MarketFactory__factory,
-  MarketParameterStorageLib__factory,
-  PositionStorageGlobalLib__factory,
-  PositionStorageLocalLib__factory,
   ProxyAdmin__factory,
-  RiskParameterStorageLib__factory,
   TransparentUpgradeableProxy__factory,
   Verifier__factory,
-  VersionLib__factory,
-  VersionStorageLib__factory,
 } from '@perennial/v2-core/types/generated'
 
 import {
   IKeeperOracle,
   IOracleFactory,
   PythFactory,
-  GasOracle__factory,
-  KeeperOracle__factory,
-  PythFactory__factory,
   AggregatorV3Interface__factory,
 } from '@perennial/v2-oracle/types/generated'
 import { createMarket, deployMarketImplementation } from './marketHelpers'
 import {
   createPythOracle,
   deployOracleFactory,
+  deployPythOracleFactory,
   PYTH_BTC_USD_PRICE_FEED,
   PYTH_ETH_USD_PRICE_FEED,
 } from './oracleHelpers'
@@ -174,95 +157,6 @@ export async function deployProtocolForOracle(
     marketImpl.address,
   )
   return marketFactory
-}
-
-// TODO: move to oracleHelpers module
-// Deploys a Pyth KeeperOracleFactory
-export async function deployPythOracleFactory(
-  owner: SignerWithAddress,
-  oracleFactory: IOracleFactory,
-  pythAddress: Address,
-  chainlinkFeedAddress: Address,
-): Promise<PythFactory> {
-  const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
-    chainlinkFeedAddress,
-    8,
-    1_000_000,
-    utils.parseEther('1.02'),
-    1_000_000,
-    0,
-    0,
-    0,
-  )
-  const settlementGasOracle = await new GasOracle__factory(owner).deploy(
-    chainlinkFeedAddress,
-    8,
-    200_000,
-    utils.parseEther('1.02'),
-    500_000,
-    0,
-    0,
-    0,
-  )
-
-  // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
-  const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-  const pythOracleFactory = await new PythFactory__factory(owner).deploy(
-    pythAddress,
-    commitmentGasOracle.address,
-    settlementGasOracle.address,
-    keeperOracleImpl.address,
-  )
-  await pythOracleFactory.initialize(oracleFactory.address)
-  await pythOracleFactory.updateParameter(1, 0, 4, 10)
-  await oracleFactory.register(pythOracleFactory.address)
-  return pythOracleFactory
-}
-
-// TODO: move to marketHelpers
-// Creates a market for a specified collateral token, which can't do much of anything
-export async function mockMarket(token: Address): Promise<IMarket> {
-  const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  const verifier = await smock.fake<IVerifier>('IVerifier')
-  const factory = await smock.fake<IMarketFactory>('IMarketFactory')
-  const factorySigner = await impersonateWithBalance(factory.address, utils.parseEther('10'))
-
-  // deploy market
-  const [owner] = await ethers.getSigners()
-  const market = await new Market__factory(
-    {
-      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
-      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
-      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
-      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-        await new MarketParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageGlobalLib': (
-        await new PositionStorageGlobalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageLocalLib': (
-        await new PositionStorageLocalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-        await new RiskParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
-    },
-    owner,
-  ).deploy(verifier.address)
-
-  // initialize market
-  const marketDefinition = {
-    token: token,
-    oracle: oracle.address,
-  }
-  await market.connect(factorySigner).initialize(marketDefinition)
-  return market
 }
 
 // Deploys the market factory and configures default protocol parameters

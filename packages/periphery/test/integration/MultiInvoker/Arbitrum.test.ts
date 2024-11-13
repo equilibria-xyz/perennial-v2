@@ -1,33 +1,53 @@
 import { ethers } from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import HRE from 'hardhat'
 
-import { IERC20Metadata__factory, IKeeperOracle } from '../../../../types/generated'
+import {
+  IERC20Metadata__factory,
+  IKeeperOracle,
+  MultiInvoker,
+  MultiInvoker_Arbitrum__factory,
+  VaultFactory,
+} from '../../../types/generated'
 
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
-import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
+import { configureInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
   DSU_RESERVE,
   fundWalletDSU,
   fundWalletUSDC,
+  mockGasInfo,
   PYTH_ADDRESS,
   USDC_ADDRESS,
-} from '../../../helpers/arbitrumHelpers'
-import { deployPythOracleFactory } from '../../../helpers/setupHelpers'
-import { parse6decimal } from '../../../../../common/testutil/types'
+} from '../../helpers/arbitrumHelpers'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
+import { parse6decimal } from '../../../../common/testutil/types'
 import {
   advanceToPrice as advanceToPriceImpl,
   createPythOracle,
   PYTH_ETH_USD_PRICE_FEED,
-} from '../../../helpers/oracleHelpers'
-import { time } from '../../../../../common/testutil'
-import { KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
+} from '../../helpers/oracleHelpers'
+import { time } from '../../../../common/testutil'
+import { ArbGasInfo, KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
+import { smock } from '@defi-wonderland/smock'
+
+const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1684116265)
+
+const INITIAL_ORACLE_VERSION_ETH: OracleVersionStruct = {
+  timestamp: ORACLE_STARTING_TIMESTAMP,
+  price: BigNumber.from('2620237388'),
+  valid: true,
+}
+
+const INITIAL_ORACLE_VERSION_BTC = {
+  timestamp: ORACLE_STARTING_TIMESTAMP,
+  price: BigNumber.from('38838362695'),
+  valid: true,
+}
 
 let pythOracleFactory: PythFactory
 let keeperOracle: IKeeperOracle
@@ -64,7 +84,44 @@ const fixture = async (): Promise<InstanceVars> => {
   await keeperOracle.register(oracle.address)
   vars.oracle = oracle
 
+  await mockGasInfo()
+
   return vars
+}
+
+async function advanceToPrice(price?: BigNumber): Promise<void> {
+  // send oracle fee to an unused user
+  const [, , , , , , , , oracleFeeReceiver] = await ethers.getSigners()
+  // note that in Manager tests, I would set timestamp to oracle.current() where not otherwise defined
+  const current = await time.currentBlockTimestamp()
+  const next = await keeperOracle.next()
+  const timestamp = next.eq(constants.Zero) ? BigNumber.from(current) : next
+  // mainnet setup mocks the post-payoff price, so here we adjust for payoff and
+  // convert 18-decimal price sent from tests to a 6-decimal price committed to keeper oracle
+  if (price) lastPrice = price.mul(price).div(utils.parseEther('1')).div(100000).div(1e12)
+  await advanceToPriceImpl(keeperOracle, oracleFeeReceiver, timestamp, lastPrice)
+}
+
+async function createInvoker(
+  instanceVars: InstanceVars,
+  vaultFactory?: VaultFactory,
+  withBatcher = false,
+): Promise<MultiInvoker> {
+  const { owner, user, userB } = instanceVars
+
+  const multiInvoker = await new MultiInvoker_Arbitrum__factory(owner).deploy(
+    instanceVars.usdc.address,
+    instanceVars.dsu.address,
+    instanceVars.marketFactory.address,
+    vaultFactory ? vaultFactory.address : constants.AddressZero,
+    withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
+    instanceVars.dsuReserve.address,
+    500_000,
+    500_000,
+  )
+
+  await configureInvoker(multiInvoker, instanceVars, vaultFactory)
+  return multiInvoker
 }
 
 async function getFixture(): Promise<InstanceVars> {
@@ -76,24 +133,17 @@ async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
   return [pythOracleFactory, keeperOracle]
 }
 
-async function advanceToPrice(price?: BigNumber): Promise<void> {
-  // send oracle fee to an unused user
-  const [, , , , , , , , oracleFeeReceiver] = await ethers.getSigners()
-  // note that in Manager tests, I would set timestamp to oracle.current() where not otherwise defined
-  const current = await time.currentBlockTimestamp()
-  const latest = (await keeperOracle.global()).latestVersion
-  const next = await keeperOracle.next()
-  const timestamp = next.eq(constants.Zero) ? BigNumber.from(current) : next
-  // adjust for payoff and convert 18-decimal price from tests to a 6-decimal price
-  // TODO: seems dirty that the test is running the payoff;
-  // we should commit a raw price and let the oracle process the payoff
-  if (price) lastPrice = price.mul(price).div(utils.parseEther('1')).div(100000).div(1e12)
-  await advanceToPriceImpl(keeperOracle, oracleFeeReceiver, timestamp, lastPrice)
-}
-
 if (process.env.FORK_NETWORK === 'arbitrum') {
-  // TODO: need a chain-agnostic sub-oracle implementation in Vaults
-  // RunInvokerTests(getFixture, createInvoker, fundWalletDSU, fundWalletUSDC, advanceToPrice)
+  // TODO: instead of passing createInvoker which creates baseclass, deploy a MultiInvoker_Optimism
+  RunInvokerTests(
+    getFixture,
+    createInvoker,
+    fundWalletDSU,
+    fundWalletUSDC,
+    advanceToPrice,
+    INITIAL_ORACLE_VERSION_ETH,
+    INITIAL_ORACLE_VERSION_BTC,
+  )
   RunOrderTests(getFixture, createInvoker, advanceToPrice, false)
   RunPythOracleTests(getFixture, createInvoker, getKeeperOracle, fundWalletDSU, {
     startingTime: 1723858683, // VAA timestamp minus 5 seconds
