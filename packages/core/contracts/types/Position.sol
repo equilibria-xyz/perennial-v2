@@ -345,22 +345,6 @@ library PositionStorageGlobalLib {
             sstore(self.slot, encoded0)
         }
     }
-
-    function migrate(PositionStorageGlobal storage self) external {
-        Position memory position = read(self);
-        uint256 slot1 = self.slot1;
-        UFixed6 deprecatedMaker = UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64));
-
-        // only migrate if the deprecated maker is set and new maker is unset to avoid double-migration
-        if (deprecatedMaker.isZero() || !position.maker.isZero())
-            revert PositionStorageLib.PositionStorageInvalidMigrationError();
-
-        position.maker = deprecatedMaker;
-        store(self, position);
-        assembly {
-            sstore(add(self.slot, 1), 0) // Part of the v2.3 migration. Can be removed once migration is complete.
-        }
-    }
 }
 
 /// @dev Manually encodes and decodes the local Position struct into storage.
@@ -386,21 +370,15 @@ library PositionStorageGlobalLib {
 ///         uint32 timestamp;
 ///         uint2 direction;
 ///         uint62 magnitude;
-///         uint152 __unallocated__;
-///         uint8 layout; // v2.3 migration -- can remove once all accounts have been migrated
+///         uint160 __unallocated__;
 ///     }
 ///
 library PositionStorageLocalLib {
     function read(PositionStorageLocal storage self) internal view returns (Position memory) {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
-        uint256 layout = uint256(slot0 << (256 - 32 - 216 - 8)) >> (256 - 8);
 
-        uint256 direction = layout == 0 ?
-            uint256(slot1 << (256 - 2)) >> (256 - 2) :
-            uint256(slot0 << (256 - 32 - 2)) >> (256 - 2);
-        UFixed6 magnitude = layout == 0 ?
-            UFixed6.wrap(uint256(slot1 << (256 - 2 - 62)) >> (256 - 62)) :
-            UFixed6.wrap(uint256(slot0 << (256 - 32 - 2 - 62)) >> (256 - 62));
+        uint256 direction = uint256(slot1 << (256 - 2)) >> (256 - 2);
+        UFixed6 magnitude = UFixed6.wrap(uint256(slot1 << (256 - 2 - 62)) >> (256 - 62));
 
         return Position(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
@@ -413,7 +391,6 @@ library PositionStorageLocalLib {
     function store(PositionStorageLocal storage self, Position memory newValue) external {
         PositionStorageLib.validate(newValue);
 
-        uint256 layout = 1;
         UFixed6 magnitude = newValue.magnitude();
 
         if (magnitude.gt(UFixed6.wrap(2 ** 62 - 1))) revert PositionStorageLib.PositionStorageInvalidError();
@@ -421,12 +398,10 @@ library PositionStorageLocalLib {
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
             uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 2) |
-            uint256(UFixed6.unwrap(magnitude) << (256 - 62)) >> (256 - 32 - 2 - 62) |
-            uint256(layout << (256 - 8)) >> (256 - 32 - 2 - 62 - 152 - 8);
+            uint256(UFixed6.unwrap(magnitude) << (256 - 62)) >> (256 - 32 - 2 - 62);
 
         assembly {
             sstore(self.slot, encoded0)
-            sstore(add(self.slot, 1), 0) // Part of the v2.3 migration. Can be removed once migration is complete.
         }
     }
 }
@@ -434,8 +409,6 @@ library PositionStorageLocalLib {
 library PositionStorageLib {
     // sig: 0x52a8a97f
     error PositionStorageInvalidError();
-    // sig: 0x1bacb3a2
-    error PositionStorageInvalidMigrationError();
 
     function validate(Position memory newValue) internal pure {
         if (newValue.timestamp > type(uint32).max) revert PositionStorageInvalidError();
