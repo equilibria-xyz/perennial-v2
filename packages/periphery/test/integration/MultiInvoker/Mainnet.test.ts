@@ -19,7 +19,7 @@ import {
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
-import { configureInvoker, createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
+import { configureInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
@@ -31,7 +31,7 @@ import {
   USDC_ADDRESS,
 } from '../../helpers/mainnetHelpers'
 import { createPythOracle, PYTH_ETH_USD_PRICE_FEED } from '../../helpers/oracleHelpers'
-import { deployPythOracleFactory } from '../../helpers/setupHelpers'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
 const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1646456563)
 

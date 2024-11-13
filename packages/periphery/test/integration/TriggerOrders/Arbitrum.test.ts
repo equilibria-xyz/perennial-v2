@@ -17,7 +17,8 @@ import {
 import { impersonate } from '../../../../common/testutil'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { transferCollateral } from '../../helpers/marketHelpers'
-import { createMarketETH, deployProtocol, deployPythOracleFactory } from '../../helpers/setupHelpers'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
+import { createMarketETH, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
 import {

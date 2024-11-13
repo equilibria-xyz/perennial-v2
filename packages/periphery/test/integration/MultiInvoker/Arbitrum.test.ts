@@ -24,7 +24,7 @@ import {
   PYTH_ADDRESS,
   USDC_ADDRESS,
 } from '../../helpers/arbitrumHelpers'
-import { deployPythOracleFactory } from '../../helpers/setupHelpers'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import {
   advanceToPrice as advanceToPriceImpl,
