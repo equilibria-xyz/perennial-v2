@@ -377,8 +377,8 @@ library PositionStorageLocalLib {
     function read(PositionStorageLocal storage self) internal view returns (Position memory) {
         (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
 
-        uint256 direction = uint256(slot1 << (256 - 2)) >> (256 - 2);
-        UFixed6 magnitude = UFixed6.wrap(uint256(slot1 << (256 - 2 - 62)) >> (256 - 62));
+        uint256 direction = uint256(slot0 << (256 - 32 - 2)) >> (256 - 2);
+        UFixed6 magnitude = UFixed6.wrap(uint256(slot0 << (256 - 32 - 2 - 62)) >> (256 - 62));
 
         return Position(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
