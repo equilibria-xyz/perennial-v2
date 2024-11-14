@@ -6,6 +6,8 @@ import {
   IERC20Metadata,
   IMarket,
   IMarketFactory,
+  IOracle,
+  IOracle__factory,
   IOracleFactory,
   IOracleProvider,
   Oracle,
@@ -956,6 +958,36 @@ describe('Oracle', () => {
         oracle,
         'InstanceNotOwnerError',
       )
+    })
+  })
+
+  context('#oracles', async () => {
+    let oracleContract: IOracle
+    beforeEach(async () => {
+      oracleContract = IOracle__factory.connect(oracle.address, owner)
+      mockVersion(
+        underlying0,
+        {
+          timestamp: 1687229000,
+          price: parse6decimal('999'),
+          valid: true,
+        },
+        {
+          settlementFee: 1234,
+          oracleFee: 5678,
+        },
+        1687229905,
+      )
+      await oracleContract.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
+      await oracleContract.register(market.address)
+      await expect(oracleContract.connect(oracleFactorySigner).update(underlying1.address))
+        .to.emit(oracleContract, 'OracleUpdated')
+        .withArgs(underlying1.address)
+    })
+
+    it('returns the correct oracle', async () => {
+      expect((await oracleContract.oracles(1)).provider).to.equal(underlying0.address)
+      expect((await oracleContract.oracles(2)).provider).to.equal(underlying1.address)
     })
   })
 })
