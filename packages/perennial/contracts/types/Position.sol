@@ -117,7 +117,12 @@ library PositionLib {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short));
     }
 
-    // TODO
+    /// @notice Returns the exposure percentage of each side of the market
+    /// @dev long and short can have exposure < 100% during times of socialization
+    /// @param self The position object to check
+    /// @return The maker exposure percentage
+    /// @return The long exposure percentage
+    /// @return The short exposure percentage
     function exposure(Position memory self) internal pure returns (Fixed6, UFixed6, UFixed6) {
         return (
             makerSocialized(self).div(Fixed6Lib.from(self.maker)),

@@ -328,7 +328,15 @@ library VersionLib {
         next.spreadNeg.decrement(result.spreadNeg, exposureNeg);
     }
 
-    // TODO
+    /// @notice Globally accumulates the spread from one component of the order
+    /// @param next The Version object to update
+    /// @param context The accumulation context
+    /// @param closedPosition The position after applying the closing portion of the order
+    /// @param toPosition The position after the order is applied
+    /// @param exposure The exposure of the order component
+    /// @return spreadMaker The spread received by the maker
+    /// @return spreadLong The spread received by the longs
+    /// @return spreadShort The spread received by the shorts
     function _accumulateSpreadComponent(
         Version memory next,
         VersionAccumulationContext memory context,
@@ -370,7 +378,15 @@ library VersionLib {
         next.makerSpreadValue.increment(spreadMaker, closedPosition.maker);
     }
 
-    // TODO
+    /// @notice Calculates and applies the accumulated spread component for one side of the market
+    /// @dev Helper due to stack constraint
+    /// @param spreadValueComponent The spread accumulator to update
+    /// @param closedPosition The position after applying the closing portion of the order
+    /// @param spread The spread of the order component
+    /// @param exposureComponentFrom The exposure of the side prior to the order compenent being applied
+    /// @param exposureComponentTo The exposure of the side after the order component is applied
+    /// @param exposure The exposure of the order component
+    /// @return spreadComponent The spread received by the side
     function _applySpreadComponent(
         Accumulator6 memory spreadValueComponent,
         UFixed6 closedPosition,

@@ -209,7 +209,18 @@ library OrderLib {
             ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
-    // TODO
+    /// @notice Returns the aggregate exposure for each component of the order
+    /// @dev Order is split into the takerPos and takerNeg components
+    /// @param self The order object to check
+    /// @param guarantee The guarantee object
+    /// @param makerPosExposure The exposure percentage of the makerPos leg of the order
+    /// @param makerNegExposure The exposure percentage of the makerNeg leg of the order
+    /// @param longPosExposure The exposure percentage of the longPos leg of the order
+    /// @param longNegExposure The exposure percentage of the longNeg leg of the order
+    /// @param shortPosExposure The exposure percentage of the shortPos leg of the order
+    /// @param shortNegExposure The exposure percentage of the shortNeg leg of the order
+    /// @return exposurePos The aggragate exposure of the positive component of the order
+    /// @return exposureNeg The aggragate exposure of the negative component of the order
     function exposure(
         Order memory self,
         Guarantee memory guarantee,
