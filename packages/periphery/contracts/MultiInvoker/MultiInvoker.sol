@@ -21,7 +21,6 @@ import { IPythFactory } from "@perennial/v2-oracle/contracts/interfaces/IPythFac
 import { IVault } from "@perennial/v2-vault/contracts/interfaces/IVault.sol";
 import { Intent } from "@perennial/v2-core/contracts/types/Intent.sol";
 import { IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
-import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { InterfaceFee } from "./types/InterfaceFee.sol";
 
 /// @title MultiInvoker
@@ -53,9 +52,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
     /// @dev UID for an order
     uint256 public latestNonce;
-
-    /// @dev State for the order data
-    mapping(address => mapping(IMarket => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
     /// @dev Mapping of allowed operators for each account
     mapping(address => mapping(address => bool)) public operators;
@@ -104,26 +100,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
 
         DSU.approve(address(reserve));
         USDC.approve(address(reserve));
-    }
-
-    /// @notice View function to get order state
-    /// @param account Account to get open oder of
-    /// @param market Market to get open order in
-    /// @param nonce UID of order
-    function orders(address account, IMarket market, uint256 nonce) public view returns (TriggerOrder memory) {
-        return _orders[account][market][nonce].read();
-    }
-
-    /// @notice Returns whether an order can be executed
-    /// @param account Account to get open oder of
-    /// @param market Market to get open order in
-    /// @param nonce UID of order
-    /// @return canFill Whether the order can be executed
-    function canExecuteOrder(address account, IMarket market, uint256 nonce) public view returns (bool) {
-        TriggerOrder memory order = orders(account, market, nonce);
-        if (order.fee.isZero()) return false;
-
-        return order.fillable(market.oracle().latest());
     }
 
     /// @notice Updates the status of an operator for the caller
@@ -187,19 +163,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
                     = abi.decode(invocation.args, (IVault, UFixed6, UFixed6, UFixed6, bool));
 
                 _vaultUpdate(account, vault, depositAssets, redeemShares, claimAssets, wrap);
-            } else if (invocation.action == PerennialAction.PLACE_ORDER) {
-                (IMarket market, TriggerOrder memory order) = abi.decode(invocation.args, (IMarket, TriggerOrder));
-
-                _placeOrder(account, market, order);
-            } else if (invocation.action == PerennialAction.CANCEL_ORDER) {
-                (IMarket market, uint256 nonce) = abi.decode(invocation.args, (IMarket, uint256));
-
-                _cancelOrder(account, market, nonce);
-            } else if (invocation.action == PerennialAction.EXEC_ORDER) {
-                (address execAccount, IMarket market, uint256 nonce)
-                    = abi.decode(invocation.args, (address, IMarket, uint256));
-
-                _executeOrder(execAccount, market, nonce);
             } else if (invocation.action == PerennialAction.COMMIT_PRICE) {
                 (address oracleProviderFactory, uint256 value, bytes32[] memory ids, uint256 version, bytes memory data, bool revertOnFailure) =
                     abi.decode(invocation.args, (address, uint256, bytes32[], uint256, bytes, bool));
@@ -419,52 +382,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         }
     }
 
-    /// @notice executes an `account's` open order for a `market` and pays a fee to `msg.sender`
-    /// @param account Account to execute order of
-    /// @param market Market to execute order for
-    /// @param nonce Id of open order to index
-    function _executeOrder(address account, IMarket market, uint256 nonce) internal {
-        if (!canExecuteOrder(account, market, nonce)) revert MultiInvokerCantExecuteError();
-
-        TriggerOrder memory order = orders(account, market, nonce);
-
-        _handleKeeperFee(
-            KeepConfig(
-                UFixed18Lib.ZERO,
-                keepBufferBase,
-                UFixed18Lib.ZERO,
-                keepBufferCalldata
-            ),
-            0,
-            msg.data[0:0],
-            0,
-            abi.encode(account, market, order.fee)
-        );
-
-        _marketSettle(market, account);
-
-        Order memory pending = market.pendings(account);
-        Position memory currentPosition = market.positions(account);
-        currentPosition.update(pending);
-
-        Fixed6 collateral = order.execute(currentPosition);
-
-        _update(
-            account,
-            market,
-            currentPosition.maker,
-            currentPosition.long,
-            currentPosition.short,
-            collateral,
-            true,
-            order.interfaceFee1,
-            order.interfaceFee2
-        );
-
-        delete _orders[account][market][nonce];
-        emit OrderExecuted(account, market, nonce);
-    }
-
     /// @notice Helper function to raise keeper fee
     /// @param keeperFee Keeper fee to raise
     /// @param data Data to raise keeper fee with
@@ -475,35 +392,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         _marketWithdraw(market, account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
-    }
-
-    /// @notice Places order on behalf of account from the invoker
-    /// @param account Account to place order for
-    /// @param market Market to place order in
-    /// @param order Order state to place
-    function _placeOrder(
-        address account,
-        IMarket market,
-        TriggerOrder memory order
-    ) internal isMarketInstance(market) {
-        if (order.fee.isZero()) revert MultiInvokerInvalidOrderError();
-        if (order.comparison != -1 && order.comparison != 1) revert MultiInvokerInvalidOrderError();
-        if (
-            order.side > 3 ||                                       // Invalid side
-            (order.side == 3 && order.delta.gte(Fixed6Lib.ZERO))    // Disallow placing orders that increase collateral
-        ) revert MultiInvokerInvalidOrderError();
-
-        _orders[account][market][++latestNonce].store(order);
-        emit OrderPlaced(account, market, latestNonce, order);
-    }
-
-    /// @notice Cancels an open order for account
-    /// @param account Account to cancel order for
-    /// @param market Market order is open in
-    /// @param nonce UID of order
-    function _cancelOrder(address account, IMarket market, uint256 nonce) internal {
-        delete _orders[account][market][nonce];
-        emit OrderCancelled(account, market, nonce);
     }
 
     /// @notice Withdraws `withdrawal` from `account`'s `market` position
