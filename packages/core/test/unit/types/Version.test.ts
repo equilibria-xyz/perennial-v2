@@ -1294,6 +1294,7 @@ describe('Version', () => {
         const { ret, value } = await accumulateWithReturn(
           GLOBAL,
           { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: parse6decimal('50') },
+          // longSoc = min(50+30,20) = 20  shortSoc = min(50+20,30) = 30  takerSoc = min(major,minor)+50 = min(30,20)+50 = 70
           ORDER_ID,
           {
             ...ORDER,
@@ -1303,6 +1304,7 @@ describe('Version', () => {
             longNeg: parse6decimal('10'), // +20 -> 40 long
             shortPos: parse6decimal('50'),
             shortNeg: parse6decimal('20'), // +30 -> 60 short
+            // takerPos = 50, takerNeg = 60
             makerReferral: 0,
             takerReferral: 0,
           },
@@ -1362,14 +1364,14 @@ describe('Version', () => {
         const takerPosOffset = linear2
           .mul(-1)
           .mul(123)
-          .div(50)
+          .div(50) // takerPosTotal
           .add(proportional2.mul(-1).mul(123).div(50))
           .add(impact1.mul(-1).mul(123).div(50))
 
         const takerNegOffset = linear3
           .mul(-1)
           .mul(123)
-          .div(60)
+          .div(60) // takerNegTotal
           .add(proportional3.mul(-1).mul(123).div(60))
           .add(impact2.mul(-1).mul(123).div(60))
 
@@ -1548,7 +1550,6 @@ describe('Version', () => {
         // old taker exposure = [average of 0 and long - short] / scale * [long - short] * taker adiabatic fee
         const takerExposure = parse6decimal('0.008') // 0 -> 4 / 100 = 2 / 100 = 0.02 * 4 * 0.1
         const exposure = takerExposure.mul(2) // price delta
-        console.log('exposure', exposure.toString())
 
         const makerFee = parse6decimal('0.48') // (makerpos+makerneg) * 0.02 = 24 * 0.02
         const takerFee = parse6decimal('0.37') // (longpos+longneg+shortpos+shortneg) * 0.01 = (31+6) * 0.01
@@ -1565,46 +1566,42 @@ describe('Version', () => {
         const proportional = proportionalMaker.add(proportionalTakerPos).add(proportionalTakerNeg).mul(123) // price
 
         const offset = linear.add(proportional)
-        console.log(
-          'offset',
-          offset.toString(),
-          '= linear',
-          linear.toString(),
-          '+ proportional',
-          proportional.toString(),
-        )
 
-        // TODO: determine how these are calculated
-        /*const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
-        const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
-        const impact = impact1.add(impact2).mul(123) // price
+        // skewOld -> skewOld+takerPos / scale * takerPos * adiabaticFee
+        const impactTakerPos = parse6decimal('0.57') // 4 -> 4+30 / 100 = 19 / 100 = 0.19 * 30 * 0.1
+        // skewOld+takerPos -> skewNew / scale * takerNeg * adiabaticFee?
+        // TODO: is this negative just because price delta is positive?
+        const impactTakerNeg = parse6decimal('-0.2135') // 4+30 -> 27 / 100 = 30.5 / 100 = 0.305 * 7 * 0.1 * -1
+        const impact = impactTakerPos.add(impactTakerNeg).mul(123) // price
 
-        const makerOffset = linearMaker.mul(-1).mul(123).div(30).add(proportional1.mul(-1).mul(123).div(30))
+        // (linearMaker * -1 * priceNew / makerTotal) + (proportionalMaker * -1 * priceNew / makerTotal)
+        const makerOffset = linearMaker.mul(-1).mul(123).div(24).add(proportionalMaker.mul(-1).mul(123).div(24))
 
         const takerPosOffset = linearTakerPos
           .mul(-1)
-          .mul(123)
-          .div(50)
-          .add(proportional2.mul(-1).mul(123).div(50))
-          .add(impact1.mul(-1).mul(123).div(50))
+          .mul(123) // priceNew
+          .div(30) // takerPosTotal
+          .add(proportionalTakerPos.mul(-1).mul(123).div(30))
+          .add(impactTakerPos.mul(-1).mul(123).div(30))
 
         const takerNegOffset = linearTakerNeg
           .mul(-1)
-          .mul(123)
-          .div(60)
-          .add(proportional3.mul(-1).mul(123).div(60))
-          .add(impact2.mul(-1).mul(123).div(60))*/
+          .mul(123) // priceNew
+          .div(7) // takerNegTotal
+          .add(proportionalTakerNeg.mul(-1).mul(123).div(7))
+          .add(impactTakerNeg.mul(-1).mul(123).div(7))
 
         // price increase, so longs have positive PnL
         // longSocialized = min(maker+short, long) = min(10+8, 12)  = 12
         // shortSocialized = min(maker+long, short) = min(10+12, 8) = -8
         // makerValue = offset - exposure + priceDelta * (longSocialized + shortSocialized) *-1 / fromMaker
         expect(value.makerValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(-4)).div(10).add(1))
-        return
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
         expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
-        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(30))
-        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
+        // makerFee * -1 * priceNew / makerTotal
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(24))
+        // takerFee * -1 * priceNew / takerTotal = takerFee * -123 / (31+6)
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(37))
         expect(value.makerOffset._value).to.equal(makerOffset)
         expect(value.takerPosOffset._value).to.equal(takerPosOffset)
         expect(value.takerNegOffset._value).to.equal(takerNegOffset)
