@@ -142,6 +142,9 @@ contract Oracle is IOracle, Instance {
         emit FeeReceived(settlementFeeRequested, feeReceived.sub(settlementFeeRequested));
     }
 
+    /// @notice Returns the oracle data for a given epoch
+    /// @param epoch The epoch to query
+    /// @return The oracle data for the given epoch
     function oracles(uint256 epoch) external view returns (Epoch memory) {
         return _oracles[epoch];
     }

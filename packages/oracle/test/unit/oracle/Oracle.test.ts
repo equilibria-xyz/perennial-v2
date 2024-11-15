@@ -6,19 +6,16 @@ import {
   IERC20Metadata,
   IMarket,
   IMarketFactory,
-  IOracle,
-  IOracle__factory,
   IOracleFactory,
   IOracleProvider,
   Oracle,
   Oracle__factory,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
+import { parse6decimal } from '../../../../common/testutil/types'
 import { impersonate } from '../../../../common/testutil'
 import { utils } from 'ethers'
 import { OracleReceiptStruct, OracleVersionStruct } from '../../../types/generated/contracts/Oracle'
-import exp from 'constants'
 
 const { ethers } = HRE
 
