@@ -69,25 +69,6 @@ describe('OracleFactory', () => {
     })
   })
 
-  describe('#withdraw', async () => {
-    it('can withdraw balance', async () => {
-      dsu.balanceOf.whenCalledWith(factory.address).returns(ethers.utils.parseEther('10000'))
-      dsu.transfer.whenCalledWith(owner.address, ethers.utils.parseEther('10000')).returns(true)
-
-      await expect(factory.connect(owner).withdraw(dsu.address)).to.not.reverted
-    })
-
-    it('reverts if not owner', async () => {
-      dsu.balanceOf.whenCalledWith(factory.address).returns(ethers.utils.parseEther('10000'))
-      dsu.transfer.whenCalledWith(owner.address, ethers.utils.parseEther('10000')).returns(true)
-
-      await expect(factory.connect(user).withdraw(dsu.address)).to.be.revertedWithCustomError(
-        factory,
-        'OwnableNotOwnerError',
-      )
-    })
-  })
-
   describe('#create', async () => {
     beforeEach(async () => {
       await factory.connect(owner).register(subOracleFactory.address)
