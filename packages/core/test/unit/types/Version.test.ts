@@ -1498,8 +1498,6 @@ describe('Version', () => {
     })
 
     describe('offset / fee accumulation with referrals', () => {
-      // TODO: Recreate existing test without referrals, understand where numbers come from,
-      // and then modify test to introduce referrals, adjusting for expected differences.
       it('allocates when makers', async () => {
         await version.store(VALID_VERSION)
 
@@ -1515,9 +1513,8 @@ describe('Version', () => {
             longNeg: parse6decimal('3'), // +25 long -> 37 long
             shortPos: parse6decimal('4'),
             shortNeg: parse6decimal('2'), // +2 short -> 10 short
-            // TODO: set up referrals and observe how it changes accumulations
-            makerReferral: 0,
-            takerReferral: 0,
+            makerReferral: parse6decimal('0.025'),
+            takerReferral: parse6decimal('0.0125'),
           },
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
@@ -1551,9 +1548,15 @@ describe('Version', () => {
         const takerExposure = parse6decimal('0.008') // 0 -> 4 / 100 = 2 / 100 = 0.02 * 4 * 0.1
         const exposure = takerExposure.mul(2) // price delta
 
-        const makerFee = parse6decimal('0.48') // (makerpos+makerneg) * 0.02 = 24 * 0.02
-        const takerFee = parse6decimal('0.37') // (longpos+longneg+shortpos+shortneg) * 0.01 = (31+6) * 0.01
-        const fee = makerFee.add(takerFee).mul(123) // price
+        // (makerpos+makerneg) * 0.02 * price = 24 * 0.02 * 123
+        const makerFee = parse6decimal('59.04')
+        // makerFee * makerReferral / makerTotal
+        const makerSubtractiveFee = makerFee.mul(parse6decimal('0.025')).div(24).div(1e6)
+        // (longpos+longneg+shortpos+shortneg) * 0.01 * price = (31+6) * 0.01 * 123
+        const takerFee = parse6decimal('45.51')
+        // takerFee * takerReferral / takerTotal
+        const takerSubtractiveFee = takerFee.mul(parse6decimal('0.0125')).div(37).div(1e6)
+        const fee = makerFee.add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee)
 
         const linearMaker = parse6decimal('0.48') //   (makerpos+makerneg) * 0.02 = (22+2) * 0.02
         const linearTakerPos = parse6decimal('0.3') //  (longpos+shortneg) * 0.01 = (28+2) * 0.01
@@ -1569,8 +1572,7 @@ describe('Version', () => {
 
         // skewOld -> skewOld+takerPos / scale * takerPos * adiabaticFee
         const impactTakerPos = parse6decimal('0.57') // 4 -> 4+30 / 100 = 19 / 100 = 0.19 * 30 * 0.1
-        // skewOld+takerPos -> skewNew / scale * takerNeg * adiabaticFee?
-        // TODO: is this negative just because price delta is positive?
+        // skewOld+takerPos -> skewNew / scale * takerNeg * adiabaticFee, * -1 because of positive price delta
         const impactTakerNeg = parse6decimal('-0.2135') // 4+30 -> 27 / 100 = 30.5 / 100 = 0.305 * 7 * 0.1 * -1
         const impact = impactTakerPos.add(impactTakerNeg).mul(123) // price
 
@@ -1598,10 +1600,10 @@ describe('Version', () => {
         expect(value.makerValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(-4)).div(10).add(1))
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
         expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
-        // makerFee * -1 * priceNew / makerTotal
-        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(24))
-        // takerFee * -1 * priceNew / takerTotal = takerFee * -123 / (31+6)
-        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(37))
+        // makerFee * -1 / makerTotal
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).div(24))
+        // takerFee * -1 / takerTotal = takerFee * -123 / (31+6)
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).div(37))
         expect(value.makerOffset._value).to.equal(makerOffset)
         expect(value.takerPosOffset._value).to.equal(takerPosOffset)
         expect(value.takerNegOffset._value).to.equal(takerNegOffset)
