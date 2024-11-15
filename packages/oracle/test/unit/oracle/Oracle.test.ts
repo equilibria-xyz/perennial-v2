@@ -961,10 +961,8 @@ describe('Oracle', () => {
     })
   })
 
-  context('#oracles', async () => {
-    let oracleContract: IOracle
+  describe('#oracles', async () => {
     beforeEach(async () => {
-      oracleContract = IOracle__factory.connect(oracle.address, owner)
       mockVersion(
         underlying0,
         {
@@ -978,16 +976,16 @@ describe('Oracle', () => {
         },
         1687229905,
       )
-      await oracleContract.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
-      await oracleContract.register(market.address)
-      await expect(oracleContract.connect(oracleFactorySigner).update(underlying1.address))
-        .to.emit(oracleContract, 'OracleUpdated')
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
+      await oracle.register(market.address)
+      await expect(oracle.connect(oracleFactorySigner).update(underlying1.address))
+        .to.emit(oracle, 'OracleUpdated')
         .withArgs(underlying1.address)
     })
 
     it('returns the correct oracle', async () => {
-      expect((await oracleContract.oracles(1)).provider).to.equal(underlying0.address)
-      expect((await oracleContract.oracles(2)).provider).to.equal(underlying1.address)
+      expect((await oracle.oracles(1)).provider).to.equal(underlying0.address)
+      expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
     })
   })
 })
