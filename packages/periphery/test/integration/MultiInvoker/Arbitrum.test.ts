@@ -11,7 +11,6 @@ import {
 } from '../../../types/generated'
 
 import { RunInvokerTests } from './Invoke.test'
-import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
 import { configureInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
@@ -32,8 +31,7 @@ import {
   PYTH_ETH_USD_PRICE_FEED,
 } from '../../helpers/oracleHelpers'
 import { time } from '../../../../common/testutil'
-import { ArbGasInfo, KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
-import { smock } from '@defi-wonderland/smock'
+import { KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
 
 const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1684116265)
 
@@ -107,7 +105,7 @@ async function createInvoker(
   vaultFactory?: VaultFactory,
   withBatcher = false,
 ): Promise<MultiInvoker> {
-  const { owner, user, userB } = instanceVars
+  const { owner } = instanceVars
 
   const multiInvoker = await new MultiInvoker_Arbitrum__factory(owner).deploy(
     instanceVars.usdc.address,
@@ -144,7 +142,6 @@ if (process.env.FORK_NETWORK === 'arbitrum') {
     INITIAL_ORACLE_VERSION_ETH,
     INITIAL_ORACLE_VERSION_BTC,
   )
-  RunOrderTests(getFixture, createInvoker, advanceToPrice, false)
   RunPythOracleTests(getFixture, createInvoker, getKeeperOracle, fundWalletDSU, {
     startingTime: 1723858683, // VAA timestamp minus 5 seconds
     vaaValid:

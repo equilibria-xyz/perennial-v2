@@ -1,6 +1,6 @@
 import { BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../../types/generated'
-import { InterfaceFeeStruct, TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker/MultiInvoker'
+import { InterfaceFeeStruct } from '../../../types/generated/contracts/MultiInvoker/MultiInvoker'
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
 import { IntentStruct } from '../../../types/generated/@perennial/v2-core/contracts/Market'
@@ -127,7 +127,6 @@ export const buildPlaceOrder = ({
   short,
   collateral,
   handleWrap,
-  order,
 }: {
   market: string
   maker?: BigNumberish
@@ -135,7 +134,6 @@ export const buildPlaceOrder = ({
   short?: BigNumberish
   collateral: BigNumberish
   handleWrap?: boolean
-  order: TriggerOrderStruct
 }): Actions => {
   return [
     {
@@ -160,24 +158,6 @@ export const buildPlaceOrder = ({
           handleWrap ?? false,
           [0, constants.AddressZero],
           [0, constants.AddressZero],
-        ],
-      ),
-    },
-    {
-      action: 3,
-      args: utils.defaultAbiCoder.encode(
-        ['address', 'tuple(uint8,int8,uint256,int256,int256,tuple(uint256,address),tuple(uint256,address))'],
-        [
-          market,
-          [
-            order.side, // default long side
-            order.comparison,
-            order.fee,
-            order.price,
-            order.delta,
-            [order.interfaceFee1.amount, order.interfaceFee1.receiver],
-            [order.interfaceFee2.amount, order.interfaceFee2.receiver],
-          ],
         ],
       ),
     },

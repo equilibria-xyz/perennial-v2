@@ -20,14 +20,12 @@ import { InstanceVars, createVault, resetEthSubOracle, resetBtcSubOracle } from 
 import {
   buildApproveTarget,
   buildClaimFee,
-  buildPlaceOrder,
   buildUpdateIntent,
   buildUpdateMarket,
   buildUpdateVault,
 } from '../../helpers/MultiInvoker/invoke'
 
 import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
-import { Compare, Dir, openTriggerOrder } from '../../helpers/MultiInvoker/types'
 import { IERC20Metadata } from '@perennial/v2-core/types/generated'
 import { createMarket } from '../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
@@ -320,7 +318,7 @@ export function RunInvokerTests(
             })
 
           it('wraps USDC to DSU and deposits into market using RESERVE if BATCHER address == 0', async () => {
-            const { owner, user, usdc, dsuReserve } = instanceVars
+            const { user, usdc, dsuReserve } = instanceVars
 
             // deploy multiinvoker with batcher == 0 address
             multiInvoker = await createInvoker(instanceVars, vaultFactory, false)
@@ -339,7 +337,7 @@ export function RunInvokerTests(
 
           withBatcher &&
             it('withdraws from market and unwraps DSU to USDC using BATCHER', async () => {
-              const { owner, user, userB, dsu, usdc, dsuBatcher } = instanceVars
+              const { user, userB, dsu, usdc, dsuBatcher } = instanceVars
 
               if (dsuBatcher) {
                 const userUSDCBalanceBefore = await usdc.balanceOf(user.address)
@@ -976,18 +974,6 @@ export function RunInvokerTests(
               multiInvoker,
               'MultiInvokerInvalidInstanceError',
             )
-          })
-
-          it('Fails to place an order in an address not created by MarketFactory', async () => {
-            const trigger = openTriggerOrder({
-              delta: collateral,
-              price: 1100e6,
-              side: Dir.L,
-              comparison: Compare.ABOVE_MARKET,
-            })
-            await expect(
-              invoke(buildPlaceOrder({ market: vault.address, collateral: collateral, order: trigger })),
-            ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
           })
 
           describe('#batcher 0 address', async () => {
