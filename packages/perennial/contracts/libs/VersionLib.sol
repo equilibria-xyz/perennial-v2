@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { Accumulator6 } from "@equilibria/root/accumulator/types/Accumulator6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
@@ -289,13 +290,13 @@ library VersionLib {
         (next.makerNegExposure, next.longNegExposure, next.shortNegExposure) = context.fromPosition.exposure();
         (next.makerPosExposure, next.longPosExposure, next.shortPosExposure) = toPosition.exposure();
 
-        // compute exposure delta incurred by the positive and negative sides of the order
+        // calculate exposure of the order components
         (UFixed6 exposurePos, UFixed6 exposureNeg) = context.order.exposure(
             context.guarantee,
             next.makerPosExposure,
             next.makerNegExposure,
             next.longPosExposure,
-            next.longNegExposure,
+            next.shortNegExposure,
             next.shortPosExposure,
             next.shortNegExposure
         );
@@ -303,40 +304,40 @@ library VersionLib {
         // apply spread for positive exposure
         toPosition = context.fromPosition.clone();
         toPosition.updatePos(context.order);
-        (result.spreadPos) = _accumulateSpreadComponent(
+        (Fixed6 spreadMakerPos, Fixed6 spreadLongPos, Fixed6 spreadShortPos) = _accumulateSpreadComponent(
             next,
             context,
-            result,
             toPosition,
             closedPosition,
             Fixed6Lib.from(1, exposurePos)
         );
+        result.spreadPos = spreadMakerPos.add(spreadLongPos).add(spreadShortPos);
         next.spreadPos.decrement(result.spreadPos, exposurePos);
 
         // apply spread for negative exposure
         toPosition = context.fromPosition.clone();
         toPosition.updateNeg(context.order);
-        (result.spreadNeg) = _accumulateSpreadComponent(
+        (Fixed6 spreadMakerNeg, Fixed6 spreadLongNeg, Fixed6 spreadShortNeg) = _accumulateSpreadComponent(
             next,
             context,
-            result,
             toPosition,
             closedPosition,
             Fixed6Lib.from(-1, exposureNeg)
         );
+        result.spreadNeg = spreadMakerNeg.add(spreadLongNeg).add(spreadShortNeg);
         next.spreadNeg.decrement(result.spreadNeg, exposureNeg);
     }
 
+    // TODO
     function _accumulateSpreadComponent(
         Version memory next,
         VersionAccumulationContext memory context,
-        VersionAccumulationResult memory result,
         Position memory closedPosition,
         Position memory toPosition,
         Fixed6 exposure
-    ) internal pure returns (Fixed6 spread) {
+    ) internal pure returns (Fixed6 spreadMaker, Fixed6 spreadLong, Fixed6 spreadShort) {
         // compute spread
-        spread = context.riskParameter.synBook.compute(
+        Fixed6 spread = context.riskParameter.synBook.compute(
             context.fromPosition.skew(),
             exposure,
             context.toOracleVersion.price.abs()
@@ -346,27 +347,43 @@ library VersionLib {
         (, UFixed6 longExposureFrom, UFixed6 shortExposureFrom) = context.fromPosition.exposure();
         (, UFixed6 longExposureTo, UFixed6 shortExposureTo) = toPosition.exposure();
 
-        // compute exposure change
-        UFixed6 longExposureChange = Fixed6Lib.from(longExposureTo).sub(Fixed6Lib.from(longExposureFrom)).abs();
-        UFixed6 shortExposureChange = Fixed6Lib.from(shortExposureTo).sub(Fixed6Lib.from(shortExposureFrom)).abs();
-
         // compute spread components
-        Fixed6 spreadLong = spread
-            .mul(Fixed6Lib.from(closedPosition.long))
-            .muldiv(Fixed6Lib.from(longExposureChange), Fixed6Lib.from(exposure.abs()));
-        Fixed6 spreadShort = spread
-            .mul(Fixed6Lib.from(closedPosition.short))
-            .muldiv(Fixed6Lib.from(shortExposureChange), Fixed6Lib.from(exposure.abs()));
-        Fixed6 spreadMaker = spread.sub(spreadLong).sub(spreadShort);
+        spreadLong = _applySpreadComponent(
+            next.longSpreadValue,
+            closedPosition.long,
+            spread,
+            longExposureFrom,
+            longExposureTo,
+            exposure
+        );
 
-        // accrue spread
+        spreadShort = _applySpreadComponent(
+            next.shortSpreadValue,
+            closedPosition.short,
+            spread,
+            shortExposureFrom,
+            shortExposureTo,
+            exposure
+        );
+
+        spreadMaker = spread.sub(spreadLong).sub(spreadShort);
         next.makerSpreadValue.increment(spreadMaker, closedPosition.maker);
-        next.longSpreadValue.increment(spreadLong, closedPosition.long);
-        next.shortSpreadValue.increment(spreadShort, closedPosition.short);
+    }
 
-        result.spreadMaker = result.spreadMaker.add(spreadMaker);
-        result.spreadLong = result.spreadLong.add(spreadLong);
-        result.spreadShort = result.spreadShort.add(spreadShort);
+    // TODO
+    function _applySpreadComponent(
+        Accumulator6 memory spreadValueComponent,
+        UFixed6 closedPosition,
+        Fixed6 spread,
+        UFixed6 exposureComponentFrom,
+        UFixed6 exposureComponentTo,
+        Fixed6 exposure
+    ) private pure returns (Fixed6 spreadComponent) {
+        Fixed6 exposureComponent = Fixed6Lib.from(exposureComponentTo).sub(Fixed6Lib.from(exposureComponentFrom));
+        spreadComponent = spread
+            .mul(Fixed6Lib.from(closedPosition))
+            .muldiv(Fixed6Lib.from(exposureComponent.abs()), Fixed6Lib.from(exposure.abs()));
+        spreadValueComponent.increment(spreadComponent, closedPosition);
     }
 
     /// @notice Globally accumulates all long-short funding since last oracle update
