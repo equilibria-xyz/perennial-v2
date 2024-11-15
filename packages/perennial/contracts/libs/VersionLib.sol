@@ -36,19 +36,19 @@ struct VersionAccumulationResult {
     UFixed6 subtractiveFee;
 
     /// @dev The total notional spread paid by positive exposure orders
-    UFixed6 spreadPos;
+    Fixed6 spreadPos;
 
     /// @dev The total notional spread paid by negative exposure orders
-    UFixed6 spreadNeg;
+    Fixed6 spreadNeg;
 
     /// @dev The total notional spread received by the makers
-    UFixed6 spreadMaker;
+    Fixed6 spreadMaker;
 
     /// @dev The total notional spread received by the longs (socialization)
-    UFixed6 spreadLong;
+    Fixed6 spreadLong;
 
     /// @dev The total notional spread received by the shorts (socialization)
-    UFixed6 spreadShort;
+    Fixed6 spreadShort;
 
     /// @dev Funding accrued by makers
     Fixed6 fundingMaker;
@@ -311,7 +311,7 @@ library VersionLib {
             closedPosition,
             Fixed6Lib.from(1, exposurePos)
         );
-        next.spreadPos.decrement(Fixed6Lib.from(result.spreadPos), exposurePos);
+        next.spreadPos.decrement(result.spreadPos, exposurePos);
 
         // apply spread for negative exposure
         toPosition = context.fromPosition.clone();
@@ -324,7 +324,7 @@ library VersionLib {
             closedPosition,
             Fixed6Lib.from(-1, exposureNeg)
         );
-        next.spreadNeg.decrement(Fixed6Lib.from(result.spreadNeg), exposureNeg);
+        next.spreadNeg.decrement(result.spreadNeg, exposureNeg);
     }
 
     function _accumulateSpreadComponent(
@@ -334,9 +334,13 @@ library VersionLib {
         Position memory closedPosition,
         Position memory toPosition,
         Fixed6 exposure
-    ) internal pure returns (UFixed6 spread) {
+    ) internal pure returns (Fixed6 spread) {
         // compute spread
-        spread = __SynBook6_compute(context.fromPosition.skew(), exposure, context.toOracleVersion.price.abs());
+        spread = context.riskParameter.synBook.compute(
+            context.fromPosition.skew(),
+            exposure,
+            context.toOracleVersion.price.abs()
+        );
 
         // compute exposure after order
         (, UFixed6 longExposureFrom, UFixed6 shortExposureFrom) = context.fromPosition.exposure();
@@ -347,27 +351,22 @@ library VersionLib {
         UFixed6 shortExposureChange = Fixed6Lib.from(shortExposureTo).sub(Fixed6Lib.from(shortExposureFrom)).abs();
 
         // compute spread components
-        UFixed6 spreadLong = spread.mul(closedPosition.long).mul(longExposureChange).div(exposure.abs());
-        UFixed6 spreadShort = spread.mul(closedPosition.short).mul(shortExposureChange).div(exposure.abs());
-        UFixed6 spreadMaker = spread.sub(spreadLong).sub(spreadShort);
+        Fixed6 spreadLong = spread
+            .mul(Fixed6Lib.from(closedPosition.long))
+            .muldiv(Fixed6Lib.from(longExposureChange), Fixed6Lib.from(exposure.abs()));
+        Fixed6 spreadShort = spread
+            .mul(Fixed6Lib.from(closedPosition.short))
+            .muldiv(Fixed6Lib.from(shortExposureChange), Fixed6Lib.from(exposure.abs()));
+        Fixed6 spreadMaker = spread.sub(spreadLong).sub(spreadShort);
 
         // accrue spread
-        next.makerSpreadValue.increment(Fixed6Lib.from(spreadMaker), closedPosition.maker);
-        next.longSpreadValue.increment(Fixed6Lib.from(spreadLong), closedPosition.long);
-        next.shortSpreadValue.increment(Fixed6Lib.from(spreadShort), closedPosition.short);
+        next.makerSpreadValue.increment(spreadMaker, closedPosition.maker);
+        next.longSpreadValue.increment(spreadLong, closedPosition.long);
+        next.shortSpreadValue.increment(spreadShort, closedPosition.short);
 
         result.spreadMaker = result.spreadMaker.add(spreadMaker);
         result.spreadLong = result.spreadLong.add(spreadLong);
         result.spreadShort = result.spreadShort.add(spreadShort);
-    }
-
-    // TODO: replace with root implementation
-    function __SynBook6_compute(
-        Fixed6 latest,
-        Fixed6 change,
-        UFixed6 price
-    ) internal pure returns (UFixed6) {
-        return UFixed6Lib.ZERO;
     }
 
     /// @notice Globally accumulates all long-short funding since last oracle update
@@ -390,7 +389,7 @@ library VersionLib {
         // Compute long-short funding rate
         Fixed6 funding = context.global.pAccumulator.accumulate(
             context.riskParameter.pController,
-            toSkew.unsafeDiv(Fixed6Lib.from(context.riskParameter.takerFee.scale)).min(Fixed6Lib.ONE).max(Fixed6Lib.NEG_ONE),
+            toSkew.unsafeDiv(Fixed6Lib.from(context.riskParameter.synBook.scale)).min(Fixed6Lib.ONE).max(Fixed6Lib.NEG_ONE),
             context.fromOracleVersion.timestamp,
             context.toOracleVersion.timestamp,
             context.fromPosition.takerSocialized().mul(context.fromOracleVersion.price.abs())
