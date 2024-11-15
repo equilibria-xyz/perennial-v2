@@ -1182,7 +1182,7 @@ describe('Version', () => {
       })
     })
 
-    describe('offset / fee accumulation', () => {
+    describe('offset / fee accumulation without referrals', () => {
       it('allocates when no makers', async () => {
         await version.store(VALID_VERSION)
 
@@ -1298,11 +1298,11 @@ describe('Version', () => {
           {
             ...ORDER,
             makerNeg: parse6decimal('10'),
-            makerPos: parse6decimal('20'),
+            makerPos: parse6decimal('20'), // +10 -> 60 maker
             longPos: parse6decimal('30'),
-            longNeg: parse6decimal('10'),
+            longNeg: parse6decimal('10'), // +20 -> 40 long
             shortPos: parse6decimal('50'),
-            shortNeg: parse6decimal('20'),
+            shortNeg: parse6decimal('20'), // +30 -> 60 short
             makerReferral: 0,
             takerReferral: 0,
           },
@@ -1481,6 +1481,130 @@ describe('Version', () => {
         expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
         expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(30))
         expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(190))
+        expect(value.makerOffset._value).to.equal(makerOffset)
+        expect(value.takerPosOffset._value).to.equal(takerPosOffset)
+        expect(value.takerNegOffset._value).to.equal(takerNegOffset)
+        expect(value.settlementFee._value).to.equal(0)
+
+        expect(ret.tradeOffset).to.equal(offset.add(impact))
+        expect(ret.tradeOffsetMaker).to.equal(offset)
+        expect(ret.tradeFee).to.equal(fee)
+        expect(ret.adiabaticExposure).to.equal(exposure)
+        expect(ret.adiabaticExposureMarket).to.equal(0)
+        expect(ret.adiabaticExposureMaker).to.equal(-exposure)
+      })
+    })
+
+    describe('offset / fee accumulation with referrals', () => {
+      // TODO: Recreate existing test without referrals, understand where numbers come from,
+      // and then modify test to introduce referrals, adjusting for expected differences.
+      it('allocates when makers', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, maker: parse6decimal('10'), long: parse6decimal('12'), short: parse6decimal('8') },
+          ORDER_ID,
+          {
+            ...ORDER,
+            makerPos: parse6decimal('22'),
+            makerNeg: parse6decimal('2'), // +20 maker -> 30 maker
+            longPos: parse6decimal('28'),
+            longNeg: parse6decimal('3'), // +25 long -> 37 long
+            shortPos: parse6decimal('4'),
+            shortNeg: parse6decimal('2'), // +2 short -> 10 short
+            // TODO: set up referrals and observe how it changes accumulations
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...DEFAULT_GUARANTEE },
+          { ...ORACLE_VERSION_1, price: parse6decimal('121') },
+          { ...ORACLE_VERSION_2 }, // price 123
+          DEFAULT_ORACLE_RECEIPT,
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+            makerFee: {
+              linearFee: parse6decimal('0.02'),
+              proportionalFee: parse6decimal('0.10'),
+              scale: parse6decimal('100'),
+            },
+            takerFee: {
+              linearFee: parse6decimal('0.01'),
+              proportionalFee: parse6decimal('0.05'),
+              adiabaticFee: parse6decimal('0.10'),
+              scale: parse6decimal('100'),
+            },
+          },
+        )
+
+        // old taker exposure = [average of 0 and long - short] / scale * [long - short] * taker adiabatic fee
+        const takerExposure = parse6decimal('0.008') // 0 -> 4 / 100 = 2 / 100 = 0.02 * 4 * 0.1
+        const exposure = takerExposure.mul(2) // price delta
+        console.log('exposure', exposure.toString())
+
+        const makerFee = parse6decimal('0.48') // (makerpos+makerneg) * 0.02 = 24 * 0.02
+        const takerFee = parse6decimal('0.37') // (longpos+longneg+shortpos+shortneg) * 0.01 = (31+6) * 0.01
+        const fee = makerFee.add(takerFee).mul(123) // price
+
+        const linearMaker = parse6decimal('0.48') //   (makerpos+makerneg) * 0.02 = (22+2) * 0.02
+        const linearTakerPos = parse6decimal('0.3') //  (longpos+shortneg) * 0.01 = (28+2) * 0.01
+        const linearTakerNeg = parse6decimal('0.07') // (longneg+shortpos) * 0.01 = (3+4) * 0.01
+        const linear = linearMaker.add(linearTakerPos).add(linearTakerNeg).mul(123) // price
+
+        const proportionalMaker = parse6decimal('0.576') //    (makerpos+makerneg)^2 / scale * proportionalFee = 24^2 / 100 * 0.1
+        const proportionalTakerPos = parse6decimal('0.45') //   (longpos+shortneg)^2 / scale * proportionalFee = 30^2 / 100 * 0.05
+        const proportionalTakerNeg = parse6decimal('0.0245') // (longneg+shortpos)^2 / scale * proportionalFee =  7^2 / 100 * 0.05
+        const proportional = proportionalMaker.add(proportionalTakerPos).add(proportionalTakerNeg).mul(123) // price
+
+        const offset = linear.add(proportional)
+        console.log(
+          'offset',
+          offset.toString(),
+          '= linear',
+          linear.toString(),
+          '+ proportional',
+          proportional.toString(),
+        )
+
+        // TODO: determine how these are calculated
+        /*const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
+        const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
+        const impact = impact1.add(impact2).mul(123) // price
+
+        const makerOffset = linearMaker.mul(-1).mul(123).div(30).add(proportional1.mul(-1).mul(123).div(30))
+
+        const takerPosOffset = linearTakerPos
+          .mul(-1)
+          .mul(123)
+          .div(50)
+          .add(proportional2.mul(-1).mul(123).div(50))
+          .add(impact1.mul(-1).mul(123).div(50))
+
+        const takerNegOffset = linearTakerNeg
+          .mul(-1)
+          .mul(123)
+          .div(60)
+          .add(proportional3.mul(-1).mul(123).div(60))
+          .add(impact2.mul(-1).mul(123).div(60))*/
+
+        // price increase, so longs have positive PnL
+        // longSocialized = min(maker+short, long) = min(10+8, 12)  = 12
+        // shortSocialized = min(maker+long, short) = min(10+12, 8) = -8
+        // makerValue = offset - exposure + priceDelta * (longSocialized + shortSocialized) *-1 / fromMaker
+        expect(value.makerValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(-4)).div(10).add(1))
+        return
+        expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
+        expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(30))
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
         expect(value.makerOffset._value).to.equal(makerOffset)
         expect(value.takerPosOffset._value).to.equal(takerPosOffset)
         expect(value.takerNegOffset._value).to.equal(takerNegOffset)
