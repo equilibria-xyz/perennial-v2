@@ -168,25 +168,25 @@ library VersionLib {
 
         // accumulate fee
         _accumulateFee(next, context, result);
-        console.log(" makerValue after _accumulateFee               %s", UFixed6.unwrap(next.makerValue._value.abs()));
+        // console.log(" makerValue after _accumulateFee               %s", UFixed6.unwrap(next.makerValue._value.abs()));
 
         // accumulate linear fee
         Fixed6 makerBeforeLinear = next.makerValue._value;
         _accumulateLinearFee(next, context, result);
-        console.log(" makerValue after _accumulateLinearFee         %s", UFixed6.unwrap(next.makerValue._value.abs()));
+        // console.log(" makerValue after _accumulateLinearFee         %s", UFixed6.unwrap(next.makerValue._value.abs()));
 
         // accumulate proportional fee
         _accumulateProportionalFee(next, context, result);
-        console.log(" makerValue after _accumulateProportionalFee   %s", UFixed6.unwrap(next.makerValue._value.abs()));
+        // console.log(" makerValue after _accumulateProportionalFee   %s", UFixed6.unwrap(next.makerValue._value.abs()));
         Fixed6 makerAfterProportional = next.makerValue._value;
 
         // accumulate adiabatic exposure
         _accumulateAdiabaticExposure(next, context, result);
-        console.log(" makerValue after _accumulateAdiabaticExposure %s", UFixed6.unwrap(next.makerValue._value.abs()));
+        // console.log(" makerValue after _accumulateAdiabaticExposure %s", UFixed6.unwrap(next.makerValue._value.abs()));
 
         // accumulate adiabatic fee
         _accumulateAdiabaticFee(next, context, result);
-        console.log(" makerValue after _accumulateAdiabaticFee      %s", UFixed6.unwrap(next.makerValue._value.abs()));
+        // console.log(" makerValue after _accumulateAdiabaticFee      %s", UFixed6.unwrap(next.makerValue._value.abs()));
 
         // if closed, don't accrue anything else
         if (context.marketParameter.closed) return _return(context, result, next);
@@ -201,7 +201,7 @@ library VersionLib {
 
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
-        console.log(" makerValue after _accumulatePNL               %s", UFixed6.unwrap(next.makerValue._value.abs()));
+        // console.log(" makerValue after _accumulatePNL               %s", UFixed6.unwrap(next.makerValue._value.abs()));
 
         return _return(context, result, next);
     }
@@ -326,13 +326,14 @@ library VersionLib {
         // console.log("  makerLinearFee %s takerPosLinearFee %s takerNegLinearFee %s",
         //     UFixed6.unwrap(makerLinearFee), UFixed6.unwrap(takerPosLinearFee), UFixed6.unwrap(takerNegLinearFee)
         // );
+        console.log("  takerPosTotal %s takerNegTotal %s", UFixed6.unwrap(takerPosTotal), UFixed6.unwrap(takerNegTotal));
 
         UFixed6 linearFee = makerLinearFee.add(takerPosLinearFee).add(takerNegLinearFee);
         UFixed6 marketFee = context.fromPosition.maker.isZero() ? linearFee : UFixed6Lib.ZERO;
         UFixed6 makerFee = linearFee.sub(marketFee);
         next.makerValue.increment(Fixed6Lib.from(makerFee), context.fromPosition.maker);
 
-        console.log("  linearFee %s", UFixed6.unwrap(linearFee));
+        // console.log("  linearFee %s", UFixed6.unwrap(linearFee));
 
         result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(linearFee));
         result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
@@ -379,7 +380,7 @@ library VersionLib {
         UFixed6 makerFee = proportionalFee.sub(marketFee);
         next.makerValue.increment(Fixed6Lib.from(makerFee), context.fromPosition.maker);
 
-        console.log("  proportionalFee %s", UFixed6.unwrap(proportionalFee));
+        // console.log("  proportionalFee %s", UFixed6.unwrap(proportionalFee));
 
         result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(proportionalFee));
         result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
@@ -393,11 +394,13 @@ library VersionLib {
         Version memory next,
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
-    ) private pure {
+    ) private view {
         Fixed6 adiabaticFee;
 
         // position fee from positive skew taker orders
         UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos);
+        console.log("   calc adiabaticFee for takerPos %s skew", UFixed6.unwrap(takerPos));
+        console.logInt(Fixed6.unwrap(context.fromPosition.skew()));
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew(),
             Fixed6Lib.from(takerPos),
@@ -408,6 +411,8 @@ library VersionLib {
 
         // position fee from negative skew taker orders
         UFixed6 takerNeg = context.order.takerNeg().sub(context.guarantee.takerNeg);
+        console.log("   calc adiabaticFee for takerNeg %s skew+takerPos", UFixed6.unwrap(takerNeg));
+        console.logInt(Fixed6.unwrap(context.fromPosition.skew().add(Fixed6Lib.from(takerPos))));
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew().add(Fixed6Lib.from(takerPos)),
             Fixed6Lib.from(-1, takerNeg),
@@ -415,6 +420,8 @@ library VersionLib {
         );
         next.takerNegOffset.decrement(adiabaticFee, takerNeg);
         result.tradeOffset = result.tradeOffset.add(adiabaticFee);
+
+        console.log("  takerPos %s takerNeg %s", UFixed6.unwrap(takerPos), UFixed6.unwrap(takerNeg));
     }
 
     /// @notice Globally accumulates single component of the position fees exposure since last oracle update
@@ -563,6 +570,6 @@ library VersionLib {
         next.longValue.increment(pnlLong, context.fromPosition.long);
         next.shortValue.increment(pnlShort, context.fromPosition.short);
         next.makerValue.increment(pnlMaker, context.fromPosition.maker);
-        console.log(" fromMaker %s", UFixed6.unwrap(context.fromPosition.maker));
+        // console.log(" fromMaker %s", UFixed6.unwrap(context.fromPosition.maker));
     }
 }
