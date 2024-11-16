@@ -45,8 +45,10 @@ export interface Order {
 
 export interface Guarantee {
   orders: BigNumberish
-  takerPos: BigNumberish
-  takerNeg: BigNumberish
+  longPos: BigNumberish
+  longNeg: BigNumberish
+  shortPos: BigNumberish
+  shortNeg: BigNumberish
   notional: BigNumberish
   takerFee: BigNumberish
   referral: BigNumberish
@@ -67,7 +69,6 @@ export interface Global {
   riskFee: BigNumberish
   latestPrice: BigNumberish
   pAccumulator: PAccumulator
-  exposure: BigNumberish
 }
 
 export interface Local {
@@ -110,10 +111,11 @@ export interface MarketParameter {
   settle: boolean
 }
 
-export interface AdiabaticFee {
-  linearFee: BigNumberish
-  proportionalFee: BigNumberish
-  adiabaticFee: BigNumberish
+export interface SynBook {
+  d0: BigNumberish
+  d1: BigNumberish
+  d2: BigNumberish
+  d3: BigNumberish
   scale: BigNumberish
 }
 
@@ -133,8 +135,7 @@ export interface PController {
 export interface RiskParameter {
   margin: BigNumberish
   maintenance: BigNumberish
-  takerFee: AdiabaticFee
-  makerFee: AdiabaticFee
+  synBook: SynBook
   makerLimit: BigNumberish
   efficiencyLimit: BigNumberish
   liquidationFee: BigNumberish
@@ -190,8 +191,10 @@ export function expectOrderEq(a: Order, b: Order): void {
 
 export function expectGuaranteeEq(a: Guarantee, b: Guarantee): void {
   expect(a.orders).to.equal(b.orders, 'Order:Orders')
-  expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
-  expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
+  expect(a.longPos).to.equal(b.longPos, 'Order:LongPos')
+  expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
+  expect(a.shortPos).to.equal(b.shortPos, 'Order:ShortPos')
+  expect(a.shortNeg).to.equal(b.shortNeg, 'Order:ShortNeg')
   expect(a.notional).to.equal(b.notional, 'Order:Notional')
   expect(a.takerFee).to.equal(b.takerFee, 'Order:TakerFee')
   expect(a.referral).to.equal(b.referral, 'Order:Referral')
@@ -211,7 +214,6 @@ export function expectGlobalEq(a: Global, b: Global): void {
   expect(a.oracleFee).to.equal(b.oracleFee, 'Global:OracleFee')
   expect(a.riskFee).to.equal(b.riskFee, 'Global:RiskFee')
   expect(a.latestPrice).to.equal(b.latestPrice, 'Global:LatestPrice')
-  expect(a.exposure).to.equal(b.exposure, 'Global:Exposure')
 }
 
 export function expectLocalEq(a: Local, b: Local): void {
@@ -289,7 +291,6 @@ export const DEFAULT_GLOBAL: Global = {
     _value: 0,
     _skew: 0,
   },
-  exposure: 0,
 }
 
 export const DEFAULT_LOCAL: Local = {
@@ -316,8 +317,10 @@ export const DEFAULT_ORDER: Order = {
 
 export const DEFAULT_GUARANTEE: Guarantee = {
   orders: 0,
-  takerPos: 0,
-  takerNeg: 0,
+  longPos: 0,
+  longNeg: 0,
+  shortPos: 0,
+  shortNeg: 0,
   notional: 0,
   takerFee: 0,
   referral: 0,
@@ -362,10 +365,11 @@ export const DEFAULT_MARKET_PARAMETER: MarketParameter = {
   settle: false,
 }
 
-export const DEFAULT_ADIABATIC_FEE: AdiabaticFee = {
-  linearFee: 0,
-  proportionalFee: 0,
-  adiabaticFee: 0,
+export const DEFAULT_SYN_BOOK: SynBook = {
+  d0: 0,
+  d1: 0,
+  d2: 0,
+  d3: 0,
   scale: 0,
 }
 
@@ -385,8 +389,7 @@ export const DEFAULT_PCONTROLLER: PController = {
 export const DEFAULT_RISK_PARAMETER: RiskParameter = {
   margin: 0,
   maintenance: 0,
-  takerFee: DEFAULT_ADIABATIC_FEE,
-  makerFee: DEFAULT_ADIABATIC_FEE,
+  synBook: DEFAULT_SYN_BOOK,
   makerLimit: 0,
   efficiencyLimit: 0,
   liquidationFee: 0,
