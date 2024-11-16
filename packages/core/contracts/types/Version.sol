@@ -161,12 +161,12 @@ library VersionStorageLib {
         if (newValue.longValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
         if (newValue.shortValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
-        if (newValue.makerSpreadValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
-        if (newValue.makerSpreadValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
-        if (newValue.longSpreadValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
-        if (newValue.longSpreadValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
-        if (newValue.shortSpreadValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
-        if (newValue.shortSpreadValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
+        if (newValue.makerSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.makerSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.longSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.longSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.shortSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.shortSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.spreadPos._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
         if (newValue.spreadPos._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.spreadNeg._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
@@ -200,10 +200,10 @@ library VersionStorageLib {
         uint256 encoded3 =
             uint256(Fixed6.unwrap(newValue.makerPosExposure) << (256 - 24)) >> (256 - 24) |
             uint256(Fixed6.unwrap(newValue.makerNegExposure) << (256 - 24)) >> (256 - 24 - 24) |
-            uint256(Fixed6.unwrap(newValue.makerPosExposure) << (256 - 24)) >> (256 - 24 - 24 - 24) |
-            uint256(Fixed6.unwrap(newValue.makerNegExposure) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
-            uint256(Fixed6.unwrap(newValue.makerPosExposure) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
-            uint256(Fixed6.unwrap(newValue.makerNegExposure) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24);
+            uint256(UFixed6.unwrap(newValue.longPosExposure) << (256 - 24)) >> (256 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.longNegExposure) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.shortPosExposure) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24) |
+            uint256(UFixed6.unwrap(newValue.shortNegExposure) << (256 - 24)) >> (256 - 24 - 24 - 24 - 24 - 24 - 24);
 
         assembly {
             sstore(self.slot, encoded0)

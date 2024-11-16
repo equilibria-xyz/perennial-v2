@@ -1,5 +1,6 @@
 import { BigNumber, BigNumberish, utils, constants } from 'ethers'
 import { expect } from 'chai'
+import exp from 'constants'
 
 export interface OracleVersion {
   valid: boolean
@@ -81,14 +82,22 @@ export interface Local {
 export interface Version {
   valid: boolean
   price: BigNumberish
+  makerPosExposure: BigNumberish
+  makerNegExposure: BigNumberish
+  longPosExposure: BigNumberish
+  longNegExposure: BigNumberish
+  shortPosExposure: BigNumberish
+  shortNegExposure: BigNumberish
   makerValue: Accumulator
   longValue: Accumulator
   shortValue: Accumulator
   makerFee: Accumulator
   takerFee: Accumulator
-  makerOffset: Accumulator
-  takerPosOffset: Accumulator
-  takerNegOffset: Accumulator
+  spreadPos: Accumulator
+  spreadNeg: Accumulator
+  makerSpreadValue: Accumulator
+  longSpreadValue: Accumulator
+  shortSpreadValue: Accumulator
   settlementFee: Accumulator
   liquidationFee: Accumulator
 }
@@ -226,14 +235,22 @@ export function expectLocalEq(a: Local, b: Local): void {
 export function expectVersionEq(a: Version, b: Version): void {
   expect(a.valid).to.equal(b.valid, 'Version:Valid')
   expect(a.price).to.equal(b.price, 'Version:Price')
+  expect(a.makerPosExposure).to.equal(b.makerPosExposure, 'Version:MakerPosExposure')
+  expect(a.makerNegExposure).to.equal(b.makerNegExposure, 'Version:MakerNegExposure')
+  expect(a.longPosExposure).to.equal(b.longPosExposure, 'Version:LongPosExposure')
+  expect(a.longNegExposure).to.equal(b.longNegExposure, 'Version:LongNegExposure')
+  expect(a.shortPosExposure).to.equal(b.shortPosExposure, 'Version:ShortPosExposure')
+  expect(a.shortNegExposure).to.equal(b.shortNegExposure, 'Version:ShortNegExposure')
   expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
   expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
   expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
   expect(a.makerFee._value).to.equal(b.makerFee._value, 'Version:MakerFee')
   expect(a.takerFee._value).to.equal(b.takerFee._value, 'Version:TakerFee')
-  expect(a.makerOffset._value).to.equal(b.makerOffset._value, 'Version:MakerOffset')
-  expect(a.takerPosOffset._value).to.equal(b.takerPosOffset._value, 'Version:TakerPosOffset')
-  expect(a.takerNegOffset._value).to.equal(b.takerNegOffset._value, 'Version:TakerNegOffset')
+  expect(a.spreadPos._value).to.equal(b.spreadPos._value, 'Version:SpreadPos')
+  expect(a.spreadNeg._value).to.equal(b.spreadNeg._value, 'Version:SpreadNeg')
+  expect(a.makerSpreadValue._value).to.equal(b.makerSpreadValue._value, 'Version:MakerSpreadValue')
+  expect(a.longSpreadValue._value).to.equal(b.longSpreadValue._value, 'Version:LongSpreadValue')
+  expect(a.shortSpreadValue._value).to.equal(b.shortSpreadValue._value, 'Version:ShortSpreadValue')
   expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
   expect(a.liquidationFee._value).to.equal(b.liquidationFee._value, 'Version:LiquidationFee')
 }
@@ -329,14 +346,22 @@ export const DEFAULT_GUARANTEE: Guarantee = {
 export const DEFAULT_VERSION: Version = {
   valid: true,
   price: 0,
+  makerPosExposure: 0,
+  makerNegExposure: 0,
+  longPosExposure: 0,
+  longNegExposure: 0,
+  shortPosExposure: 0,
+  shortNegExposure: 0,
   makerValue: { _value: 0 },
   longValue: { _value: 0 },
   shortValue: { _value: 0 },
   makerFee: { _value: 0 },
   takerFee: { _value: 0 },
-  makerOffset: { _value: 0 },
-  takerPosOffset: { _value: 0 },
-  takerNegOffset: { _value: 0 },
+  spreadPos: { _value: 0 },
+  spreadNeg: { _value: 0 },
+  makerSpreadValue: { _value: 0 },
+  longSpreadValue: { _value: 0 },
+  shortSpreadValue: { _value: 0 },
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
 }
