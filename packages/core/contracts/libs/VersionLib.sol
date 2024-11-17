@@ -179,7 +179,6 @@ library VersionLib {
 
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
-
         return _return(context, result, next);
     }
 
@@ -311,6 +310,9 @@ library VersionLib {
             closedPosition,
             Fixed6Lib.from(1, exposurePos)
         );
+        result.spreadMaker = spreadMakerPos;
+        result.spreadLong = spreadLongPos;
+        result.spreadShort = spreadShortPos;
         result.spreadPos = spreadMakerPos.add(spreadLongPos).add(spreadShortPos);
         next.spreadPos.decrement(result.spreadPos, exposurePos);
 
@@ -324,6 +326,9 @@ library VersionLib {
             closedPosition,
             Fixed6Lib.from(-1, exposureNeg)
         );
+        result.spreadMaker = result.spreadMaker.add(spreadMakerNeg);
+        result.spreadLong = result.spreadLong.add(spreadLongNeg);
+        result.spreadShort = result.spreadShort.add(spreadShortNeg);
         result.spreadNeg = spreadMakerNeg.add(spreadLongNeg).add(spreadShortNeg);
         next.spreadNeg.decrement(result.spreadNeg, exposureNeg);
     }
@@ -344,6 +349,8 @@ library VersionLib {
         Position memory toPosition,
         Fixed6 exposure
     ) internal pure returns (Fixed6 spreadMaker, Fixed6 spreadLong, Fixed6 spreadShort) {
+        if (exposure.isZero()) return (Fixed6Lib.ZERO, Fixed6Lib.ZERO, Fixed6Lib.ZERO);
+
         // compute spread
         Fixed6 spread = context.riskParameter.synBook.compute(
             context.fromPosition.skew(),
@@ -375,7 +382,7 @@ library VersionLib {
         );
 
         spreadMaker = spread.sub(spreadLong).sub(spreadShort);
-        next.makerSpreadValue.increment(spreadMaker, closedPosition.maker);
+        next.makerSpreadValue.increment(spreadMaker, closedPosition.maker); // TODO: can leftover cause non-zero maker spread w/ zero maker? (divide-by-zero)
     }
 
     /// @notice Calculates and applies the accumulated spread component for one side of the market

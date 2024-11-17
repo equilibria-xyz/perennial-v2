@@ -141,6 +141,7 @@ describe('Version', () => {
         riskParameter,
         global,
         latestPositionGlobal: fromPosition,
+        latestOracleVersion: fromOracleVersion,
       },
       {
         ...DEFAULT_SETTLEMENT_CONTEXT,
@@ -935,15 +936,15 @@ describe('Version', () => {
         )
 
         expect(value.valid).to.be.true
-        expect(value.makerValue._value).to.equal(BigNumber.from('14760000').add(1))
+        expect(value.makerValue._value).to.equal(1)
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
         expect(ret.tradeFee).to.equal(BigNumber.from('12300000'))
-        expect(ret.subtractiveFee).to.equal(BigNumber.from('12300000'))
-        expect(ret.spreadPos).to.equal(0)
+        expect(ret.subtractiveFee).to.equal(0)
+        expect(ret.spreadPos).to.equal(BigNumber.from('14851225'))
         expect(ret.spreadNeg).to.equal(0)
-        expect(ret.spreadMaker).to.equal(0)
+        expect(ret.spreadMaker).to.equal(BigNumber.from('14851225'))
         expect(ret.spreadLong).to.equal(0)
         expect(ret.spreadShort).to.equal(0)
         expect(ret.fundingMaker).to.equal(0)
@@ -1162,8 +1163,8 @@ describe('Version', () => {
             orders: orderCount,
             makerNeg: parse6decimal('3'),
             longPos: parse6decimal('6'),
-            shortPos: parse6decimal('5'),
-            shortNeg: parse6decimal('9'),
+            shortPos: parse6decimal('9'),
+            shortNeg: parse6decimal('5'),
           },
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
@@ -1189,8 +1190,8 @@ describe('Version', () => {
             orders: orderCount,
             makerNeg: parse6decimal('3'),
             longPos: parse6decimal('6'),
-            shortPos: parse6decimal('5'),
-            shortNeg: parse6decimal('9'),
+            shortPos: parse6decimal('9'),
+            shortNeg: parse6decimal('5'),
           },
           { ...DEFAULT_GUARANTEE, orders: guaranteeCount },
           { ...ORACLE_VERSION_1 },

@@ -471,16 +471,12 @@ describe('Market', () => {
     riskParameter = {
       margin: parse6decimal('0.35'),
       maintenance: parse6decimal('0.3'),
-      takerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        adiabaticFee: 0,
+      synBook: {
+        d0: 0,
+        d1: 0,
+        d2: 0,
+        d3: 0,
         scale: parse6decimal('5.000'),
-      },
-      makerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        scale: parse6decimal('10.000'),
       },
       makerLimit: parse6decimal('1000'),
       efficiencyLimit: parse6decimal('0.2'),
@@ -570,13 +566,11 @@ describe('Market', () => {
       const riskParameterResult = await market.riskParameter()
       expect(riskParameterResult.margin).to.equal(0)
       expect(riskParameterResult.maintenance).to.equal(0)
-      expect(riskParameterResult.takerFee.linearFee).to.equal(0)
-      expect(riskParameterResult.takerFee.proportionalFee).to.equal(0)
-      expect(riskParameterResult.takerFee.adiabaticFee).to.equal(0)
-      expect(riskParameterResult.takerFee.scale).to.equal(0)
-      expect(riskParameterResult.makerFee.linearFee).to.equal(0)
-      expect(riskParameterResult.makerFee.proportionalFee).to.equal(0)
-      expect(riskParameterResult.makerFee.scale).to.equal(0)
+      expect(riskParameterResult.synBook.d0).to.equal(0)
+      expect(riskParameterResult.synBook.d1).to.equal(0)
+      expect(riskParameterResult.synBook.d2).to.equal(0)
+      expect(riskParameterResult.synBook.d3).to.equal(0)
+      expect(riskParameterResult.synBook.scale).to.equal(0)
       expect(riskParameterResult.makerLimit).to.equal(0)
       expect(riskParameterResult.efficiencyLimit).to.equal(0)
       expect(riskParameterResult.liquidationFee).to.equal(0)
@@ -731,16 +725,12 @@ describe('Market', () => {
       const defaultRiskParameter = {
         margin: parse6decimal('0.5'),
         maintenance: parse6decimal('0.4'),
-        takerFee: {
-          linearFee: parse6decimal('0.01'),
-          proportionalFee: parse6decimal('0.004'),
-          adiabaticFee: parse6decimal('0.003'),
+        synBook: {
+          d0: parse6decimal('0.01'),
+          d1: parse6decimal('0.02'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.003'),
           scale: parse6decimal('50.00'),
-        },
-        makerFee: {
-          linearFee: parse6decimal('0.005'),
-          proportionalFee: parse6decimal('0.001'),
-          scale: parse6decimal('100.00'),
         },
         makerLimit: parse6decimal('2000'),
         efficiencyLimit: parse6decimal('0.2'),
@@ -771,13 +761,11 @@ describe('Market', () => {
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
-        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
-        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
-        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
-        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
-        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
-        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
-        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
+        expect(riskParameter.synBook.d0).to.equal(defaultRiskParameter.synBook.d0)
+        expect(riskParameter.synBook.d1).to.equal(defaultRiskParameter.synBook.d1)
+        expect(riskParameter.synBook.d2).to.equal(defaultRiskParameter.synBook.d2)
+        expect(riskParameter.synBook.d3).to.equal(defaultRiskParameter.synBook.d3)
+        expect(riskParameter.synBook.scale).to.equal(defaultRiskParameter.synBook.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
@@ -805,13 +793,11 @@ describe('Market', () => {
         const riskParameter = await market.riskParameter()
         expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
         expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
-        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
-        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
-        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
-        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
-        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
-        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
-        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
+        expect(riskParameter.synBook.d0).to.equal(defaultRiskParameter.synBook.d0)
+        expect(riskParameter.synBook.d1).to.equal(defaultRiskParameter.synBook.d1)
+        expect(riskParameter.synBook.d2).to.equal(defaultRiskParameter.synBook.d2)
+        expect(riskParameter.synBook.d3).to.equal(defaultRiskParameter.synBook.d3)
+        expect(riskParameter.synBook.scale).to.equal(defaultRiskParameter.synBook.scale)
         expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
         expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
         expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
@@ -827,477 +813,6 @@ describe('Market', () => {
         expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
         expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
         expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
-      })
-
-      it('updates the parameters w/ fee', async () => {
-        // setup market with POSITION skew
-        await market.connect(owner).updateParameter(marketParameter)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
-
-        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        await settle(market, user)
-        await settle(market, userB)
-
-        // test the risk parameter update
-        await market.connect(owner).updateParameter(await market.parameter())
-        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
-          market,
-          'RiskParameterUpdated',
-        )
-
-        // before = 0
-        // after = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
-        // after = (0.20 + 0) / 2 * 0.003 * 10 * 123 = 0.369
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 1,
-          latestId: 1,
-          exposure: BigNumber.from(0).sub(parse6decimal('0.369')),
-          latestPrice: PRICE,
-        })
-
-        const riskParameter = await market.riskParameter()
-        expect(riskParameter.margin).to.equal(defaultRiskParameter.margin)
-        expect(riskParameter.maintenance).to.equal(defaultRiskParameter.maintenance)
-        expect(riskParameter.takerFee.linearFee).to.equal(defaultRiskParameter.takerFee.linearFee)
-        expect(riskParameter.takerFee.proportionalFee).to.equal(defaultRiskParameter.takerFee.proportionalFee)
-        expect(riskParameter.takerFee.adiabaticFee).to.equal(defaultRiskParameter.takerFee.adiabaticFee)
-        expect(riskParameter.takerFee.scale).to.equal(defaultRiskParameter.takerFee.scale)
-        expect(riskParameter.makerFee.linearFee).to.equal(defaultRiskParameter.makerFee.linearFee)
-        expect(riskParameter.makerFee.proportionalFee).to.equal(defaultRiskParameter.makerFee.proportionalFee)
-        expect(riskParameter.makerFee.scale).to.equal(defaultRiskParameter.makerFee.scale)
-        expect(riskParameter.makerLimit).to.equal(defaultRiskParameter.makerLimit)
-        expect(riskParameter.efficiencyLimit).to.equal(defaultRiskParameter.efficiencyLimit)
-        expect(riskParameter.liquidationFee).to.equal(defaultRiskParameter.liquidationFee)
-        expect(riskParameter.utilizationCurve.minRate).to.equal(defaultRiskParameter.utilizationCurve.minRate)
-        expect(riskParameter.utilizationCurve.targetRate).to.equal(defaultRiskParameter.utilizationCurve.targetRate)
-        expect(riskParameter.utilizationCurve.maxRate).to.equal(defaultRiskParameter.utilizationCurve.maxRate)
-        expect(riskParameter.utilizationCurve.targetUtilization).to.equal(
-          defaultRiskParameter.utilizationCurve.targetUtilization,
-        )
-        expect(riskParameter.pController.k).to.equal(defaultRiskParameter.pController.k)
-        expect(riskParameter.pController.max).to.equal(defaultRiskParameter.pController.max)
-        expect(riskParameter.minMargin).to.equal(defaultRiskParameter.minMargin)
-        expect(riskParameter.minMaintenance).to.equal(defaultRiskParameter.minMaintenance)
-        expect(riskParameter.staleAfter).to.equal(defaultRiskParameter.staleAfter)
-        expect(riskParameter.makerReceiveOnly).to.equal(defaultRiskParameter.makerReceiveOnly)
-      })
-
-      it('incurs exposure adding adiabatic fee with no maker position', async () => {
-        // setup from #update
-        await market.connect(owner).updateParameter(marketParameter)
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        // setup from maker - userB establishes maker position
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
-        await market
-          .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userB.address,
-            parse6decimal('10'),
-            0,
-            0,
-            parse6decimal('450'),
-            false,
-          )
-        // user establishes long position
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            user.address,
-            0,
-            parse6decimal('6'),
-            0,
-            COLLATERAL,
-            false,
-          )
-        // userC establishes short position
-        dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(userC)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userC.address,
-            0,
-            0,
-            parse6decimal('12'),
-            COLLATERAL,
-            false,
-          )
-
-        // update oracle and settle positions
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
-        oracle.request.returns()
-        await settle(market, user)
-        await settle(market, userB)
-        await settle(market, userC)
-        expectPositionEq(await market.position(), {
-          ...DEFAULT_POSITION,
-          timestamp: ORACLE_VERSION_2.timestamp,
-          maker: parse6decimal('10'),
-          long: parse6decimal('6'),
-          short: parse6decimal('12'),
-        })
-
-        // price drops, undercollateralizing the maker position
-        let oracleVersion = {
-          price: parse6decimal('45'),
-          timestamp: TIMESTAMP + 3600 * 2,
-          valid: true,
-        }
-        oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([oracleVersion, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
-        oracle.request.returns()
-        await settle(market, user)
-
-        // userB gets liquidated, eliminating the maker position
-        const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
-        dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-        dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-        await expect(
-          market
-            .connect(liquidator)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-        )
-          .to.emit(market, 'OrderCreated')
-          .withArgs(
-            userB.address,
-            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION, protection: 1 },
-            { ...DEFAULT_GUARANTEE },
-            liquidator.address,
-            constants.AddressZero,
-            constants.AddressZero,
-          )
-        oracleVersion = {
-          ...oracleVersion,
-          timestamp: TIMESTAMP + 3600 * 3,
-        }
-        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
-        oracle.request.returns()
-        await settle(market, userB)
-        expectPositionEq(await market.position(), {
-          ...DEFAULT_POSITION,
-          timestamp: ORACLE_VERSION_4.timestamp,
-          maker: parse6decimal('0'),
-          long: parse6decimal('6'),
-          short: parse6decimal('12'),
-        })
-
-        // takerFee.scale=5, makerFee.scale=10, skew=-6, scaledSkew=-6/5 bounded by (-1,1)=-1
-        // takerSoc = min(max(long,short), min(long,short)+maker) = 12
-        // rate_0 = 0
-        // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -1 / 40000 = -0.09
-        // funding = (rate_0 + rate_1) / 2 * elapsed * takerSoc * price / time_in_years
-        // (0 + -0.09)/2 * 3600 * 12 * 123 / (86400 * 365)
-        const EXPECTED_FUNDING_1 = BigNumber.from(-7582) // −0.007582
-        const EXPECTED_FUNDING_FEE_1 = BigNumber.from(758) // |funding| * fundingFee
-        // net         = max(long,short) / (maker+min(long,short)) = 12/(10+6) = 0.75
-        // efficiency  = max(long,short) * efficiencyLimit / maker = 12*0.2/10 = 0.24
-        // utilization = max(net, efficiency) with ceiling of 1    = 0.75
-        // rate * elapsed * min(maker, taker) * price
-        // (0.55 / 365/24/60/60) * 3600 * 10 * 123 = 0.077226
-        const EXPECTED_INTEREST_1 = BigNumber.from(77226)
-        const EXPECTED_INTEREST_FEE_1 = EXPECTED_INTEREST_1.div(10) // 7722
-
-        // rate_2 = rate_1 + (elapsed * scaledSkew / k) = -0.09 + 3600 * -1 / 40000 = -0.18
-        // (-0.09 + -0.18)/2 * 3600 * 12 * 45 / (86400 * 365)
-        const EXPECTED_FUNDING_2 = BigNumber.from(-8321) // −0.008321
-        const EXPECTED_FUNDING_FEE_2 = BigNumber.from(832) // |funding| * fundingFee
-        // (0.55 / 365/24/60/60) * 3600 * 10 * 45 = 0.028253
-        const EXPECTED_INTEREST_2 = BigNumber.from(28253)
-        const EXPECTED_INTEREST_FEE_2 = EXPECTED_INTEREST_2.div(10) // 2825
-        let totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_1)
-          .add(EXPECTED_FUNDING_FEE_2)
-          .add(EXPECTED_INTEREST_FEE_2)
-
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 2,
-          latestId: 2,
-          protocolFee: totalFee.mul(8).div(10).add(3), // loss of precision
-          oracleFee: totalFee.div(10), // loss of precision
-          riskFee: totalFee.div(10).sub(1), // loss of precision
-          exposure: 0,
-          latestPrice: parse6decimal('45'),
-        })
-
-        // update risk parameters, introducing exposure
-        await expect(market.connect(owner).updateRiskParameter(defaultRiskParameter)).to.emit(
-          market,
-          'RiskParameterUpdated',
-        )
-
-        // maker exposure is 0, so
-        // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1] + makerExposure
-        //                = [(-6/50+0)/2 * 0.003 * -6] + 0 = 0.00108
-        // impactExposure = latestExposure * priceChange = 0.00108 * (45-0) = 0.0486
-        const EXPOSURE_BEFORE_2 = BigNumber.from(0)
-        const EXPOSURE_AFTER_2 = BigNumber.from(0).sub(parse6decimal('0.0486'))
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 2,
-          latestId: 2,
-          protocolFee: totalFee.mul(8).div(10).add(3), // loss of precision
-          oracleFee: totalFee.div(10),
-          riskFee: totalFee.div(10).sub(1), // loss of precision
-          exposure: EXPOSURE_BEFORE_2.add(EXPOSURE_AFTER_2),
-          latestPrice: parse6decimal('45'),
-        })
-
-        // settle after another oracle price update to ensure exposure changes as expected
-        oracleVersion = {
-          ...oracleVersion,
-          price: parse6decimal('62'),
-          timestamp: TIMESTAMP + 3600 * 4,
-        }
-        oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
-        oracle.request.returns()
-        await settle(market, user)
-
-        // rate_3 = rate_2 + (elapsed * scaledSkew / k) = -0.18 + 3600 * -1 / 40000 = −0.27
-        // (-0.18 + -0.27)/2 * 3600 * 6 * 45 / (86400 * 365) = −0.006934
-        const EXPECTED_FUNDING_3 = BigNumber.from(-6934)
-        const EXPECTED_FUNDING_FEE_3 = BigNumber.from(693) // |funding| * fundingFee
-        // no EXPECTED_INTEREST_FEE_3 because no position change
-        totalFee = totalFee.add(EXPECTED_FUNDING_FEE_3)
-
-        // impactExposure = latestExposure * priceChange = 0.00108 * (62-45) =
-        const EXPOSURE_BEFORE_3 = EXPOSURE_AFTER_2
-        const EXPOSURE_AFTER_3 = BigNumber.from(0).sub(parse6decimal('0.01836'))
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 2,
-          latestId: 2,
-          protocolFee: totalFee.mul(8).div(10).add(3), // loss of precision
-          oracleFee: totalFee.div(10).sub(1), // loss of precision
-          riskFee: totalFee.div(10).sub(2), // loss of precision
-          exposure: EXPOSURE_BEFORE_3.add(EXPOSURE_AFTER_3),
-          latestPrice: parse6decimal('62'),
-        })
-      })
-
-      it('incurs exposure adding adiabatic fee with no maker position (w/ rounding)', async () => {
-        // setup from #update
-        await market.connect(owner).updateParameter(marketParameter)
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        // setup from maker - userB establishes maker position
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
-        await market
-          .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userB.address,
-            parse6decimal('10'),
-            0,
-            0,
-            parse6decimal('450'),
-            false,
-          )
-        // user establishes long position
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            user.address,
-            0,
-            parse6decimal('6'),
-            0,
-            COLLATERAL,
-            false,
-          )
-        // userC establishes short position
-        dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(userC)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userC.address,
-            0,
-            0,
-            parse6decimal('12'),
-            COLLATERAL,
-            false,
-          )
-
-        // update oracle and settle positions
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp]) // TIMESTAMP + 1 hour
-        oracle.request.returns()
-        await settle(market, user)
-        await settle(market, userB)
-        await settle(market, userC)
-        expectPositionEq(await market.position(), {
-          ...DEFAULT_POSITION,
-          timestamp: ORACLE_VERSION_2.timestamp,
-          maker: parse6decimal('10'),
-          long: parse6decimal('6'),
-          short: parse6decimal('12'),
-        })
-
-        // price drops, undercollateralizing the maker position
-        let oracleVersion = {
-          price: parse6decimal('45'),
-          timestamp: TIMESTAMP + 3600 * 2,
-          valid: true,
-        }
-        oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([oracleVersion, ORACLE_VERSION_4.timestamp]) // TIMESTAMP + 3 hours
-        oracle.request.returns()
-        await settle(market, user)
-
-        // userB gets liquidated, eliminating the maker position
-        const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
-        dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-        dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-        await expect(
-          market
-            .connect(liquidator)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-        )
-          .to.emit(market, 'OrderCreated')
-          .withArgs(
-            userB.address,
-            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION, protection: 1 },
-            { ...DEFAULT_GUARANTEE },
-            liquidator.address,
-            constants.AddressZero,
-            constants.AddressZero,
-          )
-        oracleVersion = {
-          ...oracleVersion,
-          timestamp: TIMESTAMP + 3600 * 3,
-        }
-        oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([oracleVersion, ORACLE_VERSION_5.timestamp])
-        oracle.request.returns()
-        await settle(market, userB)
-        expectPositionEq(await market.position(), {
-          ...DEFAULT_POSITION,
-          timestamp: ORACLE_VERSION_4.timestamp,
-          maker: parse6decimal('0'),
-          long: parse6decimal('6'),
-          short: parse6decimal('12'),
-        })
-
-        // takerFee.scale=5, makerFee.scale=10, skew=-6, scaledSkew=-6/5 bounded by (-1,1)=-1
-        // takerSoc = min(max(long,short), min(long,short)+maker) = 12
-        // rate_0 = 0
-        // rate_1 = rate_0 + (elapsed * scaledSkew / k) = 3600 * -1 / 40000 = -0.09
-        // funding = (rate_0 + rate_1) / 2 * elapsed * takerSoc * price / time_in_years
-        // (0 + -0.09)/2 * 3600 * 12 * 123 / (86400 * 365)
-        const EXPECTED_FUNDING_1 = BigNumber.from(-7582) // −0.007582
-        const EXPECTED_FUNDING_FEE_1 = BigNumber.from(758) // |funding| * fundingFee
-        // net         = max(long,short) / (maker+min(long,short)) = 12/(10+6) = 0.75
-        // efficiency  = max(long,short) * efficiencyLimit / maker = 12*0.2/10 = 0.24
-        // utilization = max(net, efficiency) with ceiling of 1    = 0.75
-        // rate * elapsed * min(maker, taker) * price
-        // (0.55 / 365/24/60/60) * 3600 * 10 * 123 = 0.077226
-        const EXPECTED_INTEREST_1 = BigNumber.from(77226)
-        const EXPECTED_INTEREST_FEE_1 = EXPECTED_INTEREST_1.div(10) // 7722
-
-        // rate_2 = rate_1 + (elapsed * scaledSkew / k) = -0.09 + 3600 * -1 / 40000 = -0.18
-        // (-0.09 + -0.18)/2 * 3600 * 12 * 45 / (86400 * 365)
-        const EXPECTED_FUNDING_2 = BigNumber.from(-8321) // −0.008321
-        const EXPECTED_FUNDING_FEE_2 = BigNumber.from(832) // |funding| * fundingFee
-        // (0.55 / 365/24/60/60) * 3600 * 10 * 45 = 0.028253
-        const EXPECTED_INTEREST_2 = BigNumber.from(28253)
-        const EXPECTED_INTEREST_FEE_2 = EXPECTED_INTEREST_2.div(10) // 2825
-        let totalFee = EXPECTED_FUNDING_FEE_1.add(EXPECTED_INTEREST_FEE_1)
-          .add(EXPECTED_FUNDING_FEE_2)
-          .add(EXPECTED_INTEREST_FEE_2)
-
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 2,
-          latestId: 2,
-          protocolFee: totalFee.mul(8).div(10).add(3), // loss of precision
-          oracleFee: totalFee.div(10),
-          riskFee: totalFee.div(10).sub(1), // loss of precision
-          exposure: 0,
-          latestPrice: parse6decimal('45'),
-        })
-
-        // update risk parameters, introducing exposure
-        await expect(
-          market.connect(owner).updateRiskParameter({
-            ...defaultRiskParameter,
-            takerFee: { ...defaultRiskParameter.takerFee, scale: parse6decimal('50.5') },
-          }),
-        ).to.emit(market, 'RiskParameterUpdated')
-
-        // maker exposure is 0, so
-        // latestExposure = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * 1] + makerExposure
-        //                = [(-6/50+0)/2 * 0.003 * -6] + 0 = 0.00108
-        // impactExposure = latestExposure * priceChange = 0.00108 * (45-0) = 0.0486
-        const EXPOSURE_BEFORE_2 = BigNumber.from(0)
-        const EXPOSURE_AFTER_2 = BigNumber.from(0).sub(parse6decimal('0.0486'))
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 2,
-          latestId: 2,
-          protocolFee: totalFee.mul(8).div(10).add(3), // loss of precision
-          oracleFee: totalFee.div(10),
-          riskFee: totalFee.div(10).sub(1), // loss of precision
-          exposure: EXPOSURE_BEFORE_2.add(EXPOSURE_AFTER_2),
-          latestPrice: parse6decimal('45'),
-        })
-
-        // settle after another oracle price update to ensure exposure changes as expected
-        oracleVersion = {
-          ...oracleVersion,
-          price: parse6decimal('62'),
-          timestamp: TIMESTAMP + 3600 * 4,
-        }
-        oracle.at.whenCalledWith(ORACLE_VERSION_5.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([oracleVersion, ORACLE_VERSION_6.timestamp])
-        oracle.request.returns()
-        await settle(market, user)
-
-        // rate_3 = rate_2 + (elapsed * scaledSkew / k) = -0.18 + 3600 * -1 / 40000 = −0.27
-        // (-0.18 + -0.27)/2 * 3600 * 6 * 45 / (86400 * 365) = −0.006934
-        const EXPECTED_FUNDING_3 = BigNumber.from(-6934)
-        const EXPECTED_FUNDING_FEE_3 = BigNumber.from(693) // |funding| * fundingFee
-        // no EXPECTED_INTEREST_FEE_3 because no position change
-        totalFee = totalFee.add(EXPECTED_FUNDING_FEE_3)
-
-        // impactExposure = latestExposure * priceChange = 0.00108 * (62-45) =
-        const EXPOSURE_BEFORE_3 = EXPOSURE_AFTER_2
-        const EXPOSURE_AFTER_3 = BigNumber.from(0).sub(parse6decimal('0.01836'))
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 2,
-          latestId: 2,
-          protocolFee: totalFee.mul(8).div(10).add(3), // loss of precision
-          oracleFee: totalFee.div(10).sub(1), // loss of precision
-          riskFee: totalFee.div(10).sub(2), // loss of precision
-          exposure: EXPOSURE_BEFORE_3.add(EXPOSURE_AFTER_3),
-          latestPrice: parse6decimal('62'),
-        })
       })
 
       it('reverts if not owner or coordinator', async () => {

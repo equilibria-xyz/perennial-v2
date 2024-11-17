@@ -125,9 +125,9 @@ library PositionLib {
     /// @return The short exposure percentage
     function exposure(Position memory self) internal pure returns (Fixed6, UFixed6, UFixed6) {
         return (
-            makerSocialized(self).div(Fixed6Lib.from(self.maker)),
-            longSocialized(self).div(self.long),
-            shortSocialized(self).div(self.short)
+            makerSocialized(self).unsafeDiv(Fixed6Lib.from(self.maker)),
+            longSocialized(self).unsafeDiv(self.long),
+            shortSocialized(self).unsafeDiv(self.short)
         );
     }
 
