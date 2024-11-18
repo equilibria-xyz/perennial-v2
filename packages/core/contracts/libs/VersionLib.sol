@@ -270,7 +270,7 @@ library VersionLib {
         Version memory next,
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
-    ) private pure {
+    ) private view {
         UFixed6 makerFee = context.order.makerTotal()
             .mul(context.toOracleVersion.price.abs())
             .mul(context.marketParameter.makerFee);
@@ -287,6 +287,9 @@ library VersionLib {
         UFixed6 takerSubtractiveFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
             takerFee.muldiv(context.order.takerReferral, takerTotal);
+
+        // console.log(" makerReferral %s for makerTotal %s", UFixed6.unwrap(makerSubtractiveFee), UFixed6.unwrap(context.order.makerTotal()));
+        // console.log(" takerReferral %s for takerTotal %s", UFixed6.unwrap(takerSubtractiveFee), UFixed6.unwrap(takerTotal));
 
         result.tradeFee = result.tradeFee.add(makerFee).add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee);
         result.subtractiveFee = result.subtractiveFee.add(makerSubtractiveFee).add(takerSubtractiveFee);
@@ -323,10 +326,10 @@ library VersionLib {
         // console.log("   makerTotal %s takerPos %s takerNeg %s",
         //     UFixed6.unwrap(context.order.makerTotal()), UFixed6.unwrap(takerPos), UFixed6.unwrap(takerNeg)
         // );
-        // console.log("  makerLinearFee %s takerPosLinearFee %s takerNegLinearFee %s",
-        //     UFixed6.unwrap(makerLinearFee), UFixed6.unwrap(takerPosLinearFee), UFixed6.unwrap(takerNegLinearFee)
-        // );
-        console.log("  takerPosTotal %s takerNegTotal %s", UFixed6.unwrap(takerPosTotal), UFixed6.unwrap(takerNegTotal));
+        console.log("  makerLinearFee %s takerPosLinearFee %s takerNegLinearFee %s",
+            UFixed6.unwrap(makerLinearFee), UFixed6.unwrap(takerPosLinearFee), UFixed6.unwrap(takerNegLinearFee)
+        );
+        // console.log("  takerPosTotal %s takerNegTotal %s", UFixed6.unwrap(takerPosTotal), UFixed6.unwrap(takerNegTotal));
 
         UFixed6 linearFee = makerLinearFee.add(takerPosLinearFee).add(takerNegLinearFee);
         UFixed6 marketFee = context.fromPosition.maker.isZero() ? linearFee : UFixed6Lib.ZERO;
@@ -371,9 +374,9 @@ library VersionLib {
         // console.log("   makerTotal %s takerPos %s takerNeg %s",
         //     UFixed6.unwrap(context.order.makerTotal()), UFixed6.unwrap(takerPos), UFixed6.unwrap(takerNeg)
         // );
-        // console.log("  makerProportionalFee %s takerPosProportionalFee %s takerNegProportionalFee %s",
-        //     UFixed6.unwrap(makerProportionalFee), UFixed6.unwrap(takerPosProportionalFee), UFixed6.unwrap(takerNegProportionalFee)
-        // );
+        console.log("  makerProportionalFee %s takerPosProportionalFee %s takerNegProportionalFee %s",
+            UFixed6.unwrap(makerProportionalFee), UFixed6.unwrap(takerPosProportionalFee), UFixed6.unwrap(takerNegProportionalFee)
+        );
 
         UFixed6 proportionalFee = makerProportionalFee.add(takerPosProportionalFee).add(takerNegProportionalFee);
         UFixed6 marketFee = context.fromPosition.maker.isZero() ? proportionalFee : UFixed6Lib.ZERO;
@@ -399,29 +402,32 @@ library VersionLib {
 
         // position fee from positive skew taker orders
         UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos);
-        console.log("   calc adiabaticFee for takerPos %s skew", UFixed6.unwrap(takerPos));
+        // console.log("   calc adiabaticFee for takerPos %s skew", UFixed6.unwrap(takerPos));
         console.logInt(Fixed6.unwrap(context.fromPosition.skew()));
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew(),
             Fixed6Lib.from(takerPos),
             context.toOracleVersion.price.abs()
         );
+        console.logInt(Fixed6.unwrap(adiabaticFee));
         next.takerPosOffset.decrement(adiabaticFee, takerPos);
         result.tradeOffset = result.tradeOffset.add(adiabaticFee);
 
         // position fee from negative skew taker orders
         UFixed6 takerNeg = context.order.takerNeg().sub(context.guarantee.takerNeg);
-        console.log("   calc adiabaticFee for takerNeg %s skew+takerPos", UFixed6.unwrap(takerNeg));
+        console.log("   calc adiabaticFee for takerNeg %s skew+takerPos, -1*takerNeg", UFixed6.unwrap(takerNeg));
         console.logInt(Fixed6.unwrap(context.fromPosition.skew().add(Fixed6Lib.from(takerPos))));
+        console.logInt(Fixed6.unwrap(Fixed6Lib.from(-1, takerNeg)));
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew().add(Fixed6Lib.from(takerPos)),
             Fixed6Lib.from(-1, takerNeg),
             context.toOracleVersion.price.abs()
         );
+        console.logInt(Fixed6.unwrap(adiabaticFee));
         next.takerNegOffset.decrement(adiabaticFee, takerNeg);
         result.tradeOffset = result.tradeOffset.add(adiabaticFee);
 
-        console.log("  takerPos %s takerNeg %s", UFixed6.unwrap(takerPos), UFixed6.unwrap(takerNeg));
+        // console.log("  takerPos %s takerNeg %s", UFixed6.unwrap(takerPos), UFixed6.unwrap(takerNeg));
     }
 
     /// @notice Globally accumulates single component of the position fees exposure since last oracle update
@@ -434,7 +440,10 @@ library VersionLib {
         VersionAccumulationResult memory result
     ) private view {
         Fixed6 exposure = context.riskParameter.takerFee.exposure(context.fromPosition.skew());
-        console.log("  exposure %s for skew %s", UFixed6.unwrap(exposure.abs()), UFixed6.unwrap(context.fromPosition.skew().abs()));
+        /*console.log("  exposure");
+        console.logInt(Fixed6.unwrap(exposure));
+        console.log("  for skew");
+        console.logInt(Fixed6.unwrap(context.fromPosition.skew()));*/
 
         Fixed6 adiabaticExposure = context.toOracleVersion.price.sub(context.fromOracleVersion.price).mul(exposure);
         Fixed6 adiabaticExposureMaker = adiabaticExposure.mul(Fixed6Lib.NEG_ONE);
@@ -561,11 +570,11 @@ library VersionLib {
         pnlShort = context.fromOracleVersion.price.sub(context.toOracleVersion.price)
             .mul(Fixed6Lib.from(context.fromPosition.shortSocialized()));
         pnlMaker = pnlLong.add(pnlShort).mul(Fixed6Lib.NEG_ONE);
-        console.log(" longSoc %s shortSoc %s -makerSoc %s",
+        /*console.log(" longSoc %s shortSoc %s -makerSoc %s",
             UFixed6.unwrap(context.fromPosition.longSocialized()),
             UFixed6.unwrap(context.fromPosition.shortSocialized()),
             UFixed6.unwrap(context.fromPosition.longSocialized().add(context.fromPosition.shortSocialized()))
-        );
+        );*/
 
         next.longValue.increment(pnlLong, context.fromPosition.long);
         next.shortValue.increment(pnlShort, context.fromPosition.short);
