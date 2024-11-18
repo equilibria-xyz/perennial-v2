@@ -290,6 +290,7 @@ library VersionLib {
 
         // console.log(" makerReferral %s for makerTotal %s", UFixed6.unwrap(makerSubtractiveFee), UFixed6.unwrap(context.order.makerTotal()));
         // console.log(" takerReferral %s for takerTotal %s", UFixed6.unwrap(takerSubtractiveFee), UFixed6.unwrap(takerTotal));
+        console.log(" makerFee %s takerFee %s", UFixed6.unwrap(makerFee), UFixed6.unwrap(takerFee));
 
         result.tradeFee = result.tradeFee.add(makerFee).add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee);
         result.subtractiveFee = result.subtractiveFee.add(makerSubtractiveFee).add(takerSubtractiveFee);
@@ -326,9 +327,9 @@ library VersionLib {
         // console.log("   makerTotal %s takerPos %s takerNeg %s",
         //     UFixed6.unwrap(context.order.makerTotal()), UFixed6.unwrap(takerPos), UFixed6.unwrap(takerNeg)
         // );
-        console.log("  makerLinearFee %s takerPosLinearFee %s takerNegLinearFee %s",
-            UFixed6.unwrap(makerLinearFee), UFixed6.unwrap(takerPosLinearFee), UFixed6.unwrap(takerNegLinearFee)
-        );
+        // console.log("  makerLinearFee %s takerPosLinearFee %s takerNegLinearFee %s",
+        //     UFixed6.unwrap(makerLinearFee), UFixed6.unwrap(takerPosLinearFee), UFixed6.unwrap(takerNegLinearFee)
+        // );
         // console.log("  takerPosTotal %s takerNegTotal %s", UFixed6.unwrap(takerPosTotal), UFixed6.unwrap(takerNegTotal));
 
         UFixed6 linearFee = makerLinearFee.add(takerPosLinearFee).add(takerNegLinearFee);
@@ -374,9 +375,9 @@ library VersionLib {
         // console.log("   makerTotal %s takerPos %s takerNeg %s",
         //     UFixed6.unwrap(context.order.makerTotal()), UFixed6.unwrap(takerPos), UFixed6.unwrap(takerNeg)
         // );
-        console.log("  makerProportionalFee %s takerPosProportionalFee %s takerNegProportionalFee %s",
-            UFixed6.unwrap(makerProportionalFee), UFixed6.unwrap(takerPosProportionalFee), UFixed6.unwrap(takerNegProportionalFee)
-        );
+        // console.log("  makerProportionalFee %s takerPosProportionalFee %s takerNegProportionalFee %s",
+        //     UFixed6.unwrap(makerProportionalFee), UFixed6.unwrap(takerPosProportionalFee), UFixed6.unwrap(takerNegProportionalFee)
+        // );
 
         UFixed6 proportionalFee = makerProportionalFee.add(takerPosProportionalFee).add(takerNegProportionalFee);
         UFixed6 marketFee = context.fromPosition.maker.isZero() ? proportionalFee : UFixed6Lib.ZERO;
@@ -403,27 +404,27 @@ library VersionLib {
         // position fee from positive skew taker orders
         UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos);
         // console.log("   calc adiabaticFee for takerPos %s skew", UFixed6.unwrap(takerPos));
-        console.logInt(Fixed6.unwrap(context.fromPosition.skew()));
+        // console.logInt(Fixed6.unwrap(context.fromPosition.skew()));
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
             context.fromPosition.skew(),
             Fixed6Lib.from(takerPos),
             context.toOracleVersion.price.abs()
         );
-        console.logInt(Fixed6.unwrap(adiabaticFee));
+        // console.logInt(Fixed6.unwrap(adiabaticFee));
         next.takerPosOffset.decrement(adiabaticFee, takerPos);
         result.tradeOffset = result.tradeOffset.add(adiabaticFee);
 
         // position fee from negative skew taker orders
         UFixed6 takerNeg = context.order.takerNeg().sub(context.guarantee.takerNeg);
-        console.log("   calc adiabaticFee for takerNeg %s skew+takerPos, -1*takerNeg", UFixed6.unwrap(takerNeg));
-        console.logInt(Fixed6.unwrap(context.fromPosition.skew().add(Fixed6Lib.from(takerPos))));
-        console.logInt(Fixed6.unwrap(Fixed6Lib.from(-1, takerNeg)));
+        // console.log("   calc adiabaticFee for takerNeg %s skew+takerPos, -1*takerNeg", UFixed6.unwrap(takerNeg));
+        // console.logInt(Fixed6.unwrap(context.fromPosition.skew().add(Fixed6Lib.from(takerPos))));
+        // console.logInt(Fixed6.unwrap(Fixed6Lib.from(-1, takerNeg)));
         adiabaticFee = context.riskParameter.takerFee.adiabatic(
-            context.fromPosition.skew().add(Fixed6Lib.from(takerPos)),
-            Fixed6Lib.from(-1, takerNeg),
+            context.fromPosition.skew().add(Fixed6Lib.from(takerPos)), // latest
+            Fixed6Lib.from(-1, takerNeg),                              // change
             context.toOracleVersion.price.abs()
         );
-        console.logInt(Fixed6.unwrap(adiabaticFee));
+        // console.logInt(Fixed6.unwrap(adiabaticFee));
         next.takerNegOffset.decrement(adiabaticFee, takerNeg);
         result.tradeOffset = result.tradeOffset.add(adiabaticFee);
 
