@@ -55,7 +55,7 @@ library GlobalLib {
         RiskParameter memory latestRiskParameter,
         RiskParameter memory newRiskParameter,
         Position memory latestPosition
-    ) internal view {
+    ) internal pure {
         Fixed6 exposureChange = latestRiskParameter.takerFee
             .exposure(newRiskParameter.takerFee, latestPosition.skew(), self.latestPrice.abs());
         self.exposure = self.exposure.sub(exposureChange);
