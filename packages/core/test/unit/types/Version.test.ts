@@ -1617,7 +1617,7 @@ describe('Version', () => {
         expect(ret.adiabaticExposureMaker).to.equal(-exposure)
       })
 
-      // TODO: add in referrals with guarantees
+      // TODO: add in guarantees
       it('allocates when makers and guarantees', async () => {
         await version.store(VALID_VERSION)
 
@@ -1633,8 +1633,8 @@ describe('Version', () => {
             longNeg: parse6decimal('8'), // -3 long -> 30 long,    ?? guarantee
             shortPos: parse6decimal('10'), //                      ?? guarantee
             shortNeg: parse6decimal('2'), // +8 short -> 48 short, ?? guarantee
-            makerReferral: parse6decimal('0'),
-            takerReferral: parse6decimal('0'),
+            makerReferral: parse6decimal('0.025'),
+            takerReferral: parse6decimal('0.0125'),
           },
           { ...DEFAULT_GUARANTEE /*takerPos: parse6decimal('40'), takerNeg: parse6decimal('40')*/ },
           { ...ORACLE_VERSION_1, price: parse6decimal('121') },
@@ -1668,16 +1668,15 @@ describe('Version', () => {
         const takerExposure = parse6decimal('0.0245') // 0 -> -7 / 100 = -3.5 / 100 = −0.035 * -7 * 0.1
         const exposure = takerExposure.mul(2) // price delta
 
-        // TODO: introduce subtractive fees
         // (makerpos+makerneg) * 0.02 * price = 10 * 0.02 * 123
         const makerFee = parse6decimal('24.6')
         // makerFee * makerReferral / makerTotal
-        //const makerSubtractiveFee = makerFee.mul(parse6decimal('0.025')).div(24).div(1e6)
+        const makerSubtractiveFee = makerFee.mul(parse6decimal('0.025')).div(10).div(1e6)
         // (longpos+longneg+shortpos+shortneg) * 0.01 * price = (13+12) * 0.01 * 123
         const takerFee = parse6decimal('30.75')
         // takerFee * takerReferral / takerTotal
-        //const takerSubtractiveFee = takerFee.mul(parse6decimal('0.0125')).div(37).div(1e6)
-        const fee = makerFee.add(takerFee) //.sub(makerSubtractiveFee).sub(takerSubtractiveFee)
+        const takerSubtractiveFee = takerFee.mul(parse6decimal('0.0125')).div(25).div(1e6)
+        const fee = makerFee.add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee)
 
         const linearMaker = parse6decimal('0.2') //    (makerpos+makerneg) * 0.02 = (10) * 0.02
         const linearTakerPos = parse6decimal('0.07') // (longpos+shortneg) * 0.01 = (7) * 0.01
