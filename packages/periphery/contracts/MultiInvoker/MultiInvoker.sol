@@ -44,14 +44,11 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @dev Reserve address
     IEmptySetReserve public immutable reserve;
 
-    /// @dev The fixed gas buffer that is added to the keeper fee
-    uint256 public immutable keepBufferBase;
+    /// @notice  DEPRECATED SLOT -- previously the UID of an order
+    bytes32 private __unused0__;
 
-    /// @dev The fixed gas buffer that is added to the calldata portion of the keeper fee
-    uint256 public immutable keepBufferCalldata;
-
-    /// @dev UID for an order
-    uint256 public latestNonce;
+    /// @notice  DEPRECATED SLOT -- previously UID to orders mapping
+    bytes32 private __unused1__;
 
     /// @dev Mapping of allowed operators for each account
     mapping(address => mapping(address => bool)) public operators;
@@ -66,17 +63,13 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param vaultFactory_ Protocol factory to validate vault approvals
     /// @param batcher_ Batcher address
     /// @param reserve_ Reserve address
-    /// @param keepBufferBase_ The fixed gas buffer that is added to the keeper fee
-    /// @param keepBufferCalldata_ The fixed calldata buffer that is added to the keeper fee
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IFactory marketFactory_,
         IFactory vaultFactory_,
         IBatcher batcher_,
-        IEmptySetReserve reserve_,
-        uint256 keepBufferBase_,
-        uint256 keepBufferCalldata_
+        IEmptySetReserve reserve_
     ) {
         USDC = usdc_;
         DSU = dsu_;
@@ -84,8 +77,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
         vaultFactory = vaultFactory_;
         batcher = batcher_;
         reserve = reserve_;
-        keepBufferBase = keepBufferBase_;
-        keepBufferCalldata = keepBufferCalldata_;
     }
 
     /// @notice Initialize the contract

@@ -50,7 +50,4 @@ interface IMultiInvoker {
     function vaultFactory() external view returns (IFactory);
     function batcher() external view returns (IBatcher);
     function reserve() external view returns (IEmptySetReserve);
-    function keepBufferBase() external view returns (uint256);
-    function keepBufferCalldata() external view returns (uint256);
-    function latestNonce() external view returns (uint256);
 }

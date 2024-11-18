@@ -130,7 +130,6 @@ export function RunInvokerTests(
       expect(await multiInvoker.reserve()).to.eq(instanceVars.dsuReserve.address)
       expect(await multiInvoker.USDC()).to.eq(usdc.address)
       expect(await multiInvoker.DSU()).to.eq(dsu.address)
-      expect(await multiInvoker.latestNonce()).to.eq(0)
     })
 
     it('initializes correctly', async () => {

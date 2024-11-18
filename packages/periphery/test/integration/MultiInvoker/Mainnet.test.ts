@@ -102,8 +102,6 @@ async function createInvoker(
     vaultFactory ? vaultFactory.address : constants.AddressZero,
     withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
     instanceVars.dsuReserve.address,
-    500_000,
-    500_000,
   )
 
   await configureInvoker(multiInvoker, instanceVars, vaultFactory)

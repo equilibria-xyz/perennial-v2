@@ -20,18 +20,14 @@ contract MultiInvoker_Optimism is MultiInvoker, Kept_Optimism {
         IFactory marketFactory_,
         IFactory vaultFactory_,
         IBatcher batcher_,
-        IEmptySetReserve reserve_,
-        uint256 keepBufferBase_,
-        uint256 keepBufferCalldata_
+        IEmptySetReserve reserve_
     ) MultiInvoker(
         usdc_,
         dsu_,
         marketFactory_,
         vaultFactory_,
         batcher_,
-        reserve_,
-        keepBufferBase_,
-        keepBufferCalldata_
+        reserve_
     ) { }
 
     /// @dev Use the Kept_Optimism implementation for calculating the dynamic fee
