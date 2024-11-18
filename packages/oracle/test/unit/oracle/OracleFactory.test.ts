@@ -212,20 +212,4 @@ describe('OracleFactory', () => {
       )
     })
   })
-
-  describe('#updateId', async () => {
-    it('updates max claim', async () => {
-      expect(await factory.ids(subOracleFactory.address)).to.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-      await factory.updateId(subOracleFactory.address, PYTH_ETH_USD_PRICE_FEED)
-      expect(await factory.ids(subOracleFactory.address)).to.equal(PYTH_ETH_USD_PRICE_FEED)
-    })
-
-    it('reverts if not owner', async () => {
-      await expect(
-        factory.connect(user).updateId(subOracleFactory.address, PYTH_ETH_USD_PRICE_FEED),
-      ).to.be.revertedWithCustomError(factory, 'OwnableNotOwnerError')
-    })
-  })
 })
