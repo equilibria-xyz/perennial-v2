@@ -109,19 +109,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The local pending guarantee for each id for each account
     mapping(address => mapping(uint256 => GuaranteeStorageLocal)) private _guarantees;
 
-    bytes32 public tempStorage; // Only doing this to test gas diffs on PR 488; please remove this line
-
-    bytes32 public constant tempLine1 = keccak256("Line 1: Only doing this to test gas diffs on PR 488; please remove this line");
-
-    bytes32 public constant tempLine2 = keccak256("Line 2: Only doing this to test gas diffs on PR 488; please remove this line");
-
-    bytes32 public constant tempLine3 = keccak256("Line 3: Only doing this to test gas diffs on PR 488; please remove this line");
-
     /// @dev Construct the contract implementation
     /// @param verifier_ The verifier contract to use
     constructor(IVerifier verifier_) {
         verifier = verifier_;
-        tempStorage = tempLine1;
     }
 
     /// @notice Initializes the contract state
@@ -148,7 +139,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _settle(context);
 
         _storeContext(context);
-        tempStorage = tempLine2;
     }
 
     /// @notice Updates both the long and short positions of an intent order
@@ -199,7 +189,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         address referrer
     ) external nonReentrant whenNotPaused {
-        tempStorage = tempLine3;
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
