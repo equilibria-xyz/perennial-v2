@@ -12,7 +12,7 @@ import {
   IMarket,
   IERC20Metadata,
 } from '../../../types/generated'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { IOracleProvider } from '@perennial/v2-oracle/types/generated'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -20,34 +20,37 @@ use(smock.matchers)
 describe('InsuranceFund', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
-  let operator: SignerWithAddress
-  let coordinator: SignerWithAddress
   let factory: FakeContract<IMarketFactory>
   let factoryOwner: SignerWithAddress
   let market1: FakeContract<IMarket>
   let market2: FakeContract<IMarket>
+  let oracle1: FakeContract<IOracleProvider>
+  let oracle2: FakeContract<IOracleProvider>
   let insuranceFund: InsuranceFund
   let dsu: FakeContract<IERC20Metadata>
 
   beforeEach(async () => {
-    ;[owner, factoryOwner, user, operator, coordinator] = await ethers.getSigners()
+    ;[owner, factoryOwner, user] = await ethers.getSigners()
 
     market1 = await smock.fake<IMarket>('IMarket')
     market2 = await smock.fake<IMarket>('IMarket')
+    oracle1 = await smock.fake<IOracleProvider>('IOracleProvider')
+    oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
     factory = await smock.fake<IMarketFactory>('IMarketFactory')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     insuranceFund = await new InsuranceFund__factory(owner).deploy()
+    factory.owner.whenCalledWith().returns(factoryOwner.address)
   })
 
   it('initialize with the correct variables set', async () => {
-    await insuranceFund.initialize(factoryOwner.address, dsu.address)
+    await insuranceFund.initialize(factory.address, dsu.address)
 
     expect(await insuranceFund.marketFactoryOwner()).to.be.equals(factoryOwner.address)
     expect(await insuranceFund.DSU()).to.be.equals(dsu.address)
   })
 
   it('reverts if already initialized', async () => {
-    await insuranceFund.initialize(factoryOwner.address, dsu.address)
+    await insuranceFund.initialize(factory.address, dsu.address)
     await expect(insuranceFund.initialize(factoryOwner.address, dsu.address))
       .to.be.revertedWithCustomError(insuranceFund, 'InitializableAlreadyInitializedError')
       .withArgs(1)
@@ -55,12 +58,9 @@ describe('InsuranceFund', () => {
 
   describe('#initialized', async () => {
     beforeEach(async () => {
-      await insuranceFund.connect(owner).initialize(factoryOwner.address, dsu.address)
+      await insuranceFund.connect(owner).initialize(factory.address, dsu.address)
       market1.claimFee.whenCalledWith([owner.address]).returns(true)
       market2.claimFee.whenCalledWith([owner.address]).returns(true)
-
-      market1.factory.returns(factory.address)
-      market2.factory.returns(factory.address)
 
       factory.authorization
         .whenCalledWith(factoryOwner.address, insuranceFund.address, constants.AddressZero, constants.AddressZero)
@@ -68,11 +68,28 @@ describe('InsuranceFund', () => {
     })
     context('#claimFee', async () => {
       it('claims protocol fee from market', async () => {
+        market1.oracle.whenCalledWith().returns(oracle1.address)
+        market2.oracle.whenCalledWith().returns(oracle2.address)
+
+        factory.markets.whenCalledWith(oracle1.address).returns(market1.address)
+        factory.markets.whenCalledWith(oracle2.address).returns(market2.address)
+
         // claims protocol fee from market
         await insuranceFund.connect(owner).claimFees(market1.address)
 
         // ensure anyone can claim protocol fee
         await insuranceFund.connect(user).claimFees(market2.address)
+      })
+
+      it('reverts with invalid market address', async () => {
+        market1.oracle.whenCalledWith().returns(oracle1.address)
+
+        factory.markets.whenCalledWith(oracle1.address).returns(constants.AddressZero)
+
+        await expect(insuranceFund.connect(owner).claimFees(market1.address)).to.be.revertedWithCustomError(
+          insuranceFund,
+          'InsuranceFundInvalidAddress',
+        )
       })
 
       it('reverts with zero market address', async () => {
