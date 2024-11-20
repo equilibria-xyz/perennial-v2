@@ -12,11 +12,10 @@ import {
   Oracle__factory,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
+import { parse6decimal } from '../../../../common/testutil/types'
 import { impersonate } from '../../../../common/testutil'
 import { utils } from 'ethers'
 import { OracleReceiptStruct, OracleVersionStruct } from '../../../types/generated/contracts/Oracle'
-import exp from 'constants'
 
 const { ethers } = HRE
 
@@ -956,6 +955,34 @@ describe('Oracle', () => {
         oracle,
         'InstanceNotOwnerError',
       )
+    })
+  })
+
+  describe('#oracles', async () => {
+    beforeEach(async () => {
+      mockVersion(
+        underlying0,
+        {
+          timestamp: 1687229000,
+          price: parse6decimal('999'),
+          valid: true,
+        },
+        {
+          settlementFee: 1234,
+          oracleFee: 5678,
+        },
+        1687229905,
+      )
+      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
+      await oracle.register(market.address)
+      await expect(oracle.connect(oracleFactorySigner).update(underlying1.address))
+        .to.emit(oracle, 'OracleUpdated')
+        .withArgs(underlying1.address)
+    })
+
+    it('returns the correct oracle', async () => {
+      expect((await oracle.oracles(1)).provider).to.equal(underlying0.address)
+      expect((await oracle.oracles(2)).provider).to.equal(underlying1.address)
     })
   })
 })
