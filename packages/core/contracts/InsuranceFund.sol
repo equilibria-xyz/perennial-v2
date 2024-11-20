@@ -6,7 +6,7 @@ import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { UFixed18 } from "@equilibria/root/number/types/UFixed18.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { IInsuranceFund } from './interfaces/IInsuranceFund.sol';
+import { IInsuranceFund } from "./interfaces/IInsuranceFund.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
 
 /// @title InsuranceFund
