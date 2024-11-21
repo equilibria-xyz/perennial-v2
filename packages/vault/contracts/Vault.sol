@@ -54,6 +54,9 @@ contract Vault is IVault, Instance {
     /// @dev DEPRECATED SLOT -- previously the mappings
     bytes32 private __unused0__;
 
+    /// @dev Risk coordinator of the vault
+    address public coordinator;
+
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
@@ -190,7 +193,7 @@ contract Vault is IVault, Instance {
     /// @notice Settles, then updates the registration parameters for a given market
     /// @param marketId The market id
     /// @param newLeverage The new leverage
-    function updateLeverage(uint256 marketId, UFixed6 newLeverage) external onlyOwner {
+    function updateLeverage(uint256 marketId, UFixed6 newLeverage) external onlyCoordinator {
         rebalance(address(0));
 
         if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
@@ -200,7 +203,7 @@ contract Vault is IVault, Instance {
 
     /// @notice Updates the set of market weights for the vault
     /// @param newWeights The new set of market weights
-    function updateWeights(UFixed6[] calldata newWeights) external onlyOwner {
+    function updateWeights(UFixed6[] calldata newWeights) external onlyCoordinator {
         rebalance(address(0));
 
         if (newWeights.length != totalMarkets) revert VaultMarketDoesNotExistError();
@@ -216,7 +219,7 @@ contract Vault is IVault, Instance {
 
     /// @notice Settles, then updates the vault parameter set
     /// @param newParameter The new vault parameter set
-    function updateParameter(VaultParameter memory newParameter) external onlyOwner {
+    function updateParameter(VaultParameter memory newParameter) external onlyCoordinator {
         rebalance(address(0));
         _updateParameter(newParameter);
     }
@@ -226,6 +229,13 @@ contract Vault is IVault, Instance {
     function _updateParameter(VaultParameter memory newParameter) private {
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
+    }
+
+    /// @notice Updates the coordinator of the vault
+    /// @param newCoordinator The new coordinator address
+    function updateCoordinator(address newCoordinator) external onlyOwner {
+        coordinator = newCoordinator;
+        emit CoordinatorUpdated(newCoordinator);
     }
 
     /// @notice Syncs `account`'s state up to current
@@ -515,5 +525,11 @@ contract Vault is IVault, Instance {
                 checkpoint.settlementFee.add(marketCheckpoint.settlementFee)
             );
         }
+    }
+
+    /// @notice Only the coordinator can call
+    modifier onlyCoordinator {
+        if (msg.sender != coordinator) revert VaultNotCoordinatorError();
+        _;
     }
 }
