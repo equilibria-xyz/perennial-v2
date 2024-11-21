@@ -35,16 +35,6 @@ interface IMargin is IInstance {
     /// @param market identifies where cross-margin should be enabled, and collateral withdrawn
     function cross(IMarket market) external;
 
-    /// @dev Called by market when user enables cross-margin for a market;
-    /// msg.sender must be an IMarket
-    /// @param account identifies user for whom cross-margin is being enabled
-    function register(address account) external;
-
-    /// @dev Called by market when user disables cross-margin for a market;
-    /// msg.sender must be an IMarket
-    /// @param account identifies user for whom cross-margin is being disabled
-    function deregister(address account) external;
-
     /// @notice Settles all registered markets for account and calculates whether margin requirements are met
     /// @param account user to settle and for whom margin requirement will be checked
     /// @return isMargined true if margin requirement met, otherwise false

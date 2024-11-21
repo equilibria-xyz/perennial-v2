@@ -51,12 +51,6 @@ contract Margin is IMargin, Instance {
     function cross(IMarket market) external {}
 
     /// @inheritdoc IMargin
-    function register(address account) external {}
-
-    /// @inheritdoc IMargin
-    function deregister(address account) external {}
-
-    /// @inheritdoc IMargin
     function margined(address account) external returns (bool isMargined) {
         isMargined = false;
     }
