@@ -27,6 +27,8 @@ import {
   MagicValueLib__factory,
   MockToken,
   MockToken__factory,
+  Margin__factory,
+  Margin,
 } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
@@ -418,6 +420,7 @@ describe('Market', () => {
   let oracleSigner: SignerWithAddress
   let oracleFactorySigner: SignerWithAddress
   let verifier: FakeContract<IVerifier>
+  let margin: Margin
   let factory: FakeContract<IMarketFactory>
   let oracle: FakeContract<IOracleProvider>
   let dsu: FakeContract<IERC20Metadata>
@@ -445,7 +448,16 @@ describe('Market', () => {
     oracleSigner = await impersonate.impersonateWithBalance(oracle.address, utils.parseEther('10'))
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
 
+    margin = await new Margin__factory(
+      {
+        'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+          await new CheckpointStorageLib__factory(owner).deploy()
+        ).address,
+      },
+      owner,
+    ).deploy(dsu.address)
     verifier = await smock.fake<IVerifier>('IVerifier')
+
     factory = await smock.fake<IMarketFactory>('IMarketFactory')
     factorySigner = await impersonate.impersonateWithBalance(factory.address, utils.parseEther('10'))
     factory.owner.returns(owner.address)
@@ -518,9 +530,6 @@ describe('Market', () => {
         'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
         'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
         'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-        'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-          await new CheckpointStorageLib__factory(owner).deploy()
-        ).address,
         'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
         'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
           await new MarketParameterStorageLib__factory(owner).deploy()
@@ -538,7 +547,7 @@ describe('Market', () => {
         'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       },
       owner,
-    ).deploy(verifier.address)
+    ).deploy(verifier.address, margin.address)
 
     // allow users to update their own accounts w/o signer or referrer
     factory.authorization

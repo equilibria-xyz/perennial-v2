@@ -15,7 +15,6 @@ import {
   CheckpointLib__factory,
   InvariantLib__factory,
   VersionLib__factory,
-  CheckpointStorageLib__factory,
   MarketParameterStorageLib__factory,
   GlobalStorageLib__factory,
   PositionStorageGlobalLib__factory,
@@ -24,6 +23,7 @@ import {
   VersionStorageLib__factory,
   IVerifier,
   MagicValueLib__factory,
+  IMargin,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { constants } from 'ethers'
@@ -55,14 +55,12 @@ describe('MarketFactory', () => {
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     verifier = await smock.fake<IVerifier>('IVerifier')
+    const margin = await smock.fake<IMargin>('IMargin')
     marketImpl = await new Market__factory(
       {
         'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
         'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
         'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-        'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-          await new CheckpointStorageLib__factory(owner).deploy()
-        ).address,
         'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
         'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
           await new MarketParameterStorageLib__factory(owner).deploy()
@@ -80,7 +78,7 @@ describe('MarketFactory', () => {
         'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       },
       owner,
-    ).deploy(verifier.address)
+    ).deploy(verifier.address, margin.address)
     factory = await new MarketFactory__factory(owner).deploy(
       oracleFactory.address,
       verifier.address,

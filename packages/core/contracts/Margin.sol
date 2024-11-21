@@ -6,6 +6,7 @@ import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18, UFixed18Lib } from "@equilibria/root/token/types/Token18.sol";
 
+import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { IMargin } from "./interfaces/IMargin.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
 
@@ -20,8 +21,13 @@ contract Margin is IMargin, Instance {
     /// @notice Collateral spread across markets: user -> balance
     mapping(address => UFixed6) public crossMarginBalances;
 
+    // TODO: mapping for cross-margin checkpoints
+
     /// @notice Non-cross-margained collateral: user -> market -> balance
     mapping(address => mapping(IMarket => UFixed6)) public isolatedBalances;
+
+    /// @dev Storage for isolated account checkpoints: user -> market -> version -> checkpoint
+    mapping(address => mapping(IMarket => mapping(uint256 => CheckpointStorage))) private _isolatedCheckpoints;
 
     /// @dev Creates instance
     /// @param dsu Digital Standard Unit stablecoin used as collateral
@@ -61,5 +67,20 @@ contract Margin is IMargin, Instance {
     }
 
     /// @inheritdoc IMargin
-    function update(address account, Fixed6 amount) external {}
+    function update(address account, uint256 version, Checkpoint memory latest) external onlyMarket{
+        // TODO: Determine if user is in cross-margin or isolated mode and handle update accordingly.
+        _isolatedCheckpoints[account][IMarket(msg.sender)][version].store(latest);
+        // TODO: Should probably emit an event here
+    }
+
+    /// @inheritdoc IMargin
+    function isolatedCheckpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory) {
+        return _isolatedCheckpoints[account][market][version].read();
+    }
+
+    /// @dev Only if the caller is a market
+    modifier onlyMarket {
+        // TODO: configure MarketFactory and use it to verify msg.sender is a legitimate market?
+        _;
+    }
 }

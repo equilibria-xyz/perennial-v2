@@ -9,6 +9,7 @@ import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { ReentrancyGuard } from "@equilibria/root/attribute/ReentrancyGuard.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
 import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import { IMargin } from "./interfaces/IMargin.sol";
 import { IOracleProvider } from "./interfaces/IOracleProvider.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { MarketParameter, MarketParameterStorage } from "./types/MarketParameter.sol";
@@ -19,26 +20,26 @@ import { Local, LocalStorage } from "./types/Local.sol";
 import { Version, VersionStorage } from "./types/Version.sol";
 import { Order, OrderLib, OrderStorageGlobal, OrderStorageLocal } from "./types/Order.sol";
 import { Guarantee, GuaranteeLib, GuaranteeStorageGlobal, GuaranteeStorageLocal } from "./types/Guarantee.sol";
-import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Intent } from "./types/Intent.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
 import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
 import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
-import { CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
+import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
 contract Market is IMarket, Instance, ReentrancyGuard {
+    /// @dev Verifies intent messages
     IVerifier public immutable verifier;
 
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
-    /// @dev DEPRECATED SLOT -- previously the reward token
-    bytes32 private __unused0__;
+    /// @dev Handles collateral across all markets
+    IMargin margin;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
@@ -91,8 +92,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The local aggregate pending order for each account
     mapping(address => OrderStorageLocal) private _pendings;
 
-    /// @dev The local checkpoint for each version for each account
-    mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
+    /// @dev DEPRECATED SLOT -- previously the local checkpoints
+    bytes32 private __unused4__;
 
     /// @dev The liquidator for each id for each account
     mapping(address => mapping(uint256 => address)) public liquidators;
@@ -111,8 +112,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @dev Construct the contract implementation
     /// @param verifier_ The verifier contract to use
-    constructor(IVerifier verifier_) {
+    /// @param margin_ The margin contract to use
+    constructor(IVerifier verifier_, IMargin margin_) {
         verifier = verifier_;
+        margin = margin_;
     }
 
     /// @notice Initializes the contract state
@@ -432,11 +435,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendings[account].read();
     }
 
-    /// @notice Returns the local checkpoint for the given account and version
-    /// @param account The account to query
+    /// @notice Returns the local isolated checkpoint for the given account and version
+    /// @param account The account with isolated collateral to query
     /// @param version The version to query
     function checkpoints(address account, uint256 version) external view returns (Checkpoint memory) {
-        return _checkpoints[account][version].read();
+        return margin.isolatedCheckpoints(account, this, version);
     }
 
     /// @notice Loads the transaction context
@@ -724,7 +727,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Context memory context
     ) private view returns (SettlementContext memory settlementContext) {
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
-        settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
+        settlementContext.latestCheckpoint = margin.isolatedCheckpoints(
+            context.account,
+            this,
+            context.latestPositionLocal.timestamp
+        );
 
         (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
         context.global.overrideIfZero(settlementContext.orderOracleVersion);
@@ -865,7 +872,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.local.update(newOrderId, accumulationResponse);
         context.latestPositionLocal.update(newOrder);
 
-        _checkpoints[context.account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
+        margin.update(context.account, newOrder.timestamp, settlementContext.latestCheckpoint);
 
         _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
         _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
