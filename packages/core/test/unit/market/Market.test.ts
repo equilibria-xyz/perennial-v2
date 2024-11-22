@@ -1,4 +1,4 @@
-import { smock, FakeContract } from '@defi-wonderland/smock'
+import { smock, FakeContract, MockContract } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -29,6 +29,7 @@ import {
   MockToken__factory,
   Margin__factory,
   Margin,
+  ERC20,
 } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
@@ -54,6 +55,7 @@ import {
   MarketParameterStruct,
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
+import { IERC20Metadata__factory } from '@perennial/v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -446,8 +448,11 @@ describe('Market', () => {
     ] = await ethers.getSigners()
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     oracleSigner = await impersonate.impersonateWithBalance(oracle.address, utils.parseEther('10'))
-    dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
 
+    // mock a token which supports the IERC20Metadata interface
+    const dsuMock: MockContract<ERC20> = await (await smock.mock('ERC20')).deploy('Digital Standard Unit', 'DSU')
+    // create a fake for the mocked contract
+    dsu = await smock.fake(dsuMock)
     margin = await new Margin__factory(
       {
         'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
@@ -25147,6 +25152,7 @@ describe('Market', () => {
           .withArgs(owner.address, exposure)
         expect((await market.global()).exposure).to.be.eq(0)
       })
+
       it('reverts if not owner (user)', async () => {
         await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(
           market,
