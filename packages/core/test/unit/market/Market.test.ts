@@ -55,7 +55,6 @@ import {
   MarketParameterStruct,
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
-import { IERC20Metadata__factory } from '@perennial/v2-oracle/types/generated'
 
 const { ethers } = HRE
 

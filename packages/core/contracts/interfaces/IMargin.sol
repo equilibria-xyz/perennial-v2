@@ -10,8 +10,12 @@ import { IMarket } from "./IMarket.sol";
 
 interface IMargin is IInstance {
     // sig: 0x901eb073
-    /// custom:error Specified amount cannot be withdrawn; ensure funds are not isolated
+    /// custom:error Specified amount cannot be withdrawn or isolated; ensure funds are not isolated
     error InsufficientCrossMarginBalance();
+
+    // sig: 0xdf7a46a0
+    /// custom:Error Specified amount cannot be crossed; check amount currently isolated for specified market
+    error InsufficientIsolatedBalance();
 
     /// @notice Retrieves the cross-margin balance for a user
     function crossMarginBalances(address) external view returns (UFixed6);

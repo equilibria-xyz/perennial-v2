@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18, UFixed18Lib } from "@equilibria/root/token/types/Token18.sol";
 
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
@@ -51,10 +51,24 @@ contract Margin is IMargin, Instance {
     }
 
     /// @inheritdoc IMargin
-    function isolate(UFixed6 amount, IMarket market) external {}
+    function isolate(UFixed6 amount, IMarket market) external {
+        UFixed6 balance = crossMarginBalances[msg.sender];
+        if (balance.lt(amount)) revert InsufficientCrossMarginBalance();
+        crossMarginBalances[msg.sender] = balance.sub(amount);
+        isolatedBalances[msg.sender][market] = isolatedBalances[msg.sender][market].add(amount);
+        // TODO: update collections which track which markets are isolated/crossed
+        // TODO: emit an event
+    }
 
     /// @inheritdoc IMargin
-    function cross(IMarket market) external {}
+    function cross(IMarket market) external {
+        UFixed6 balance = isolatedBalances[msg.sender][market];
+        if (balance.eq(UFixed6Lib.ZERO)) revert InsufficientIsolatedBalance();
+        isolatedBalances[msg.sender][market] = UFixed6Lib.ZERO;
+        crossMarginBalances[msg.sender] = crossMarginBalances[msg.sender].add(balance);
+        // TODO: update collections which track which markets are isolated/crossed
+        // TODO: emit an event
+    }
 
     /// @inheritdoc IMargin
     function margined(address account) external returns (bool isMargined) {
