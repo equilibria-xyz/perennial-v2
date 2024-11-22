@@ -8,7 +8,7 @@ import {
   IMarketFactory,
   IOracleProvider,
   IOrderVerifier,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 
 export interface FixtureVars {
   dsu: IERC20Metadata

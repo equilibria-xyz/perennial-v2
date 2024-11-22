@@ -1,9 +1,7 @@
-import { smock } from '@defi-wonderland/smock'
-import { use } from 'chai'
 import { CallOverrides } from 'ethers'
 import HRE from 'hardhat'
 
-import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../../../types/generated'
+import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerArbitrum,
@@ -11,19 +9,18 @@ import {
   fundWalletUSDC,
   getDSUReserve,
   getStablecoins,
-} from '../../../helpers/arbitrumHelpers'
-import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../../helpers/setupHelpers'
+  mockGasInfo,
+} from '../../helpers/arbitrumHelpers'
+import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Controller_Incentivized, IMarketFactory } from '../../../../types/generated'
+import { Controller_Incentivized, IMarketFactory } from '../../../types/generated'
 import { RunAccountTests } from './Account.test'
 import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { RunControllerBaseTests } from './Controller.test'
 import { DeploymentVars } from './setupTypes'
 
 const { ethers } = HRE
-
-use(smock.matchers)
 
 async function deployProtocol(
   owner: SignerWithAddress,
@@ -96,14 +93,6 @@ async function deployController(
   )
 
   return [controller, accountVerifier]
-}
-
-async function mockGasInfo() {
-  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-    address: '0x000000000000000000000000000000000000006C',
-  })
-  gasInfo.getL1BaseFeeEstimate.returns(1)
 }
 
 if (process.env.FORK_NETWORK === 'arbitrum') {

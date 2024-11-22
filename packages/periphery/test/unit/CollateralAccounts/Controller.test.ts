@@ -3,7 +3,13 @@ import HRE from 'hardhat'
 import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { FakeContract, smock } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
+
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import { getEventArguments } from '../../../../common/testutil/transaction'
+import { parse6decimal } from '../../../../common/testutil/types'
+
 import {
   Account__factory,
   Controller,
@@ -14,21 +20,22 @@ import {
   IEmptySetReserve,
   IAccountVerifier,
   AccountVerifier__factory,
+  IMarketFactory,
+  IMarket,
 } from '../../../types/generated'
-
+import {
+  RebalanceConfigChangeStruct,
+  RebalanceConfigStruct,
+  RebalanceConfigStructOutput,
+} from '../../../types/generated/contracts/CollateralAccounts/Controller'
 import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
   signWithdrawal,
 } from '../../helpers/CollateralAccounts/eip712'
-import { currentBlockTimestamp } from '../../../../common/testutil/time'
-import { getEventArguments } from '../../../../common/testutil/transaction'
-import { FakeContract, smock } from '@defi-wonderland/smock'
-import { deployController, mockMarket } from '../../helpers/setupHelpers'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { IMarket } from '@perennial/v2-oracle/types/generated'
-import { IMarketFactory } from '@perennial/v2-core/types/generated'
+import { mockMarket } from '../../helpers/marketHelpers'
+import { deployController } from '../../helpers/setupHelpers'
 
 const { ethers } = HRE
 

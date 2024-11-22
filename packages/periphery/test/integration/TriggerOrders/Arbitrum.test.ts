@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import { BigNumber, CallOverrides, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { smock } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 
@@ -12,24 +11,25 @@ import {
   IManager,
   IMarket,
   IMarketFactory,
-  Manager_Optimism__factory,
-  OptGasInfo,
+  Manager_Arbitrum__factory,
   OrderVerifier__factory,
-} from '../../../../types/generated'
-import { impersonate } from '../../../../../common/testutil'
-import { parse6decimal } from '../../../../../common/testutil/types'
-import { transferCollateral } from '../../../helpers/marketHelpers'
-import { createMarketETH, deployProtocol, deployPythOracleFactory } from '../../../helpers/setupHelpers'
+} from '../../../types/generated'
+import { impersonate } from '../../../../common/testutil'
+import { parse6decimal } from '../../../../common/testutil/types'
+import { transferCollateral } from '../../helpers/marketHelpers'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
+import { createMarketETH, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
+  DSU_HOLDER,
   DSU_RESERVE,
+  mockGasInfo,
   PYTH_ADDRESS,
   USDC_ADDRESS,
-  USDC_HOLDER,
-} from '../../../helpers/baseHelpers'
+} from '../../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
 
@@ -38,29 +38,11 @@ export async function fundWalletDSU(
   amount: BigNumber,
   overrides?: CallOverrides,
 ): Promise<undefined> {
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, wallet)
-  const reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, wallet)
-  const balanceBefore = await dsu.balanceOf(wallet.address)
+  const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
+  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, dsuOwner)
 
-  // fund wallet with USDC and then mint using reserve
-  await fundWalletUSDC(wallet, amount.div(1e12), overrides)
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, wallet)
-  await usdc.connect(wallet).approve(reserve.address, amount.div(1e12))
-  await reserve.mint(amount)
-
-  expect((await dsu.balanceOf(wallet.address)).sub(balanceBefore)).to.equal(amount)
-}
-
-async function fundWalletUSDC(
-  wallet: SignerWithAddress,
-  amount: BigNumber,
-  overrides?: CallOverrides,
-): Promise<undefined> {
-  const usdcOwner = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, usdcOwner)
-
-  expect(await usdc.balanceOf(USDC_HOLDER)).to.be.greaterThan(amount)
-  await usdc.transfer(wallet.address, amount, overrides ?? {})
+  expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
+  await dsu.transfer(wallet.address, amount, overrides ?? {})
 }
 
 // prepares an account for use with the market and manager
@@ -93,7 +75,7 @@ const fixture = async (): Promise<FixtureVars> => {
 
   // deploy the order manager
   const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
-  const manager = await new Manager_Optimism__factory(owner).deploy(
+  const manager = await new Manager_Arbitrum__factory(owner).deploy(
     USDC_ADDRESS,
     dsu.address,
     DSU_RESERVE,
@@ -103,15 +85,15 @@ const fixture = async (): Promise<FixtureVars> => {
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 750_000, // buffer for withdrawing keeper fee from market
+    bufferBase: 950_000, // buffer for withdrawing keeper fee from market
     multiplierCalldata: 0,
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 900_000, // for price commitment
-    multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 0,
+    multiplierBase: ethers.utils.parseEther('1.05'),
+    bufferBase: 1_875_000, // for price commitment
+    multiplierCalldata: ethers.utils.parseEther('1.05'),
+    bufferCalldata: 35_200,
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
 
@@ -149,14 +131,4 @@ async function getFixture(): Promise<FixtureVars> {
   return vars
 }
 
-async function mockGasInfo() {
-  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
-    address: '0x420000000000000000000000000000000000000F',
-  })
-  gasInfo.getL1GasUsed.returns(1600)
-  gasInfo.l1BaseFee.returns(18476655731)
-  gasInfo.baseFeeScalar.returns(2768304)
-  gasInfo.decimals.returns(6)
-}
-
-if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture)
+if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture)

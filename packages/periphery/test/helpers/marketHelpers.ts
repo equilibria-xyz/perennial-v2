@@ -1,4 +1,5 @@
-import { BigNumber, CallOverrides, constants, utils } from 'ethers'
+import { ethers } from 'hardhat'
+import { BigNumber, CallOverrides, utils } from 'ethers'
 import { Address } from 'hardhat-deploy/dist/types'
 import {
   CheckpointLib__factory,
@@ -18,9 +19,11 @@ import {
 } from '@perennial/v2-core/types/generated'
 import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IERC20Metadata } from '../../types/generated'
+import { IERC20Metadata, IOracleProvider, IVerifier } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/v2-core/types/generated/contracts/Market'
+import { smock } from '@defi-wonderland/smock'
+import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 
 export async function createMarket(
   owner: SignerWithAddress,
@@ -125,6 +128,51 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
     owner,
   ).deploy(verifierAddress)
   return marketImpl
+}
+
+// Creates a market for a specified collateral token, which can't do much of anything
+export async function mockMarket(token: Address): Promise<IMarket> {
+  const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+  const verifier = await smock.fake<IVerifier>('IVerifier')
+  const factory = await smock.fake<IMarketFactory>('IMarketFactory')
+  const factorySigner = await impersonateWithBalance(factory.address, utils.parseEther('10'))
+
+  // deploy market
+  const [owner] = await ethers.getSigners()
+  const market = await new Market__factory(
+    {
+      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
+      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
+      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
+      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
+        await new MarketParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Position.sol:PositionStorageGlobalLib': (
+        await new PositionStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Position.sol:PositionStorageLocalLib': (
+        await new PositionStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
+        await new RiskParameterStorageLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
+    },
+    owner,
+  ).deploy(verifier.address)
+
+  // initialize market
+  const marketDefinition = {
+    token: token,
+    oracle: oracle.address,
+  }
+  await market.connect(factorySigner).initialize(marketDefinition)
+  return market
 }
 
 // Deposits collateral to (amount > 0) or withdraws collateral from (amount < 0) a market

@@ -1,13 +1,13 @@
 import { expect } from 'chai'
 import { BigNumber, utils } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { time } from '../../../../../common/testutil'
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { time } from '../../../../common/testutil'
+import { parse6decimal } from '../../../../common/testutil/types'
 import HRE from 'hardhat'
 
 import {
+  GasOracle__factory,
   IERC20Metadata,
   KeeperOracle,
   Market,
@@ -15,11 +15,11 @@ import {
   Oracle,
   OracleFactory,
   PythFactory,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 import { InstanceVars, PythVAAVars } from './setupHelpers'
-import { createMarket } from '../../../helpers/marketHelpers'
-import { PYTH_ETH_USD_PRICE_FEED } from '../../../helpers/oracleHelpers'
-import { currentBlockTimestamp } from '../../../../../common/testutil/time'
+import { createMarket } from '../../helpers/marketHelpers'
+import { PYTH_ETH_USD_PRICE_FEED } from '../../helpers/oracleHelpers'
+import { AggregatorV3Interface__factory } from '@perennial/v2-oracle/types/generated'
 const { ethers } = HRE
 
 export function RunPythOracleTests(
@@ -48,8 +48,6 @@ export function RunPythOracleTests(
       vaaVars = vaas
       dsu = instanceVars.dsu
       oracleFactory = instanceVars.oracleFactory
-      // TODO: check Arbitrum implementation to ensure correct oracle is being assigned to instanceVars
-      // oracle = Oracle__factory.connect(instanceVars.oracle.address, owner)
       owner = instanceVars.owner
       user = instanceVars.user
 
@@ -120,7 +118,13 @@ export function RunPythOracleTests(
           },
         )
 
-        const reward = utils.parseEther('0.000016')
+        // calculate syncFee rewarded to caller
+        const commitmentGasOracle = GasOracle__factory.connect(await pythOracleFactory.commitmentGasOracle(), owner)
+        const chanlinkEthFeed = AggregatorV3Interface__factory.connect(await commitmentGasOracle.FEED(), owner)
+        const etherPrice = (await chanlinkEthFeed.latestRoundData()).answer
+        // decimals: 1e18 baseFee * 1e8 ethPrice -> 1e26, divide by 1e4 twice -> 1e18, then round up to UFixed6
+        const reward = BigNumber.from(8273920000).div(1e4).mul(etherPrice.div(1e4)).add(1e12).div(1e12).mul(1e12)
+
         expect((await keeperOracle.callStatic.latest()).timestamp).to.equal(vaaVars.startingTime)
         expect(await dsu.balanceOf(user.address)).to.be.eq(dsuBalanceBefore.sub(utils.parseEther('1000')).add(reward))
       })

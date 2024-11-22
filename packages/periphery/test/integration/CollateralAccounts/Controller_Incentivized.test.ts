@@ -5,10 +5,10 @@ import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { advanceBlock, currentBlockTimestamp } from '../../../../../common/testutil/time'
-import { getEventArguments } from '../../../../../common/testutil/transaction'
+import { advanceBlock, currentBlockTimestamp } from '../../../../common/testutil/time'
+import { getEventArguments } from '../../../../common/testutil/transaction'
 
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { parse6decimal } from '../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -18,7 +18,7 @@ import {
   IERC20Metadata,
   IMarket,
   IMarketFactory,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 
 import {
   signDeployAccount,
@@ -30,7 +30,7 @@ import {
   signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
   signWithdrawal,
-} from '../../../helpers/CollateralAccounts/eip712'
+} from '../../helpers/CollateralAccounts/eip712'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,
@@ -41,7 +41,7 @@ import {
 import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
 import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { DeploymentVars } from './setupTypes'
-import { advanceToPrice } from '../../../helpers/oracleHelpers'
+import { advanceToPrice } from '../../helpers/oracleHelpers'
 
 const { ethers } = HRE
 

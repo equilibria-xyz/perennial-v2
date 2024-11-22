@@ -11,7 +11,6 @@ import {
   IPayoffProvider__factory,
   IOracleProvider,
   MultiInvoker,
-  MultiInvoker__factory,
   Market,
   PowerTwo__factory,
   IMarket,
@@ -33,8 +32,8 @@ import {
   IEmptySetReserve,
   IBatcher__factory,
   IEmptySetReserve__factory,
-} from '../../../../types/generated'
-import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
+} from '../../../types/generated'
+import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 
 import { deployProductOnFork } from '@perennial/v2-vault/test/integration/helpers/setupHelpers'
 import {
@@ -46,7 +45,7 @@ import {
   AggregatorV3Interface__factory,
 } from '@perennial/v2-core/types/generated'
 import { Verifier__factory } from '@perennial/v2-core/types/generated'
-import { deployMarketImplementation } from '../../../helpers/marketHelpers'
+import { deployMarketImplementation } from '../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 const { ethers } = HRE
@@ -201,7 +200,6 @@ export async function createVault(
   const vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
   await oracleFactory.connect(owner).register(vaultOracleFactory.address)
 
-  // TODO: Do we still want to fake the sub-oracle implementation on Arbitrum?
   const ethSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
   resetEthSubOracle(ethSubOracle, initialOracleVersionEth)
 
@@ -380,23 +378,12 @@ export function resetBtcSubOracle(btcSubOracle: FakeContract<IOracleProvider>, r
   btcSubOracle.at.whenCalledWith(realVersion.timestamp).returns([realVersion, DEFAULT_ORACLE_RECEIPT])
 }
 
-export async function createInvoker(
+export async function configureInvoker(
+  multiInvoker: MultiInvoker,
   instanceVars: InstanceVars,
   vaultFactory?: VaultFactory,
-  withBatcher = false,
-): Promise<MultiInvoker> {
-  const { owner, user, userB } = instanceVars
-
-  const multiInvoker = await new MultiInvoker__factory(owner).deploy(
-    instanceVars.usdc.address,
-    instanceVars.dsu.address,
-    instanceVars.marketFactory.address,
-    vaultFactory ? vaultFactory.address : constants.AddressZero,
-    withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
-    instanceVars.dsuReserve.address,
-    500_000,
-    500_000,
-  )
+): Promise<undefined> {
+  const { user, userB } = instanceVars
 
   await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)
   await instanceVars.marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
@@ -405,6 +392,4 @@ export async function createInvoker(
     await vaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
   }
   await multiInvoker.initialize(instanceVars.chainlinkKeptFeed.address)
-
-  return multiInvoker
 }

@@ -10,7 +10,7 @@
 | ----------------------- | :-------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------: |
 | `@perennial/core`       | Core perennial smart contracts.   |                                 [![npm version](https://badge.fury.io/js/@perennial%2Fcore.svg)](https://badge.fury.io/js/@perennial%2Fcore) |
 | `@perennial/deploy`     | Deployment scripts and artifacts. |         [![npm version](https://badge.fury.io/js/@perennial%2Fperennial/deploy.svg)](https://badge.fury.io/js/@perennial%2Fperennial/deploy) |
-| `@perennial/extensions` | Extension smart contracts.        | [![npm version](https://badge.fury.io/js/@perennial%2Fperennial/extensions.svg)](https://badge.fury.io/js/@perennial%2Fperennial/extensions) |
+| `@perennial/periphery`  | MultiInvoker and extension contracts. | [![npm version](https://badge.fury.io/js/@perennial%2Fperennial/periphery.svg)](https://badge.fury.io/js/@perennial%2Fperennial/periphery) |
 | `@perennial/oracle`     | Oracle provider smart contracts.  |         [![npm version](https://badge.fury.io/js/@perennial%2Fperennial/oracle.svg)](https://badge.fury.io/js/@perennial%2Fperennial/oracle) |
 | `@perennial/vault`      | Vault smart contracts.            |           [![npm version](https://badge.fury.io/js/@perennial%2Fperennial/vault.svg)](https://badge.fury.io/js/@perennial%2Fperennial/vault) |
 
@@ -36,16 +36,23 @@ Compile the smart contracts for each package with Hardhat:
 $ yarn workspaces run compile
 ```
 
-This also generates the Typechain types
+This also generates the Typechain types.
+
+### Docs
+
+Perennial has 4 logic packages: `core`, `deploy`, `periphery`, `oracle`, and `vault`
+
+To compile code documentation for a specific package:
+```sh
+$ yarn workspace @perennial/<package-name> run doc
+```
 
 ### Test
-
-Perennial has 4 logic packages: `core`, `deploy`, `extensions`, `oracle`, and `vault`
 
 Run the Mocha unit tests a specific package:
 
 ```sh
-$ yarn workspace @equilibria/<package-name> run test
+$ yarn workspace @perennial/<package-name> run test
 ```
 
 For example, to run the tests for the core package:
@@ -57,7 +64,7 @@ $ yarn workspace @perennial/core run test
 To run tests against a Mainnet fork, set your `MAINNET_NODE_URL` in the root `.env` and run
 
 ```sh
-$ yarn workspace run @equilibria/<package-name> test:integration
+$ yarn workspace run @perennial/<package-name> test:integration
 ```
 
 For example, to run the integration tests for the core package:
@@ -78,4 +85,4 @@ The vast majority of the Perennial V2 codebase is licensed under the Apache 2.0 
 | License      | License                                                                               |
 | ------------ | :------------------------------------------------------------------------------------ |
 | `Apache-2.0` | All, unless stated otherwise.                                                         |
-| `BUSL-1.1`   | Smart contracts: `Market.sol` and `MarketFactory.sol` in the `@perennial-v2` package. |
+| `BUSL-1.1`   | Smart contracts: `Market.sol` and `MarketFactory.sol` in the `@perennial/core` package. |
