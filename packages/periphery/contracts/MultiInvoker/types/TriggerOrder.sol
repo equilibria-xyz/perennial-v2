@@ -29,7 +29,7 @@ struct StoredTriggerOrder {
     /* slot 1 */
     address interfaceFeeReceiver1;
     uint48 interfaceFeeAmount1;      // <= 281m
-    bytes6 __unallocated1__;
+    bytes6 __unallocated1__;         // Contains dirty data until updated post v2.3 migration.
 
     /* slot 2 */
     address interfaceFeeReceiver2;
