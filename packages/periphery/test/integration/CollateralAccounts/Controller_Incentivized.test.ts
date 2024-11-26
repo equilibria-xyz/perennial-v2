@@ -326,6 +326,36 @@ export function RunIncentivizedTests(
             .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
         ).to.be.reverted
       })
+
+      it('wraps only what is necessary to compensate keeper', async () => {
+        // pre-fund the address with sufficient USDC for transaction fee and a tiny amount of DSU
+        await usdc.connect(userA).transfer(accountAddressA, parse6decimal('1'), TX_OVERRIDES)
+        expect(await usdc.balanceOf(accountAddressA)).to.equal(parse6decimal('1'))
+        const dsuDustAmount = utils.parseEther('0.0002')
+        await deployment.fundWalletDSU(userA, dsuDustAmount, TX_OVERRIDES)
+        await dsu.connect(userA).transfer(accountAddressA, dsuDustAmount, TX_OVERRIDES)
+        expect(await dsu.balanceOf(accountAddressA)).to.equal(dsuDustAmount)
+
+        // sign a message to deploy the account
+        const deployAccountMessage = {
+          ...createAction(userA.address, userA.address),
+        }
+        const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
+
+        // keeper executes deployment of the account and is compensated
+        await expect(
+          controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature, TX_OVERRIDES),
+        )
+          .to.emit(controller, 'AccountDeployed')
+          .withArgs(userA.address, accountAddressA)
+        const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+
+        // ensure only the required amount was wrapped, less rounding error
+        expect(await dsu.balanceOf(accountAddressA)).to.equal(0)
+        expect(await usdc.balanceOf(accountAddressA)).to.equal(
+          parse6decimal('1').sub(keeperFeePaid.div(1e12)).add(dsuDustAmount.div(1e12)).sub(1),
+        )
+      })
     })
 
     describe('#transfer', async () => {
