@@ -17,7 +17,7 @@ import { IOracleProvider } from '@perennial/v2-oracle/types/generated'
 const { ethers } = HRE
 use(smock.matchers)
 
-describe.only('InsuranceFund', () => {
+describe('InsuranceFund', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let factory: FakeContract<IMarketFactory>
@@ -43,9 +43,8 @@ describe.only('InsuranceFund', () => {
   })
 
   it('initialize with the correct variables set', async () => {
-    await insuranceFund.initialize()
-
-    expect(await insuranceFund.marketFactory()).to.be.equals(factory.address)
+    await insuranceFund.connect(owner).initialize()
+    expect(await insuranceFund.owner()).to.be.equals(owner.address)
   })
 
   it('reverts if already initialized', async () => {
