@@ -13,7 +13,7 @@ struct Local {
     /// @dev The latest position id
     uint256 latestId;
 
-    /// @dev The collateral balance
+    /// @dev DEPRECATED The collateral balance, used for 2.3 -> 2.4 migration only
     Fixed6 collateral;
 
     /// @dev The claimable balance
@@ -27,22 +27,16 @@ using LocalStorageLib for LocalStorage global;
 /// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the local account state
 library LocalLib {
-    /// @notice Updates the collateral with the new deposit or withdrwal
-    /// @param self The Local object to update
-    /// @param transfer The amount to update the collateral by
-    function update(Local memory self, Fixed6 transfer) internal pure {
-        self.collateral = self.collateral.add(transfer);
-    }
-
-    /// @notice Updates the collateral with the new collateral change
+    /// @notice Calculates PnL and updates the position id
     /// @param self The Local object to update
     /// @param accumulation The accumulation result
     function update(
         Local memory self,
         uint256 newId,
         CheckpointAccumulationResponse memory accumulation
-    ) internal pure {
-        self.collateral = self.collateral.add(accumulation.collateral).sub(Fixed6Lib.from(accumulation.liquidationFee));
+    ) internal pure returns (Fixed6 pnl) {
+        //self.collateral = self.collateral.add(accumulation.collateral).sub(Fixed6Lib.from(accumulation.liquidationFee));
+        pnl = accumulation.collateral.sub(Fixed6Lib.from(accumulation.liquidationFee));
         self.latestId = newId;
     }
 

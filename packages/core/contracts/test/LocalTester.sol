@@ -16,12 +16,6 @@ contract LocalTester {
         return local.store(newLocal);
     }
 
-    function update(Fixed6 transfer) external {
-        Local memory newLocal = local.read();
-        newLocal.update(transfer);
-        local.store(newLocal);
-    }
-
     function update(
         uint256 newId,
         CheckpointAccumulationResponse memory accumulation

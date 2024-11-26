@@ -64,7 +64,7 @@ abstract contract PositionTester {
         return read().socialized();
     }
 
-    function maintenance(
+    /*function maintenance(
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) external view returns (UFixed6) {
@@ -93,7 +93,7 @@ abstract contract PositionTester {
         Fixed6 collateral
     ) external view returns (bool) {
         return read().margined(currentOracleVersion, riskParameter, collateralization, collateral);
-    }
+    }*/
 }
 
 contract PositionGlobalTester is PositionTester {

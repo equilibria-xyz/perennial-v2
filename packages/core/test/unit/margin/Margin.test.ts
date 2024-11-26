@@ -67,7 +67,7 @@ describe('Margin', () => {
     dsu.transfer.whenCalledWith(user.address, withdrawalAmount.mul(1e12)).returns(true)
     await expect(margin.connect(user).withdraw(withdrawalAmount)).to.be.revertedWithCustomError(
       margin,
-      'InsufficientCrossMarginBalance',
+      'MarginInsufficientCrossedBalance',
     )
 
     // performs partial withdrawal
@@ -84,17 +84,20 @@ describe('Margin', () => {
   })
 
   it('stores and reads checkpoints', async () => {
+    const balanceBefore = await margin.crossMarginBalances(user.address)
+
+    const version = BigNumber.from(await currentBlockTimestamp())
     const latestCheckpoint: CheckpointStruct = {
-      tradeFee: parse6decimal('0.33'),
+      tradeFee: parse6decimal('0.13'),
       settlementFee: parse6decimal('0.44'),
       transfer: parse6decimal('-2'),
       collateral: parse6decimal('6.6'),
     }
-    const version = BigNumber.from(await currentBlockTimestamp())
+    const pnl = parse6decimal('0.39')
 
     // can store
     const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-    await expect(margin.connect(marketSigner).update(user.address, version, latestCheckpoint)).to.not.be.reverted
+    await expect(margin.connect(marketSigner).update(user.address, version, latestCheckpoint, pnl)).to.not.be.reverted
 
     // can read
     const checkpoint: CheckpointStruct = await margin.isolatedCheckpoints(user.address, marketA.address, version)
@@ -102,6 +105,9 @@ describe('Margin', () => {
     expect(checkpoint.settlementFee).to.equal(latestCheckpoint.settlementFee)
     expect(checkpoint.transfer).to.equal(latestCheckpoint.transfer)
     expect(checkpoint.collateral).to.equal(latestCheckpoint.collateral)
+
+    // confirm PnL has been added to collateral balance
+    expect(await margin.crossMarginBalances(user.address)).to.equal(balanceBefore.add(pnl))
   })
 
   it('deposited collateral is crossed by default', async () => {
@@ -126,7 +132,7 @@ describe('Margin', () => {
     await deposit(user, parse6decimal('400'))
     await expect(margin.connect(user).isolate(parse6decimal('401'), marketA.address)).to.be.revertedWithCustomError(
       margin,
-      'InsufficientCrossMarginBalance',
+      'MarginInsufficientCrossedBalance',
     )
   })
 
@@ -151,7 +157,7 @@ describe('Margin', () => {
     // nothing isolated; cannot cross
     await expect(margin.connect(user).cross(marketA.address)).to.be.revertedWithCustomError(
       margin,
-      'InsufficientIsolatedBalance',
+      'MarginInsufficientIsolatedBalance',
     )
 
     // isolate market B
@@ -160,7 +166,7 @@ describe('Margin', () => {
     // ensure still cannot cross market A
     await expect(margin.connect(user).cross(marketA.address)).to.be.revertedWithCustomError(
       margin,
-      'InsufficientIsolatedBalance',
+      'MarginInsufficientIsolatedBalance',
     )
   })
 })

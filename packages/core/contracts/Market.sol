@@ -27,6 +27,7 @@ import { InvariantLib } from "./libs/InvariantLib.sol";
 import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
+import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -184,7 +185,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the account's position and collateral
     /// @param account The account to operate on
     /// @param amount The position delta of the order (positive for long, negative for short)
-    /// @param collateral The collateral delta of the order (positive for deposit, negative for withdrawal)
+    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
     /// @param referrer The referrer of the order
     function update(
         address account,
@@ -214,7 +215,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param newMaker The new maker position for the account
     /// @param newMaker The new long position for the account
     /// @param newMaker The new short position for the account
-    /// @param collateral The collateral amount to add or remove from the account
+    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
     /// @param protect Whether to put the account into a protected status for liquidations
     function update(
         address account,
@@ -232,7 +233,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param newMaker The new maker position for the account
     /// @param newLong The new long position for the account
     /// @param newShort The new short position for the account
-    /// @param collateral The collateral amount to add or remove from the account
+    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
     /// @param protect Whether to put the account into a protected status for liquidations
     /// @param referrer The referrer of the order
     function update(
@@ -341,6 +342,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _locals[account].store(newLocal);
 
         if (!feeReceived.isZero()) {
+            // TODO: market has no collateral; do this through Margin contract
             token.push(msg.sender, UFixed18Lib.from(feeReceived));
             emit FeeClaimed(account, msg.sender, feeReceived);
         }
@@ -351,6 +353,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function claimExposure() external onlyOwner {
         Global memory newGlobal = _global.read();
 
+        // TODO: market has no collateral; do this through Margin contract
         if (newGlobal.exposure.sign() == 1) token.push(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
         if (newGlobal.exposure.sign() == -1) token.pull(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
 
@@ -674,8 +677,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeGlobal.add(newGuarantee);
         updateContext.guaranteeLocal.add(newGuarantee);
 
-        // update collateral
-        context.local.update(newOrder.collateral);
+        // update collateral in margin contract
+        margin.handleMarketUpdate(context.account, newOrder.collateral);
 
         // protect account
         if (newOrder.protected()) updateContext.liquidator = msg.sender;
@@ -687,14 +690,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
 
         // after
-        InvariantLib.validate(context, updateContext, newOrder, newGuarantee);
+        InvariantLib.validate(context, updateContext, newOrder, newGuarantee, margin);
 
         // store
         _storeUpdateContext(context, updateContext);
-
-        // fund
-        if (newOrder.collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
-        if (newOrder.collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
     }
 
     /// @notice Processes the referrer for the given order
@@ -869,10 +868,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             versionTo
         );
 
-        context.local.update(newOrderId, accumulationResponse);
         context.latestPositionLocal.update(newOrder);
-
-        margin.update(context.account, newOrder.timestamp, settlementContext.latestCheckpoint);
+        Fixed6 pnl = context.local.update(newOrderId, accumulationResponse);
+        margin.update(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
 
         _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
         _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);

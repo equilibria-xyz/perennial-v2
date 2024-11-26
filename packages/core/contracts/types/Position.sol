@@ -162,7 +162,7 @@ library PositionLib {
         return magnitude(self).isZero();
     }
 
-    /// @notice Returns the maintenance requirement of the position
+    /*/// @notice Returns the maintenance requirement of the position
     /// @param positionMagnitude The position magnitude value to check
     /// @param latestVersion The latest oracle version
     /// @param riskParameter The current risk parameter
@@ -298,7 +298,7 @@ library PositionLib {
         Fixed6 collateral
     ) internal pure returns (bool) {
         return margined(magnitude(self), latestVersion, riskParameter, collateralization, collateral);
-    }
+    }*/
 }
 
 /// @dev Manually encodes and decodes the global Position struct into storage.

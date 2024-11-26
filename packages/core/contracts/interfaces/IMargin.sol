@@ -6,22 +6,28 @@ import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 
 import { Checkpoint } from "../types/Checkpoint.sol";
+import { OracleVersion } from "../types/OracleVersion.sol";
 import { IMarket } from "./IMarket.sol";
 
 interface IMargin is IInstance {
-    // sig: 0x901eb073
+    // sig: 0xc65f6a26
     /// custom:error Specified amount cannot be withdrawn or isolated; ensure funds are not isolated
-    error InsufficientCrossMarginBalance();
+    error MarginInsufficientCrossedBalance();
 
-    // sig: 0xdf7a46a0
-    /// custom:Error Specified amount cannot be crossed; check amount currently isolated for specified market
-    error InsufficientIsolatedBalance();
+    // sig: 0x918aac34
+    /// custom:error Specified amount cannot be crossed or removed from isolated balance;
+    /// check amount currently isolated for specified market
+    error MarginInsufficientIsolatedBalance();
+
+    // sig: 0x21d30123
+    /// custom:error Market is cross-margained, but user called update with a collateral amount
+    error MarginCannotUpdateCrossedMarket();
 
     /// @notice Retrieves the cross-margin balance for a user
-    function crossMarginBalances(address) external view returns (UFixed6);
+    function crossMarginBalances(address) external view returns (Fixed6);
 
     /// @notice Retrieves the isolated balance for a user and market
-    function isolatedBalances(address, IMarket) external view returns (UFixed6);
+    function isolatedBalances(address, IMarket) external view returns (Fixed6);
 
     /// @notice Add DSU funds to the msg.sender's cross-margin account
     /// @param amount Quantity of DSU to pull from sender
@@ -40,22 +46,42 @@ interface IMargin is IInstance {
     /// @param market Identifies where cross-margin should be enabled, and collateral withdrawn
     function cross(IMarket market) external;
 
-    /// @notice Settles all registered markets for account and calculates whether margin requirements are met
-    /// @param account User to settle and for whom margin requirement will be checked
-    /// @return isMargined True if margin requirement met, otherwise false
-    function margined(address account) external returns (bool isMargined);
-
     /// @notice Settles all registered markets for account and calculates whether maintenance requirements are met
     /// @param account User to settle and for whom maintenance requirement will be checked
     /// @return isMaintained True if maintenance requirement met, otherwise false
     function maintained(address account) external returns (bool isMaintained);
+
+    /// @notice Settles all registered markets for account and calculates whether margin requirements are met
+    /// @param account User to settle and for whom margin requirements will be checked
+    /// @return isMargined True if margin requirements met, otherwise false
+    function margined(address account) external returns (bool isMargined);
+
+    /// @dev Called by market (through InvariantLib) to check maintenance requirements upon market update
+    /// @param account User whose maintenance requirement will be checked
+    /// @param positionMagnitude Size of the user's position
+    /// @param latestVersion Identifies market price
+    /// @return isMaintained True if margin requirement met, otherwise false
+    function checkMaintained(address account, UFixed6 positionMagnitude, OracleVersion calldata latestVersion) external returns (bool isMaintained);
+
+    /// @dev Called by market (through InvariantLib) to check margin requirements upon market update
+    /// @param account User whose margin requirement will be checked
+    /// @param positionMagnitude Size of the user's position
+    /// @param latestVersion Identifies market price
+    /// @return isMargined True if margin requirement met, otherwise false
+    function checkMargained(address account, UFixed6 positionMagnitude, OracleVersion calldata latestVersion) external returns (bool isMargined);
+
+    /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market.
+    /// @param account User intending to adjust isolated collateral for market
+    /// @param collateralDelta Change in collateral requested by order prepared by market
+    function handleMarketUpdate(address account, Fixed6 collateralDelta) external;
 
     /// @dev Called by market upon settlement, updates the account’s balance by a collateral delta,
     /// and credits claimable accounts for fees
     /// @param account User whose collateral balance will be updated
     /// @param version Timestamp of the snapshot
     /// @param latest Checkpoint prepared by the market
-    function update(address account, uint256 version, Checkpoint memory latest) external;
+    /// @param pnl Collateral delta for the account prepared by the Local
+    function update(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external;
 
     /// @notice Returns information about an account's collateral for a specific version
     /// @param account User for whom the checkpoint is desired
