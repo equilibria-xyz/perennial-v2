@@ -83,6 +83,16 @@ describe('Margin', () => {
     expect(await margin.crossMarginBalances(user.address)).to.equal(constants.Zero)
   })
 
+  it('market can adjust balances for fees and exposure', async () => {
+    const balanceBefore = await margin.crossMarginBalances(user.address)
+
+    const feeEarned = parse6decimal('0.2')
+    const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+    await expect(margin.connect(marketSigner).updateBalance(user.address, feeEarned)).to.not.be.reverted
+
+    expect(await margin.crossMarginBalances(user.address)).to.equal(balanceBefore.add(feeEarned))
+  })
+
   it('stores and reads checkpoints', async () => {
     const balanceBefore = await margin.crossMarginBalances(user.address)
 
@@ -97,7 +107,8 @@ describe('Margin', () => {
 
     // can store
     const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-    await expect(margin.connect(marketSigner).update(user.address, version, latestCheckpoint, pnl)).to.not.be.reverted
+    await expect(margin.connect(marketSigner).updateCheckpoint(user.address, version, latestCheckpoint, pnl)).to.not.be
+      .reverted
 
     // can read
     const checkpoint: CheckpointStruct = await margin.isolatedCheckpoints(user.address, marketA.address, version)

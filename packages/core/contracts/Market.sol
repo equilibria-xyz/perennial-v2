@@ -36,11 +36,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev Verifies intent messages
     IVerifier public immutable verifier;
 
+    // TODO: Any reason to retain this, or should we remove from MarketDefinition?
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
     /// @dev Handles collateral across all markets
-    IMargin margin;
+    IMargin public margin;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
@@ -342,8 +343,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _locals[account].store(newLocal);
 
         if (!feeReceived.isZero()) {
-            // TODO: market has no collateral; do this through Margin contract
-            token.push(msg.sender, UFixed18Lib.from(feeReceived));
+            margin.updateBalance(msg.sender, Fixed6Lib.from(feeReceived));
             emit FeeClaimed(account, msg.sender, feeReceived);
         }
     }
@@ -353,10 +353,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function claimExposure() external onlyOwner {
         Global memory newGlobal = _global.read();
 
-        // TODO: market has no collateral; do this through Margin contract
-        if (newGlobal.exposure.sign() == 1) token.push(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
-        if (newGlobal.exposure.sign() == -1) token.pull(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
-
+        margin.updateBalance(msg.sender, newGlobal.exposure);
         emit ExposureClaimed(msg.sender, newGlobal.exposure);
 
         newGlobal.exposure = Fixed6Lib.ZERO;
@@ -870,7 +867,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         context.latestPositionLocal.update(newOrder);
         Fixed6 pnl = context.local.update(newOrderId, accumulationResponse);
-        margin.update(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
+        margin.updateCheckpoint(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
 
         _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
         _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);

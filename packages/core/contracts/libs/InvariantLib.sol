@@ -89,7 +89,6 @@ library InvariantLib {
         ) revert IMarket.MarketExceedsPendingIdLimitError();
 
         if (
-            // TODO: determine where updateContext.collateralization is coming from and why it is calculated elsewhere
             // TODO: apply price override adjustment from intent if present
             /*!PositionLib.margined(
                 context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
@@ -100,7 +99,8 @@ library InvariantLib {
             !margin.checkMargained(
                 context.account,
                 context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
-                context.latestOracleVersion
+                context.latestOracleVersion,
+                updateContext.collateralization
             )
         ) revert IMarket.MarketInsufficientMarginError();
 

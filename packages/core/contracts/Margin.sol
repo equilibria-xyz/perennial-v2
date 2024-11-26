@@ -11,6 +11,7 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
+import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance {
     /// @dev DSU address
@@ -113,15 +114,17 @@ contract Margin is IMargin, Instance {
     function checkMargained(
         address account,
         UFixed6 positionMagnitude,
-        OracleVersion calldata latestVersion
+        OracleVersion calldata latestVersion,
+        UFixed6 minCollateralization
     ) external onlyMarket returns (bool isMargined) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
             Fixed6 collateral = isolatedBalances[account][market];
-            return _isMarketMargined(account, market, collateral, positionMagnitude, latestVersion);
+            return _isMarketMargined(account, market, collateral, positionMagnitude, latestVersion, minCollateralization);
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check;
             //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
+            console.log("checkMargained not yet implemented for cross-margin");
             isMargined = false;
         }
     }
@@ -132,7 +135,7 @@ contract Margin is IMargin, Instance {
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
         // Pass through if no user did not make legacy request to change isolated collateral
-        if (collateralDelta.eq(Fixed6Lib.ZERO)) return;
+        if (collateralDelta.isZero()) return;
 
         IMarket market = IMarket(msg.sender);
         Fixed6 isolatedBalance = isolatedBalances[account][market];
@@ -162,9 +165,14 @@ contract Margin is IMargin, Instance {
         // TODO: Ensure InvariantLib checks margin and maintenance requirements and reverts where appropriate.
     }
 
-    // TODO: rename updateCheckpoint
     /// @inheritdoc IMargin
-    function update(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external onlyMarket{
+    function updateBalance(address account, Fixed6 collateralDelta) external onlyMarket {
+        _updateCollateralBalance(account, IMarket(msg.sender), collateralDelta);
+        // TODO: Emit an event
+    }
+
+    /// @inheritdoc IMargin
+    function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external onlyMarket{
         // Store the checkpoint
         _isolatedCheckpoints[account][IMarket(msg.sender)][version].store(latest);
         // Adjust cross-margin or isolated collateral balance accordingly
@@ -180,7 +188,7 @@ contract Margin is IMargin, Instance {
     /// @dev Applies a change in collateral to a user
     function _updateCollateralBalance(address account, IMarket market, Fixed6 collateralDelta) private {
         Fixed6 isolatedBalance = isolatedBalances[account][market];
-        if (isolatedBalance.eq(Fixed6Lib.ZERO)) {
+        if (isolatedBalance.isZero()) {
             crossMarginBalances[account] = crossMarginBalances[account].add(collateralDelta);
         } else {
             isolatedBalances[account][market] = isolatedBalance.add(collateralDelta);
@@ -192,9 +200,10 @@ contract Margin is IMargin, Instance {
         // TODO: Methinks we cannot use 0 as magic number to determine whether market is isolated for user.
         // Fee or PnL accumulation could make it land on 0 isolated collateral with a position,
         // turning it cross-market implictly.
-        return !isolatedBalances[account][market].eq(Fixed6Lib.ZERO);
+        return !isolatedBalances[account][market].isZero();
     }
 
+    /// @dev Checks whether maintenance requirements are satisfied for specific user and market
     function _isMarketMaintained(
         address account,
         IMarket market,
@@ -216,26 +225,28 @@ contract Margin is IMargin, Instance {
         isMaintained = UFixed6Lib.unsafeFrom(collateral).gte(requirement);
     }
 
-    /// @dev Checks whether user's margin requirements are satisfied
-    /// @param market Pass market in isolated mode to check single market, or 0 address to check everything for user
+    /// @dev Checks whether margin requirements are satisfied for specific user and market
+    /// @param minCollateralization minimum collateralization specified on an intent, otherwise 0
     function _isMarketMargined(
         address account,
         IMarket market,
         Fixed6 collateral,
         UFixed6 positionMagnitude,
-        OracleVersion calldata latestVersion
+        OracleVersion calldata latestVersion,
+        UFixed6 minCollateralization
     ) private returns (bool isMargined) {
+        console.log("_isMarketMargined checking margin for collateral %s, position %s",
+            UFixed6.unwrap(collateral.abs()), UFixed6.unwrap(positionMagnitude));
         if (collateral.lt(Fixed6Lib.ZERO)) return false; // negative collateral balance forbidden, regardless of position
         if (positionMagnitude.isZero()) return true;     // zero position has no requirement
 
         RiskParameter memory riskParameter = market.riskParameter();
-        // TODO: need to take riskParameter.margin.max(collateralization) of some collateralization provided by context
         // TODO: need to apply price override adjustment from intent if present
         UFixed6 requirement = _collateralRequirement(
             collateral,
             positionMagnitude,
             latestVersion.price.abs(),
-            riskParameter.margin,
+            riskParameter.margin.max(minCollateralization),
             riskParameter.minMargin
         );
         isMargined = UFixed6Lib.unsafeFrom(collateral).gte(requirement);

@@ -61,19 +61,32 @@ interface IMargin is IInstance {
     /// @param positionMagnitude Size of the user's position
     /// @param latestVersion Identifies market price
     /// @return isMaintained True if margin requirement met, otherwise false
-    function checkMaintained(address account, UFixed6 positionMagnitude, OracleVersion calldata latestVersion) external returns (bool isMaintained);
+    function checkMaintained(
+        address account,
+        UFixed6 positionMagnitude,
+        OracleVersion calldata latestVersion
+    ) external returns (bool isMaintained);
 
     /// @dev Called by market (through InvariantLib) to check margin requirements upon market update
     /// @param account User whose margin requirement will be checked
     /// @param positionMagnitude Size of the user's position
     /// @param latestVersion Identifies market price
+    /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
     /// @return isMargined True if margin requirement met, otherwise false
-    function checkMargained(address account, UFixed6 positionMagnitude, OracleVersion calldata latestVersion) external returns (bool isMargined);
+    function checkMargained(
+        address account,
+        UFixed6 positionMagnitude,
+        OracleVersion calldata latestVersion,
+        UFixed6 minCollateralization
+    ) external returns (bool isMargined);
 
     /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market.
     /// @param account User intending to adjust isolated collateral for market
     /// @param collateralDelta Change in collateral requested by order prepared by market
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external;
+
+    /// @dev Called by market when fees are claimed or exposure settled
+    function updateBalance(address account, Fixed6 collateralDelta) external;
 
     /// @dev Called by market upon settlement, updates the account’s balance by a collateral delta,
     /// and credits claimable accounts for fees
@@ -81,7 +94,7 @@ interface IMargin is IInstance {
     /// @param version Timestamp of the snapshot
     /// @param latest Checkpoint prepared by the market
     /// @param pnl Collateral delta for the account prepared by the Local
-    function update(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external;
+    function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external;
 
     /// @notice Returns information about an account's collateral for a specific version
     /// @param account User for whom the checkpoint is desired
