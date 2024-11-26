@@ -1436,7 +1436,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      staleAfter: 100000, // enable long delays for testing
+      staleAfter: 64800, // enable long delays for testing
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -2500,7 +2500,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      staleAfter: 100000, // enable long delays for testing
+      staleAfter: 64800, // enable long delays for testing
       makerReceiveOnly: false,
     }
     const parameter = {
