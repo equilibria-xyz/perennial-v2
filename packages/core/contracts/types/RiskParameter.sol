@@ -84,7 +84,7 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 ///        uint48 minMargin;                           // <= 281m
 ///        uint48 minMaintenance;                      // <= 281m
 ///        uint32 liquidationFee;                      // <= 4294
-///        uint24 staleAfter;                          // <= 16m s
+///        uint16 staleAfter;                          // <= 65536 seconds
 ///        bool makerReceiveOnly;
 ///    }
 library RiskParameterStorageLib {
@@ -125,8 +125,8 @@ library RiskParameterStorageLib {
             ),
             UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(       slot2 << (256 - 48 - 32 - 48 - 48)) >> (256 - 48)),
-                         uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24)) >> (256 - 24),
-            0 !=        (uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8)) >> (256 - 8))
+                         uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 16)) >> (256 - 16),
+            0 !=        (uint256(       slot2 << (256 - 48 - 32 - 48 - 48 - 32 - 16 - 8)) >> (256 - 8))
         );
     }
 
@@ -183,7 +183,7 @@ library RiskParameterStorageLib {
         if (newValue.pController.k.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.takerFee.scale.gt(UFixed6Lib.from(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.makerFee.scale.gt(UFixed6Lib.from(type(uint48).max))) revert RiskParameterStorageInvalidError();
-        if (newValue.staleAfter > uint256(type(uint24).max)) revert RiskParameterStorageInvalidError();
+        if (newValue.staleAfter > uint256(type(uint16).max)) revert RiskParameterStorageInvalidError();
 
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.margin)                    << (256 - 24)) >> (256 - 24) |
@@ -211,8 +211,8 @@ library RiskParameterStorageLib {
             uint256(UFixed6.unwrap(newValue.minMargin)                      << (256 - 48)) >> (256 - 48 - 32 - 48) |
             uint256(UFixed6.unwrap(newValue.minMaintenance)                 << (256 - 48)) >> (256 - 48 - 32 - 48 - 48) |
             uint256(UFixed6.unwrap(newValue.liquidationFee)                 << (256 - 32)) >> (256 - 48 - 32 - 48 - 48 - 32) |
-            uint256(newValue.staleAfter                                     << (256 - 24)) >> (256 - 48 - 32 - 48 - 48 - 32 - 24) |
-            uint256((newValue.makerReceiveOnly ? uint256(1) : uint256(0))   << (256 - 8))  >> (256 - 48 - 32 - 48 - 48 - 32 - 24 - 8);
+            uint256(newValue.staleAfter                                     << (256 - 24)) >> (256 - 48 - 32 - 48 - 48 - 32 - 16) |
+            uint256((newValue.makerReceiveOnly ? uint256(1) : uint256(0))   << (256 - 8))  >> (256 - 48 - 32 - 48 - 48 - 32 - 16 - 8);
 
         assembly {
             sstore(self.slot, encoded0)
