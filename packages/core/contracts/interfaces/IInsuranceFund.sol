@@ -20,9 +20,9 @@ interface IInsuranceFund is IOwnable {
     /// @notice Claims fees from a market.
     /// @param market The address of the market from which to claim protocol fees.
     /// @dev This contract must be approved as an operator of the market factory owner to claim protocol fees.
-    function claim(address market) external;
+    function claim(IMarket market) external;
 
     /// @notice Resolves any shortfall in a market.
     /// @param market The address of the market for which to resolve the shortfall.
-    function resolve(address market) external;
+    function resolve(IMarket market) external;
 }

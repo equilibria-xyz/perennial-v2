@@ -36,7 +36,7 @@ contract InsuranceFund is IInsuranceFund, Ownable {
 
     /// @inheritdoc IInsuranceFund
     function resolve(IMarket market) external onlyOwner isMarketInstance(market) {
-        token.approve(market);
+        token.approve(address(market));
         market.claimExposure();
     }
 
