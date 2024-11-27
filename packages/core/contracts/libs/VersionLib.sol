@@ -14,6 +14,7 @@ import { Guarantee } from "../types/Guarantee.sol";
 import { Version } from "../types/Version.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { OracleReceipt } from "../types/OracleReceipt.sol";
+import "hardhat/console.sol";
 
 /// @dev The response of the version accumulation
 ///      Contains only select fee information needed for the downstream market contract
@@ -276,7 +277,7 @@ library VersionLib {
         Version memory next,
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
-    ) private pure {
+    ) private view {
         // calculate position after closes
         Position memory closedPosition = context.fromPosition.clone();
         closedPosition.updateClose(context.order);
@@ -288,6 +289,10 @@ library VersionLib {
         // calculate exposure before and after order
         (next.makerNegExposure, next.longNegExposure, next.shortNegExposure) = context.fromPosition.exposure();
         (next.makerPosExposure, next.longPosExposure, next.shortPosExposure) = toPosition.exposure();
+
+        // calculate aggregate exposure per side (mul by closed position)
+        // derive netted exposure from these values
+        (UFixed6 exposurePos, UFixed6 exposureNeg)
 
         // calculate exposure of the order components
         (UFixed6 exposurePos, UFixed6 exposureNeg) = context.order.exposure(
@@ -348,7 +353,7 @@ library VersionLib {
         Position memory closedPosition,
         Position memory toPosition,
         Fixed6 exposure
-    ) internal pure returns (Fixed6 spreadMaker, Fixed6 spreadLong, Fixed6 spreadShort) {
+    ) internal view returns (Fixed6 spreadMaker, Fixed6 spreadLong, Fixed6 spreadShort) {
         if (exposure.isZero()) return (Fixed6Lib.ZERO, Fixed6Lib.ZERO, Fixed6Lib.ZERO);
 
         // compute spread
@@ -382,7 +387,18 @@ library VersionLib {
         );
 
         spreadMaker = spread.sub(spreadLong).sub(spreadShort);
+
+        console.log("spreadMaker", uint256(Fixed6.unwrap(spreadMaker)));
+        console.log("closedPosition.maker", UFixed6.unwrap(closedPosition.maker));
+
+        console.log("spreadLong", uint256(Fixed6.unwrap(spreadLong)));
+        console.log("closedPosition.long", UFixed6.unwrap(closedPosition.long));
+
+        console.log("spreadShort", uint256(Fixed6.unwrap(spreadShort)));
+        console.log("closedPosition.short", UFixed6.unwrap(closedPosition.short));
+
         next.makerSpreadValue.increment(spreadMaker, closedPosition.maker); // TODO: can leftover cause non-zero maker spread w/ zero maker? (divide-by-zero)
+        // TODO: who gets spread if all positions are closed in an order
     }
 
     /// @notice Calculates and applies the accumulated spread component for one side of the market

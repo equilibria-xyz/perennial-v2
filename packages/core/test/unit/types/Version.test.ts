@@ -1314,7 +1314,7 @@ describe('Version', () => {
     })
 
     describe('price impact accumulation', () => {
-      it('allocates when no makers', async () => {
+      it.only('allocates when no makers', async () => {
         await version.store(VALID_VERSION)
 
         const { ret, value } = await accumulateWithReturn(
@@ -1323,12 +1323,12 @@ describe('Version', () => {
           ORDER_ID,
           {
             ...ORDER,
-            makerNeg: parse6decimal('0'),
-            makerPos: parse6decimal('10'),
-            longPos: parse6decimal('30'),
-            longNeg: parse6decimal('10'),
-            shortPos: parse6decimal('50'),
-            shortNeg: parse6decimal('20'),
+            makerNeg: parse6decimal('0'), // neg (makers are long)
+            makerPos: parse6decimal('10'), // pos (makers are long)
+            longPos: parse6decimal('30'), // pos
+            longNeg: parse6decimal('10'), // neg
+            shortPos: parse6decimal('50'), // neg
+            shortNeg: parse6decimal('20'), // pos
             makerReferral: 0,
             takerReferral: 0,
           },
@@ -1346,77 +1346,62 @@ describe('Version', () => {
               targetRate: 0,
               targetUtilization: 0,
             },
-            makerFee: {
-              linearFee: parse6decimal('0.02'),
-              proportionalFee: parse6decimal('0.10'),
-              scale: parse6decimal('100'),
-            },
-            takerFee: {
-              linearFee: parse6decimal('0.01'),
-              proportionalFee: parse6decimal('0.05'),
-              adiabaticFee: parse6decimal('0.10'),
+            synBook: {
+              d0: parse6decimal('0.01'),
+              d1: parse6decimal('0.02'),
+              d2: parse6decimal('0.05'),
+              d3: parse6decimal('0.10'),
               scale: parse6decimal('100'),
             },
           },
         )
 
-        const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
-        const makerExposure = parse6decimal('0.0') // 100 -> 100 / 100 = 199 / 100 = 1.0 * 0 * 0.2
-        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
-
         const makerFee = parse6decimal('0.2') // 10 * 0.02
         const takerFee = parse6decimal('1.1') // 110 * 0.01
         const fee = makerFee.add(takerFee).mul(123)
 
-        const linear1 = parse6decimal('0.2') // 10 * 0.02
-        const linear2 = parse6decimal('0.5') // 50 * 0.01
-        const linear3 = parse6decimal('0.6') // 60 * 0.01
-        const linear = linear1.add(linear2).add(linear3).mul(123) // price
+        // before 0  - 20 - 30
+        // close  0  - 10 - 10
+        // after  10 - 40 - 60
+        const makerNegExposure = parse6decimal('1')
+        const longNegExposure = parse6decimal('1')
+        const shortNegExposure = parse6decimal('0.666666')
 
-        const proportional1 = parse6decimal('0.1') // 10 * 0.01
-        const proportional2 = parse6decimal('1.25') // 50 * 0.025
-        const proportional3 = parse6decimal('1.8') // 60 * 0.03
-        const proportional = proportional1.add(proportional2).add(proportional3).mul(123) // price
+        const makerPosExposure = parse6decimal('1')
+        const longPosExposure = parse6decimal('1')
+        const shortPosExposure = parse6decimal('0.833333')
 
-        const offset = linear.add(proportional)
+        // pos    10 - 50 - 10 (+10 - 0 - 0)
+        // neg    0  - 10 - 80
+        const exposurePos = parse6decimal('81.66665') // 10 * 1 + 30 * 1 + 50 * 0.833333
+        const exposureNeg = parse6decimal('63.33328') // 0 * 1 + 10 * 1 + 80 * 0.666666
+        const spreadPos = parse6decimal('2.11898') // TODO: skew isn't actually the correct starting exposure, what is it???
+        const spreadNeg = parse6decimal('0.864058')
 
-        const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
-        const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
-        const impact = impact1.add(impact2).mul(123) // price
-
-        const makerOffset = linear1.mul(-1).mul(123).div(10).add(proportional1.mul(-1).mul(123).div(10))
-
-        const takerPosOffset = linear2
-          .mul(-1)
-          .mul(123)
-          .div(50)
-          .add(proportional2.mul(-1).mul(123).div(50))
-          .add(impact1.mul(-1).mul(123).div(50))
-
-        const takerNegOffset = linear3
-          .mul(-1)
-          .mul(123)
-          .div(60)
-          .add(proportional3.mul(-1).mul(123).div(60))
-          .add(impact2.mul(-1).mul(123).div(60))
-
+        expect(value.makerPosExposure).to.equal(makerPosExposure)
+        expect(value.makerNegExposure).to.equal(makerNegExposure)
+        expect(value.longPosExposure).to.equal(longPosExposure)
+        expect(value.longNegExposure).to.equal(longNegExposure)
+        expect(value.shortPosExposure).to.equal(shortPosExposure)
+        expect(value.shortNegExposure).to.equal(shortNegExposure)
         expect(value.makerValue._value).to.equal(1)
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2)) // pnl
         expect(value.shortValue._value).to.equal(parse6decimal('-2').mul(2).div(3).sub(1).add(3)) // pnl
         expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(10))
         expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
-        expect(value.makerOffset._value).to.equal(makerOffset)
-        expect(value.takerPosOffset._value).to.equal(takerPosOffset)
-        expect(value.takerNegOffset._value).to.equal(takerNegOffset)
+        expect(value.spreadPos._value).to.equal(spreadPos.div(exposurePos))
+        expect(value.spreadNeg._value).to.equal(spreadNeg.div(exposureNeg))
+        expect(value.makerSpreadValue._value).to.equal(parse6decimal('0'))
+        expect(value.longSpreadValue._value).to.equal(parse6decimal('0'))
+        expect(value.shortSpreadValue._value).to.equal(parse6decimal('0'))
         expect(value.settlementFee._value).to.equal(0)
 
-        expect(ret.tradeOffset).to.equal(offset.add(impact))
-        expect(ret.tradeOffsetMaker).to.equal(0)
-        expect(ret.tradeOffsetMarket).to.equal(offset)
+        expect(ret.spreadPos).to.equal(spreadPos)
+        expect(ret.spreadNeg).to.equal(spreadNeg)
+        expect(ret.spreadMaker).to.equal(parse6decimal('0'))
+        expect(ret.spreadLong).to.equal(parse6decimal('0'))
+        expect(ret.spreadShort).to.equal(parse6decimal('0'))
         expect(ret.tradeFee).to.equal(fee)
-        expect(ret.adiabaticExposure).to.equal(exposure)
-        expect(ret.adiabaticExposureMarket).to.equal(-exposure)
-        expect(ret.adiabaticExposureMaker).to.equal(0)
       })
 
       it('allocates when makers', async () => {
