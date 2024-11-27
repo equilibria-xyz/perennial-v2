@@ -311,10 +311,6 @@ library PositionLib {
 ///         uint64 maker;
 ///         uint64 long;
 ///         uint64 short;
-///
-///         /* slot 1 */
-///         uint64 maker (deprecated);
-///         uint192 __unallocated__;
 ///     }
 ///
 library PositionStorageGlobalLib {
@@ -350,22 +346,7 @@ library PositionStorageGlobalLib {
 /// @dev Manually encodes and decodes the local Position struct into storage.
 ///      (external-safe): this library is safe to externalize
 ///
-///     struct StoredPositionLocal (v0) {
-///         /* slot 0 */
-///         uint32 timestamp;
-///         uint216 __unallocated__;
-///         uint8 layout;
-///
-///         /* slot 1 */
-///         uint2 direction;
-///         uint62 magnitude;
-///         uint192 __unallocated__;
-///     }
-///
-///     note: fresh Positions will still default to v0 until they are saved to, but this is safe because
-///           slot1 is still reserved and will return correct default values.
-///
-///     struct StoredPositionLocal (v1) {
+///     struct StoredPositionLocal {
 ///         /* slot 0 */
 ///         uint32 timestamp;
 ///         uint2 direction;
@@ -375,7 +356,7 @@ library PositionStorageGlobalLib {
 ///
 library PositionStorageLocalLib {
     function read(PositionStorageLocal storage self) internal view returns (Position memory) {
-        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
+        uint256 slot0 = self.slot0;
 
         uint256 direction = uint256(slot0 << (256 - 32 - 2)) >> (256 - 2);
         UFixed6 magnitude = UFixed6.wrap(uint256(slot0 << (256 - 32 - 2 - 62)) >> (256 - 62));
