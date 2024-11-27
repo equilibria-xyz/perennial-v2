@@ -34,7 +34,7 @@ struct StoredTriggerOrder {
     /* slot 2 */
     address interfaceFeeReceiver2;
     uint48 interfaceFeeAmount2;      // <= 281m
-    bytes6 __unallocated2__;
+    bytes6 __unallocated2__;         // Contains dirty data until updated post v2.3 migration.
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
