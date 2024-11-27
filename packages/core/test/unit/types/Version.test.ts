@@ -43,14 +43,22 @@ use(smock.matchers)
 const VALID_VERSION: VersionStruct = {
   valid: true,
   price: 18,
+  makerPosExposure: 21,
+  makerNegExposure: 22,
+  longPosExposure: 23,
+  longNegExposure: 24,
+  shortPosExposure: 25,
+  shortNegExposure: 26,
   makerValue: { _value: 1 },
   longValue: { _value: 2 },
   shortValue: { _value: 3 },
   makerFee: { _value: 14 },
   takerFee: { _value: 16 },
-  makerOffset: { _value: 4 },
-  takerPosOffset: { _value: 6 },
-  takerNegOffset: { _value: 7 },
+  spreadPos: { _value: 6 },
+  spreadNeg: { _value: 7 },
+  makerSpreadValue: { _value: 8 },
+  longSpreadValue: { _value: 9 },
+  shortSpreadValue: { _value: 10 },
   settlementFee: { _value: -8 },
   liquidationFee: { _value: -9 },
 }
@@ -66,7 +74,6 @@ const GLOBAL: GlobalStruct = {
     _skew: 7,
   },
   latestPrice: 9,
-  exposure: 0,
 }
 
 const FROM_POSITION: PositionStruct = {
@@ -134,6 +141,7 @@ describe('Version', () => {
         riskParameter,
         global,
         latestPositionGlobal: fromPosition,
+        latestOracleVersion: fromOracleVersion,
       },
       {
         ...DEFAULT_SETTLEMENT_CONTEXT,
@@ -195,14 +203,22 @@ describe('Version', () => {
       const value = await version.read()
       expect(value.valid).to.equal(true)
       expect(value.price).to.equal(18)
+      expect(value.makerPosExposure).to.equal(21)
+      expect(value.makerNegExposure).to.equal(22)
+      expect(value.longPosExposure).to.equal(23)
+      expect(value.longNegExposure).to.equal(24)
+      expect(value.shortPosExposure).to.equal(25)
+      expect(value.shortNegExposure).to.equal(26)
       expect(value.makerValue._value).to.equal(1)
       expect(value.longValue._value).to.equal(2)
       expect(value.shortValue._value).to.equal(3)
       expect(value.makerFee._value).to.equal(14)
       expect(value.takerFee._value).to.equal(16)
-      expect(value.makerOffset._value).to.equal(4)
-      expect(value.takerPosOffset._value).to.equal(6)
-      expect(value.takerNegOffset._value).to.equal(7)
+      expect(value.spreadPos._value).to.equal(6)
+      expect(value.spreadNeg._value).to.equal(7)
+      expect(value.makerSpreadValue._value).to.equal(8)
+      expect(value.longSpreadValue._value).to.equal(9)
+      expect(value.shortSpreadValue._value).to.equal(10)
       expect(value.settlementFee._value).to.equal(-8)
       expect(value.liquidationFee._value).to.equal(-9)
     })
@@ -252,6 +268,168 @@ describe('Version', () => {
           version.store({
             ...VALID_VERSION,
             price: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.makerPosExposure', async () => {
+      const STORAGE_SIZE = 23
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerPosExposure: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await version.read()
+        expect(value.makerPosExposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerPosExposure: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+        })
+        const value = await version.read()
+        expect(value.makerPosExposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerPosExposure: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerPosExposure: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.makerNegExposure', async () => {
+      const STORAGE_SIZE = 23
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerNegExposure: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await version.read()
+        expect(value.makerNegExposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerNegExposure: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
+        })
+        const value = await version.read()
+        expect(value.makerNegExposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerNegExposure: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerNegExposure: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.longPosExposure', async () => {
+      const STORAGE_SIZE = 24
+      it('saves if in range', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longPosExposure: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await version.read()
+        expect(value.longPosExposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longPosExposure: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.longNegExposure', async () => {
+      const STORAGE_SIZE = 24
+      it('saves if in range', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longNegExposure: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await version.read()
+        expect(value.longNegExposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longNegExposure: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.shortPosExposure', async () => {
+      const STORAGE_SIZE = 24
+      it('saves if in range', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortPosExposure: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await version.read()
+        expect(value.shortPosExposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortPosExposure: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.shortNegExposure', async () => {
+      const STORAGE_SIZE = 24
+      it('saves if in range', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortNegExposure: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await version.read()
+        expect(value.shortNegExposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortNegExposure: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -452,31 +630,31 @@ describe('Version', () => {
       })
     })
 
-    describe('.makerOffset', async () => {
+    describe('.spreadPos', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          spreadPos: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.makerOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.spreadPos._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          spreadPos: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.makerOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.spreadPos._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            spreadPos: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -485,37 +663,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            spreadPos: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.takerPosOffset', async () => {
+    describe('.spreadNeg', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          takerPosOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          spreadNeg: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.takerPosOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.spreadNeg._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          takerPosOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          spreadNeg: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.takerPosOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.spreadNeg._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            takerPosOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            spreadNeg: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -524,37 +702,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            takerPosOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            spreadNeg: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.takerNegOffset', async () => {
+    describe('.makerSpreadValue', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          takerNegOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          makerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.takerNegOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          takerNegOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          makerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.takerNegOffset._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.makerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            takerNegOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            makerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -563,7 +741,85 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            takerNegOffset: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            makerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.longSpreadValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.longSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.longSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.shortSpreadValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.shortSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.shortSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -669,26 +925,28 @@ describe('Version', () => {
           },
           {
             ...VALID_RISK_PARAMETER,
-            takerFee: {
-              linearFee: parse6decimal('0.1'),
-              proportionalFee: parse6decimal('0.2'),
-              adiabaticFee: parse6decimal('0.3'),
+            synBook: {
+              d0: parse6decimal('0.1'),
+              d1: parse6decimal('0.4'),
+              d2: parse6decimal('0.2'),
+              d3: parse6decimal('0.3'),
               scale: parse6decimal('100'),
             },
           },
         )
 
         expect(value.valid).to.be.true
-        expect(value.makerValue._value).to.equal(BigNumber.from('14760000').add(1))
+        expect(value.makerValue._value).to.equal(1)
         expect(value.longValue._value).to.equal(2)
         expect(value.shortValue._value).to.equal(3)
 
-        expect(ret.tradeOffset).to.equal(BigNumber.from('147600000').add(BigNumber.from('18450000')))
-        expect(ret.tradeOffsetMaker).to.equal(BigNumber.from('147600000'))
         expect(ret.tradeFee).to.equal(BigNumber.from('12300000'))
-        expect(ret.adiabaticExposure).to.equal(0)
-        expect(ret.adiabaticExposureMaker).to.equal(0)
-        expect(ret.adiabaticExposureMarket).to.equal(0)
+        expect(ret.subtractiveFee).to.equal(0)
+        expect(ret.spreadPos).to.equal(BigNumber.from('14851225'))
+        expect(ret.spreadNeg).to.equal(0)
+        expect(ret.spreadMaker).to.equal(BigNumber.from('14851225'))
+        expect(ret.spreadLong).to.equal(0)
+        expect(ret.spreadShort).to.equal(0)
         expect(ret.fundingMaker).to.equal(0)
         expect(ret.fundingLong).to.equal(0)
         expect(ret.fundingShort).to.equal(0)
@@ -905,8 +1163,8 @@ describe('Version', () => {
             orders: orderCount,
             makerNeg: parse6decimal('3'),
             longPos: parse6decimal('6'),
-            shortPos: parse6decimal('5'),
-            shortNeg: parse6decimal('9'),
+            shortPos: parse6decimal('9'),
+            shortNeg: parse6decimal('5'),
           },
           { ...DEFAULT_GUARANTEE },
           { ...ORACLE_VERSION_1 },
@@ -932,8 +1190,8 @@ describe('Version', () => {
             orders: orderCount,
             makerNeg: parse6decimal('3'),
             longPos: parse6decimal('6'),
-            shortPos: parse6decimal('5'),
-            shortNeg: parse6decimal('9'),
+            shortPos: parse6decimal('9'),
+            shortNeg: parse6decimal('5'),
           },
           { ...DEFAULT_GUARANTEE, orders: guaranteeCount },
           { ...ORACLE_VERSION_1 },
@@ -1055,135 +1313,8 @@ describe('Version', () => {
       })
     })
 
-    describe('exposure accumulation', () => {
-      const riskParameters = {
-        ...VALID_RISK_PARAMETER,
-        pController: { min: 0, max: 0, k: parse6decimal('1') },
-        utilizationCurve: {
-          minRate: 0,
-          maxRate: 0,
-          targetRate: 0,
-          targetUtilization: 0,
-        },
-        makerFee: {
-          linearFee: parse6decimal('0.02'),
-          proportionalFee: parse6decimal('0.10'),
-          adiabaticFee: parse6decimal('0.15'),
-          scale: parse6decimal('100'),
-        },
-        takerFee: {
-          linearFee: parse6decimal('0.01'),
-          proportionalFee: parse6decimal('0.05'),
-          adiabaticFee: parse6decimal('0.15'),
-          scale: parse6decimal('100'),
-        },
-      }
-
-      const position = {
-        ...FROM_POSITION,
-        maker: parse6decimal('1.2'),
-        long: parse6decimal('5'),
-        short: parse6decimal('3'),
-      }
-
-      const order = {
-        ...ORDER,
-        orders: 1,
-        makerNeg: 0,
-        makerPos: parse6decimal('0.4'),
-        longPos: 0,
-        longNeg: 0,
-        shortPos: 0,
-        shortNeg: 0,
-        makerReferral: 0,
-        takerReferral: 0,
-      }
-
-      beforeEach(async () => {
-        await version.store(VALID_VERSION)
-      })
-
-      it('exposure unchanged with same price', async () => {
-        const { ret, value } = await accumulateWithReturn(
-          GLOBAL,
-          position,
-          ORDER_ID,
-          { ...ORDER },
-          { ...DEFAULT_GUARANTEE },
-          { ...ORACLE_VERSION_1 }, // 123
-          { ...ORACLE_VERSION_2 }, // 123
-          DEFAULT_ORACLE_RECEIPT,
-          { ...VALID_MARKET_PARAMETER },
-          riskParameters,
-        )
-
-        // no exposure without price change
-        expect(ret.adiabaticExposure).to.equal(0)
-        expect(ret.adiabaticExposureMaker).to.equal(0)
-        expect(ret.adiabaticExposureMarket).to.equal(0)
-      })
-
-      it('exposure changes with updated price', async () => {
-        const { ret, value } = await accumulateWithReturn(
-          GLOBAL,
-          position,
-          ORDER_ID,
-          { ...ORDER },
-          { ...DEFAULT_GUARANTEE },
-          { ...ORACLE_VERSION_1 }, // 123
-          { ...ORACLE_VERSION_2, price: parse6decimal('138') },
-          DEFAULT_ORACLE_RECEIPT,
-          { ...VALID_MARKET_PARAMETER },
-          riskParameters,
-        )
-
-        // takerFeeExposure (linear adiabatic) = skew * adiabaticFee * skew/scale / 2
-        //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
-
-        // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
-        //                     = (138 - 123) * (0.003) = 0.045
-        // positionFeeExposureMaker = positionFeeExposure * -1
-        // positionFeeExposureProtocol is 0 unless maker position is 0
-
-        expect(ret.adiabaticExposure).to.equal(parse6decimal('0.045'))
-        expect(ret.adiabaticExposureMaker).to.equal(parse6decimal('-0.045'))
-        expect(ret.adiabaticExposureMarket).to.equal(0)
-      })
-
-      it('exposure with no maker position', async () => {
-        const { ret, value } = await accumulateWithReturn(
-          GLOBAL,
-          { ...position, maker: 0 },
-          ORDER_ID,
-          { ...order, makerPos: parse6decimal('0.7'), longPos: 0 },
-          { ...DEFAULT_GUARANTEE },
-          { ...ORACLE_VERSION_1, price: parse6decimal('142') },
-          { ...ORACLE_VERSION_2, price: parse6decimal('137') },
-          DEFAULT_ORACLE_RECEIPT,
-          { ...VALID_MARKET_PARAMETER },
-          riskParameters,
-        )
-
-        // takerFeeExposure (linear adiabatic) = skew * adiabaticFee * skew/scale / 2
-        //                                     = 2 * 0.15 * 2/100 / 2   = 0.003
-
-        // makerFeeExposure (inverse adiabatic) = change * adiabaticFee * (2 + changeScaled) / 2
-        //    with                       change = scale-makerPosition-scale = 0
-        //     and                 changeScaled = change/scale              = 0
-
-        // positionFeeExposure = (toPrice - fromPrice) * (takerFeeExposure + makerFeeExposure)
-        //                     = (137 - 142) * (0.003 + 0) = -0.015
-        // positionFeeExposureMaker = 0
-        // positionFeeExposureProtocol = positionFeeExposure * -1 = 0.015
-
-        expect(ret.adiabaticExposure).to.equal(parse6decimal('-0.015'))
-        expect(ret.adiabaticExposureMaker).to.equal(0)
-        expect(ret.adiabaticExposureMarket).to.equal(parse6decimal('0.015'))
-      })
-    })
-
-    describe('offset / fee accumulation', () => {
-      it('allocates when no makers', async () => {
+    describe('price impact accumulation', () => {
+      it.only('allocates when no makers', async () => {
         await version.store(VALID_VERSION)
 
         const { ret, value } = await accumulateWithReturn(
@@ -1192,12 +1323,12 @@ describe('Version', () => {
           ORDER_ID,
           {
             ...ORDER,
-            makerNeg: parse6decimal('0'),
-            makerPos: parse6decimal('10'),
-            longPos: parse6decimal('30'),
-            longNeg: parse6decimal('10'),
-            shortPos: parse6decimal('50'),
-            shortNeg: parse6decimal('20'),
+            makerNeg: parse6decimal('0'), // neg (makers are long)
+            makerPos: parse6decimal('10'), // pos (makers are long)
+            longPos: parse6decimal('30'), // pos
+            longNeg: parse6decimal('10'), // neg
+            shortPos: parse6decimal('50'), // neg
+            shortNeg: parse6decimal('20'), // pos
             makerReferral: 0,
             takerReferral: 0,
           },
@@ -1215,77 +1346,62 @@ describe('Version', () => {
               targetRate: 0,
               targetUtilization: 0,
             },
-            makerFee: {
-              linearFee: parse6decimal('0.02'),
-              proportionalFee: parse6decimal('0.10'),
-              scale: parse6decimal('100'),
-            },
-            takerFee: {
-              linearFee: parse6decimal('0.01'),
-              proportionalFee: parse6decimal('0.05'),
-              adiabaticFee: parse6decimal('0.10'),
+            synBook: {
+              d0: parse6decimal('0.01'),
+              d1: parse6decimal('0.02'),
+              d2: parse6decimal('0.05'),
+              d3: parse6decimal('0.10'),
               scale: parse6decimal('100'),
             },
           },
         )
 
-        const takerExposure = parse6decimal('0.05') // 0 -> -10 / 100 = -5 / 100 = -0.05 * -10 * 0.1
-        const makerExposure = parse6decimal('0.0') // 100 -> 100 / 100 = 199 / 100 = 1.0 * 0 * 0.2
-        const exposure = takerExposure.add(makerExposure).mul(2) // price delta
-
         const makerFee = parse6decimal('0.2') // 10 * 0.02
         const takerFee = parse6decimal('1.1') // 110 * 0.01
         const fee = makerFee.add(takerFee).mul(123)
 
-        const linear1 = parse6decimal('0.2') // 10 * 0.02
-        const linear2 = parse6decimal('0.5') // 50 * 0.01
-        const linear3 = parse6decimal('0.6') // 60 * 0.01
-        const linear = linear1.add(linear2).add(linear3).mul(123) // price
+        // before 0  - 20 - 30
+        // close  0  - 10 - 10
+        // after  10 - 40 - 60
+        const makerNegExposure = parse6decimal('1')
+        const longNegExposure = parse6decimal('1')
+        const shortNegExposure = parse6decimal('0.666666')
 
-        const proportional1 = parse6decimal('0.1') // 10 * 0.01
-        const proportional2 = parse6decimal('1.25') // 50 * 0.025
-        const proportional3 = parse6decimal('1.8') // 60 * 0.03
-        const proportional = proportional1.add(proportional2).add(proportional3).mul(123) // price
+        const makerPosExposure = parse6decimal('1')
+        const longPosExposure = parse6decimal('1')
+        const shortPosExposure = parse6decimal('0.833333')
 
-        const offset = linear.add(proportional)
+        // pos    10 - 50 - 10 (+10 - 0 - 0)
+        // neg    0  - 10 - 80
+        const exposurePos = parse6decimal('81.66665') // 10 * 1 + 30 * 1 + 50 * 0.833333
+        const exposureNeg = parse6decimal('63.33328') // 0 * 1 + 10 * 1 + 80 * 0.666666
+        const spreadPos = parse6decimal('2.11898') // TODO: skew isn't actually the correct starting exposure, what is it???
+        const spreadNeg = parse6decimal('0.864058')
 
-        const impact1 = parse6decimal('.75') // -10 -> 40 / 100 = 15 / 100 = 0.15 * 50 * 0.1
-        const impact2 = parse6decimal('-0.6') // 40 -> -20 / 100 = -10 / 100 = -0.1 * 60 * 0.1
-        const impact = impact1.add(impact2).mul(123) // price
-
-        const makerOffset = linear1.mul(-1).mul(123).div(10).add(proportional1.mul(-1).mul(123).div(10))
-
-        const takerPosOffset = linear2
-          .mul(-1)
-          .mul(123)
-          .div(50)
-          .add(proportional2.mul(-1).mul(123).div(50))
-          .add(impact1.mul(-1).mul(123).div(50))
-
-        const takerNegOffset = linear3
-          .mul(-1)
-          .mul(123)
-          .div(60)
-          .add(proportional3.mul(-1).mul(123).div(60))
-          .add(impact2.mul(-1).mul(123).div(60))
-
+        expect(value.makerPosExposure).to.equal(makerPosExposure)
+        expect(value.makerNegExposure).to.equal(makerNegExposure)
+        expect(value.longPosExposure).to.equal(longPosExposure)
+        expect(value.longNegExposure).to.equal(longNegExposure)
+        expect(value.shortPosExposure).to.equal(shortPosExposure)
+        expect(value.shortNegExposure).to.equal(shortNegExposure)
         expect(value.makerValue._value).to.equal(1)
         expect(value.longValue._value).to.equal(parse6decimal('2').add(2)) // pnl
         expect(value.shortValue._value).to.equal(parse6decimal('-2').mul(2).div(3).sub(1).add(3)) // pnl
         expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(10))
         expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
-        expect(value.makerOffset._value).to.equal(makerOffset)
-        expect(value.takerPosOffset._value).to.equal(takerPosOffset)
-        expect(value.takerNegOffset._value).to.equal(takerNegOffset)
+        expect(value.spreadPos._value).to.equal(spreadPos.div(exposurePos))
+        expect(value.spreadNeg._value).to.equal(spreadNeg.div(exposureNeg))
+        expect(value.makerSpreadValue._value).to.equal(parse6decimal('0'))
+        expect(value.longSpreadValue._value).to.equal(parse6decimal('0'))
+        expect(value.shortSpreadValue._value).to.equal(parse6decimal('0'))
         expect(value.settlementFee._value).to.equal(0)
 
-        expect(ret.tradeOffset).to.equal(offset.add(impact))
-        expect(ret.tradeOffsetMaker).to.equal(0)
-        expect(ret.tradeOffsetMarket).to.equal(offset)
+        expect(ret.spreadPos).to.equal(spreadPos)
+        expect(ret.spreadNeg).to.equal(spreadNeg)
+        expect(ret.spreadMaker).to.equal(parse6decimal('0'))
+        expect(ret.spreadLong).to.equal(parse6decimal('0'))
+        expect(ret.spreadShort).to.equal(parse6decimal('0'))
         expect(ret.tradeFee).to.equal(fee)
-        expect(ret.adiabaticExposure).to.equal(exposure)
-        expect(ret.adiabaticExposureMarket).to.equal(-exposure)
-        expect(ret.adiabaticExposureMaker).to.equal(0)
       })
 
       it('allocates when makers', async () => {

@@ -289,19 +289,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
-        // load latest state
-        Global memory newGlobal = _global.read();
-        Position memory latestPosition = _position.read();
-        RiskParameter memory latestRiskParameter = _riskParameter.read();
-
-        // update risk parameter (first to capture truncation)
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
-        newRiskParameter = _riskParameter.read();
-
-        // update global exposure
-        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition);
-        _global.store(newGlobal);
-
         emit RiskParameterUpdated(newRiskParameter);
     }
 
@@ -341,20 +329,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             token.push(msg.sender, UFixed18Lib.from(feeReceived));
             emit FeeClaimed(account, msg.sender, feeReceived);
         }
-    }
-
-    /// @notice Settles any exposure that has accrued to the market
-    /// @dev Resets exposure to zero, caller pays or receives to net out the exposure
-    function claimExposure() external onlyOwner {
-        Global memory newGlobal = _global.read();
-
-        if (newGlobal.exposure.sign() == 1) token.push(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
-        if (newGlobal.exposure.sign() == -1) token.pull(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
-
-        emit ExposureClaimed(msg.sender, newGlobal.exposure);
-
-        newGlobal.exposure = Fixed6Lib.ZERO;
-        _global.store(newGlobal);
     }
 
     /// @notice Returns the current parameter set
