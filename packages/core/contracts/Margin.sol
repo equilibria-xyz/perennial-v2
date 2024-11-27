@@ -17,16 +17,10 @@ contract Margin is IMargin, Instance {
     /// @dev DSU address
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
-    // TODO: An alternate implementation would be to record a per-user balance,
-    // and subtract the isolated balances for each market.  However that would require
-    // an expensive iteration through markets.  Also need to determine whether we will
-    // track an "unallocated" balance which is neither cross-margin nor isolated.
     /// @notice Collateral spread across markets: user -> balance
     mapping(address => Fixed6) public crossMarginBalances;
 
-    // TODO: How do we know if a market is in isolated mode?  Nonzero balance could just mean they withdrew.
-    // We could create another mapping, or turn the isolatedBalances mapping value into a struct with a bool and a balance.
-    // Checkpoint/Local stores/stored collateral as an int64, so we have plenty of room in a single storage slot.
+    // TODO: Introduce an iterable collection of cross-margained markets for a user.
 
     /// @notice Non-cross-margained collateral: user -> market -> balance
     mapping(address => mapping(IMarket => Fixed6)) public isolatedBalances;
@@ -106,7 +100,7 @@ contract Margin is IMargin, Instance {
         } else {
             // TODO: aggregate maintenance requirements for each cross-margined market and check;
             //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
-            isMaintained = false;
+            revert("Cross-margin not yet implemented");
         }
     }
 
@@ -115,17 +109,17 @@ contract Margin is IMargin, Instance {
         address account,
         UFixed6 positionMagnitude,
         OracleVersion calldata latestVersion,
-        UFixed6 minCollateralization
+        UFixed6 minCollateralization,
+        Fixed6 guaranteePriceAdjustment
     ) external onlyMarket returns (bool isMargined) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
-            Fixed6 collateral = isolatedBalances[account][market];
+            Fixed6 collateral = isolatedBalances[account][market].add(guaranteePriceAdjustment);
             return _isMarketMargined(account, market, collateral, positionMagnitude, latestVersion, minCollateralization);
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check;
             //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
-            console.log("checkMargained not yet implemented for cross-margin");
-            isMargined = false;
+            revert("Cross-margin not yet implemented");
         }
     }
 
@@ -200,7 +194,8 @@ contract Margin is IMargin, Instance {
         // TODO: Methinks we cannot use 0 as magic number to determine whether market is isolated for user.
         // Fee or PnL accumulation could make it land on 0 isolated collateral with a position,
         // turning it cross-market implictly.
-        return !isolatedBalances[account][market].isZero();
+        // return !isolatedBalances[account][market].isZero();
+        return true;
     }
 
     /// @dev Checks whether maintenance requirements are satisfied for specific user and market
@@ -235,8 +230,8 @@ contract Margin is IMargin, Instance {
         OracleVersion calldata latestVersion,
         UFixed6 minCollateralization
     ) private returns (bool isMargined) {
-        console.log("_isMarketMargined checking margin for collateral %s, position %s",
-            UFixed6.unwrap(collateral.abs()), UFixed6.unwrap(positionMagnitude));
+        // console.log("_isMarketMargined checking margin for collateral %s, position %s",
+        //     UFixed6.unwrap(collateral.abs()), UFixed6.unwrap(positionMagnitude));
         if (collateral.lt(Fixed6Lib.ZERO)) return false; // negative collateral balance forbidden, regardless of position
         if (positionMagnitude.isZero()) return true;     // zero position has no requirement
 

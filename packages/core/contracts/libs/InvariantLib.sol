@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IMargin } from "../interfaces/IMargin.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
-import { PositionLib } from "../types/Position.sol";
 import { Order } from "../types/Order.sol";
 import { Guarantee } from "../types/Guarantee.sol";
 
@@ -89,18 +88,12 @@ library InvariantLib {
         ) revert IMarket.MarketExceedsPendingIdLimitError();
 
         if (
-            // TODO: apply price override adjustment from intent if present
-            /*!PositionLib.margined(
-                context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
-                context.latestOracleVersion,
-                context.riskParameter,
-                updateContext.collateralization,
-                context.local.collateral.add(newGuarantee.priceAdjustment(context.latestOracleVersion.price))*/ // apply price override adjustment from intent if present
             !margin.checkMargained(
                 context.account,
                 context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
                 context.latestOracleVersion,
-                updateContext.collateralization
+                updateContext.collateralization,
+                newGuarantee.priceAdjustment(context.latestOracleVersion.price) // apply price override adjustment from intent if present
             )
         ) revert IMarket.MarketInsufficientMarginError();
 
@@ -120,10 +113,5 @@ library InvariantLib {
             updateContext.currentPositionGlobal.socialized() &&
             newOrder.decreasesLiquidity(updateContext.currentPositionGlobal)
         ) revert IMarket.MarketInsufficientLiquidityError();
-
-        // TODO: Remove; Margin contract should isolated collateral does not drop below 0
-        // When using isolated mode through legacy update, will revert if user's collateral balance would go negative.
-        /*if (context.local.collateral.lt(Fixed6Lib.ZERO))
-            revert IMarket.MarketInsufficientCollateralError();*/
     }
 }

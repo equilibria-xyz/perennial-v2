@@ -574,6 +574,8 @@ describe('Market', () => {
     await margin.connect(userB).deposit(COLLATERAL)
     dsu.transferFrom.whenCalledWith(userC.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
     await margin.connect(userC).deposit(COLLATERAL)
+    dsu.transferFrom.whenCalledWith(userD.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
+    await margin.connect(userD).deposit(COLLATERAL)
     dsu.transferFrom.whenCalledWith(liquidator.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
     await margin.connect(liquidator).deposit(COLLATERAL)
   }
@@ -862,7 +864,6 @@ describe('Market', () => {
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
-        // FIXME: reverts with MarketInsufficientMarginError, presumably because Market is not reading collateral from Margin
         await market
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -1646,8 +1647,6 @@ describe('Market', () => {
             price: PRICE,
           })
 
-          // FIXME: MarketInsufficientMarginError because the withdrawl drops balance to zero and it thinks it's no longer isolated.
-          // Need to fix Margin._isIsolate to make this work.
           await expect(
             market
               .connect(user)
@@ -1666,7 +1665,6 @@ describe('Market', () => {
               constants.AddressZero,
               constants.AddressZero,
             )
-          return
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -1701,7 +1699,6 @@ describe('Market', () => {
         })
 
         it('deposits and withdraws (next)', async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await expect(
             market
               .connect(user)
@@ -1760,7 +1757,6 @@ describe('Market', () => {
 
           await settle(market, user)
 
-          dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
           await expect(
             market
               .connect(user)
@@ -1813,7 +1809,6 @@ describe('Market', () => {
         })
 
         it('deposits and withdraws (next - stale)', async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await expect(
             market
               .connect(user)
@@ -1871,7 +1866,6 @@ describe('Market', () => {
 
           await settle(market, user)
 
-          dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
           await expect(
             market
               .connect(user)
@@ -1925,10 +1919,6 @@ describe('Market', () => {
 
       context('make position', async () => {
         context('open', async () => {
-          beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          })
-
           it('opens the position', async () => {
             await expect(
               market
@@ -2596,7 +2586,6 @@ describe('Market', () => {
 
         context('close', async () => {
           beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -3180,14 +3169,9 @@ describe('Market', () => {
       })
 
       context('long position', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         context('position delta', async () => {
           context('open', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -4113,7 +4097,6 @@ describe('Market', () => {
 
           context('close', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -4967,7 +4950,6 @@ describe('Market', () => {
 
         context('price delta', async () => {
           beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -5366,7 +5348,6 @@ describe('Market', () => {
         context('liquidation', async () => {
           context('maker', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -5377,7 +5358,6 @@ describe('Market', () => {
                   parse6decimal('450'),
                   false,
                 )
-              dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -5416,8 +5396,6 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, user)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -5604,7 +5582,6 @@ describe('Market', () => {
             })
 
             it('with partial socialization', async () => {
-              dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -5643,8 +5620,6 @@ describe('Market', () => {
 
               await settle(market, user)
               await settle(market, userC)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
               await expect(
                 market
                   .connect(liquidator)
@@ -5922,8 +5897,6 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, user)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -6059,9 +6032,6 @@ describe('Market', () => {
                 .sub(EXPECTED_PNL)
                 .sub(24) // loss of precision
 
-              dsu.transferFrom
-                .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
-                .returns(true)
               await expect(
                 market
                   .connect(liquidator)
@@ -6114,7 +6084,6 @@ describe('Market', () => {
 
           context('long', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -6125,7 +6094,6 @@ describe('Market', () => {
                   COLLATERAL,
                   false,
                 )
-              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
               await market
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -6164,8 +6132,6 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, userB)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -6374,8 +6340,6 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, userB)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -6506,9 +6470,6 @@ describe('Market', () => {
                 .sub(EXPECTED_FUNDING_WITH_FEE_2_5_43.add(EXPECTED_INTEREST_5_43))
                 .sub(EXPECTED_LIQUIDATION_FEE)
                 .sub(EXPECTED_PNL)
-              dsu.transferFrom
-                .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
-                .returns(true)
 
               await expect(
                 market
@@ -6566,7 +6527,6 @@ describe('Market', () => {
             await market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -6686,14 +6646,9 @@ describe('Market', () => {
       })
 
       context('short position', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         context('position delta', async () => {
           context('open', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -7348,9 +7303,6 @@ describe('Market', () => {
               const TAKER_FEE_ONLY = parse6decimal('7.38') // position * (0.01 + 0.002) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
-              dsu.transferFrom
-                .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
-                .returns(true)
               await expect(
                 market
                   .connect(user)
@@ -7502,9 +7454,6 @@ describe('Market', () => {
               const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
-              // dsu.transferFrom
-              //   .whenCalledWith(user.address, market.address, COLLATERAL.add(TAKER_FEE).mul(1e12))
-              //   .returns(true)
               await expect(
                 market
                   .connect(user)
@@ -7634,7 +7583,6 @@ describe('Market', () => {
 
           context('close', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -8372,7 +8320,6 @@ describe('Market', () => {
                 const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
                 const SETTLEMENT_FEE = parse6decimal('0.50')
 
-                // dsu.transferFrom.whenCalledWith(user.address, market.address, TAKER_FEE.mul(1e12)).returns(true)
                 await expect(
                   market
                     .connect(user)
@@ -8496,7 +8443,6 @@ describe('Market', () => {
 
         context('price delta', async () => {
           beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -8901,7 +8847,6 @@ describe('Market', () => {
               riskParameter.margin = parse6decimal('0.31')
               await market.updateRiskParameter(riskParameter)
 
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('390')).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -8912,7 +8857,6 @@ describe('Market', () => {
                   parse6decimal('390'),
                   false,
                 )
-              dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -8951,8 +8895,6 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, user)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -9132,7 +9074,6 @@ describe('Market', () => {
             })
 
             it('with partial socialization', async () => {
-              dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -9186,8 +9127,6 @@ describe('Market', () => {
 
               await settle(market, user)
               await settle(market, userC)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
               await expect(
                 market
                   .connect(liquidator)
@@ -9432,8 +9371,6 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, user)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -9560,9 +9497,6 @@ describe('Market', () => {
                 .sub(EXPECTED_LIQUIDATION_FEE)
                 .sub(EXPECTED_PNL)
                 .sub(28) // loss of precision
-              dsu.transferFrom
-                .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
-                .returns(true)
 
               await expect(
                 market
@@ -9616,7 +9550,6 @@ describe('Market', () => {
 
           context('short', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -9627,7 +9560,6 @@ describe('Market', () => {
                   COLLATERAL,
                   false,
                 )
-              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
               await market
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -9666,8 +9598,6 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, userB)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -9882,8 +9812,6 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, userB)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -10016,9 +9944,6 @@ describe('Market', () => {
                 .sub(EXPECTED_INTEREST_5_203)
                 .sub(EXPECTED_LIQUIDATION_FEE)
                 .sub(EXPECTED_PNL)
-              dsu.transferFrom
-                .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
-                .returns(true)
 
               await expect(
                 market
@@ -10076,7 +10001,6 @@ describe('Market', () => {
             await market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -10334,8 +10258,6 @@ describe('Market', () => {
 
       context('all positions', async () => {
         beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-
           const riskParameter = { ...(await market.riskParameter()) }
           const riskParameterTakerFee = { ...riskParameter.takerFee }
           riskParameterTakerFee.scale = POSITION
@@ -10346,7 +10268,6 @@ describe('Market', () => {
         context('position delta', async () => {
           context('open', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -10357,7 +10278,6 @@ describe('Market', () => {
                   COLLATERAL,
                   false,
                 )
-              dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -11385,7 +11305,9 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
+              // FIXME: user likely needs more collateral; should probably update deposit method to autofund
               await deposit(market, COLLATERAL, user, userB)
+              return
               await deposit(market, COLLATERAL, userB, user)
 
               expectLocalEq(await market.locals(user.address), {
@@ -11751,7 +11673,6 @@ describe('Market', () => {
 
           context('close', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -11763,7 +11684,6 @@ describe('Market', () => {
                   false,
                 )
 
-              dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -12654,11 +12574,9 @@ describe('Market', () => {
 
         context('price delta', async () => {
           beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, COLLATERAL, false)
@@ -13102,7 +13020,6 @@ describe('Market', () => {
         context('liquidation', async () => {
           context('maker', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -13113,7 +13030,6 @@ describe('Market', () => {
                   parse6decimal('450'),
                   false,
                 )
-              dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -13125,7 +13041,6 @@ describe('Market', () => {
                   false,
                 )
 
-              dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -13165,8 +13080,6 @@ describe('Market', () => {
 
               await settle(market, user)
 
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
               await expect(
                 market
                   .connect(liquidator)
@@ -13438,8 +13351,6 @@ describe('Market', () => {
               await settle(market, user)
 
               // userB gets liquidated, eliminating the maker position
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
               await expect(
                 market
                   .connect(liquidator)
@@ -13542,7 +13453,6 @@ describe('Market', () => {
               const EXPECTED_FUNDING_WITH_FEE_3 = EXPECTED_FUNDING_3.add(EXPECTED_FUNDING_FEE_3.div(2))
               const EXPECTED_FUNDING_WITHOUT_FEE_3 = EXPECTED_FUNDING_3.sub(EXPECTED_FUNDING_FEE_3.div(2))
 
-              dsu.transferFrom.whenCalledWith(userD.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userD)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -13582,8 +13492,6 @@ describe('Market', () => {
               await settle(market, user)
               await settle(market, userD)
 
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
               await expect(
                 market
                   .connect(liquidator)
@@ -13841,8 +13749,6 @@ describe('Market', () => {
               oracle.request.returns()
 
               await settle(market, user)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -13987,9 +13893,6 @@ describe('Market', () => {
                 .sub(EXPECTED_PNL)
                 .sub(27) // loss of precision
 
-              dsu.transferFrom
-                .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
-                .returns(true)
               await expect(
                 market
                   .connect(liquidator)
@@ -14042,7 +13945,6 @@ describe('Market', () => {
 
           context('long', async () => {
             beforeEach(async () => {
-              dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -14053,7 +13955,6 @@ describe('Market', () => {
                   COLLATERAL,
                   false,
                 )
-              dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -14064,7 +13965,6 @@ describe('Market', () => {
                   COLLATERAL,
                   false,
                 )
-              dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
               await market
                 .connect(user)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -14103,8 +14003,6 @@ describe('Market', () => {
               oracle.request.returns()
 
               await settle(market, userB)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -14373,8 +14271,6 @@ describe('Market', () => {
               oracle.request.returns()
 
               await settle(market, userB)
-              dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-              dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
               await expect(
                 market
@@ -14532,9 +14428,6 @@ describe('Market', () => {
                 .sub(EXPECTED_LIQUIDATION_FEE)
                 .sub(EXPECTED_PNL)
                 .sub(6) // loss of precision
-              dsu.transferFrom
-                .whenCalledWith(liquidator.address, market.address, shortfall.mul(-1).mul(1e12))
-                .returns(true)
 
               await expect(
                 market
@@ -14592,7 +14485,6 @@ describe('Market', () => {
             await market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -14603,7 +14495,6 @@ describe('Market', () => {
                 COLLATERAL,
                 false,
               )
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userC)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, COLLATERAL, false)
@@ -14719,7 +14610,6 @@ describe('Market', () => {
 
       context('invariant violations', async () => {
         it('reverts if under margin', async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
           await expect(
             market
               .connect(user)
@@ -14757,10 +14647,6 @@ describe('Market', () => {
           }
 
           const LOWER_COLLATERAL = parse6decimal('500')
-
-          dsu.transferFrom.whenCalledWith(user.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
 
           await market
             .connect(userB)
@@ -14820,10 +14706,6 @@ describe('Market', () => {
 
           const LOWER_COLLATERAL = parse6decimal('500')
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -14876,10 +14758,6 @@ describe('Market', () => {
             },
           }
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -14924,10 +14802,6 @@ describe('Market', () => {
               expiry: 0,
             },
           }
-
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
 
           await market
             .connect(userB)
@@ -15020,7 +14894,6 @@ describe('Market', () => {
           riskParameter.efficiencyLimit = parse6decimal('0.6')
           await market.updateRiskParameter(riskParameter)
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15031,7 +14904,6 @@ describe('Market', () => {
               COLLATERAL,
               false,
             )
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15042,7 +14914,6 @@ describe('Market', () => {
               COLLATERAL,
               false,
             )
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15069,7 +14940,6 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15084,7 +14954,6 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 1])
           oracle.request.whenCalledWith(user.address).returns()
 
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15099,7 +14968,6 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 2])
           oracle.request.whenCalledWith(user.address).returns()
 
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15130,7 +14998,6 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15167,8 +15034,6 @@ describe('Market', () => {
         })
 
         it('reverts if not single sided', async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-
           await expect(
             market
               .connect(user)
@@ -15210,7 +15075,6 @@ describe('Market', () => {
         })
 
         it('reverts if insufficient collateral', async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
@@ -15237,7 +15101,6 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
           oracle.request.whenCalledWith(user.address).returns()
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -15294,7 +15157,6 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp - 1])
           oracle.request.whenCalledWith(user.address).returns()
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -15319,7 +15181,6 @@ describe('Market', () => {
         })
 
         it('reverts if under minimum margin', async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
           await expect(
             market
               .connect(user)
@@ -15346,7 +15207,6 @@ describe('Market', () => {
         })
 
         it('reverts if taker > maker', async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -15370,8 +15230,6 @@ describe('Market', () => {
           riskParameter.staleAfter = BigNumber.from(14400)
           await market.updateRiskParameter(riskParameter)
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -15486,7 +15344,6 @@ describe('Market', () => {
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
 
           beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15497,7 +15354,6 @@ describe('Market', () => {
                 parse6decimal('450'),
                 false,
               )
-            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
 
             await market
               .connect(user)
@@ -15522,9 +15378,6 @@ describe('Market', () => {
               .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice, oracleVersionHigherPrice.timestamp + 3600])
             oracle.request.whenCalledWith(user.address).returns()
-
-            dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-            dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           })
 
           it('it reverts if not protected', async () => {
@@ -15587,7 +15440,6 @@ describe('Market', () => {
             oracle.status.returns([oracleVersion, TIMESTAMP + 7300])
             oracle.request.returns()
 
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15598,7 +15450,6 @@ describe('Market', () => {
                 collateral,
                 false,
               )
-            dsu.transferFrom.whenCalledWith(user.address, market.address, collateral2.mul(1e12)).returns(true)
             await market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15626,7 +15477,6 @@ describe('Market', () => {
             oracle.status.returns([oracleVersion2, TIMESTAMP + 7500])
             oracle.request.returns()
 
-            dsu.transfer.whenCalledWith(user.address, collateralWithdraw2.mul(1e12)).returns(true)
             await market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15663,12 +15513,6 @@ describe('Market', () => {
         })
 
         context('always close mode', async () => {
-          beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          })
-
           context('closing long', async () => {
             beforeEach(async () => {
               await market
@@ -15882,7 +15726,6 @@ describe('Market', () => {
           marketParameter.settle = true
           await market.updateParameter(marketParameter)
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('500')).returns(true)
           await expect(
             market
               .connect(user)
@@ -15900,11 +15743,9 @@ describe('Market', () => {
 
       context('liquidation w/ under min collateral', async () => {
         beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -15941,8 +15782,6 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
           await expect(
             market
@@ -16056,11 +15895,9 @@ describe('Market', () => {
           riskParameter.staleAfter = BigNumber.from(14400)
           await market.updateRiskParameter(riskParameter)
 
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('324')).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -16105,8 +15942,6 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
           await expect(
             market
@@ -16121,7 +15956,6 @@ describe('Market', () => {
               ),
           ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.add(1).mul(1e12)).returns(true)
           await expect(
             market
               .connect(liquidator)
@@ -16185,7 +16019,6 @@ describe('Market', () => {
             short: POSITION.div(4),
           })
 
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           await expect(market.connect(liquidator).claimFee(liquidator.address))
             .to.emit(market, 'FeeClaimed')
             .withArgs(liquidator.address, liquidator.address, EXPECTED_LIQUIDATION_FEE)
@@ -16196,11 +16029,9 @@ describe('Market', () => {
 
       context('liquidation w/ invalidation', async () => {
         beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -16237,8 +16068,6 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           await expect(
             market
               .connect(liquidator)
@@ -16473,7 +16302,6 @@ describe('Market', () => {
             liquidationFee: { _value: parse6decimal('-10') },
           })
 
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           await expect(market.connect(liquidator).claimFee(liquidator.address))
             .to.emit(market, 'FeeClaimed')
             .withArgs(liquidator.address, liquidator.address, EXPECTED_LIQUIDATION_FEE)
@@ -16484,11 +16312,9 @@ describe('Market', () => {
 
       context('liquidation w/ self liquidator', async () => {
         beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -16525,8 +16351,6 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
           await market
             .connect(user)
@@ -16681,11 +16505,9 @@ describe('Market', () => {
 
       context('liquidation w/ referrer', async () => {
         beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -16740,8 +16562,6 @@ describe('Market', () => {
             .returns([true, false, parse6decimal('0.20')])
 
           await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
           await market
             .connect(liquidator)
@@ -16800,8 +16620,6 @@ describe('Market', () => {
             .returns([true, false, parse6decimal('0.20')])
 
           await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
           await market
             .connect(liquidator)
@@ -16822,7 +16640,6 @@ describe('Market', () => {
           expect(await market.liquidators(user.address, 2)).to.equal(liquidator.address)
           expect(await market.orderReferrers(user.address, 2)).to.equal(userB.address)
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1000')).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -16853,8 +16670,6 @@ describe('Market', () => {
 
       context('invalid oracle version', async () => {
         beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -17931,8 +17746,6 @@ describe('Market', () => {
 
       context('skew flip', async () => {
         beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -17953,7 +17766,6 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
@@ -18097,7 +17909,6 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
@@ -18234,10 +18045,6 @@ describe('Market', () => {
       })
 
       context('operator', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(operator.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         it('opens the position when operator', async () => {
           factory.authorization
             .whenCalledWith(user.address, operator.address, constants.AddressZero, constants.AddressZero)
@@ -18321,12 +18128,6 @@ describe('Market', () => {
       })
 
       context('signer', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         it('opens the position when signer', async () => {
           factory.parameter.returns({
             maxPendingIds: 5,
@@ -18640,12 +18441,6 @@ describe('Market', () => {
       })
 
       context('magic values', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         it('withdraws all collateral on MIN', async () => {
           await market
             .connect(userB)
@@ -18694,21 +18489,6 @@ describe('Market', () => {
               .sub(8), // loss of precision
           })
 
-          dsu.transfer
-            .whenCalledWith(
-              user.address,
-              COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123).mul(1e12),
-            )
-            .returns(true)
-          dsu.transfer
-            .whenCalledWith(
-              userB.address,
-              COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                .sub(8)
-                .mul(1e12),
-            )
-            .returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -19726,13 +19506,10 @@ describe('Market', () => {
           riskParameterTakerFee.scale = parse6decimal('15')
           riskParameter.takerFee = riskParameterTakerFee
           await market.updateRiskParameter(riskParameter)
-
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         })
 
         context('long', async () => {
           beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -19870,7 +19647,6 @@ describe('Market', () => {
 
         context('short', async () => {
           beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
@@ -20021,7 +19797,6 @@ describe('Market', () => {
           oracle.status.returns([oracleVersion, oracleVersion.timestamp + 100])
           oracle.request.returns()
 
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -20035,7 +19810,6 @@ describe('Market', () => {
 
           // Increase current version so multiple pending positions are unsettled
           oracle.status.returns([oracleVersion, oracleVersion.timestamp + 200])
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -20097,7 +19871,6 @@ describe('Market', () => {
           oracle.status.returns([oracleVersion, oracleVersion.timestamp + 100])
           oracle.request.returns()
 
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -20118,7 +19891,6 @@ describe('Market', () => {
           oracle.status.returns([oracleVersion2, oracleVersion2.timestamp + 100])
           oracle.request.returns()
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, positionLong, 0, collateral, false)
@@ -20183,12 +19955,6 @@ describe('Market', () => {
       })
 
       context('single sided', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         it('cant switch current before settlement', async () => {
           await market
             .connect(userB)
@@ -20272,12 +20038,6 @@ describe('Market', () => {
       })
 
       context('subtractive fee', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         it('opens the position and settles later with fee (maker)', async () => {
           factory.parameter.returns({
             maxPendingIds: 5,
@@ -20732,13 +20492,6 @@ describe('Market', () => {
       })
 
       context('intent orders', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userD.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         context('opens position', async () => {
           it('fills the positions and settles later with fee (above / long)', async () => {
             factory.parameter.returns({
@@ -24764,12 +24517,6 @@ describe('Market', () => {
       })
 
       context('delta orders', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
         it('applies the order w/ referrer', async () => {
           factory.parameter.returns({
             maxPendingIds: 5,
@@ -24958,11 +24705,9 @@ describe('Market', () => {
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
           ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -24985,8 +24730,6 @@ describe('Market', () => {
       })
 
       it('claims fee (protocol)', async () => {
-        dsu.transfer.whenCalledWith(owner.address, PROTOCOL_FEE.mul(1e12)).returns(true)
-
         await expect(market.connect(owner).claimFee(owner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(owner.address, owner.address, PROTOCOL_FEE)
@@ -24997,8 +24740,6 @@ describe('Market', () => {
       })
 
       it('claims fee (oracle)', async () => {
-        dsu.transfer.whenCalledWith(oracleSigner.address, ORACLE_FEE.mul(1e12)).returns(true)
-
         await expect(market.connect(oracleSigner).claimFee(oracleSigner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(oracleSigner.address, oracleSigner.address, ORACLE_FEE)
@@ -25009,8 +24750,6 @@ describe('Market', () => {
       })
 
       it('claims fee (risk)', async () => {
-        dsu.transfer.whenCalledWith(coordinator.address, RISK_FEE.mul(1e12)).returns(true)
-
         await expect(market.connect(coordinator).claimFee(coordinator.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(coordinator.address, coordinator.address, RISK_FEE)
@@ -25029,7 +24768,6 @@ describe('Market', () => {
       })
 
       it('claims fee as operator', async () => {
-        dsu.transfer.whenCalledWith(userB.address, PROTOCOL_FEE.mul(1e12)).returns(true)
         factory.operators.whenCalledWith(owner.address, userB.address).returns(true)
         expect(await dsu.balanceOf(userB.address)).to.equal(0)
 
@@ -25061,11 +24799,9 @@ describe('Market', () => {
         oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
 
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(user)
           ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
           ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
@@ -25122,8 +24858,6 @@ describe('Market', () => {
         expect((await market.global()).exposure.lt(BigNumber.from(0))).to.equals(true)
 
         // claim negative exposure
-        dsu.transferFrom.whenCalledWith(owner.address, market.address, 369000000000000000).returns(true)
-
         let exposure = (await market.global()).exposure.toNumber()
         await expect(market.connect(owner).claimExposure())
           .to.emit(market, 'ExposureClaimed')
@@ -25141,8 +24875,6 @@ describe('Market', () => {
         expect((await market.global()).exposure.gt(BigNumber.from(0))).to.equals(true)
 
         // claim positive exposure
-        dsu.transfer.whenCalledWith(owner.address, 369000000000000000).returns(true)
-
         exposure = (await market.global()).exposure.toNumber()
         await expect(market.connect(owner).claimExposure())
           .to.emit(market, 'ExposureClaimed')

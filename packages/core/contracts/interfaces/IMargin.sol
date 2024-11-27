@@ -72,12 +72,14 @@ interface IMargin is IInstance {
     /// @param positionMagnitude Size of the user's position
     /// @param latestVersion Identifies market price
     /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
+    /// @param guaranteePriceAdjustment Collateral adjustment between an intent's price and the oracle price, 0 if none
     /// @return isMargined True if margin requirement met, otherwise false
     function checkMargained(
         address account,
         UFixed6 positionMagnitude,
         OracleVersion calldata latestVersion,
-        UFixed6 minCollateralization
+        UFixed6 minCollateralization,
+        Fixed6 guaranteePriceAdjustment
     ) external returns (bool isMargined);
 
     /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market.
