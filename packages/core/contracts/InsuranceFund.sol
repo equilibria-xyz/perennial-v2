@@ -16,12 +16,12 @@ contract InsuranceFund is IInsuranceFund, Ownable {
     /// @dev The address of the market factory
     IFactory public immutable marketFactory;
 
-    /// @dev The address of DSU token
-    Token18 public immutable DSU;
+    /// @dev The address of token
+    Token18 public immutable token;
 
     constructor(IFactory _marketFactory, Token18 _token) {
         marketFactory = _marketFactory;
-        DSU = _token;
+        token = _token;
     }
 
     /// @inheritdoc IInsuranceFund
@@ -30,20 +30,19 @@ contract InsuranceFund is IInsuranceFund, Ownable {
     }
 
     /// @inheritdoc IInsuranceFund
-    function claim(address market) external isMarketInstance(IMarket(market)) {
-        IMarket(market).claimFee(marketFactory.owner());
+    function claim(IMarket market) external isMarketInstance(market) {
+        market.claimFee(marketFactory.owner());
     }
 
     /// @inheritdoc IInsuranceFund
-    function resolve(address market) external onlyOwner isMarketInstance(IMarket(market)) {
-        DSU.approve(market);
-        IMarket(market).claimExposure();
+    function resolve(IMarket market) external onlyOwner isMarketInstance(market) {
+        token.approve(market);
+        market.claimExposure();
     }
 
     /// @notice Validates that a market was created by the market factory
     /// @param market Market to validate
     modifier isMarketInstance(IMarket market) {
-        // Check market is created from market factory
         if (!marketFactory.instances(IInstance(market))) revert InsuranceFundInvalidInstanceError();
         _;
     }
