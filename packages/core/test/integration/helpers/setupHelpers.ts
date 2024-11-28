@@ -28,6 +28,8 @@ import {
   MagicValueLib__factory,
   Verifier,
   Verifier__factory,
+  Margin__factory,
+  Margin,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -59,6 +61,7 @@ export interface InstanceVars {
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   marketFactory: MarketFactory
+  margin: Margin
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
@@ -105,14 +108,20 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     [],
   )
 
+  const margin = await new Margin__factory(
+    {
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+    },
+    owner,
+  ).deploy(dsu.address)
+
   const marketImpl = await new Market__factory(
     {
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
       'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
       'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
       'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
       'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
         await new MarketParameterStorageLib__factory(owner).deploy()
@@ -130,7 +139,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy(verifierProxy.address)
+  ).deploy(verifierProxy.address, margin.address)
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
@@ -204,6 +213,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     oracle,
     marketImpl,
     verifier,
+    margin,
   }
 }
 

@@ -113,9 +113,10 @@ describe('Fees', () => {
     it('charges make fees on open', async () => {
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
-      const { user, dsu } = instanceVars
+      const { user, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
 
       await expect(
         market
@@ -216,9 +217,10 @@ describe('Fees', () => {
 
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
-      const { user, dsu } = instanceVars
+      const { user, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
 
       await expect(
         market
@@ -321,10 +323,12 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
+      const { user, userB, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -454,10 +458,12 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
+      const { user, userB, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -633,10 +639,12 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
+      const { user, userB, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -809,10 +817,12 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
+      const { user, userB, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -942,10 +952,12 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
+      const { user, userB, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -1119,10 +1131,12 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
+      const { user, userB, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -1307,11 +1321,14 @@ describe('Fees', () => {
           takerFee: 0,
         })
 
-        const { user, userB, userC, dsu } = instanceVars
+        const { user, userB, userC, dsu, margin } = instanceVars
 
-        await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(user).deposit(user.address, COLLATERAL)
+        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userB).deposit(userB.address, COLLATERAL)
+        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
         await market
           .connect(user)
@@ -1416,11 +1433,14 @@ describe('Fees', () => {
           takerFee: 0,
         })
 
-        const { user, userB, userC, dsu } = instanceVars
+        const { user, userB, userC, dsu, margin } = instanceVars
 
-        await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(user).deposit(user.address, COLLATERAL)
+        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userB).deposit(userB.address, COLLATERAL)
+        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
         await market
           .connect(user)
@@ -1606,11 +1626,14 @@ describe('Fees', () => {
           takerFee: 0,
         })
 
-        const { user, userB, userC, dsu } = instanceVars
+        const { user, userB, userC, dsu, margin } = instanceVars
 
-        await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(user).deposit(user.address, COLLATERAL)
+        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userB).deposit(userB.address, COLLATERAL)
+        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
         await market
           .connect(user)
@@ -1728,11 +1751,14 @@ describe('Fees', () => {
         },
       })
 
-      const { user, userB, userC, dsu } = instanceVars
+      const { user, userB, userC, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -1846,11 +1872,14 @@ describe('Fees', () => {
         },
       })
 
-      const { user, userB, userC, dsu } = instanceVars
+      const { user, userB, userC, dsu, margin } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -1941,11 +1970,15 @@ describe('Fees', () => {
     const POSITION = parse6decimal('3')
 
     beforeEach(async () => {
-      const { owner, user, userB, userC, userD, dsu, marketFactory } = instanceVars
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-      await dsu.connect(userD).approve(market.address, COLLATERAL.mul(1e12))
+      const { owner, user, userB, userC, userD, dsu, margin, marketFactory } = instanceVars
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL.mul(2))
+      await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userD).deposit(userD.address, COLLATERAL)
 
       // set default referral fee
       const protocolParameters = await marketFactory.parameter()
@@ -2327,8 +2360,9 @@ describe('Fees', () => {
     it('claim protocol, risk and oracle fee', async () => {
       const COLLATERAL = parse6decimal('600')
       const POSITION = parse6decimal('3')
-      const { owner, oracle, coordinator, user, dsu } = instanceVars
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+      const { owner, oracle, coordinator, user, dsu, margin } = instanceVars
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
 
       await market
         .connect(user)
@@ -2392,7 +2426,7 @@ describe('Fees', () => {
 
   describe('intent order fee exclusion', async () => {
     it('opens long position and another intent order and settles later with fee', async () => {
-      const { owner, user, userB, userC, userD, marketFactory, dsu, chainlink } = instanceVars
+      const { owner, user, userB, userC, userD, marketFactory, dsu, margin, chainlink } = instanceVars
 
       // userC allowed to interact with user's account
       await marketFactory.connect(user).updateOperator(userC.address, true)
@@ -2405,25 +2439,29 @@ describe('Fees', () => {
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('10000')
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
 
       await market
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
 
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(userB)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
 
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
       await market
         .connect(userC)
         ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
-      await dsu.connect(userD).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userD).deposit(userD.address, COLLATERAL)
 
       await market
         .connect(userD)

@@ -23,13 +23,14 @@ use(smock.matchers)
 describe('Margin', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
+  let userB: SignerWithAddress
   let marketA: FakeContract<IMarket>
   let marketB: FakeContract<IMarket>
   let dsu: FakeContract<IERC20Metadata>
   let margin: IMargin
 
   beforeEach(async () => {
-    ;[owner, user] = await ethers.getSigners()
+    ;[owner, user, userB] = await ethers.getSigners()
 
     marketA = await smock.fake<IMarket>('IMarket')
     marketB = await smock.fake<IMarket>('IMarket')
@@ -44,18 +45,22 @@ describe('Margin', () => {
     ).deploy(dsu.address)
   })
 
-  // TODO: signer override and test to deposit to another account
-  async function deposit(user: SignerWithAddress, amount: BigNumber) {
-    const balanceBefore = await margin.crossMarginBalances(user.address)
+  async function deposit(sender: SignerWithAddress, amount: BigNumber, target?: SignerWithAddress) {
+    if (!target) target = sender
+    const balanceBefore = await margin.crossMarginBalances(target.address)
 
-    dsu.transferFrom.whenCalledWith(user.address, margin.address, amount.mul(1e12)).returns(true)
-    await expect(margin.connect(user).deposit(user.address, amount)).to.not.be.reverted
+    dsu.transferFrom.whenCalledWith(sender.address, margin.address, amount.mul(1e12)).returns(true)
+    await expect(margin.connect(sender).deposit(target.address, amount)).to.not.be.reverted
 
-    expect(await margin.crossMarginBalances(user.address)).to.equal(balanceBefore.add(amount))
+    expect(await margin.crossMarginBalances(target.address)).to.equal(balanceBefore.add(amount))
   }
 
   it('deposits funds to margin contract', async () => {
     await deposit(user, parse6decimal('3500.153'))
+  })
+
+  it('can deposit funds to another account', async () => {
+    await deposit(user, parse6decimal('20'), userB)
   })
 
   it('withdraws funds from margin contract', async () => {

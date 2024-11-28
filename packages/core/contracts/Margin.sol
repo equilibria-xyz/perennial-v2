@@ -13,6 +13,7 @@ import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
 import "hardhat/console.sol";
 
+// TODO: incorporate ReentrancyGuard
 contract Margin is IMargin, Instance {
     /// @dev DSU address
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase

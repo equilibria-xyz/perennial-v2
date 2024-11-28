@@ -148,10 +148,11 @@ describe('Happy Path', () => {
   it('opens a make position', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, chainlink } = instanceVars
+    const { user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await expect(
       market
@@ -270,10 +271,11 @@ describe('Happy Path', () => {
   it('opens multiple make positions', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, chainlink } = instanceVars
+    const { user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -389,10 +391,11 @@ describe('Happy Path', () => {
   it('closes a make position', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, chainlink } = instanceVars
+    const { user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -467,10 +470,11 @@ describe('Happy Path', () => {
   it('closes multiple make positions', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, chainlink } = instanceVars
+    const { user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -544,7 +548,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -555,8 +559,10 @@ describe('Happy Path', () => {
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -705,7 +711,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -716,8 +722,10 @@ describe('Happy Path', () => {
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -842,11 +850,13 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await expect(
       market
@@ -934,11 +944,13 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await expect(
       market
@@ -1140,7 +1152,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1151,8 +1163,10 @@ describe('Happy Path', () => {
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -1189,7 +1203,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1200,8 +1214,10 @@ describe('Happy Path', () => {
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -1239,7 +1255,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, beneficiaryB } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1292,8 +1308,10 @@ describe('Happy Path', () => {
     await market.updateParameter(parameter)
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
 
     await market
       .connect(user)
@@ -1388,11 +1406,13 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, chainlink } = instanceVars
+    const { owner, user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -1460,8 +1480,6 @@ describe('Happy Path', () => {
 
     await fundWallet(dsu, owner)
 
-    await dsu.connect(owner).approve(market.address, (await market.global()).exposure.mul(-1e12))
-
     await market.connect(owner).claimExposure()
 
     expect((await market.global()).exposure).to.equals(0)
@@ -1480,7 +1498,7 @@ describe('Happy Path', () => {
   })
 
   it('opens intent order w/ signer', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     // userC allowed to sign messages for user
     await marketFactory.connect(user).updateSigner(userC.address, true)
@@ -1495,19 +1513,22 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
       ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
@@ -1614,7 +1635,7 @@ describe('Happy Path', () => {
   })
 
   it('updates signer w/ signature and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     const signerUpdate = {
       access: {
@@ -1655,19 +1676,22 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
       ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
@@ -1731,7 +1755,7 @@ describe('Happy Path', () => {
   })
 
   it('opens intent order w/ operator', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     // userC allowed to interact with user's account
     await marketFactory.connect(user).updateSigner(userC.address, true)
@@ -1746,19 +1770,22 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
       ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
@@ -1840,7 +1867,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, marketFactory, verifier } = instanceVars
+    const { owner, user, userB, dsu, margin, marketFactory, verifier } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1851,7 +1878,10 @@ describe('Happy Path', () => {
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12).mul(2))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -1979,7 +2009,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, marketFactory } = instanceVars
+    const { owner, user, userB, dsu, margin, marketFactory } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1990,7 +2020,10 @@ describe('Happy Path', () => {
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12).mul(2))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -2093,7 +2126,7 @@ describe('Happy Path', () => {
   })
 
   it('updates account access and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     // userC allowed to sign messages and interact with user account
     await marketFactory
@@ -2110,13 +2143,17 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(3).mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await margin.connect(user).deposit(userB.address, COLLATERAL)
+    await margin.connect(user).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
@@ -2184,7 +2221,7 @@ describe('Happy Path', () => {
   })
 
   it('updates account access with signature and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     const accessUpdateBatch = {
       operators: [{ accessor: userC.address, approved: true }],
@@ -2223,13 +2260,16 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12).mul(2))
+    await margin.connect(userC).deposit(user.address, COLLATERAL)
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
@@ -2300,7 +2340,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -2311,8 +2351,10 @@ describe('Happy Path', () => {
     riskParameter.takerFee = riskParameterTakerFee
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -2450,6 +2492,7 @@ describe('Happy Path', () => {
     })
   })
 
+  // TODO: check whether this runs on v2.4 branch
   // uncheck skip to see gas results
   it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
@@ -2467,7 +2510,7 @@ describe('Happy Path', () => {
     ).init(BigNumber.from(0), BigNumber.from(0))
 
     const instanceVars = await deployProtocol(chainlink)
-    const { user, userB, dsu, beneficiaryB, payoff } = instanceVars
+    const { user, userB, dsu, margin } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -2520,10 +2563,16 @@ describe('Happy Path', () => {
     await market.updateParameter(parameter)
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
+
+    console.log('margin', margin.address, 'market.margin', await market.margin())
+    await margin.connect(user).isolate(COLLATERAL, market.address)
 
     for (let i = 0; i < delay; i++) {
+      // FIXME: first update blows up without revert reason
       await market
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -2547,6 +2596,7 @@ describe('Happy Path', () => {
 
       await chainlink.next()
     }
+    return
 
     // ensure all pending can settle
     for (let i = 0; i < delay - 1; i++) await chainlink.next()

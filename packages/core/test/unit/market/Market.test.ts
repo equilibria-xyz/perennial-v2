@@ -24588,7 +24588,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, userB.address),
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, userB.address),
           ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
 
           oracle.at
@@ -24910,6 +24910,7 @@ describe('Market', () => {
   })
 
   describe('reentrancy', async () => {
+    // TODO: Need to re-write MockToken to interact with Margin contract
     it('reverts if re-enter', async () => {
       const mockToken: MockToken = await new MockToken__factory(owner).deploy()
       marketDefinition = {

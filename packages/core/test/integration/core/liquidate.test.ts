@@ -20,10 +20,11 @@ describe('Liquidate', () => {
   it('liquidates a user', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -71,11 +72,13 @@ describe('Liquidate', () => {
   it('creates and resolves a shortfall', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -126,6 +129,7 @@ describe('Liquidate', () => {
 
     expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460'))
 
+    // TODO: unsure why this approval is needed
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
 
@@ -139,13 +143,17 @@ describe('Liquidate', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     let totalCollateral, totalFees
-    const { user, userB, userC, userD, chainlink, dsu } = instanceVars
+    const { user, userB, userC, userD, chainlink, dsu, margin } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(10).mul(1e12))
-    await dsu.connect(userD).approve(market.address, COLLATERAL.mul(10).mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(10).mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL.mul(10))
+    await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(10).mul(1e12))
+    await margin.connect(userD).deposit(userD.address, COLLATERAL.mul(10))
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -239,11 +247,13 @@ describe('Liquidate', () => {
 
   it('liquidates a user under minMaintenance', async () => {
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, userC, dsu, chainlink } = instanceVars
+    const { user, userB, userC, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(10).mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(10).mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(10))
     // user establishes a maker position right at minMaintenance amount
     await market
       .connect(user)
@@ -320,7 +330,7 @@ describe('Liquidate', () => {
   it('liquidates a user with referrer', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, userC, dsu, chainlink, marketFactory, owner } = instanceVars
+    const { user, userB, userC, dsu, margin, chainlink, marketFactory, owner } = instanceVars
 
     marketFactory.connect(owner).updateParameter({
       ...(await marketFactory.parameter()),
@@ -342,7 +352,8 @@ describe('Liquidate', () => {
       },
     )
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
