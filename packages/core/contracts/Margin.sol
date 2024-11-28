@@ -37,13 +37,14 @@ contract Margin is IMargin, Instance {
     }
 
     /// @inheritdoc IMargin
-    function deposit(UFixed6 amount) external {
+    function deposit(address account, UFixed6 amount) external {
         DSU.pull(msg.sender, UFixed18Lib.from(amount));
-        crossMarginBalances[msg.sender] = crossMarginBalances[msg.sender].add(Fixed6Lib.from(amount));
+        crossMarginBalances[account] = crossMarginBalances[account].add(Fixed6Lib.from(amount));
         // TODO: emit an event
     }
 
     // TODO: support a magic number for full withdrawal?
+    // TODO: support operator withdrawal?
     /// @inheritdoc IMargin
     function withdraw(UFixed6 amount) external {
         Fixed6 balance = crossMarginBalances[msg.sender];

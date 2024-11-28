@@ -40,8 +40,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
+    // TODO: Is okay that this storage slot is reused, and that it is preceeded by a non-immutable field?
     /// @dev Handles collateral across all markets
-    IMargin public margin;
+    IMargin public immutable margin;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;

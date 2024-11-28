@@ -29,9 +29,10 @@ interface IMargin is IInstance {
     /// @notice Retrieves the isolated balance for a user and market
     function isolatedBalances(address, IMarket) external view returns (Fixed6);
 
-    /// @notice Add DSU funds to the msg.sender's cross-margin account
+    /// @notice Add DSU funds to a cross-margin account
+    /// @param account Account to be credited
     /// @param amount Quantity of DSU to pull from sender
-    function deposit(UFixed6 amount) external;
+    function deposit(address account, UFixed6 amount) external;
 
     /// @notice Remove DSU funds from the msg.sender's cross-margin account
     /// @param amount Quantity of DSU to push to sender

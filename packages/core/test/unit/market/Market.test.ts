@@ -392,20 +392,6 @@ async function settle(market: Market, account: SignerWithAddress, sender?: Signe
   return await market.connect(sender || account).settle(account.address)
 }
 
-async function deposit(market: Market, amount: BigNumber, account: SignerWithAddress, sender?: SignerWithAddress) {
-  const local = await market.locals(account.address)
-  return await market
-    .connect(sender || account)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
-      account.address,
-      ethers.constants.MaxUint256,
-      ethers.constants.MaxUint256,
-      ethers.constants.MaxUint256,
-      amount,
-      false,
-    )
-}
-
 describe('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
@@ -430,6 +416,22 @@ describe('Market', () => {
   let marketDefinition: IMarket.MarketDefinitionStruct
   let riskParameter: RiskParameterStruct
   let marketParameter: MarketParameterStruct
+
+  async function deposit(amount: BigNumber, account: SignerWithAddress, sender?: SignerWithAddress) {
+    if (!sender) sender = account
+    dsu.transferFrom.whenCalledWith(sender.address, margin.address, amount.mul(1e12)).returns(true)
+    await margin.connect(sender).deposit(account.address, amount)
+    return await market
+      .connect(sender)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](
+        account.address,
+        ethers.constants.MaxUint256,
+        ethers.constants.MaxUint256,
+        ethers.constants.MaxUint256,
+        amount,
+        false,
+      )
+  }
 
   const fixture = async () => {
     ;[
@@ -569,15 +571,15 @@ describe('Market', () => {
 
     // deposit collateral into margin accounts
     dsu.transferFrom.whenCalledWith(user.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
-    await margin.connect(user).deposit(COLLATERAL)
+    await margin.connect(user).deposit(user.address, COLLATERAL)
     dsu.transferFrom.whenCalledWith(userB.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
-    await margin.connect(userB).deposit(COLLATERAL)
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
     dsu.transferFrom.whenCalledWith(userC.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
-    await margin.connect(userC).deposit(COLLATERAL)
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
     dsu.transferFrom.whenCalledWith(userD.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
-    await margin.connect(userD).deposit(COLLATERAL)
+    await margin.connect(userD).deposit(userD.address, COLLATERAL)
     dsu.transferFrom.whenCalledWith(liquidator.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
-    await margin.connect(liquidator).deposit(COLLATERAL)
+    await margin.connect(liquidator).deposit(liquidator.address, COLLATERAL)
   }
 
   beforeEach(async () => {
@@ -591,6 +593,7 @@ describe('Market', () => {
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.token()).to.equal(dsu.address)
       expect(await market.oracle()).to.equal(marketDefinition.oracle)
+      expect(await market.margin()).to.equal(margin.address)
 
       const riskParameterResult = await market.riskParameter()
       expect(riskParameterResult.margin).to.equal(0)
@@ -11305,10 +11308,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
               oracle.request.returns()
 
-              // FIXME: user likely needs more collateral; should probably update deposit method to autofund
-              await deposit(market, COLLATERAL, user, userB)
-              return
-              await deposit(market, COLLATERAL, userB, user)
+              await deposit(COLLATERAL, user, userB)
+              await deposit(COLLATERAL, userB, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -11577,8 +11578,8 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_6.timestamp])
               oracle.request.returns()
 
-              await deposit(market, COLLATERAL, user, userB)
-              await deposit(market, COLLATERAL, userB, user)
+              await deposit(COLLATERAL, user, userB)
+              await deposit(COLLATERAL, userB, user)
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -15090,7 +15091,7 @@ describe('Market', () => {
                 COLLATERAL.add(1).mul(-1),
                 false,
               ),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
+          ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalance')
         })
 
         it('reverts if price is stale', async () => {
@@ -15127,6 +15128,8 @@ describe('Market', () => {
         it('reverts if price is stale (invalid)', async () => {
           const riskParameter = { ...(await market.riskParameter()), staleAfter: BigNumber.from(10800) }
           await market.connect(owner).updateRiskParameter(riskParameter)
+
+          await deposit(parse6decimal('2'), user)
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_1.timestamp)
@@ -15393,6 +15396,8 @@ describe('Market', () => {
               .connect(liquidator)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
 
+            await margin.connect(userB).deposit(userB.address, COLLATERAL)
+
             await expect(
               market
                 .connect(userB)
@@ -15439,6 +15444,11 @@ describe('Market', () => {
             oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersion, TIMESTAMP + 7300])
             oracle.request.returns()
+
+            dsu.transferFrom.whenCalledWith(userB.address, margin.address, collateral.mul(1e12)).returns(true)
+            await margin.connect(userB).deposit(userB.address, collateral)
+            dsu.transferFrom.whenCalledWith(user.address, margin.address, collateral2.mul(1e12)).returns(true)
+            await margin.connect(user).deposit(user.address, collateral2)
 
             await market
               .connect(userB)

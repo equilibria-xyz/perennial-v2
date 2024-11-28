@@ -44,11 +44,12 @@ describe('Margin', () => {
     ).deploy(dsu.address)
   })
 
+  // TODO: signer override and test to deposit to another account
   async function deposit(user: SignerWithAddress, amount: BigNumber) {
     const balanceBefore = await margin.crossMarginBalances(user.address)
 
     dsu.transferFrom.whenCalledWith(user.address, margin.address, amount.mul(1e12)).returns(true)
-    await expect(margin.connect(user).deposit(amount)).to.not.be.reverted
+    await expect(margin.connect(user).deposit(user.address, amount)).to.not.be.reverted
 
     expect(await margin.crossMarginBalances(user.address)).to.equal(balanceBefore.add(amount))
   }
