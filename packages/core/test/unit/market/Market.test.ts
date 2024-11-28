@@ -25141,7 +25141,7 @@ describe('Market', () => {
       it('reverts if not owner (user)', async () => {
         await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(
           market,
-          'InstanceNotOwnerError',
+          'MarketNotOperatorError',
         )
       })
 
@@ -25149,7 +25149,7 @@ describe('Market', () => {
         await market.connect(owner).updateParameter(await market.parameter())
         await expect(market.connect(coordinator).claimExposure()).to.be.revertedWithCustomError(
           market,
-          'InstanceNotOwnerError',
+          'MarketNotOperatorError',
         )
       })
     })
