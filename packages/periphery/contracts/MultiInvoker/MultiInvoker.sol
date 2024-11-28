@@ -7,16 +7,14 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
+import { Initializable } from "@equilibria/root/attribute/Initializable.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
-import { Kept } from "@equilibria/root/attribute/Kept/Kept.sol";
 import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
-import { Order } from "@perennial/v2-core/contracts/types/Order.sol";
-import { Position } from "@perennial/v2-core/contracts/types/Position.sol";
 import { IPythFactory } from "@perennial/v2-oracle/contracts/interfaces/IPythFactory.sol";
 import { IVault } from "@perennial/v2-vault/contracts/interfaces/IVault.sol";
 import { Intent } from "@perennial/v2-core/contracts/types/Intent.sol";
@@ -25,7 +23,7 @@ import { InterfaceFee } from "./types/InterfaceFee.sol";
 
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
-contract MultiInvoker is IMultiInvoker, Kept {
+contract MultiInvoker is IMultiInvoker, Initializable {
     /// @dev USDC stablecoin address
     Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
 
@@ -82,8 +80,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @notice Initialize the contract
     /// @param ethOracle_ Chainlink ETH/USD oracle address
     function initialize(AggregatorV3Interface ethOracle_) external initializer(2) {
-        __Kept__initialize(ethOracle_, DSU);
-
         if (address(batcher) != address(0)) {
             DSU.approve(address(batcher));
             USDC.approve(address(batcher));
@@ -366,23 +362,10 @@ contract MultiInvoker is IMultiInvoker, Kept {
         UFixed18 balanceBefore = DSU.balanceOf();
 
         try IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data) {
-            // Return through keeper fee if any
             DSU.push(msg.sender, DSU.balanceOf().sub(balanceBefore));
         } catch (bytes memory reason) {
             if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
-    }
-
-    /// @notice Helper function to raise keeper fee
-    /// @param keeperFee Keeper fee to raise
-    /// @param data Data to raise keeper fee with
-    /// @return Amount of keeper fee raised
-    function _raiseKeeperFee(UFixed18 keeperFee, bytes memory data) internal virtual override returns (UFixed18) {
-        (address account, IMarket market, UFixed6 fee) = abi.decode(data, (address, IMarket, UFixed6));
-        UFixed6 raisedKeeperFee = UFixed6Lib.from(keeperFee, true).min(fee);
-        _marketWithdraw(market, account, raisedKeeperFee);
-
-        return UFixed18Lib.from(raisedKeeperFee);
     }
 
     /// @notice Withdraws `withdrawal` from `account`'s `market` position
@@ -391,13 +374,6 @@ contract MultiInvoker is IMultiInvoker, Kept {
     /// @param withdrawal Amount to withdraw
     function _marketWithdraw(IMarket market, address account, UFixed6 withdrawal) private {
         market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, withdrawal), false);
-    }
-
-    /// @notice Settles `account`'s `market` position
-    /// @param market Market to settle
-    /// @param account Account to settle
-    function _marketSettle(IMarket market, address account) private {
-        market.settle(account);
     }
 
     /// @notice Target market must be created by MarketFactory

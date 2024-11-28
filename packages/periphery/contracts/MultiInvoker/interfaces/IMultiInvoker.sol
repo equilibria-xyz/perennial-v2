@@ -5,7 +5,6 @@ import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
 import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { InterfaceFee } from "../types/InterfaceFee.sol";
 
 interface IMultiInvoker {
@@ -29,15 +28,10 @@ interface IMultiInvoker {
     }
 
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
-    event KeeperFeeCharged(address indexed account, address indexed market, address indexed to, UFixed6 fee);
     event InterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
 
     // sig: 0x42ecdedb
     error MultiInvokerUnauthorizedError();
-    // sig: 0x88d67968
-    error MultiInvokerOrderMustBeSingleSidedError();
-    // sig: 0xbccd78e7
-    error MultiInvokerMaxFeeExceededError();
     // sig: 0x47b7c1b0
     error MultiInvokerInvalidInstanceError();
 
