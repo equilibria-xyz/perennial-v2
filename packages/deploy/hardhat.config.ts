@@ -33,8 +33,6 @@ const config = defaultConfig({
     '@perennial/v2-periphery/contracts/CollateralAccounts/Controller_Arbitrum.sol',
     '@perennial/v2-periphery/contracts/Coordinator/Coordinator.sol',
     '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker.sol',
-    '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker_Arbitrum.sol',
-    '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker_Optimism.sol',
     '@perennial/v2-periphery/contracts/TriggerOrders/OrderVerifier.sol',
     '@perennial/v2-periphery/contracts/TriggerOrders/Manager_Arbitrum.sol',
   ],
@@ -47,12 +45,6 @@ const config = defaultConfig({
     },
     '@perennial/v2-periphery/contracts/MultiInvoker.sol': {
       ...peripheryOverrides['contracts/MultiInvoker.sol'],
-    },
-    '@perennial/v2-periphery/contracts/MultiInvoker_Arbitrum.sol': {
-      ...peripheryOverrides['contracts/MultiInvoker_Arbitrum.sol'],
-    },
-    '@perennial/v2-periphery/contracts/MultiInvoker_Optimism.sol': {
-      ...peripheryOverrides['contracts/MultiInvoker_Optimism.sol'],
     },
     '@perennial/v2-periphery/contracts/Controller_Arbitrum.sol': {
       ...peripheryOverrides['contracts/Controller_Arbitrum.sol'],

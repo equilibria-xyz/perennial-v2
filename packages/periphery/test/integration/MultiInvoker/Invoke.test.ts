@@ -135,9 +135,6 @@ export function RunInvokerTests(
     it('initializes correctly', async () => {
       const { owner, dsu, usdc, dsuBatcher, dsuReserve, chainlinkKeptFeed } = instanceVars
 
-      expect(await multiInvoker.keeperToken()).to.eq(instanceVars.dsu.address)
-      expect(await multiInvoker.ethTokenOracleFeed()).to.eq(chainlinkKeptFeed.address)
-
       if (dsuBatcher) {
         expect(await dsu.allowance(multiInvoker.address, dsuBatcher.address)).to.eq(ethers.constants.MaxUint256)
         expect(await dsu.allowance(multiInvoker.address, dsuBatcher.address)).to.eq(ethers.constants.MaxUint256)
