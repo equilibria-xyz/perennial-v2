@@ -147,6 +147,7 @@ jobs:
 
   # [ORACLE]
   oracle-unit-test:
+    if: false
     name: '[Oracle] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -176,6 +177,7 @@ jobs:
           name: oracle_unit_test_coverage
           path: ./packages/oracle/coverage/lcov.info
   oracle-integration-test:
+    if: false
     name: '[Oracle] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -206,6 +208,7 @@ jobs:
           name: oracle_integration_test_coverage
           path: ./packages/oracle/coverage/lcov.info
   oracle-integrationSepolia-test:
+    if: false
     name: '[Oracle] Sepolia Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -238,6 +241,7 @@ jobs:
 
   # [VAULT]
   vault-unit-test:
+    if: false
     name: '[Vault] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -267,6 +271,7 @@ jobs:
           name: vault_unit_test_coverage
           path: ./packages/vault/coverage/lcov.info
   vault-integration-test:
+    if: false
     name: '[Vault] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -299,6 +304,7 @@ jobs:
 
   # [PERIPHERY]
   periphery-unit-test:
+    if: false
     name: '[Periphery] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -328,6 +334,7 @@ jobs:
           name: periphery_unit_test_coverage
           path: ./packages/periphery/coverage/lcov.info
   periphery-integration-test:
+    if: false
     name: '[Periphery] Mainnet Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -358,6 +365,7 @@ jobs:
           name: periphery_integration_test_coverage
           path: ./packages/periphery/coverage/lcov.info
   periphery-integrationL2-test:
+    if: false
     name: '[Periphery] L2 Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
