@@ -2492,7 +2492,7 @@ describe('Happy Path', () => {
     })
   })
 
-  // TODO: check whether this runs on v2.4 branch
+  // TODO: this is broken on v2.4 branch; once fixed, merge and retest here
   // uncheck skip to see gas results
   it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true

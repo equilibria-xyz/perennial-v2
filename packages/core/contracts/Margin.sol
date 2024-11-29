@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
+import { ReentrancyGuard } from "@equilibria/root/attribute/ReentrancyGuard.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18, UFixed18Lib } from "@equilibria/root/token/types/Token18.sol";
@@ -13,8 +14,7 @@ import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
 import "hardhat/console.sol";
 
-// TODO: incorporate ReentrancyGuard
-contract Margin is IMargin, Instance {
+contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev DSU address
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
@@ -37,8 +37,16 @@ contract Margin is IMargin, Instance {
         DSU = dsu;
     }
 
+    // TODO: is this needed?
+    /*/// @notice Initializes the contract state
+    function initialize() external initializer(1) {
+        __Instance__initialize();
+        __ReentrancyGuard__initialize();
+        console.log("Margin initialized");
+    }*/
+
     /// @inheritdoc IMargin
-    function deposit(address account, UFixed6 amount) external {
+    function deposit(address account, UFixed6 amount) external nonReentrant {
         DSU.pull(msg.sender, UFixed18Lib.from(amount));
         crossMarginBalances[account] = crossMarginBalances[account].add(Fixed6Lib.from(amount));
         // TODO: emit an event
@@ -47,7 +55,7 @@ contract Margin is IMargin, Instance {
     // TODO: support a magic number for full withdrawal?
     // TODO: support operator withdrawal?
     /// @inheritdoc IMargin
-    function withdraw(UFixed6 amount) external {
+    function withdraw(UFixed6 amount) external nonReentrant {
         Fixed6 balance = crossMarginBalances[msg.sender];
         if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalance();
         crossMarginBalances[msg.sender] = balance.sub(Fixed6Lib.from(amount));
@@ -56,7 +64,7 @@ contract Margin is IMargin, Instance {
     }
 
     /// @inheritdoc IMargin
-    function isolate(UFixed6 amount, IMarket market) external {
+    function isolate(UFixed6 amount, IMarket market) external nonReentrant{
         // TODO: need I check oracle timestamps here (per InvariantLib) to ensure price is not stale?
         Fixed6 balance = crossMarginBalances[msg.sender];
         Fixed6 signedAmount = Fixed6Lib.from(amount);
@@ -68,7 +76,7 @@ contract Margin is IMargin, Instance {
     }
 
     /// @inheritdoc IMargin
-    function cross(IMarket market) external {
+    function cross(IMarket market) external nonReentrant {
         Fixed6 balance = isolatedBalances[msg.sender][market];
         if (balance.lte(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
         isolatedBalances[msg.sender][market] = Fixed6Lib.ZERO;

@@ -29,6 +29,7 @@ import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
 import "hardhat/console.sol";
 
+// TODO: Can we remove ReentrancyGuard now that no calls are made to Token contract?
 /// @title Market
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
