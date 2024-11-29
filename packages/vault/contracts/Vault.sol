@@ -246,7 +246,7 @@ contract Vault is IVault, Instance {
         Context memory context = _loadContext(account);
 
         _settle(context, account);
-        _manage(context, UFixed6Lib.ZERO, UFixed6Lib.ZERO, false);
+        _manage(context, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
         _saveContext(context, account);
     }
 
@@ -322,7 +322,7 @@ contract Vault is IVault, Instance {
 
         // manage assets
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
-        _manage(context, depositAssets, claimAmount, !depositAssets.isZero() || !redeemShares.isZero());
+        _manage(context, depositAssets, claimAmount);
         asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
         emit Updated(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
@@ -386,8 +386,7 @@ contract Vault is IVault, Instance {
     /// @notice Manages the internal collateral and position strategy of the vault
     /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
-    /// @param shouldRebalance Whether to rebalance the vault's position
-    function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool shouldRebalance) private {
+    function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal) private {
         if (context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
         StrategyLib.MarketTarget[] memory targets = StrategyLib
@@ -400,10 +399,10 @@ contract Vault is IVault, Instance {
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
-                _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
+                _retarget(context.registrations[marketId], targets[marketId]);
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.gte(Fixed6Lib.ZERO))
-                _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
+                _retarget(context.registrations[marketId], targets[marketId]);
     }
 
     /// @notice Returns the amount of collateral is ineligible for allocation
@@ -430,15 +429,13 @@ contract Vault is IVault, Instance {
     /// @notice Adjusts the position on `market` to `targetPosition`
     /// @param registration The registration of the market to use
     /// @param target The new state to target
-    /// @param shouldRebalance Whether to rebalance the vault's position
     function _retarget(
         Registration memory registration,
-        StrategyLib.MarketTarget memory target,
-        bool shouldRebalance
+        StrategyLib.MarketTarget memory target
     ) private {
         registration.market.update(
             address(this),
-            shouldRebalance ? target.position : UFixed6Lib.MAX,
+            target.position,
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
             target.collateral,
