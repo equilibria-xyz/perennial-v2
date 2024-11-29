@@ -143,38 +143,32 @@ describe('Local', () => {
   })
 
   describe('#update', () => {
-    it('adds collateral (increase)', async () => {
-      await local.store(DEFAULT_LOCAL)
-
-      await local['update(int256)'](1)
-
-      const value = await local.read()
-      expect(value.collateral).to.equal(1)
-    })
-
-    it('adds collateral (decrease)', async () => {
-      await local.store(DEFAULT_LOCAL)
-
-      await local['update(int256)'](-1)
-
-      const value = await local.read()
-      expect(value.collateral).to.equal(-1)
-    })
-  })
-
-  describe('#update', () => {
-    it('correctly updates fees', async () => {
+    it('correctly calculates pnl and updates fees', async () => {
       await local.store({ ...DEFAULT_LOCAL, collateral: 1000 })
-      await local['update(uint256,(int256,uint256,uint256,uint256))'](11, {
+      const checkpointAccumulationResponse = {
         collateral: 12,
         liquidationFee: 256,
         subtractiveFee: 0,
         solverFee: 0,
-      })
+      }
 
+      const pnl = await local.callStatic.update(11, checkpointAccumulationResponse)
+      expect(pnl).to.equal(-244)
+
+      await local['update(uint256,(int256,uint256,uint256,uint256))'](11, checkpointAccumulationResponse)
       const storedLocal = await local.read()
-      expect(await storedLocal.collateral).to.equal(756)
+      expect(await storedLocal.collateral).to.equal(1000)
       expect(await storedLocal.latestId).to.equal(11)
+    })
+  })
+
+  describe('#credit', () => {
+    it('credits the account', async () => {
+      await local.store({ ...DEFAULT_LOCAL, collateral: 0 })
+      await local.credit(2)
+      await local.credit(3)
+      const storedLocal = await local.read()
+      expect(await storedLocal.claimable).to.equal(5)
     })
   })
 })

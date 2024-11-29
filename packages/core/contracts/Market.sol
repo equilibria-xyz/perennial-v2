@@ -868,6 +868,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
 
         context.latestPositionLocal.update(newOrder);
+        // calculate and store collateral change for account
         Fixed6 pnl = context.local.update(newOrderId, accumulationResponse);
         margin.updateCheckpoint(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
 

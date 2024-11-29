@@ -35,7 +35,6 @@ library LocalLib {
         uint256 newId,
         CheckpointAccumulationResponse memory accumulation
     ) internal pure returns (Fixed6 pnl) {
-        //self.collateral = self.collateral.add(accumulation.collateral).sub(Fixed6Lib.from(accumulation.liquidationFee));
         pnl = accumulation.collateral.sub(Fixed6Lib.from(accumulation.liquidationFee));
         self.latestId = newId;
     }

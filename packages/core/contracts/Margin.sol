@@ -52,7 +52,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function deposit(address account, UFixed6 amount) external nonReentrant {
         DSU.pull(msg.sender, UFixed18Lib.from(amount));
         crossMarginBalances[account] = crossMarginBalances[account].add(Fixed6Lib.from(amount));
-        // TODO: emit an event
+        emit FundsDeposited(account, amount);
     }
 
     // TODO: support a magic number for full withdrawal?
@@ -63,7 +63,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalance();
         crossMarginBalances[msg.sender] = balance.sub(Fixed6Lib.from(amount));
         DSU.push(msg.sender, UFixed18Lib.from(amount));
-        // TODO: emit an event
+        emit FundsWithdrawn(msg.sender, amount);
     }
 
     /// @inheritdoc IMargin
@@ -75,17 +75,19 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         crossMarginBalances[msg.sender] = balance.sub(signedAmount);
         isolatedBalances[msg.sender][market] = isolatedBalances[msg.sender][market].add(signedAmount);
         // TODO: update collections which track which markets are isolated/crossed
-        // TODO: emit an event
+        // TODO: ensure remaining cross-margin balance is sufficient to maintain all markets
+        emit FundsIsolated(msg.sender, market, amount);
     }
 
     /// @inheritdoc IMargin
     function cross(IMarket market) external nonReentrant {
+        // TODO: ensure market has no position
         Fixed6 balance = isolatedBalances[msg.sender][market];
         if (balance.lte(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
         isolatedBalances[msg.sender][market] = Fixed6Lib.ZERO;
         crossMarginBalances[msg.sender] = crossMarginBalances[msg.sender].add(balance);
         // TODO: update collections which track which markets are isolated/crossed
-        // TODO: emit an event
+        emit FundsDeisolated(msg.sender, market, UFixed6Lib.from(balance));
     }
 
     /// @inheritdoc IMargin

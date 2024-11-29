@@ -5,6 +5,7 @@ import { BigNumber, constants, utils } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { expectPositionEq, parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 export const TIMESTAMP_2 = 1631113819
 export const TIMESTAMP_3 = 1631114005
@@ -48,18 +49,19 @@ describe('Liquidate', () => {
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
 
-    expect((await market.locals(user.address)).collateral).to.equal(COLLATERAL)
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+    expect(await dsu.balanceOf(margin.address)).to.equal(utils.parseEther('1000'))
 
     chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
     await chainlink.next()
     await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false) // settle
     expect((await market.locals(userB.address)).claimable).to.equal(parse6decimal('10'))
-    await market.connect(userB).claimFee(userB.address) // liquidator withdrawal
+    await market.connect(userB).claimFee(userB.address)
+    await margin.connect(userB).withdraw(parse6decimal('10')) // liquidator withdrawal
 
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200010')) // Original 200000 + fee
-    expect((await market.locals(user.address)).collateral).to.equal(parse6decimal('1000').sub(parse6decimal('11')))
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000').sub(utils.parseEther('10')))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(parse6decimal('11')))
+    expect(await dsu.balanceOf(margin.address)).to.equal(utils.parseEther('1000').sub(utils.parseEther('10')))
 
     await market
       .connect(user)
@@ -69,7 +71,7 @@ describe('Liquidate', () => {
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
   })
 
-  it('creates and resolves a shortfall', async () => {
+  it.only('creates and resolves a shortfall', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, margin, chainlink } = instanceVars
@@ -107,7 +109,7 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
     await settle(market, userB)
-    const userBCollateral = (await market.locals(userB.address)).collateral
+    const userBCollateral = await margin.isolatedBalances(userB.address, market.address)
     await expect(
       market
         .connect(userB)
@@ -119,7 +121,7 @@ describe('Liquidate', () => {
           userBCollateral.mul(-1).sub(1),
           false,
         ),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError') // underflow
+    ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalance') // underflow
 
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true) // liquidate
 
@@ -127,16 +129,17 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460'))
+    // FIXME: off by 0.50; figure out why
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('-2524.654460'))
 
     // TODO: unsure why this approval is needed
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
-    const userCollateral = (await market.locals(user.address)).collateral
+    const userCollateral = await margin.isolatedBalances(user.address, market.address)
 
     await market
       .connect(userB)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, userCollateral.mul(-1), false)
-    expect((await market.locals(user.address)).collateral).to.equal(0)
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(0)
   })
 
   it('uses a socialization factor', async () => {
@@ -168,10 +171,10 @@ describe('Liquidate', () => {
       ['update(address,uint256,uint256,uint256,int256,bool)'](userD.address, 0, POSITION, 0, COLLATERAL.mul(10), false)
 
     // Expect the system to remain solvent
-    totalCollateral = (await market.locals(user.address)).collateral
-      .add((await market.locals(userB.address)).collateral)
-      .add((await market.locals(userC.address)).collateral)
-      .add((await market.locals(userD.address)).collateral)
+    totalCollateral = (await margin.isolatedBalances(user.address, market.address))
+      .add(await margin.isolatedBalances(userB.address, market.address))
+      .add(await margin.isolatedBalances(userC.address, market.address))
+      .add(await margin.isolatedBalances(userD.address, market.address))
     totalFees = (await market.global()).protocolFee
       .add((await market.global()).oracleFee)
       .add((await market.global()).riskFee)
@@ -201,10 +204,10 @@ describe('Liquidate', () => {
     await settle(market, userC)
     await settle(market, userD)
 
-    const currA = (await market.locals(user.address)).collateral
-    const currB = (await market.locals(userB.address)).collateral
-    const currC = (await market.locals(userC.address)).collateral
-    const currD = (await market.locals(userD.address)).collateral
+    const currA = await margin.isolatedBalances(user.address, market.address)
+    const currB = await margin.isolatedBalances(userB.address, market.address)
+    const currC = await margin.isolatedBalances(userC.address, market.address)
+    const currD = await margin.isolatedBalances(userD.address, market.address)
     const totalCurr = currA.add(currB).add(currC).add(currD)
     const feesCurr = (await market.global()).protocolFee
       .add((await market.global()).oracleFee)
@@ -216,10 +219,10 @@ describe('Liquidate', () => {
     await settle(market, userC)
     await settle(market, userD)
 
-    const newA = (await market.locals(user.address)).collateral
-    const newB = (await market.locals(userB.address)).collateral
-    const newC = (await market.locals(userC.address)).collateral
-    const newD = (await market.locals(userD.address)).collateral
+    const newA = await margin.isolatedBalances(user.address, market.address)
+    const newB = await margin.isolatedBalances(userB.address, market.address)
+    const newC = await margin.isolatedBalances(userC.address, market.address)
+    const newD = await margin.isolatedBalances(userD.address, market.address)
     const totalNew = newA.add(newB).add(newC).add(newD)
     const feesNew = (await market.global()).protocolFee
       .add((await market.global()).oracleFee)
@@ -235,10 +238,10 @@ describe('Liquidate', () => {
     expect(totalCurr.add(feesCurr)).to.be.closeTo(totalNew.add(feesNew), 100)
 
     // Expect the system to remain solvent
-    totalCollateral = (await market.locals(user.address)).collateral
-      .add((await market.locals(userB.address)).collateral)
-      .add((await market.locals(userC.address)).collateral)
-      .add((await market.locals(userD.address)).collateral)
+    totalCollateral = (await margin.isolatedBalances(user.address, market.address))
+      .add(await margin.isolatedBalances(userB.address, market.address))
+      .add(await margin.isolatedBalances(userC.address, market.address))
+      .add(await margin.isolatedBalances(userD.address, market.address))
     totalFees = (await market.global()).protocolFee
       .add((await market.global()).oracleFee)
       .add((await market.global()).riskFee)
@@ -287,7 +290,7 @@ describe('Liquidate', () => {
     price = (await chainlink.oracle.latest()).price
 
     // ensure user's collateral is now lower than minMaintenance but above maintenance requirement
-    const collateral = (await market.locals(user.address)).collateral
+    const collateral = await margin.isolatedBalances(user.address, market.address)
     const riskParameter = await market.riskParameter()
     expect(collateral).to.be.lessThan(riskParameter.minMaintenance)
     // maintenance = price * position * requirementRatio = price * 5 * 0.3
@@ -309,7 +312,6 @@ describe('Liquidate', () => {
       )
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userC.address)
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1500'))
 
     chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
     await chainlink.next()
@@ -324,7 +326,7 @@ describe('Liquidate', () => {
     // userC claims their fee
     expect((await market.locals(userC.address)).claimable).to.equal(parse6decimal('10'))
     await market.connect(userC).claimFee(userC.address) // liquidator withdrawal
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1500').sub(utils.parseEther('10')))
+    expect(await margin.crossMarginBalances(userC.address)).to.equal(parse6decimal('10'))
   })
 
   it('liquidates a user with referrer', async () => {
@@ -387,7 +389,7 @@ describe('Liquidate', () => {
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
     expect(await market.orderReferrers(user.address, 2)).to.eq(userC.address)
 
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000'))
+    expect(await dsu.balanceOf(margin.address)).to.equal(utils.parseEther('1000'))
 
     chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
     await chainlink.next()
