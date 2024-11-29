@@ -25,8 +25,6 @@ import {
   VersionStorageLib__factory,
   IVerifier,
   MagicValueLib__factory,
-  MockToken,
-  MockToken__factory,
   Margin__factory,
   Margin,
   ERC20,
@@ -481,6 +479,7 @@ describe('Market', () => {
       maxStaleAfter: 14400,
     })
     factory.oracleFactory.returns(oracleFactorySigner.address)
+    await margin.initialize(factory.address)
 
     marketDefinition = {
       token: dsu.address,

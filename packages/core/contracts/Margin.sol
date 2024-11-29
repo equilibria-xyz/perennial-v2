@@ -11,12 +11,15 @@ import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
-import { IMarket } from "./interfaces/IMarket.sol";
+import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
 import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev DSU address
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
+
+    /// @dev Contract used to validate markets
+    IMarketFactory public marketFactory;
 
     /// @notice Collateral spread across markets: user -> balance
     mapping(address => Fixed6) public crossMarginBalances;
@@ -37,13 +40,13 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         DSU = dsu;
     }
 
-    // TODO: is this needed?
-    /*/// @notice Initializes the contract state
-    function initialize() external initializer(1) {
+    /// @notice Initializes the contract state
+    /// @param marketFactory_ Identifies the deployment to which this contract belongs
+    function initialize(IMarketFactory marketFactory_) external initializer(1) {
         __Instance__initialize();
         __ReentrancyGuard__initialize();
-        console.log("Margin initialized");
-    }*/
+        marketFactory = marketFactory_;
+    }
 
     /// @inheritdoc IMargin
     function deposit(address account, UFixed6 amount) external nonReentrant {
@@ -269,11 +272,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
 
 
-    /// @dev Only if the caller is a market
+    /// @dev Only if caller is a legitimate market
     modifier onlyMarket {
-        // TODO: configure MarketFactory and use it to verify msg.sender is a legitimate market?
-        // It is super-important that a bad actor cannot create a malicious IMarket
-        // which awards fake PnL to an attacker controlled account to steal funds.
+        IMarket market = IMarket(msg.sender);
+        if (market.factory() != marketFactory) revert MarginInvalidMarket();
         _;
     }
 }

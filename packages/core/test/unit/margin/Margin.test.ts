@@ -13,6 +13,8 @@ import {
   CheckpointStorageLib__factory,
   MockToken,
   MockToken__factory,
+  IMarketFactory,
+  Margin,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { CheckpointStruct } from '../../../types/generated/contracts/Margin'
@@ -26,18 +28,23 @@ describe('Margin', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let userB: SignerWithAddress
+  let dsu: FakeContract<IERC20Metadata>
+  let marketFactory: FakeContract<IMarketFactory>
   let marketA: FakeContract<IMarket>
   let marketB: FakeContract<IMarket>
 
   beforeEach(async () => {
     ;[owner, user, userB] = await ethers.getSigners()
 
+    dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
+    marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     marketA = await smock.fake<IMarket>('IMarket')
+    marketA.factory.whenCalledWith().returns(marketFactory.address)
     marketB = await smock.fake<IMarket>('IMarket')
+    marketB.factory.whenCalledWith().returns(marketFactory.address)
   })
 
   describe('normal operation', async () => {
-    let dsu: FakeContract<IERC20Metadata>
     let margin: IMargin
 
     async function deposit(sender: SignerWithAddress, amount: BigNumber, target?: SignerWithAddress) {
@@ -51,7 +58,6 @@ describe('Margin', () => {
     }
 
     beforeEach(async () => {
-      dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
       margin = await new Margin__factory(
         {
           'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
@@ -60,6 +66,7 @@ describe('Margin', () => {
         },
         owner,
       ).deploy(dsu.address)
+      await margin.initialize(marketFactory.address)
     })
 
     it('deposits funds to margin contract', async () => {
@@ -216,6 +223,59 @@ describe('Margin', () => {
     })
   })
 
+  describe('onlyMarket', async () => {
+    let margin: Margin
+    // another IMarket from a different factory should not be able to meddle with this Margin contract
+    let badMarketFactory: FakeContract<IMarketFactory>
+    let badMarket: FakeContract<IMarket>
+    let badMarketSigner: SignerWithAddress
+
+    beforeEach(async () => {
+      badMarketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+      badMarket = await smock.fake<IMarket>('IMarket')
+      badMarket.factory.whenCalledWith().returns(badMarketFactory.address)
+      badMarketSigner = await impersonate.impersonateWithBalance(badMarket.address, utils.parseEther('10'))
+
+      // deploy Margin contract using the real marketFactory
+      margin = await new Margin__factory(
+        {
+          'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+            await new CheckpointStorageLib__factory(owner).deploy()
+          ).address,
+        },
+        owner,
+      ).deploy(dsu.address)
+      await margin.initialize(marketFactory.address)
+    })
+
+    it('only market can call handleMarketUpdate', async () => {
+      await expect(
+        margin.connect(badMarketSigner).handleMarketUpdate(user.address, parse6decimal('5')),
+      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
+    })
+
+    it('only market can call updateBalance', async () => {
+      await expect(
+        margin.connect(badMarketSigner).updateBalance(user.address, parse6decimal('0.2')),
+      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
+    })
+
+    it('only market can call updateCheckpoint', async () => {
+      const checkpoint: CheckpointStruct = {
+        tradeFee: parse6decimal('0.07'),
+        settlementFee: parse6decimal('0.06'),
+        transfer: parse6decimal('3'),
+        collateral: parse6decimal('5.51'),
+      }
+      const pnl = parse6decimal('888')
+      await expect(
+        margin
+          .connect(badMarketSigner)
+          .updateCheckpoint(user.address, BigNumber.from(await currentBlockTimestamp()), checkpoint, pnl),
+      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
+    })
+  })
+
   describe('reentrancy', async () => {
     let mockToken: MockToken
     let margin: IMargin
@@ -240,6 +300,7 @@ describe('Margin', () => {
         },
         owner,
       ).deploy(mockToken.address)
+      await margin.initialize(marketFactory.address)
     })
 
     it('during deposit', async () => {

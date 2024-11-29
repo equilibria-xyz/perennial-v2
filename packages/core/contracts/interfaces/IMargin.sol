@@ -10,6 +10,10 @@ import { OracleVersion } from "../types/OracleVersion.sol";
 import { IMarket } from "./IMarket.sol";
 
 interface IMargin is IInstance {
+    // sig: 0x21d30123
+    /// custom:error Market is cross-margained, but user called update with a collateral amount
+    error MarginCannotUpdateCrossedMarket();
+
     // sig: 0xc65f6a26
     /// custom:error Specified amount cannot be withdrawn or isolated; ensure funds are not isolated
     error MarginInsufficientCrossedBalance();
@@ -19,9 +23,9 @@ interface IMargin is IInstance {
     /// check amount currently isolated for specified market
     error MarginInsufficientIsolatedBalance();
 
-    // sig: 0x21d30123
-    /// custom:error Market is cross-margained, but user called update with a collateral amount
-    error MarginCannotUpdateCrossedMarket();
+    // sig: 0x8f8e8f6a
+    /// custom:error A function intended only for a market to call was not called by a legitimate market
+    error MarginInvalidMarket();
 
     /// @notice Retrieves the cross-margin balance for a user
     function crossMarginBalances(address) external view returns (Fixed6);

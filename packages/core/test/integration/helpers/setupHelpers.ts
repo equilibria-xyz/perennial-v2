@@ -160,6 +160,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
   await verifier.connect(owner).initialize(marketFactory.address)
+  await margin.connect(owner).initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
