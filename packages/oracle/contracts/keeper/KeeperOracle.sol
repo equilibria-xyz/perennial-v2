@@ -207,8 +207,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
         priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true);
         priceResponse.oracleFee = keeperOracleParameter.oracleFee;
         priceResponse.applyFeeMaximum(
-            oracleParameter.maxSettlementFee,
-            _localCallbacks[oracleVersion.timestamp].length()
+            oracleParameter.maxSyncFee,
+            oracleParameter.maxAsyncFee
         );
 
         _responses[oracleVersion.timestamp].store(priceResponse);
