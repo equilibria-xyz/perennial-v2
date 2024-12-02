@@ -828,7 +828,7 @@ describe('RiskParameter', () => {
     })
 
     describe('.staleAfter', () => {
-      const STORAGE_SIZE = 24
+      const STORAGE_SIZE = 16
       it('saves if in range', async () => {
         await riskParameter.validateAndStore(
           {
