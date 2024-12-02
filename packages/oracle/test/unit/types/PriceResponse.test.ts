@@ -304,44 +304,35 @@ describe('PriceResponse', () => {
       await priceResponse.store({
         ...DEFAULT_PRICE_RESPONSE,
         syncFee: parse6decimal('1'),
-        asyncFee: parse6decimal('0.2'),
+        asyncFee: parse6decimal('0'),
       })
 
-      await priceResponse.applyFeeMaximum(parse6decimal('0.5'), 0)
+      const maxSyncFee = parse6decimal('0.3')
+      const maxAsyncFee = parse6decimal('0.1')
+
+      await priceResponse.applyFeeMaximum(maxSyncFee, maxAsyncFee)
 
       const value = await priceResponse.read()
 
-      expect(value.syncFee).to.equal(parse6decimal('0.5'))
-      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
+      expect(value.syncFee).to.equal(parse6decimal('0.3'))
+      expect(value.asyncFee).to.equal(parse6decimal('0'))
     })
 
-    it('calculates correct fee w/ non-zero sync, single async', async () => {
+    it('calculates correct fee w/ non-zero sync, non-zero async', async () => {
       await priceResponse.store({
         ...DEFAULT_PRICE_RESPONSE,
         syncFee: parse6decimal('1'),
         asyncFee: parse6decimal('0.2'),
       })
 
-      await priceResponse.applyFeeMaximum(parse6decimal('0.6'), 1)
+      const maxSyncFee = parse6decimal('0.3')
+      const maxAsyncFee = parse6decimal('0.1')
+
+      await priceResponse.applyFeeMaximum(maxSyncFee, maxAsyncFee)
 
       const value = await priceResponse.read()
 
-      expect(value.syncFee).to.equal(parse6decimal('0.5'))
-      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
-    })
-
-    it('calculates correct fee w/ non-zero sync, multiple async', async () => {
-      await priceResponse.store({
-        ...DEFAULT_PRICE_RESPONSE,
-        syncFee: parse6decimal('1'),
-        asyncFee: parse6decimal('0.2'),
-      })
-
-      await priceResponse.applyFeeMaximum(parse6decimal('1.0'), 5)
-
-      const value = await priceResponse.read()
-
-      expect(value.syncFee).to.equal(parse6decimal('0.5'))
+      expect(value.syncFee).to.equal(parse6decimal('0.3'))
       expect(value.asyncFee).to.equal(parse6decimal('0.1'))
     })
 
@@ -349,45 +340,18 @@ describe('PriceResponse', () => {
       await priceResponse.store({
         ...DEFAULT_PRICE_RESPONSE,
         syncFee: parse6decimal('0'),
-        asyncFee: parse6decimal('0.2'),
+        asyncFee: parse6decimal('0'),
       })
 
-      await priceResponse.applyFeeMaximum(parse6decimal('0.0'), 0)
+      const maxSyncFee = parse6decimal('0.3')
+      const maxAsyncFee = parse6decimal('0.1')
+
+      await priceResponse.applyFeeMaximum(maxSyncFee, maxAsyncFee)
 
       const value = await priceResponse.read()
 
       expect(value.syncFee).to.equal(parse6decimal('0'))
-      expect(value.asyncFee).to.equal(parse6decimal('0.2'))
-    })
-
-    it('calculates correct fee w/ zero sync, single async', async () => {
-      await priceResponse.store({
-        ...DEFAULT_PRICE_RESPONSE,
-        syncFee: parse6decimal('0'),
-        asyncFee: parse6decimal('0.2'),
-      })
-
-      await priceResponse.applyFeeMaximum(parse6decimal('0.1'), 1)
-
-      const value = await priceResponse.read()
-
-      expect(value.syncFee).to.equal(parse6decimal('0.0'))
-      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
-    })
-
-    it('calculates correct fee w/ zero sync, multiple async', async () => {
-      await priceResponse.store({
-        ...DEFAULT_PRICE_RESPONSE,
-        syncFee: parse6decimal('0'),
-        asyncFee: parse6decimal('0.2'),
-      })
-
-      await priceResponse.applyFeeMaximum(parse6decimal('0.5'), 5)
-
-      const value = await priceResponse.read()
-
-      expect(value.syncFee).to.equal(parse6decimal('0.0'))
-      expect(value.asyncFee).to.equal(parse6decimal('0.1'))
+      expect(value.asyncFee).to.equal(parse6decimal('0'))
     })
   })
 })
