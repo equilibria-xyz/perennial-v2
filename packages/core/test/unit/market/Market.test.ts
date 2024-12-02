@@ -461,6 +461,7 @@ describe('Market', () => {
       referralFee: 0,
       minScale: parse6decimal('0.001'),
       maxStaleAfter: 14400,
+      minMinMaintenance: 0,
     })
     factory.oracleFactory.returns(oracleFactorySigner.address)
 
