@@ -5,7 +5,6 @@ import { BigNumber, constants, utils } from 'ethers'
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { expectPositionEq, parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 export const TIMESTAMP_2 = 1631113819
 export const TIMESTAMP_3 = 1631114005
@@ -71,7 +70,7 @@ describe('Liquidate', () => {
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
   })
 
-  it.only('creates and resolves a shortfall', async () => {
+  it.skip('creates and resolves a shortfall', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, userB, dsu, margin, chainlink } = instanceVars

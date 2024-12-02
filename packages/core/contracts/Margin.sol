@@ -8,7 +8,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18, UFixed18Lib } from "@equilibria/root/token/types/Token18.sol";
 
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
-import { Position } from "./types/Position.sol";
+import { Position, PositionLib } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
@@ -151,6 +151,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
         // Handle case where market was not already in isolated mode
         if (!_isIsolated(account, market)) {
+            // NOTE: this section is currently unreachable because _isIsolated always returns true.
+
             // Cannot remove isolated collateral if market not isolated
             if (collateralDelta.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
 
@@ -206,10 +208,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @dev Determines whether market is in isolated mode for a specific user
     function _isIsolated(address account, IMarket market) private view returns (bool) {
-        // TODO: Methinks we cannot use 0 as magic number to determine whether market is isolated for user.
-        // Fee or PnL accumulation could make it land on 0 isolated collateral with a position,
-        // turning it cross-market implictly.
-        // return !isolatedBalances[account][market].isZero();
+        // TODO: We cannot use 0 as magic number to determine whether market is isolated for user.
+        // Not sure how this should eventually behave when market is neither in the cross-market
+        // collection nor has an isolated balance.
         return true;
     }
 
@@ -224,13 +225,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (collateral.lt(Fixed6Lib.ZERO)) return false; // negative collateral balance forbidden, regardless of position
         if (positionMagnitude.isZero()) return true;     // zero position has no requirement
 
-        RiskParameter memory riskParameter = market.riskParameter();
-        UFixed6 requirement = _collateralRequirement(
-            collateral,
+        UFixed6 requirement = PositionLib.maintenance(
             positionMagnitude,
-            latestVersion.price.abs(),
-            riskParameter.maintenance,
-            riskParameter.minMaintenance
+            latestVersion,
+            market.riskParameter()
         );
         isMaintained = UFixed6Lib.unsafeFrom(collateral).gte(requirement);
     }
@@ -250,31 +248,16 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (collateral.lt(Fixed6Lib.ZERO)) return false; // negative collateral balance forbidden, regardless of position
         if (positionMagnitude.isZero()) return true;     // zero position has no requirement
 
-        RiskParameter memory riskParameter = market.riskParameter();
-        // TODO: need to apply price override adjustment from intent if present
-        UFixed6 requirement = _collateralRequirement(
-            collateral,
+        UFixed6 requirement = PositionLib.margin(
             positionMagnitude,
-            latestVersion.price.abs(),
-            riskParameter.margin.max(minCollateralization),
-            riskParameter.minMargin
-        );
+            latestVersion,
+            market.riskParameter(),
+            minCollateralization);
         isMargined = UFixed6Lib.unsafeFrom(collateral).gte(requirement);
     }
 
-    function _collateralRequirement(
-        Fixed6 collateral,
-        UFixed6 positionMagnitude,
-        UFixed6 price,
-        UFixed6 requirementRatio,
-        UFixed6 requirementFixed
-    ) private returns (UFixed6 requirement) {
-        requirement = positionMagnitude.mul(price).mul(requirementRatio).max(requirementFixed);
-    }
 
-
-
-    /// @dev Only if caller is a legitimate market
+    /// @dev Only if caller is a market from the same Perennial deployment
     modifier onlyMarket {
         IMarket market = IMarket(msg.sender);
         if (market.factory() != marketFactory) revert MarginInvalidMarket();

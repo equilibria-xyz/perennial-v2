@@ -161,6 +161,50 @@ library PositionLib {
     function empty(Position memory self) internal pure returns (bool) {
         return magnitude(self).isZero();
     }
+
+    /// @notice Returns the maintenance requirement of the position
+    /// @param positionMagnitude The position magnitude value to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @return The maintenance requirement of the position
+    function maintenance(
+        UFixed6 positionMagnitude,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter
+    ) internal pure returns (UFixed6) {
+        return _collateralRequirement(positionMagnitude, latestVersion, riskParameter.maintenance, riskParameter.minMaintenance);
+    }
+
+    /// @notice Returns the margin requirement of the position
+    /// @param positionMagnitude The position magnitude value to check
+    /// @param latestVersion The latest oracle version
+    /// @param riskParameter The current risk parameter
+    /// @param collateralization The collateralization requirement override provided by the caller
+    /// @return The margin requirement of the position
+    function margin(
+        UFixed6 positionMagnitude,
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter,
+        UFixed6 collateralization
+    ) internal pure returns (UFixed6) {
+        return _collateralRequirement(positionMagnitude, latestVersion, riskParameter.margin.max(collateralization), riskParameter.minMargin);
+    }
+
+    /// @notice Returns the collateral requirement of the position magnitude
+    /// @param positionMagnitude The position magnitude value to check
+    /// @param latestVersion The latest oracle version
+    /// @param requirementRatio The ratio requirement to the notional
+    /// @param requirementFixed The fixed requirement
+    /// @return The collateral requirement of the position magnitude
+    function _collateralRequirement(
+        UFixed6 positionMagnitude,
+        OracleVersion memory latestVersion,
+        UFixed6 requirementRatio,
+        UFixed6 requirementFixed
+    ) private pure returns (UFixed6) {
+        if (positionMagnitude.isZero()) return UFixed6Lib.ZERO;
+        return positionMagnitude.mul(latestVersion.price.abs()).mul(requirementRatio).max(requirementFixed);
+    }
 }
 
 /// @dev Manually encodes and decodes the global Position struct into storage.
