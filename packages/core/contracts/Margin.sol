@@ -72,6 +72,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 balance = crossMarginBalances[msg.sender];
         Fixed6 signedAmount = Fixed6Lib.from(amount);
         if (balance.lt(signedAmount)) revert MarginInsufficientCrossedBalance();
+        if (_hasPosition(msg.sender, market)) revert MarginHasPosition();
+
         crossMarginBalances[msg.sender] = balance.sub(signedAmount);
         isolatedBalances[msg.sender][market] = isolatedBalances[msg.sender][market].add(signedAmount);
         // TODO: update collections which track which markets are isolated/crossed
@@ -81,9 +83,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function cross(IMarket market) external nonReentrant {
-        // TODO: ensure market has no position
         Fixed6 balance = isolatedBalances[msg.sender][market];
         if (balance.lte(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
+        if (_hasPosition(msg.sender, market)) revert MarginHasPosition();
+
         isolatedBalances[msg.sender][market] = Fixed6Lib.ZERO;
         crossMarginBalances[msg.sender] = crossMarginBalances[msg.sender].add(balance);
         // TODO: update collections which track which markets are isolated/crossed
@@ -204,6 +207,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         } else {
             isolatedBalances[account][market] = isolatedBalance.add(collateralDelta);
         }
+    }
+
+    /// @dev Determines whether user has a position in a specific market
+    function _hasPosition(address account, IMarket market) private view returns (bool) {
+        return !market.positions(account).magnitude().isZero();
     }
 
     /// @dev Determines whether market is in isolated mode for a specific user

@@ -36,6 +36,10 @@ interface IMargin is IInstance {
     /// custom:error Market is cross-margained, but user called update with a collateral amount
     error MarginCannotUpdateCrossedMarket();
 
+    // sig: 0xac13066a
+    /// custom:error User must have no position to switch between cross-margin and isolated collateral
+    error MarginHasPosition();
+
     // sig: 0xc65f6a26
     /// custom:error Specified amount cannot be withdrawn or isolated; ensure funds are not isolated
     error MarginInsufficientCrossedBalance();

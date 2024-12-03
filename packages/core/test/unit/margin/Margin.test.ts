@@ -20,6 +20,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 import { CheckpointStruct } from '../../../types/generated/contracts/Margin'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { impersonate } from '../../../../common/testutil'
+import { PositionStruct } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -177,6 +178,25 @@ describe('Margin', () => {
       )
     })
 
+    it('reverts attempting to isolate with position', async () => {
+      await deposit(user, parse6decimal('700'))
+
+      // simulate a position (cross-margin by default)
+      const position: PositionStruct = {
+        timestamp: BigNumber.from(1285214400),
+        maker: constants.Zero,
+        long: parse6decimal('0.07'),
+        short: constants.Zero,
+      }
+      marketA.positions.whenCalledWith(user.address).returns(position)
+
+      // ensure cannot isolate market
+      await expect(margin.connect(user).isolate(parse6decimal('700'), marketA.address)).to.be.revertedWithCustomError(
+        margin,
+        'MarginHasPosition',
+      )
+    })
+
     it('can withdraw crossed funds with some isolated', async () => {
       // deposit
       const depositAmount = parse6decimal('500')
@@ -245,6 +265,29 @@ describe('Margin', () => {
       await expect(margin.connect(user).cross(marketA.address)).to.be.revertedWithCustomError(
         margin,
         'MarginInsufficientIsolatedBalance',
+      )
+    })
+
+    it('reverts attempting to cross with position', async () => {
+      // deposit and isolate some funds
+      await deposit(user, parse6decimal('600'))
+      await expect(margin.connect(user).isolate(parse6decimal('600'), marketA.address))
+        .to.emit(margin, 'FundsIsolated')
+        .withArgs(user.address, marketA.address, parse6decimal('600'))
+
+      // simulate a position
+      const position: PositionStruct = {
+        timestamp: BigNumber.from(1400534400),
+        maker: parse6decimal('0.5'),
+        long: constants.Zero,
+        short: constants.Zero,
+      }
+      marketA.positions.whenCalledWith(user.address).returns(position)
+
+      // ensure cannot cross market
+      await expect(margin.connect(user).cross(marketA.address)).to.be.revertedWithCustomError(
+        margin,
+        'MarginHasPosition',
       )
     })
   })
