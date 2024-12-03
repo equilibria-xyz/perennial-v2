@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber, constants } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, settle, fundWallet } from '../helpers/setupHelpers'
 import {
@@ -35,6 +35,8 @@ export const TIMESTAMP_2 = 1631113819
 export const TIMESTAMP_3 = 1631114005
 export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
+
+export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
 
 export const PRICE_0 = parse6decimal('113.882975')
 export const PRICE_1 = parse6decimal('113.796498')
@@ -2459,15 +2461,14 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
 
-    const chainlink = await new ChainlinkContext(
-      CHAINLINK_CUSTOM_CURRENCIES.ETH,
-      CHAINLINK_CUSTOM_CURRENCIES.USD,
-      { decimals: 0 },
-      delay,
-    ).init(BigNumber.from(0), BigNumber.from(0))
+    const { user, userB, dsu, beneficiaryB, payoff, chainlink } = instanceVars
 
-    const instanceVars = await deployProtocol(chainlink)
-    const { user, userB, dsu, beneficiaryB, payoff } = instanceVars
+    // set delay
+    chainlink.delay = delay
+
+    const nextWithConstantPrice = async () => {
+      return instanceVars.chainlink.nextWithPriceModification(() => UNDERLYING_PRICE)
+    }
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -2545,12 +2546,12 @@ describe('Happy Path', () => {
           false,
         )
 
-      await chainlink.next()
+      await nextWithConstantPrice()
     }
 
     // ensure all pending can settle
-    for (let i = 0; i < delay - 1; i++) await chainlink.next()
-    if (sync) await chainlink.next()
+    for (let i = 0; i < delay - 1; i++) await nextWithConstantPrice()
+    if (sync) await nextWithConstantPrice()
 
     // const currentVersion = delay + delay + delay - (sync ? 0 : 1)
     // const latestVersion = delay + delay - (sync ? 0 : 1)
@@ -2567,10 +2568,13 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           timestamp: await chainlink.oracle.current(),
           orders: 1,
-          makerPos: POSITION,
+          makerPos: 1,
           collateral: -1,
         },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // Check user is in the correct state
@@ -2582,8 +2586,10 @@ describe('Happy Path', () => {
     })
     expectOrderEq(await market.pendingOrders(user.address, delay + 1), {
       ...DEFAULT_ORDER,
+      orders: 1,
       timestamp: await chainlink.oracle.current(),
-      makerNeg: 1,
+      collateral: -1,
+      makerPos: 1,
     })
     expectCheckpointEq(await market.checkpoints(user.address, delay + 1), {
       ...DEFAULT_CHECKPOINT,
@@ -2610,6 +2616,7 @@ describe('Happy Path', () => {
       timestamp: await chainlink.oracle.current(),
       orders: 1,
       makerPos: 1,
+      collateral: -1,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
