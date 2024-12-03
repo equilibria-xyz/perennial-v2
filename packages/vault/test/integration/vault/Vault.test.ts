@@ -1274,9 +1274,9 @@ describe('Vault', () => {
         vault,
         'VaultNotOperatorError',
       )
-      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      await marketFactory.connect(user).updateOperator(liquidator.address, true)
       vault.connect(liquidator).update(user.address, largeDeposit, 0, 0)
-      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+      await marketFactory.connect(user).updateOperator(liquidator.address, false)
 
       await updateOracle()
       await vault.rebalance(user.address)
@@ -1289,9 +1289,9 @@ describe('Vault', () => {
       await expect(
         vault.connect(liquidator).update(user.address, parse6decimal('10000'), 0, 0),
       ).to.revertedWithCustomError(vault, 'VaultNotOperatorError')
-      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      await marketFactory.connect(user).updateOperator(liquidator.address, true)
       await vault.connect(liquidator).update(user.address, 0, parse6decimal('10000'), 0)
-      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+      await marketFactory.connect(user).updateOperator(liquidator.address, false)
       await updateOracle()
       await vault.rebalance(user.address)
 
@@ -1299,9 +1299,9 @@ describe('Vault', () => {
       await expect(
         vault.connect(liquidator).update(user.address, 0, 0, ethers.constants.MaxUint256),
       ).to.revertedWithCustomError(vault, 'VaultNotOperatorError')
-      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      await marketFactory.connect(user).updateOperator(liquidator.address, true)
       await vault.connect(liquidator).update(user.address, 0, 0, ethers.constants.MaxUint256)
-      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+      await marketFactory.connect(user).updateOperator(liquidator.address, false)
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
