@@ -122,19 +122,19 @@ describe('Liquidate', () => {
         ),
     ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalance') // underflow
 
+    // Liquidate user
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true) // liquidate
 
     chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    // FIXME: off by 0.50; figure out why
+    // FIXME: off by 0.50; figure out why - may only happen when running solo
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('-2524.654460'))
 
-    // TODO: unsure why this approval is needed
-    await dsu.connect(userB).approve(market.address, constants.MaxUint256)
+    // UserB deposits collateral to userB and isolates
     const userCollateral = await margin.isolatedBalances(user.address, market.address)
-
+    // FIXME: There is currently no way for userB to deposit to user's isolated balance to resolve the shortfall.
     await market
       .connect(userB)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, userCollateral.mul(-1), false)
