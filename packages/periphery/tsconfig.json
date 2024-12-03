@@ -1,0 +1,9 @@
+{
+  "extends": "../common/tsconfig.default",
+  "files": ["hardhat.config.ts"],
+  "include": ["contracts", "deploy", "test", "types"],
+  "compilerOptions": {
+    "outDir": "dist",
+    "target": "ES2020"
+  }
+}
