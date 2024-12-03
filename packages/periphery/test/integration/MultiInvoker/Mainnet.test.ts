@@ -17,7 +17,6 @@ import {
   VaultFactory,
 } from '../../../types/generated'
 import { RunInvokerTests } from './Invoke.test'
-import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
 import { configureInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
@@ -94,7 +93,7 @@ async function createInvoker(
   vaultFactory?: VaultFactory,
   withBatcher = false,
 ): Promise<MultiInvoker> {
-  const { owner, user, userB } = instanceVars
+  const { owner } = instanceVars
 
   const multiInvoker = await new MultiInvoker__factory(owner).deploy(
     instanceVars.usdc.address,
@@ -103,8 +102,6 @@ async function createInvoker(
     vaultFactory ? vaultFactory.address : constants.AddressZero,
     withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
     instanceVars.dsuReserve.address,
-    500_000,
-    500_000,
   )
 
   await configureInvoker(multiInvoker, instanceVars, vaultFactory)
@@ -145,7 +142,6 @@ if (process.env.FORK_NETWORK === undefined) {
     INITIAL_ORACLE_VERSION_ETH,
     INITIAL_ORACLE_VERSION_BTC,
   )
-  RunOrderTests(getFixture, createInvoker, advanceToPrice, true)
   RunPythOracleTests(getFixture, createInvoker, getKeeperOracle, fundWalletDSU, {
     startingTime: 1686198981, // block time at test 1686197771
     vaaValid:
