@@ -156,26 +156,6 @@ export function RunInvokerTests(
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
     })
 
-    describe('#updateOperator', () => {
-      it('sets operator as enabled', async () => {
-        const { user, userD } = instanceVars
-        await expect(multiInvoker.connect(user).updateOperator(userD.address, true))
-          .to.emit(multiInvoker, 'OperatorUpdated')
-          .withArgs(user.address, userD.address, true)
-        expect(await multiInvoker.operators(user.address, userD.address)).to.be.true
-      })
-
-      it('sets an operator as disabled', async () => {
-        const { user, userD } = instanceVars
-        await multiInvoker.connect(user).updateOperator(userD.address, true)
-        expect(await multiInvoker.operators(user.address, userD.address)).to.be.true
-        await expect(multiInvoker.connect(user).updateOperator(userD.address, false))
-          .to.emit(multiInvoker, 'OperatorUpdated')
-          .withArgs(user.address, userD.address, false)
-        expect(await multiInvoker.operators(user.address, userD.address)).to.be.false
-      })
-    })
-
     const testCases = [
       {
         context: 'From user',
@@ -188,8 +168,8 @@ export function RunInvokerTests(
       {
         context: 'From delegate',
         setup: async () => {
-          const { user, userD } = instanceVars
-          await multiInvoker.connect(user).updateOperator(userD.address, true)
+          const { marketFactory, user, userD } = instanceVars
+          await marketFactory.connect(user).updateOperator(userD.address, true)
         },
         invoke: async (args: IMultiInvoker.InvocationStruct[]) => {
           const { user, userD } = instanceVars
