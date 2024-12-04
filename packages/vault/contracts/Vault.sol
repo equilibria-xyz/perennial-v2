@@ -219,7 +219,7 @@ contract Vault is IVault, Instance {
 
     /// @notice Settles, then updates the vault parameter set
     /// @param newParameter The new vault parameter set
-    function updateParameter(VaultParameter memory newParameter) external onlyCoordinator {
+    function updateParameter(VaultParameter memory newParameter) external onlyOwner {
         rebalance(address(0));
         _updateParameter(newParameter);
     }
@@ -527,9 +527,9 @@ contract Vault is IVault, Instance {
         }
     }
 
-    /// @notice Only the coordinator can call
+    /// @notice Only the coordinator or factory owner can call
     modifier onlyCoordinator {
-        if (msg.sender != coordinator) revert VaultNotCoordinatorError();
+        if (msg.sender != coordinator && msg.sender != factory().owner()) revert VaultNotCoordinatorError();
         _;
     }
 }

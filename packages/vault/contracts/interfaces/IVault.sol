@@ -59,13 +59,13 @@ interface IVault is IInstance {
     error VaultNotOperatorError();
     // sig: 0xa65ac9fb
     error VaultNotSingleSidedError();
-    // sig: 0xa65ac9fb
+    // sig: 0xf2fbeec4
     error VaultInsufficientMinimumError();
     // sig: 0xdbdb7620
     error VaultAggregateWeightError();
     // sig: 0x50ad85d6
     error VaultCurrentOutOfSyncError();
-
+    // sig: 0xfad220c0
     error VaultNotCoordinatorError();
 
     // sig: 0xb8a09499

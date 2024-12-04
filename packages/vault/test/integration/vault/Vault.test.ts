@@ -295,7 +295,7 @@ describe('Vault', () => {
     await vault.connect(coordinator).updateLeverage(0, leverage)
     await vault.connect(coordinator).updateLeverage(1, leverage)
     await vault.connect(coordinator).updateWeights([0.8e6, 0.2e6])
-    await vault.connect(coordinator).updateParameter({
+    await vault.connect(owner).updateParameter({
       maxDeposit: maxCollateral,
       minDeposit: 0,
     })
@@ -551,7 +551,7 @@ describe('Vault', () => {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
       }
-      await expect(vault.connect(coordinator).updateParameter(newParameter))
+      await expect(vault.connect(owner).updateParameter(newParameter))
         .to.emit(vault, 'ParameterUpdated')
         .withArgs(newParameter)
 
@@ -560,14 +560,14 @@ describe('Vault', () => {
       expect(parameter.minDeposit).to.deep.contain(newParameter.minDeposit)
     })
 
-    it('reverts when not coordinator', async () => {
+    it('reverts when not owner', async () => {
       const newParameter = {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
-        'VaultNotCoordinatorError',
+        'InstanceNotOwnerError',
       )
     })
   })
@@ -1105,7 +1105,7 @@ describe('Vault', () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
-      await vault.connect(coordinator).updateParameter({
+      await vault.connect(owner).updateParameter({
         ...(await vault.parameter()),
         minDeposit: parse6decimal('10'),
       })
@@ -1866,7 +1866,7 @@ describe('Vault', () => {
     })
 
     it('reverts when below minDeposit', async () => {
-      await vault.connect(coordinator).updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10') })
+      await vault.connect(owner).updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10') })
       await expect(vault.connect(user).update(user.address, parse6decimal('0.50'), 0, 0)).to.revertedWithCustomError(
         vault,
         'VaultInsufficientMinimumError',
@@ -1903,7 +1903,7 @@ describe('Vault', () => {
     })
 
     it('doesnt bypass vault maxDeposit', async () => {
-      await vault.connect(coordinator).updateParameter({
+      await vault.connect(owner).updateParameter({
         maxDeposit: parse6decimal('100'),
         minDeposit: 0,
       })
