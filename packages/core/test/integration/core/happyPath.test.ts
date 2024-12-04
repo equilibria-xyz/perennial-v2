@@ -28,7 +28,6 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import { signAccessUpdateBatch, signIntent, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
-import { impersonate } from '../../../../common/testutil/impersonate'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
