@@ -13,6 +13,7 @@ import {
   IERC20Metadata,
 } from '../../../types/generated'
 import { IOracleProvider } from '@perennial/v2-oracle/types/generated'
+import { DEFAULT_LOCAL, parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -85,15 +86,26 @@ describe('InsuranceFund', () => {
     context('#resolve', async () => {
       it('resolves shortfall for a market', async () => {
         dsu.approve.whenCalledWith(market1.address).returns(true)
-        market1.claimExposure.whenCalledWith().returns()
+        market1.settle.whenCalledWith(user.address).returns()
+        const resolutionAmount = parse6decimal('-1000')
+        market1.locals.whenCalledWith(user.address).returns({ ...DEFAULT_LOCAL, collateral: resolutionAmount })
+        market1['update(address,int256,int256,address)']
+          .whenCalledWith(user.address, 0, resolutionAmount, constants.AddressZero)
+          .returns()
 
-        await insuranceFund.connect(owner).resolve(market1.address)
+        await insuranceFund.connect(owner).resolve(market1.address, user.address)
         expect(dsu.approve).to.have.been.calledWith(market1.address, constants.MaxUint256)
-        expect(market1.claimExposure).to.have.been.called
+        expect(market1.settle).to.have.been.calledWith(user.address)
+        expect(market1['update(address,int256,int256,address)']).to.have.been.calledWith(
+          user.address,
+          0,
+          resolutionAmount.mul(-1),
+          constants.AddressZero,
+        )
       })
 
       it('reverts if not owner', async () => {
-        await expect(insuranceFund.connect(user).resolve(market1.address)).to.be.revertedWithCustomError(
+        await expect(insuranceFund.connect(user).resolve(market1.address, user.address)).to.be.revertedWithCustomError(
           insuranceFund,
           'OwnableNotOwnerError',
         )
@@ -102,7 +114,7 @@ describe('InsuranceFund', () => {
       it('reverts with invalid market instance', async () => {
         factory.instances.whenCalledWith(market1.address).returns(false)
 
-        await expect(insuranceFund.connect(owner).resolve(market1.address)).to.be.revertedWithCustomError(
+        await expect(insuranceFund.connect(owner).resolve(market1.address, user.address)).to.be.revertedWithCustomError(
           insuranceFund,
           'InsuranceFundInvalidInstanceError',
         )
