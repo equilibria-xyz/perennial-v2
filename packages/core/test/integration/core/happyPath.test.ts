@@ -1118,7 +1118,7 @@ describe('Happy Path', () => {
       'MarketNotCoordinatorError',
     )
 
-    await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(market, 'MarketNotOperatorError')
+    await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(market, 'InstanceNotOwnerError')
   })
 
   it('disables update when settle only mode', async () => {
