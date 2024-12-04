@@ -345,7 +345,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @notice Settles any exposure that has accrued to the market
     /// @dev Resets exposure to zero, caller pays or receives to net out the exposure
-    function claimExposure() external onlyOperator(factory().owner()) {
+    function claimExposure() external onlyOwner {
         Global memory newGlobal = _global.read();
 
         if (newGlobal.exposure.sign() == 1) token.push(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
