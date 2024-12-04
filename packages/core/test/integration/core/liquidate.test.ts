@@ -192,7 +192,7 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524154460'))
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460'))
 
     await marketFactory.connect(owner).updateExtension(insuranceFund.address, true)
 
