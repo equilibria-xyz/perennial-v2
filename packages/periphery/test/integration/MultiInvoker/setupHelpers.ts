@@ -193,7 +193,7 @@ export async function createVault(
   const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
   const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
-  const [owner, , user, userB, userC, userD, liquidator, perennialUser] = await ethers.getSigners()
+  const [owner, , user, userB, userC, userD, liquidator, perennialUser, coordinator] = await ethers.getSigners()
   const marketFactory = instanceVars.marketFactory
   const oracleFactory = instanceVars.oracleFactory
 
@@ -296,11 +296,12 @@ export async function createVault(
   await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip')
 
   await vault.register(btcMarket.address)
-  await vault.updateLeverage(0, leverage ?? parse6decimal('4.0'))
-  await vault.updateLeverage(1, leverage ?? parse6decimal('4.0'))
-  await vault.updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
+  await vault.connect(owner).updateCoordinator(coordinator.address)
+  await vault.connect(coordinator).updateLeverage(0, leverage ?? parse6decimal('4.0'))
+  await vault.connect(coordinator).updateLeverage(1, leverage ?? parse6decimal('4.0'))
+  await vault.connect(coordinator).updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
 
-  await vault.updateParameter({
+  await vault.connect(owner).updateParameter({
     maxDeposit: maxCollateral ?? parse6decimal('500000'),
     minDeposit: 0,
   })
