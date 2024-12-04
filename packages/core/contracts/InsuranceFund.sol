@@ -3,6 +3,7 @@ pragma solidity 0.8.24;
 
 import { Ownable } from "@equilibria/root/attribute/Ownable.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 
@@ -35,9 +36,11 @@ contract InsuranceFund is IInsuranceFund, Ownable {
     }
 
     /// @inheritdoc IInsuranceFund
-    function resolve(IMarket market) external onlyOwner isMarketInstance(market) {
+    function resolve(IMarket market, address account) external onlyOwner isMarketInstance(market) {
         token.approve(address(market));
-        market.claimExposure();
+        market.settle(account);
+        Fixed6 resolutionAmount = market.locals(account).collateral.mul(Fixed6Lib.NEG_ONE);
+        market.update(account, Fixed6Lib.ZERO, resolutionAmount, address(0));
     }
 
     /// @notice Validates that a market was created by the market factory

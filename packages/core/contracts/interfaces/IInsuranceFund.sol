@@ -24,6 +24,7 @@ interface IInsuranceFund is IOwnable {
 
     /// @notice Resolves any shortfall in a market.
     /// @param market The address of the market for which to resolve the shortfall.
-    /// @dev This contract must be approved as an operator of the market factory owner to resolve market shortfall.
-    function resolve(IMarket market) external;
+    /// @param account The address of the account for which to resolve the shortfall.
+    /// @dev This contract must be approved as an extension on the market factory to resolve market shortfall.
+    function resolve(IMarket market, address account) external;
 }
