@@ -94,7 +94,7 @@ contract Account is IAccount, Instance {
         if (DSU.balanceOf().lt(amount)) {
             UFixed6 usdcBalance = USDC.balanceOf();
             if (!usdcBalance.eq(UFixed6Lib.ZERO))
-                wrap(wrapAll ? UFixed18Lib.from(usdcBalance) : amount);
+                wrap(wrapAll ? UFixed18Lib.from(usdcBalance) : amount.sub(DSU.balanceOf()));
         }
     }
 

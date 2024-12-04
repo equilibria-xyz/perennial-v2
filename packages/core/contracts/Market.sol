@@ -125,12 +125,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         oracle = definition_.oracle;
     }
 
-    /// @notice Performs logic related to the v2.3 migration for this market
-    /// @dev Must be called atomically at the time of implementation change
-    function migrate() external onlyOwner {
-        _position.migrate();
-    }
-
     /// @notice Settles the account's position and collateral
     /// @param account The account to operate on
     function settle(address account) external nonReentrant whenNotPaused {
