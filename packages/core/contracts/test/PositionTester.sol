@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
-import { Position, PositionStorageGlobal, PositionStorageLocal } from "../types/Position.sol";
+import { Position, PositionLib, PositionStorageGlobal, PositionStorageLocal } from "../types/Position.sol";
 import { Order } from "../types/Order.sol";
 import { RiskParameter } from "../types/RiskParameter.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
@@ -64,36 +64,39 @@ abstract contract PositionTester {
         return read().socialized();
     }
 
-    /*function maintenance(
+    function maintenance(
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter
     ) external view returns (UFixed6) {
-        return read().maintenance(latestVersion, riskParameter);
+        Position memory position = read();
+        return PositionLib.maintenance(position.magnitude(), latestVersion, riskParameter);
+    }
+
+    function maintained(
+        OracleVersion memory latestVersion,
+        RiskParameter memory riskParameter,
+        Fixed6 collateral
+    ) external view returns (bool) {
+        return UFixed6Lib.unsafeFrom(collateral).gte(this.maintenance(latestVersion, riskParameter));
     }
 
     function margin(
         OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) external view returns (UFixed6) {
-        return read().margin(latestVersion, riskParameter);
-    }
-
-    function maintained(
-        OracleVersion memory currentOracleVersion,
         RiskParameter memory riskParameter,
-        Fixed6 collateral
-    ) external view returns (bool) {
-        return read().maintained(currentOracleVersion, riskParameter, collateral);
+        UFixed6 collateralization
+    ) external view returns (UFixed6) {
+        Position memory position = read();
+        return PositionLib.margin(position.magnitude(), latestVersion, riskParameter, collateralization);
     }
 
     function margined(
-        OracleVersion memory currentOracleVersion,
+        OracleVersion memory latestVersion,
         RiskParameter memory riskParameter,
         UFixed6 collateralization,
         Fixed6 collateral
     ) external view returns (bool) {
-        return read().margined(currentOracleVersion, riskParameter, collateralization, collateral);
-    }*/
+        return UFixed6Lib.unsafeFrom(collateral).gte(this.margin(latestVersion, riskParameter, collateralization));
+    }
 }
 
 contract PositionGlobalTester is PositionTester {

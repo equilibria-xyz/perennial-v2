@@ -12,7 +12,7 @@ import { Position, PositionLib } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev DSU address
@@ -81,6 +81,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (!_isIsolated(msg.sender, market)) revert MarginMarketNotIsolated();
 
         // TODO: Check oracle timestamps here (per InvariantLib) to ensure price is not stale.
+        // TODO: Store a checkpoint, which requires a settlement flow.
 
         Fixed6 newCrossBalance = crossMarginBalances[msg.sender].sub(amount);
         if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
