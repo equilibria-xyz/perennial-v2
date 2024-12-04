@@ -26,7 +26,7 @@ describe('Local', () => {
     const VALID_STORED_VALUE: LocalStruct = {
       currentId: 1,
       latestId: 5,
-      collateral: 2,
+      collateral: 0,
       claimable: 3,
     }
     it('stores a new value', async () => {
@@ -35,7 +35,7 @@ describe('Local', () => {
       const value = await local.read()
       expect(value.currentId).to.equal(1)
       expect(value.latestId).to.equal(5)
-      expect(value.collateral).to.equal(2)
+      expect(value.collateral).to.equal(0)
       expect(value.claimable).to.equal(3)
     })
 
@@ -82,39 +82,20 @@ describe('Local', () => {
     })
 
     context('.collateral', async () => {
-      const STORAGE_SIZE = 63
-      it('saves if in range (above)', async () => {
+      it('saves if zero', async () => {
         await local.store({
           ...VALID_STORED_VALUE,
-          collateral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          collateral: 0,
         })
         const value = await local.read()
-        expect(value.collateral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.collateral).to.equal(BigNumber.from(0))
       })
 
-      it('saves if in range (below)', async () => {
-        await local.store({
-          ...VALID_STORED_VALUE,
-          collateral: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1),
-        })
-        const value = await local.read()
-        expect(value.collateral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if collateral out of range (above)', async () => {
+      it('reverts if nonzero', async () => {
         await expect(
           local.store({
             ...VALID_STORED_VALUE,
-            collateral: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
-      })
-
-      it('reverts if collateral out of range (below)', async () => {
-        await expect(
-          local.store({
-            ...VALID_STORED_VALUE,
-            collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
+            collateral: 1,
           }),
         ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
       })
@@ -144,20 +125,20 @@ describe('Local', () => {
 
   describe('#update', () => {
     it('correctly calculates pnl and updates fees', async () => {
-      await local.store({ ...DEFAULT_LOCAL, collateral: 1000 })
+      await local.store({ ...DEFAULT_LOCAL })
       const checkpointAccumulationResponse = {
-        collateral: 12,
+        collateral: 1012,
         liquidationFee: 256,
         subtractiveFee: 0,
         solverFee: 0,
       }
 
       const pnl = await local.callStatic.update(11, checkpointAccumulationResponse)
-      expect(pnl).to.equal(-244)
+      expect(pnl).to.equal(756)
 
       await local['update(uint256,(int256,uint256,uint256,uint256))'](11, checkpointAccumulationResponse)
       const storedLocal = await local.read()
-      expect(await storedLocal.collateral).to.equal(1000)
+      expect(await storedLocal.collateral).to.equal(0)
       expect(await storedLocal.latestId).to.equal(11)
     })
   })

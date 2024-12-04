@@ -76,14 +76,13 @@ library LocalStorageLib {
     function store(LocalStorage storage self, Local memory newValue) internal {
         if (newValue.currentId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.latestId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
-        if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
-        if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
+        if (!newValue.collateral.eq(Fixed6Lib.ZERO)) revert LocalStorageInvalidError();
         if (newValue.claimable.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
+            uint256(0 << (256 - 64)) >> (256 - 32 - 32 - 64) |
             uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
 
         assembly {
