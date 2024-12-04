@@ -2569,7 +2569,8 @@ describe('Happy Path', () => {
     await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
 
     console.log('margin', margin.address, 'market.margin', await market.margin())
-    await margin.connect(user).isolate(COLLATERAL, market.address)
+    await margin.connect(user).isolate(market.address)
+    await margin.connect(user).adjustIsolatedBalance(market.address, COLLATERAL)
 
     for (let i = 0; i < delay; i++) {
       // FIXME: first update blows up without revert reason

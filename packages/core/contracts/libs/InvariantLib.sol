@@ -47,6 +47,7 @@ library InvariantLib {
             !newOrder.collateral.eq(Fixed6Lib.ZERO)                                     // the order is modifying isolated collateral
         )) revert IMarket.MarketInvalidProtectionError();
 
+        // TODO: This needs to move to Margin contract
         if (
             !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) &&       // sender has no position
             !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                                     // sender is isolating collateral into account, without position change

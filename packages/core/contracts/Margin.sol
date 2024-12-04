@@ -56,7 +56,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     // TODO: support a magic number for full withdrawal?
-    // TODO: support operator withdrawal?
     /// @inheritdoc IMargin
     function withdraw(UFixed6 amount) external nonReentrant {
         Fixed6 balance = crossMarginBalances[msg.sender];
@@ -67,30 +66,49 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function isolate(UFixed6 amount, IMarket market) external nonReentrant{
-        // TODO: need I check oracle timestamps here (per InvariantLib) to ensure price is not stale?
-        Fixed6 balance = crossMarginBalances[msg.sender];
-        Fixed6 signedAmount = Fixed6Lib.from(amount);
-        if (balance.lt(signedAmount)) revert MarginInsufficientCrossedBalance();
+    function isolate(IMarket market) external nonReentrant{
+        if (!_isIsolated(msg.sender, market)) revert MarginMarketNotCrossed();
+
+        market.settle(msg.sender);
         if (_hasPosition(msg.sender, market)) revert MarginHasPosition();
 
-        crossMarginBalances[msg.sender] = balance.sub(signedAmount);
-        isolatedBalances[msg.sender][market] = isolatedBalances[msg.sender][market].add(signedAmount);
         // TODO: update collections which track which markets are isolated/crossed
-        // TODO: ensure remaining cross-margin balance is sufficient to maintain all markets
-        emit FundsIsolated(msg.sender, market, amount);
+        // TODO: emit MarketIsolated event
+    }
+
+    /// @inheritdoc IMargin
+    function adjustIsolatedBalance(IMarket market, Fixed6 amount) external nonReentrant {
+        if (!_isIsolated(msg.sender, market)) revert MarginMarketNotIsolated();
+
+        // TODO: Check oracle timestamps here (per InvariantLib) to ensure price is not stale.
+
+        Fixed6 newCrossBalance = crossMarginBalances[msg.sender].sub(amount);
+        if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
+        Fixed6 newIsolatedBalance = isolatedBalances[msg.sender][market].add(amount);
+        if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
+
+        // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient to maintain all markets
+        // TODO: if amount.sign() = -1, ensure isolated market remains maintained
+
+        crossMarginBalances[msg.sender] = newCrossBalance;
+        isolatedBalances[msg.sender][market] = newIsolatedBalance;
+
+        emit IsolatedFundsChanged(msg.sender, market, amount);
     }
 
     /// @inheritdoc IMargin
     function cross(IMarket market) external nonReentrant {
-        Fixed6 balance = isolatedBalances[msg.sender][market];
-        if (balance.lte(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
+        if (!_isIsolated(msg.sender, market)) revert MarginMarketNotIsolated();
+
+        market.settle(msg.sender);
         if (_hasPosition(msg.sender, market)) revert MarginHasPosition();
 
+        Fixed6 balance = isolatedBalances[msg.sender][market];
         isolatedBalances[msg.sender][market] = Fixed6Lib.ZERO;
         crossMarginBalances[msg.sender] = crossMarginBalances[msg.sender].add(balance);
         // TODO: update collections which track which markets are isolated/crossed
-        emit FundsDeisolated(msg.sender, market, UFixed6Lib.from(balance));
+        emit IsolatedFundsChanged(msg.sender, market, balance.mul(Fixed6Lib.NEG_ONE));
+        // TODO: emit MarketCrossed event
     }
 
     /// @inheritdoc IMargin
@@ -214,6 +232,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         return !market.positions(account).magnitude().isZero();
     }
 
+    // TODO: Need public view which determines if market is isolated for user
     /// @dev Determines whether market is in isolated mode for a specific user
     function _isIsolated(address account, IMarket market) private view returns (bool) {
         // TODO: We cannot use 0 as magic number to determine whether market is isolated for user.

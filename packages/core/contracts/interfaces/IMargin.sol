@@ -20,17 +20,11 @@ interface IMargin is IInstance {
     /// @param amount Quantity of DSU withdrawn
     event FundsWithdrawn(address indexed account, UFixed6 amount);
 
-    /// @notice Emitted when DSU funds are isolated to a specific market, reducing cross-margin balance
-    /// @param account Account from which DSU is isolated
-    /// @param market Market to which DSU is isolated
-    /// @param amount Quantity of DSU isolated
-    event FundsIsolated(address indexed account, IMarket indexed market, UFixed6 amount);
-
-    /// @notice Emitted when all isolated DSU funds are removed from a market and added to cross-margin balance
-    /// @param account Account whose funds should be de-isolated
-    /// @param market Market from which DSU is de-isolated
-    /// @param amount Quantity of DSU de-isolated
-    event FundsDeisolated(address indexed account, IMarket indexed market, UFixed6 amount);
+    /// @notice Emitted when DSU funds are isolated to (positive) or deisolated from (negative) a market
+    /// @param account Account from which DSU is isolated/deisolated
+    /// @param market Market to which DSU is isolated/deisolated
+    /// @param amount Quantity of DSU isolated/deisolated (change)
+    event IsolatedFundsChanged(address indexed account, IMarket indexed market, Fixed6 amount);
 
     // sig: 0x21d30123
     /// custom:error Market is cross-margained, but user called update with a collateral amount
@@ -53,6 +47,14 @@ interface IMargin is IInstance {
     /// custom:error A function intended only for a market to call was not called by a legitimate market
     error MarginInvalidMarket();
 
+    // sig: 0xfbe67ca6
+    /// custom:error Market is isolated, but user is trying to isolate again
+    error MarginMarketNotCrossed();
+
+    // sig: 0x3bccc5cf
+    /// custom:error Market is crossed, but user is trying to adjust isolated balance or cross
+    error MarginMarketNotIsolated();
+
     /// @notice Retrieves the cross-margin balance for a user
     function crossMarginBalances(address) external view returns (Fixed6);
 
@@ -68,10 +70,14 @@ interface IMargin is IInstance {
     /// @param amount Quantity of DSU to push to sender
     function withdraw(UFixed6 amount) external;
 
-    /// @notice Disable cross-margin and designate specified portion of collateral to a specific market
-    /// @param amount Quantity of collateral to designate
-    /// @param market Identifies where cross-margin should be disabled and collateral deposited
-    function isolate(UFixed6 amount, IMarket market) external;
+    /// @notice Disable cross-margin for a market
+    /// @param market Identifies where cross-margin should be disabled
+    function isolate(IMarket market) external;
+
+    /// @notice Designate specified amount of collateral isolated to a specific market, reducing cross-margin balance
+    /// @param amount Quantity of collateral to designate as isolated
+    /// @param market Identifies where isolated balance should be adjusted
+    function adjustIsolatedBalance(IMarket market, Fixed6 amount) external;
 
     // TODO: "cross" sounded good on paper, but because all funds are crossed by default,
     // "deisolate" seems be easier to understand.  Named the event "FundsDeisolated" because

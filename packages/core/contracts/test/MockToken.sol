@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IMargin, IMarket } from "../interfaces/IMargin.sol";
 
 contract MockToken is ERC20 {
-    enum Function{ NONE, DEPOSIT, WITHDRAW, ISOLATE, CROSS }
+    enum Function{ NONE, DEPOSIT, WITHDRAW, ISOLATE, ADJUST_ISOLATED_BALANCE, CROSS }
 
     Function private functionToCall;
 
@@ -31,7 +32,9 @@ contract MockToken is ERC20 {
         } else if (functionToCall == Function.WITHDRAW) {
             IMargin(msg.sender).withdraw(UFixed6Lib.from(0));
         } else if (functionToCall == Function.ISOLATE) {
-            IMargin(msg.sender).isolate(UFixed6Lib.from(0), IMarket(address(0)));
+            IMargin(msg.sender).isolate(IMarket(address(0)));
+        } else if (functionToCall == Function.ADJUST_ISOLATED_BALANCE) {
+            IMargin(msg.sender).adjustIsolatedBalance(IMarket(address(0)), Fixed6Lib.from(0));
         } else if (functionToCall == Function.CROSS) {
             IMargin(msg.sender).cross(IMarket(address(0)));
         }
