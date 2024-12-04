@@ -644,19 +644,6 @@ describe('Market', () => {
       await market.connect(owner).updateRiskParameter(riskParameter)
     })
 
-    describe('#migrate', async () => {
-      it('reverts if not owner (user)', async () => {
-        await expect(market.connect(user).migrate()).to.be.revertedWithCustomError(market, 'InstanceNotOwnerError')
-      })
-
-      it('reverts if not owner (coordinator)', async () => {
-        await expect(market.connect(coordinator).migrate()).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
-      })
-    })
-
     describe('#updateBeneficiary', async () => {
       it('updates the beneficiary', async () => {
         await expect(market.connect(owner).updateBeneficiary(beneficiary.address))

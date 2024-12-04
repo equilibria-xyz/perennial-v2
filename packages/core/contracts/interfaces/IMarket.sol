@@ -137,7 +137,6 @@ interface IMarket is IInstance {
     error VersionStorageInvalidError();
 
     function initialize(MarketDefinition calldata definition_) external;
-    function migrate() external;
     function token() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
     function beneficiary() external view returns (address);

@@ -216,7 +216,7 @@ describe('ProtocolParameter', () => {
     })
 
     context('.maxStaleAfter', async () => {
-      const STORAGE_SIZE = 24
+      const STORAGE_SIZE = 16
       it('saves if in range', async () => {
         await protocolParameter.validateAndStore({
           ...VALID_PROTOCOL_PARAMETER,

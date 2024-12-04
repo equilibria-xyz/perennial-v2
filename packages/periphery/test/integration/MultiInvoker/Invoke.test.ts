@@ -20,14 +20,12 @@ import { InstanceVars, createVault, resetEthSubOracle, resetBtcSubOracle } from 
 import {
   buildApproveTarget,
   buildClaimFee,
-  buildPlaceOrder,
   buildUpdateIntent,
   buildUpdateMarket,
   buildUpdateVault,
 } from '../../helpers/MultiInvoker/invoke'
 
 import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
-import { Compare, Dir, openTriggerOrder } from '../../helpers/MultiInvoker/types'
 import { IERC20Metadata } from '@perennial/v2-core/types/generated'
 import { createMarket } from '../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
@@ -132,14 +130,10 @@ export function RunInvokerTests(
       expect(await multiInvoker.reserve()).to.eq(instanceVars.dsuReserve.address)
       expect(await multiInvoker.USDC()).to.eq(usdc.address)
       expect(await multiInvoker.DSU()).to.eq(dsu.address)
-      expect(await multiInvoker.latestNonce()).to.eq(0)
     })
 
     it('initializes correctly', async () => {
       const { owner, dsu, usdc, dsuBatcher, dsuReserve, chainlinkKeptFeed } = instanceVars
-
-      expect(await multiInvoker.keeperToken()).to.eq(instanceVars.dsu.address)
-      expect(await multiInvoker.ethTokenOracleFeed()).to.eq(chainlinkKeptFeed.address)
 
       if (dsuBatcher) {
         expect(await dsu.allowance(multiInvoker.address, dsuBatcher.address)).to.eq(ethers.constants.MaxUint256)
@@ -320,7 +314,7 @@ export function RunInvokerTests(
             })
 
           it('wraps USDC to DSU and deposits into market using RESERVE if BATCHER address == 0', async () => {
-            const { owner, user, usdc, dsuReserve } = instanceVars
+            const { user, usdc, dsuReserve } = instanceVars
 
             // deploy multiinvoker with batcher == 0 address
             multiInvoker = await createInvoker(instanceVars, vaultFactory, false)
@@ -339,7 +333,7 @@ export function RunInvokerTests(
 
           withBatcher &&
             it('withdraws from market and unwraps DSU to USDC using BATCHER', async () => {
-              const { owner, user, userB, dsu, usdc, dsuBatcher } = instanceVars
+              const { user, userB, dsu, usdc, dsuBatcher } = instanceVars
 
               if (dsuBatcher) {
                 const userUSDCBalanceBefore = await usdc.balanceOf(user.address)
@@ -976,18 +970,6 @@ export function RunInvokerTests(
               multiInvoker,
               'MultiInvokerInvalidInstanceError',
             )
-          })
-
-          it('Fails to place an order in an address not created by MarketFactory', async () => {
-            const trigger = openTriggerOrder({
-              delta: collateral,
-              price: 1100e6,
-              side: Dir.L,
-              comparison: Compare.ABOVE_MARKET,
-            })
-            await expect(
-              invoke(buildPlaceOrder({ market: vault.address, collateral: collateral, order: trigger })),
-            ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
           })
 
           describe('#batcher 0 address', async () => {
