@@ -81,8 +81,6 @@ interface IMarket is IInstance {
     error MarketInsufficientLiquidityError();
     // sig: 0x00e2b6a8
     error MarketInsufficientMarginError();
-    // sig: 0x442145e5
-    error MarketInsufficientCollateralError();
     // sig: 0xba555da7
     error MarketProtectedError();
     // sig: 0x6ed43d8e
