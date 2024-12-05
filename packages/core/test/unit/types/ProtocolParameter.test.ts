@@ -21,6 +21,7 @@ export const VALID_PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   referralFee: 9,
   minScale: 10,
   maxStaleAfter: 11,
+  minMinMaintenance: 12,
 }
 
 describe('ProtocolParameter', () => {
