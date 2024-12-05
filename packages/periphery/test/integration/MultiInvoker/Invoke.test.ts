@@ -114,8 +114,8 @@ export function RunInvokerTests(
       await loadFixture(fixture)
       // locks up if done within fixture
       multiInvoker = await createInvoker(instanceVars, vaultFactory, true)
-      // allow multiinvoker to interact with the vault
-      await vault.connect(instanceVars.owner).updateAllowedAccount(multiInvoker.address, true)
+      // allow all accounts to interact with the vault
+      await vault.connect(instanceVars.owner).updateAllowedAccount(constants.AddressZero, true)
     })
 
     afterEach(async () => {
