@@ -30,7 +30,7 @@ contract MockToken is ERC20 {
         if (functionToCall == Function.DEPOSIT) {
             IMargin(msg.sender).deposit(address(0), UFixed6Lib.from(0));
         } else if (functionToCall == Function.WITHDRAW) {
-            IMargin(msg.sender).withdraw(UFixed6Lib.from(0));
+            IMargin(msg.sender).withdraw(address(0), UFixed6Lib.from(0));
         } else if (functionToCall == Function.ISOLATE) {
             IMargin(msg.sender).isolate(IMarket(address(0)));
         } else if (functionToCall == Function.ADJUST_ISOLATED_BALANCE) {

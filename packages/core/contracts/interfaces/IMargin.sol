@@ -55,6 +55,10 @@ interface IMargin is IInstance {
     /// custom:error Market is crossed, but user is trying to adjust isolated balance or cross
     error MarginMarketNotIsolated();
 
+    // sig: 0x77b81473
+    /// custom:error User is not authorized for the requested action
+    error MarginOperatorNotAllowedError();
+
     /// @notice Retrieves the cross-margin balance for a user
     function crossMarginBalances(address) external view returns (Fixed6);
 
@@ -67,8 +71,9 @@ interface IMargin is IInstance {
     function deposit(address account, UFixed6 amount) external;
 
     /// @notice Remove DSU funds from the msg.sender's cross-margin account
+    /// @param account Account to be debited, for which sender is authorized
     /// @param amount Quantity of DSU to push to sender
-    function withdraw(UFixed6 amount) external;
+    function withdraw(address account, UFixed6 amount) external;
 
     /// @notice Disable cross-margin for a market
     /// @param market Identifies where cross-margin should be disabled

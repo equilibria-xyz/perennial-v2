@@ -57,12 +57,17 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     // TODO: support a magic number for full withdrawal?
     /// @inheritdoc IMargin
-    function withdraw(UFixed6 amount) external nonReentrant {
-        Fixed6 balance = crossMarginBalances[msg.sender];
+    function withdraw(address account, UFixed6 amount) external nonReentrant {
+        (bool isOperator, ,) = marketFactory.authorization(account, msg.sender, address(0), address(0));
+        // console.log('withdraw isOperator %s for account %s sender %s', isOperator, account, msg.sender);
+        if (!isOperator) revert MarginOperatorNotAllowedError();
+
+        Fixed6 balance = crossMarginBalances[account];
         if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalance();
-        crossMarginBalances[msg.sender] = balance.sub(Fixed6Lib.from(amount));
+        crossMarginBalances[account] = balance.sub(Fixed6Lib.from(amount));
+        // withdrawal goes to sender, not account, consistent with legacy Market behavior
         DSU.push(msg.sender, UFixed18Lib.from(amount));
-        emit FundsWithdrawn(msg.sender, amount);
+        emit FundsWithdrawn(account, amount);
     }
 
     /// @inheritdoc IMargin

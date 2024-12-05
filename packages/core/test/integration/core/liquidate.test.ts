@@ -56,7 +56,7 @@ describe('Liquidate', () => {
     await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false) // settle
     expect((await market.locals(userB.address)).claimable).to.equal(parse6decimal('10'))
     await market.connect(userB).claimFee(userB.address)
-    await margin.connect(userB).withdraw(parse6decimal('10')) // liquidator withdrawal
+    await margin.connect(userB).withdraw(userB.address, parse6decimal('10')) // liquidator withdrawal
 
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200010')) // Original 200000 + fee
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(parse6decimal('11')))

@@ -40,12 +40,15 @@ describe('Margin', () => {
 
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    marketFactory.authorization.returns([true, false, constants.Zero])
+
     const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     oracle.latest.whenCalledWith().returns({
       timestamp: BigNumber.from(1567310400),
       price: constants.Zero,
       valid: true,
     })
+
     marketA = await smock.fake<IMarket>('IMarket')
     marketA.factory.whenCalledWith().returns(marketFactory.address)
     marketA.oracle.whenCalledWith().returns(oracle.address)
@@ -97,7 +100,7 @@ describe('Margin', () => {
       // reverts when attempting to withdraw too much
       let withdrawalAmount = parse6decimal('609')
       dsu.transfer.whenCalledWith(user.address, withdrawalAmount.mul(1e12)).returns(true)
-      await expect(margin.connect(user).withdraw(withdrawalAmount)).to.be.revertedWithCustomError(
+      await expect(margin.connect(user).withdraw(user.address, withdrawalAmount)).to.be.revertedWithCustomError(
         margin,
         'MarginInsufficientCrossedBalance',
       )
@@ -105,7 +108,7 @@ describe('Margin', () => {
       // performs partial withdrawal
       withdrawalAmount = parse6decimal('303')
       dsu.transfer.whenCalledWith(user.address, withdrawalAmount.mul(1e12)).returns(true)
-      await expect(margin.connect(user).withdraw(withdrawalAmount))
+      await expect(margin.connect(user).withdraw(user.address, withdrawalAmount))
         .to.emit(margin, 'FundsWithdrawn')
         .withArgs(user.address, withdrawalAmount)
       expect(await margin.crossMarginBalances(user.address)).to.equal(depositAmount.sub(withdrawalAmount))
@@ -113,10 +116,35 @@ describe('Margin', () => {
       // performs complete withdrawal
       withdrawalAmount = parse6decimal('297')
       dsu.transfer.whenCalledWith(user.address, withdrawalAmount.mul(1e12)).returns(true)
-      await expect(margin.connect(user).withdraw(withdrawalAmount))
+      await expect(margin.connect(user).withdraw(user.address, withdrawalAmount))
         .to.emit(margin, 'FundsWithdrawn')
         .withArgs(user.address, withdrawalAmount)
       expect(await margin.crossMarginBalances(user.address)).to.equal(constants.Zero)
+    })
+
+    it('operators may withdraw funds', async () => {
+      // deposit
+      const amount = parse6decimal('80')
+      await deposit(user, amount)
+
+      // non-operator cannot withdraw
+      marketFactory.authorization
+        .whenCalledWith(user.address, userB.address, constants.AddressZero, constants.AddressZero)
+        .returns([false, false, constants.Zero])
+      await expect(margin.connect(userB).withdraw(user.address, amount)).to.be.revertedWithCustomError(
+        margin,
+        'MarginOperatorNotAllowedError',
+      )
+
+      // operator can withdraw, and tokens are sent to sender
+      marketFactory.authorization
+        .whenCalledWith(user.address, userB.address, constants.AddressZero, constants.AddressZero)
+        .returns([true, false, constants.Zero])
+      dsu.transfer.whenCalledWith(userB.address, amount.mul(1e12)).returns(true)
+      await expect(margin.connect(userB).withdraw(user.address, amount))
+        .to.emit(margin, 'FundsWithdrawn')
+        .withArgs(user.address, amount)
+      expect(dsu.transfer).to.have.been.calledWith(userB.address, amount.mul(1e12))
     })
 
     it('market can adjust balances for fees and exposure', async () => {
@@ -224,14 +252,14 @@ describe('Margin', () => {
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('300'))
 
       // should revert if attempting to withdraw more than crossed balance
-      await expect(margin.connect(user).withdraw(parse6decimal('301'))).to.be.revertedWithCustomError(
+      await expect(margin.connect(user).withdraw(user.address, parse6decimal('301'))).to.be.revertedWithCustomError(
         margin,
         'MarginInsufficientCrossedBalance',
       )
 
       // should allow withdrawing up to the crossed balance
       dsu.transfer.whenCalledWith(user.address, utils.parseEther('200')).returns(true)
-      await expect(margin.connect(user).withdraw(parse6decimal('200')))
+      await expect(margin.connect(user).withdraw(user.address, parse6decimal('200')))
         .to.emit(margin, 'FundsWithdrawn')
         .withArgs(user.address, parse6decimal('200'))
     })
@@ -418,14 +446,14 @@ describe('Margin', () => {
       // have malicious token attempt a double withdrawal
       await mockToken.setFunctionToCall(2)
       // dsu.transfer.whenCalledWith(user.address, amount.mul(1e12)).returns(true)
-      await expect(margin.connect(user).withdraw(amount)).to.be.revertedWithCustomError(
+      await expect(margin.connect(user).withdraw(user.address, amount)).to.be.revertedWithCustomError(
         margin,
         'ReentrancyGuardReentrantCallError',
       )
 
       // have malicious token attempt to meddle with accounting by isolating during withdrawal
       await mockToken.setFunctionToCall(3)
-      await expect(margin.connect(user).withdraw(amount)).to.be.revertedWithCustomError(
+      await expect(margin.connect(user).withdraw(user.address, amount)).to.be.revertedWithCustomError(
         margin,
         'ReentrancyGuardReentrantCallError',
       )
@@ -440,7 +468,7 @@ describe('Margin', () => {
 
       // have malicious token attempt to adjust the isolated balance during withdrawal
       await mockToken.setFunctionToCall(4)
-      await expect(margin.connect(user).withdraw(parse6decimal('100'))).to.be.revertedWithCustomError(
+      await expect(margin.connect(user).withdraw(user.address, parse6decimal('100'))).to.be.revertedWithCustomError(
         margin,
         'ReentrancyGuardReentrantCallError',
       )
@@ -448,7 +476,7 @@ describe('Margin', () => {
       // for completeness, have malicious token cross when withdrawing
       // (would otherwise fail because withdraw pushes after updating crossMarginBalances)
       await mockToken.setFunctionToCall(5)
-      await expect(margin.connect(user).withdraw(parse6decimal('100'))).to.be.revertedWithCustomError(
+      await expect(margin.connect(user).withdraw(user.address, parse6decimal('100'))).to.be.revertedWithCustomError(
         margin,
         'ReentrancyGuardReentrantCallError',
       )
