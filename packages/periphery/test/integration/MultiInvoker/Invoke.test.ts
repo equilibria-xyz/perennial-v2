@@ -106,6 +106,8 @@ export function RunInvokerTests(
         initialOracleVersionEth,
         initialOracleVersionBtc,
       )
+      // allow multiinvoker to interact with the vault
+      await vault.connect(instanceVars.owner).updateAllowedAccount(multiInvoker.address, true)
       market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.dsu, instanceVars.oracle)
       await instanceVars.oracle.register(market.address)
     }
