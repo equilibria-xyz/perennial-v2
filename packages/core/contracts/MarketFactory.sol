@@ -23,7 +23,7 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev The verifier contract
     IVerifier public immutable verifier;
 
-    /// @dev DEPRECATED SLOT -- previously the protocl parameter storage
+    /// @dev DEPRECATED SLOT -- previously the protocol parameter storage
     bytes32 private __unused0__;
 
     /// @dev Mapping of allowed operators per account

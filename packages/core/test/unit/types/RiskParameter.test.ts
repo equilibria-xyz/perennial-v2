@@ -826,6 +826,21 @@ describe('RiskParameter', () => {
           ),
         ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })
+
+      it('reverts if less than minMinMaintenance', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              minMaintenance: 0,
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              minMinMaintenance: 1,
+            },
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
     })
 
     describe('.staleAfter', () => {
