@@ -106,8 +106,6 @@ export function RunInvokerTests(
         initialOracleVersionEth,
         initialOracleVersionBtc,
       )
-      // allow multiinvoker to interact with the vault
-      await vault.connect(instanceVars.owner).updateAllowedAccount(multiInvoker.address, true)
       market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.dsu, instanceVars.oracle)
       await instanceVars.oracle.register(market.address)
     }
@@ -116,6 +114,8 @@ export function RunInvokerTests(
       await loadFixture(fixture)
       // locks up if done within fixture
       multiInvoker = await createInvoker(instanceVars, vaultFactory, true)
+      // allow multiinvoker to interact with the vault
+      await vault.connect(instanceVars.owner).updateAllowedAccount(multiInvoker.address, true)
     })
 
     afterEach(async () => {
