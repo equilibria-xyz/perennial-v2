@@ -74,6 +74,7 @@ contract Vault is IVault, Instance {
         _name = name_;
         _register(initialMarket);
         _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+        allowed[msg.sender] = true;
     }
 
     /// @notice Returns the vault parameter set
@@ -244,7 +245,7 @@ contract Vault is IVault, Instance {
     /// @notice Syncs `account`'s state up to current
     /// @dev Rebalances only the collateral of the vault
     /// @param account The account that should be synced
-    function rebalance(address account) public whenNotPaused onlyAllowed {
+    function rebalance(address account) public whenNotPaused {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
@@ -275,10 +276,10 @@ contract Vault is IVault, Instance {
 
     /// @notice Updates the allowed account status for a given account
     /// @param account The account to update
-    /// @param allowed  The new allowed status
-    function updateAllowedAccount(address account, bool allowed) external onlyOwner {
-        allowed[account] = allowed;
-        emit AllowedAccountUpdated(account, allowed);
+    /// @param allowed_ The new allowed status
+    function updateAllowedAccount(address account, bool allowed_) public onlyOwner {
+        allowed[account] = allowed_;
+        emit AllowedAccountUpdated(account, allowed_);
     }
 
     /// @notice Loads or initializes the current checkpoint
