@@ -26,6 +26,16 @@ interface IMargin is IInstance {
     /// @param amount Quantity of DSU isolated/deisolated (change)
     event IsolatedFundsChanged(address indexed account, IMarket indexed market, Fixed6 amount);
 
+    /// @notice Emitted when user takes a market out of isolated mode
+    /// @param account Identifies the user
+    /// @param market Market in which collateral will no longer be isolated
+    event MarketCrossed(address indexed account, IMarket indexed market);
+
+    /// @notice Emitted when user chooses to isolate collateral for a market
+    /// @param account Identifies the user
+    /// @param market Market in which collateral will be isolated
+    event MarketIsolated(address indexed account, IMarket indexed market);
+
     // sig: 0x21d30123
     /// custom:error Market is cross-margained, but user called update with a collateral amount
     error MarginCannotUpdateCrossedMarket();
@@ -76,20 +86,20 @@ interface IMargin is IInstance {
     function withdraw(address account, UFixed6 amount) external;
 
     /// @notice Disable cross-margin for a market
+    /// @param account Identifies the user
     /// @param market Identifies where cross-margin should be disabled
-    function isolate(IMarket market) external;
+    function isolate(address account, IMarket market) external;
 
+    // TODO: this might go away if we don't support partial de-isolation
     /// @notice Designate specified amount of collateral isolated to a specific market, reducing cross-margin balance
     /// @param amount Quantity of collateral to designate as isolated
     /// @param market Identifies where isolated balance should be adjusted
     function adjustIsolatedBalance(IMarket market, Fixed6 amount) external;
 
-    // TODO: "cross" sounded good on paper, but because all funds are crossed by default,
-    // "deisolate" seems be easier to understand.  Named the event "FundsDeisolated" because
-    // "FundsCrossed" wouldn't make sense to raise upon deposit due to the Market parameter.
-    /// @notice Enable cross-margin and designate all collateral from that market as cross-margin
+    /// @notice Take a market out of isolated collateral mode and designate all collateral from that market as cross-margin
+    /// @param account Identifies the user
     /// @param market Identifies where cross-margin should be enabled, and collateral withdrawn
-    function cross(IMarket market) external;
+    function cross(address account, IMarket market) external;
 
     /// @notice Settles all registered markets for account and calculates whether maintenance requirements are met
     /// @param account User to settle and for whom maintenance requirement will be checked

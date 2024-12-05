@@ -57,11 +57,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     // TODO: support a magic number for full withdrawal?
     /// @inheritdoc IMargin
-    function withdraw(address account, UFixed6 amount) external nonReentrant {
-        (bool isOperator, ,) = marketFactory.authorization(account, msg.sender, address(0), address(0));
-        // console.log('withdraw isOperator %s for account %s sender %s', isOperator, account, msg.sender);
-        if (!isOperator) revert MarginOperatorNotAllowedError();
-
+    function withdraw(address account, UFixed6 amount) external nonReentrant onlyOperator(account) {
         Fixed6 balance = crossMarginBalances[account];
         if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalance();
         crossMarginBalances[account] = balance.sub(Fixed6Lib.from(amount));
@@ -71,14 +67,14 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function isolate(IMarket market) external nonReentrant{
-        if (!_isIsolated(msg.sender, market)) revert MarginMarketNotCrossed();
+    function isolate(address account, IMarket market) external nonReentrant onlyOperator(account){
+        if (!_isIsolated(account, market)) revert MarginMarketNotCrossed();
 
-        market.settle(msg.sender);
-        if (_hasPosition(msg.sender, market)) revert MarginHasPosition();
+        market.settle(account);
+        if (_hasPosition(account, market)) revert MarginHasPosition();
 
         // TODO: update collections which track which markets are isolated/crossed
-        // TODO: emit MarketIsolated event
+        emit MarketIsolated(account, market);
     }
 
     /// @inheritdoc IMargin
@@ -110,18 +106,19 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function cross(IMarket market) external nonReentrant {
-        if (!_isIsolated(msg.sender, market)) revert MarginMarketNotIsolated();
+    function cross(address account, IMarket market) external nonReentrant onlyOperator(account) {
+        if (!_isIsolated(account, market)) revert MarginMarketNotIsolated();
 
-        market.settle(msg.sender);
-        if (_hasPosition(msg.sender, market)) revert MarginHasPosition();
+        market.settle(account);
+        if (_hasPosition(account, market)) revert MarginHasPosition();
 
-        Fixed6 balance = isolatedBalances[msg.sender][market];
-        isolatedBalances[msg.sender][market] = Fixed6Lib.ZERO;
-        crossMarginBalances[msg.sender] = crossMarginBalances[msg.sender].add(balance);
+        Fixed6 balance = isolatedBalances[account][market];
+        isolatedBalances[account][market] = Fixed6Lib.ZERO;
+        crossMarginBalances[account] = crossMarginBalances[account].add(balance);
+
         // TODO: update collections which track which markets are isolated/crossed
-        emit IsolatedFundsChanged(msg.sender, market, balance.mul(Fixed6Lib.NEG_ONE));
-        // TODO: emit MarketCrossed event
+        emit IsolatedFundsChanged(account, market, balance.mul(Fixed6Lib.NEG_ONE));
+        emit MarketCrossed(account, market);
     }
 
     /// @inheritdoc IMargin
@@ -303,6 +300,13 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     modifier onlyMarket {
         IMarket market = IMarket(msg.sender);
         if (market.factory() != marketFactory) revert MarginInvalidMarket();
+        _;
+    }
+
+    /// @dev Only if caller is the account on which action is performed or authorized to interact with account
+    modifier onlyOperator(address account) {
+        (bool isOperator, ,) = marketFactory.authorization(account, msg.sender, address(0), address(0));
+        if (!isOperator) revert MarginOperatorNotAllowedError();
         _;
     }
 }

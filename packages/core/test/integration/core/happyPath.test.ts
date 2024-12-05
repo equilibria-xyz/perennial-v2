@@ -279,7 +279,7 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(margin.address, utils.parseEther('1000'))
     await margin.connect(user).deposit(user.address, parse6decimal('1000'))
-    await margin.connect(user).isolate(market.address)
+    await margin.connect(user).isolate(user.address, market.address)
     await margin.connect(user).adjustIsolatedBalance(market.address, parse6decimal('900'))
     expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('100'))
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('900'))
@@ -2652,7 +2652,7 @@ describe('Happy Path', () => {
     await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
     await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
 
-    await margin.connect(user).isolate(market.address)
+    await margin.connect(user).isolate(user.address, market.address)
     await margin.connect(user).adjustIsolatedBalance(market.address, COLLATERAL)
 
     for (let i = 0; i < delay; i++) {
