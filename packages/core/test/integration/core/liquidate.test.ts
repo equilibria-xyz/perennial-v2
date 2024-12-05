@@ -9,6 +9,7 @@ import { impersonate } from '../../../../common/testutil/impersonate'
 
 export const TIMESTAMP_2 = 1631113819
 export const TIMESTAMP_3 = 1631114005
+export const TIMESTAMP_4 = 1631115371
 
 describe('Liquidate', () => {
   let instanceVars: InstanceVars
@@ -192,7 +193,9 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460'))
+    const expectedCollateral = BigNumber.from('-2524654460')
+
+    expect((await market.locals(user.address)).collateral).to.equal(expectedCollateral)
 
     await marketFactory.connect(owner).updateExtension(insuranceFund.address, true)
 
@@ -201,7 +204,16 @@ describe('Liquidate', () => {
     await fundWallet(dsu, insuranceFundSigner)
 
     // resolve the shortfall
-    await insuranceFund.connect(owner).resolve(market.address, user.address)
+    await expect(insuranceFund.connect(owner).resolve(market.address, user.address))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_4, collateral: expectedCollateral.mul(-1) },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
     expect((await market.locals(user.address)).collateral).to.equal(0)
   })
 

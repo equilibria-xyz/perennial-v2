@@ -2435,7 +2435,11 @@ describe('Fees', () => {
       await marketFactory.connect(owner).updateOperator(insuranceFund.address, true)
 
       // claim protocol fee
-      await insuranceFund.connect(owner).claim(market.address)
+      await expect(insuranceFund.connect(owner).claim(market.address))
+        .to.emit(market, 'FeeClaimed')
+        .withArgs(owner.address, insuranceFund.address, expectedProtocolFee)
+
+      expect(await dsu.balanceOf(insuranceFund.address)).to.equal(expectedProtocolFee.mul(1e12))
     })
   })
 
