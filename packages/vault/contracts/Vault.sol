@@ -54,6 +54,9 @@ contract Vault is IVault, Instance {
     /// @dev DEPRECATED SLOT -- previously the mappings
     bytes32 private __unused0__;
 
+    /// @dev Mapping to track allowed accounts
+    mapping(address => bool) public allowed;
+
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
@@ -71,6 +74,7 @@ contract Vault is IVault, Instance {
         _name = name_;
         _register(initialMarket);
         _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+        allowed[msg.sender] = true;
     }
 
     /// @notice Returns the vault parameter set
@@ -230,7 +234,7 @@ contract Vault is IVault, Instance {
 
     /// @notice Syncs `account`'s state up to current
     /// @param account The account that should be synced
-    function settle(address account) public whenNotPaused {
+    function settle(address account) public whenNotPaused onlyAllowed {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
@@ -260,7 +264,7 @@ contract Vault is IVault, Instance {
         UFixed6 depositAssets,
         UFixed6 redeemShares,
         UFixed6 claimAssets
-    ) external whenNotPaused {
+    ) external whenNotPaused onlyAllowed {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
@@ -268,6 +272,14 @@ contract Vault is IVault, Instance {
         _checkpoint(context);
         _update(context, account, depositAssets, redeemShares, claimAssets);
         _saveContext(context, account);
+    }
+
+    /// @notice Updates the allowed account status for a given account
+    /// @param account The account to update
+    /// @param allowed_ The new allowed status
+    function updateAllowedAccount(address account, bool allowed_) public onlyOwner {
+        allowed[account] = allowed_;
+        emit AllowedAccountUpdated(account, allowed_);
     }
 
     /// @notice Loads or initializes the current checkpoint
@@ -515,5 +527,11 @@ contract Vault is IVault, Instance {
                 checkpoint.settlementFee.add(marketCheckpoint.settlementFee)
             );
         }
+    }
+
+    /// @notice Modifier to check if the caller is allowed to interact with the vault
+    modifier onlyAllowed() {
+        if (!allowed[address(0)] && !allowed[msg.sender]) revert VaultNotAllowedError();
+        _;
     }
 }

@@ -323,6 +323,9 @@ describe('Vault', () => {
       asset.connect(other).approve(btcMarket.address, ethers.constants.MaxUint256),
     ])
 
+    // allow all accounts to interact with the vault
+    await vault.connect(owner).updateAllowedAccount(constants.AddressZero, true)
+
     // Seed markets with some activity
     await market
       .connect(user)
@@ -636,6 +639,29 @@ describe('Vault', () => {
       await expect(
         vault.connect(user).updateWeights([parse6decimal('0.4'), parse6decimal('0.6')]),
       ).to.be.revertedWithCustomError(vault, 'InstanceNotOwnerError')
+    })
+  })
+
+  describe('#updateAllowedAccount', () => {
+    beforeEach(async () => {
+      await vault.connect(owner).updateAllowedAccount(constants.AddressZero, false)
+    })
+
+    it('updates correctly', async () => {
+      // should revert if not allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.be.revertedWithCustomError(
+        vault,
+        'VaultNotAllowedError',
+      )
+
+      // allow user to interact with the vault
+      await vault.connect(owner).updateAllowedAccount(user.address, true)
+
+      // should update allowed
+      expect(await vault.allowed(user.address)).to.be.true
+
+      // should not revert if allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.not.be.reverted
     })
   })
 

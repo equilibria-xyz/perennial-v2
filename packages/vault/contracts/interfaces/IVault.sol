@@ -39,6 +39,7 @@ interface IVault is IInstance {
     event MarketUpdated(uint256 indexed marketId, UFixed6 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
+    event AllowedAccountUpdated(address indexed account, bool allowed);
 
     // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();
@@ -64,6 +65,8 @@ interface IVault is IInstance {
     error VaultAggregateWeightError();
     // sig: 0x50ad85d6
     error VaultCurrentOutOfSyncError();
+    // sig: 0xcea74672
+    error VaultNotAllowedError();
 
     // sig: 0xb8a09499
     error AccountStorageInvalidError();
@@ -99,4 +102,6 @@ interface IVault is IInstance {
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;
     function updateWeights(UFixed6[] calldata newWeights) external;
     function updateParameter(VaultParameter memory newParameter) external;
+    function allowed(address account) external view returns (bool);
+    function updateAllowedAccount(address account, bool allowed) external;
 }
