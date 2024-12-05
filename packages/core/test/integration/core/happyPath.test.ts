@@ -28,6 +28,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import { signAccessUpdateBatch, signIntent, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -182,8 +183,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -230,8 +231,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -267,6 +268,88 @@ describe('Happy Path', () => {
       ...DEFAULT_POSITION,
       timestamp: TIMESTAMP_1,
       maker: POSITION,
+    })
+  })
+
+  it('changes isolated balances', async () => {
+    const POSITION = parse6decimal('10')
+    const { user, dsu, margin, chainlink } = instanceVars
+
+    // user deposits and isolates most of their balance
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(margin.address, utils.parseEther('1000'))
+    await margin.connect(user).deposit(user.address, parse6decimal('1000'))
+    await margin.connect(user).isolate(market.address)
+    await margin.connect(user).adjustIsolatedBalance(market.address, parse6decimal('900'))
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('100'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('900'))
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_0), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('900'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+
+    // user opens a maker position and settles
+    await expect(
+      market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, 0, false),
+    )
+    await chainlink.next()
+    await settle(market, user)
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('900'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+      maker: POSITION,
+    })
+
+    // user increases their isolated balance after settling
+    await margin.connect(user).adjustIsolatedBalance(market.address, parse6decimal('50'))
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('50'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('950'))
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('950'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      maker: POSITION,
+      timestamp: TIMESTAMP_1,
+    })
+
+    // user reduces their position and then decreases their isolated balance
+    await expect(
+      market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](
+          user.address,
+          POSITION.sub(parse6decimal('2')),
+          0,
+          0,
+          0,
+          false,
+        ),
+    )
+    await margin.connect(user).adjustIsolatedBalance(market.address, parse6decimal('-150'), { gasLimit: 3_000_000 })
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('200'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('800'))
+    await chainlink.next()
+    await settle(market, user)
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('800'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      maker: parse6decimal('8'),
+      timestamp: TIMESTAMP_2,
     })
   })
 
@@ -469,6 +552,7 @@ describe('Happy Path', () => {
     })
   })
 
+  // FIXME: naming misleading; a single maker position is opened and reduced; nothing is closed
   it('closes multiple make positions', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')

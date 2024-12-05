@@ -27,7 +27,7 @@ import { InvariantLib } from "./libs/InvariantLib.sol";
 import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 // TODO: Can we remove ReentrancyGuard now that no calls are made to Token contract?
 /// @title Market

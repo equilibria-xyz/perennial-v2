@@ -80,8 +80,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function adjustIsolatedBalance(IMarket market, Fixed6 amount) external nonReentrant {
         if (!_isIsolated(msg.sender, market)) revert MarginMarketNotIsolated();
 
-        // TODO: Check oracle timestamps here (per InvariantLib) to ensure price is not stale.
-        // TODO: Store a checkpoint, which requires a settlement flow.
+        // TODO: Check oracle timestamps here (per InvariantLib) to ensure price is not stale?
+        market.settle(msg.sender);
+        uint256 latestTimestamp = market.oracle().latest().timestamp;
+        Checkpoint memory checkpoint = _isolatedCheckpoints[msg.sender][market][latestTimestamp].read();
 
         Fixed6 newCrossBalance = crossMarginBalances[msg.sender].sub(amount);
         if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
@@ -93,6 +95,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
         crossMarginBalances[msg.sender] = newCrossBalance;
         isolatedBalances[msg.sender][market] = newIsolatedBalance;
+
+        checkpoint.collateral = checkpoint.collateral.add(amount);
+        // console.log("adjustIsolatedBalance storing checkpoint with collateral %s at %s",
+        //     UFixed6.unwrap(checkpoint.collateral.abs()), latestTimestamp);
+        _isolatedCheckpoints[msg.sender][market][latestTimestamp].store(checkpoint);
 
         emit IsolatedFundsChanged(msg.sender, market, amount);
     }
@@ -206,6 +213,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external onlyMarket{
+        // console.log("updateCheckpoint storing checkpoint with collateral %s at %s",
+        //     UFixed6.unwrap(latest.collateral.abs()), version);
         // Store the checkpoint
         _isolatedCheckpoints[account][IMarket(msg.sender)][version].store(latest);
         // Adjust cross-margin or isolated collateral balance accordingly

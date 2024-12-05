@@ -15,6 +15,7 @@ import {
   MockToken__factory,
   IMarketFactory,
   Margin,
+  IOracleProvider,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { CheckpointStruct } from '../../../types/generated/contracts/Margin'
@@ -39,10 +40,18 @@ describe('Margin', () => {
 
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
+    const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    oracle.latest.whenCalledWith().returns({
+      timestamp: BigNumber.from(1567310400),
+      price: constants.Zero,
+      valid: true,
+    })
     marketA = await smock.fake<IMarket>('IMarket')
     marketA.factory.whenCalledWith().returns(marketFactory.address)
+    marketA.oracle.whenCalledWith().returns(oracle.address)
     marketB = await smock.fake<IMarket>('IMarket')
     marketB.factory.whenCalledWith().returns(marketFactory.address)
+    marketB.oracle.whenCalledWith().returns(oracle.address)
   })
 
   describe('normal operation', async () => {
