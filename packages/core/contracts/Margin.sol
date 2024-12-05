@@ -78,31 +78,35 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function adjustIsolatedBalance(IMarket market, Fixed6 amount) external nonReentrant {
-        if (!_isIsolated(msg.sender, market)) revert MarginMarketNotIsolated();
+    function adjustIsolatedBalance(
+        address account,
+        IMarket market,
+        Fixed6 amount
+    ) external nonReentrant onlyOperator(account) {
+        if (!_isIsolated(account, market)) revert MarginMarketNotIsolated();
 
         // TODO: Check oracle timestamps here (per InvariantLib) to ensure price is not stale?
-        market.settle(msg.sender);
+        market.settle(account);
         uint256 latestTimestamp = market.oracle().latest().timestamp;
-        Checkpoint memory checkpoint = _isolatedCheckpoints[msg.sender][market][latestTimestamp].read();
+        Checkpoint memory checkpoint = _isolatedCheckpoints[account][market][latestTimestamp].read();
 
-        Fixed6 newCrossBalance = crossMarginBalances[msg.sender].sub(amount);
+        Fixed6 newCrossBalance = crossMarginBalances[account].sub(amount);
         if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
-        Fixed6 newIsolatedBalance = isolatedBalances[msg.sender][market].add(amount);
+        Fixed6 newIsolatedBalance = isolatedBalances[account][market].add(amount);
         if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
 
         // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient to maintain all markets
         // TODO: if amount.sign() = -1, ensure isolated market remains maintained
 
-        crossMarginBalances[msg.sender] = newCrossBalance;
-        isolatedBalances[msg.sender][market] = newIsolatedBalance;
+        crossMarginBalances[account] = newCrossBalance;
+        isolatedBalances[account][market] = newIsolatedBalance;
 
         checkpoint.collateral = checkpoint.collateral.add(amount);
         // console.log("adjustIsolatedBalance storing checkpoint with collateral %s at %s",
         //     UFixed6.unwrap(checkpoint.collateral.abs()), latestTimestamp);
-        _isolatedCheckpoints[msg.sender][market][latestTimestamp].store(checkpoint);
+        _isolatedCheckpoints[account][market][latestTimestamp].store(checkpoint);
 
-        emit IsolatedFundsChanged(msg.sender, market, amount);
+        emit IsolatedFundsChanged(account, market, amount);
     }
 
     /// @inheritdoc IMargin

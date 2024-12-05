@@ -92,9 +92,10 @@ interface IMargin is IInstance {
 
     // TODO: this might go away if we don't support partial de-isolation
     /// @notice Designate specified amount of collateral isolated to a specific market, reducing cross-margin balance
+    /// @param account User whose isolated balance will be adjusted
     /// @param amount Quantity of collateral to designate as isolated
     /// @param market Identifies where isolated balance should be adjusted
-    function adjustIsolatedBalance(IMarket market, Fixed6 amount) external;
+    function adjustIsolatedBalance(address account, IMarket market, Fixed6 amount) external;
 
     /// @notice Take a market out of isolated collateral mode and designate all collateral from that market as cross-margin
     /// @param account Identifies the user

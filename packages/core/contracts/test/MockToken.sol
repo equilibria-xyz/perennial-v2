@@ -34,7 +34,7 @@ contract MockToken is ERC20 {
         } else if (functionToCall == Function.ISOLATE) {
             IMargin(msg.sender).isolate(address(0), IMarket(address(0)));
         } else if (functionToCall == Function.ADJUST_ISOLATED_BALANCE) {
-            IMargin(msg.sender).adjustIsolatedBalance(IMarket(address(0)), Fixed6Lib.from(0));
+            IMargin(msg.sender).adjustIsolatedBalance(address(0), IMarket(address(0)), Fixed6Lib.from(0));
         } else if (functionToCall == Function.CROSS) {
             IMargin(msg.sender).cross(address(0), IMarket(address(0)));
         }
