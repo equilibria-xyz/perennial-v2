@@ -73,11 +73,13 @@ library PriceResponseLib {
     /// @param self The price response object
     /// @param maxSyncFee The max sync fee
     /// @param maxAsyncFee The max async fee
-    function applyFeeMaximum(PriceResponse memory self, UFixed6 maxSyncFee, UFixed6 maxAsyncFee) internal pure {
+    /// @param callbacks The number of settlement callbacks to be made
+    function applyFeeMaximum(PriceResponse memory self, UFixed6 maxSyncFee, UFixed6 maxAsyncFee, uint256 callbacks) internal pure {
         if (self.syncFee.gt(maxSyncFee))
             self.syncFee = maxSyncFee;
-        if (self.asyncFee.gt(maxAsyncFee))
-            self.asyncFee = maxAsyncFee;
+        UFixed6 asyncFee = self.asyncFee.mul(UFixed6Lib.from(callbacks));
+        if (asyncFee.gt(maxAsyncFee))
+            self.asyncFee = maxAsyncFee.div(UFixed6Lib.from(callbacks));
     }
 }
 

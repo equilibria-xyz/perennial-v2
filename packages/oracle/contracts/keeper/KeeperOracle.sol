@@ -208,7 +208,8 @@ contract KeeperOracle is IKeeperOracle, Instance {
         priceResponse.oracleFee = keeperOracleParameter.oracleFee;
         priceResponse.applyFeeMaximum(
             oracleParameter.maxSyncFee,
-            oracleParameter.maxAsyncFee
+            oracleParameter.maxAsyncFee,
+            _localCallbacks[oracleVersion.timestamp].length()
         );
 
         _responses[oracleVersion.timestamp].store(priceResponse);
