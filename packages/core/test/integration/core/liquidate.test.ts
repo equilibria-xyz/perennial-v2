@@ -62,7 +62,14 @@ describe('Liquidate', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, constants.MinInt256, false) // withdraw everything
+      ['update(address,uint256,uint256,uint256,int256,bool)'](
+        user.address,
+        0,
+        0,
+        0,
+        COLLATERAL.sub(parse6decimal('11')).mul(-1),
+        false,
+      ) // withdraw everything
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
