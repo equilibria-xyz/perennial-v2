@@ -24,7 +24,6 @@ import { Intent } from "./types/Intent.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
 import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
-import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
 
@@ -237,10 +236,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) public nonReentrant whenNotPaused {
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-
-        // magic values
-        (collateral, newMaker, newLong, newShort) =
-            MagicValueLib.process(context, updateContext, collateral, newMaker, newLong, newShort);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
