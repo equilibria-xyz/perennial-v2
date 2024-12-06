@@ -373,7 +373,7 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @param account Account to withdraw from
     /// @param withdrawal Amount to withdraw
     function _marketWithdraw(IMarket market, address account, UFixed6 withdrawal) private {
-        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, withdrawal), false);
+        market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(-1, withdrawal), address(0));
     }
 
     /// @notice Target market must be created by MarketFactory

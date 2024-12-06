@@ -24,7 +24,6 @@ import { Intent } from "./types/Intent.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
 import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
-import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
 
@@ -238,10 +237,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
-        // magic values
-        (collateral, newMaker, newLong, newShort) =
-            MagicValueLib.process(context, updateContext, collateral, newMaker, newLong, newShort);
-
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
@@ -257,6 +252,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // process update
         _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
+    }
+
+    /// @notice Closes the account's position
+    /// @param account The account to operate on
+    /// @param protect Whether to put the account into a protected status for liquidations
+    function close(address account, bool protect) external {
+        update(account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, protect, address(0));
     }
 
     /// @notice Updates the beneficiary of the market
