@@ -254,6 +254,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
     }
 
+    /// @notice Closes the account's position
+    /// @param account The account to operate on
+    /// @param protect Whether to put the account into a protected status for liquidations
+    function close(address account, bool protect) external {
+        update(account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, protect, address(0));
+    }
+
     /// @notice Updates the beneficiary of the market
     /// @param newBeneficiary The new beneficiary address
     function updateBeneficiary(address newBeneficiary) external onlyOwner {
