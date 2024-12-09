@@ -39,7 +39,7 @@ interface IVault is IInstance {
     event MarketUpdated(uint256 indexed marketId, UFixed6 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
-    event AllowedAccountUpdated(address indexed account, bool allowed);
+    event AllowedUpdate(address indexed account, bool newAllowed);
 
     // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();
@@ -103,5 +103,5 @@ interface IVault is IInstance {
     function updateWeights(UFixed6[] calldata newWeights) external;
     function updateParameter(VaultParameter memory newParameter) external;
     function allowed(address account) external view returns (bool);
-    function updateAllowedAccount(address account, bool allowed) external;
+    function updateAllowed(address account, bool newAllowed) external;
 }

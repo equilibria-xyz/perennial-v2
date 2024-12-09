@@ -234,7 +234,7 @@ contract Vault is IVault, Instance {
 
     /// @notice Syncs `account`'s state up to current
     /// @param account The account that should be synced
-    function settle(address account) public whenNotPaused onlyAllowed {
+    function settle(address account) public whenNotPaused {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
@@ -276,10 +276,10 @@ contract Vault is IVault, Instance {
 
     /// @notice Updates the allowed account status for a given account
     /// @param account The account to update
-    /// @param allowed_ The new allowed status
-    function updateAllowedAccount(address account, bool allowed_) public onlyOwner {
-        allowed[account] = allowed_;
-        emit AllowedAccountUpdated(account, allowed_);
+    /// @param newAllowed The new allowed status
+    function updateAllowed(address account, bool newAllowed) public onlyOwner {
+        allowed[account] = newAllowed;
+        emit AllowedUpdate(account, newAllowed);
     }
 
     /// @notice Loads or initializes the current checkpoint
