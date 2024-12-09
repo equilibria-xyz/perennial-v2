@@ -6,7 +6,7 @@ import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
-import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMarket, IMargin } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { Checkpoint as PerennialCheckpoint } from  "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { OracleVersion } from  "@perennial/v2-core/contracts/types/OracleVersion.sol";
 import { Local } from  "@perennial/v2-core/contracts/types/Local.sol";
@@ -158,7 +158,7 @@ contract Vault is IVault, Instance {
     /// @param market The market to register
     function _register(IMarket market) private {
         if (!IVaultFactory(address(factory())).marketFactory().instances(market)) revert VaultNotMarketError();
-        if (!market.token().eq(asset)) revert VaultIncorrectAssetError();
+        if (!market.margin().DSU().eq(asset)) revert VaultIncorrectAssetError();
 
         asset.approve(address(market));
 

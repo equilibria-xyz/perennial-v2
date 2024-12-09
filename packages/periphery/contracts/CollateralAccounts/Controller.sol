@@ -11,6 +11,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
+import { IMargin } from "@perennial/v2-core/contracts/interfaces/IMargin.sol";
 import { IAccountVerifier, IController } from "./interfaces/IController.sol";
 import { RebalanceLib } from "./libs/RebalanceLib.sol";
 import { Account } from "./Account.sol";
@@ -197,9 +198,10 @@ contract Controller is Factory, IController {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyMarketTransfer(marketTransfer, signature);
 
-        // only Markets with DSU collateral are supported
+        // only Markets with DSU collateral for the same deployment are supported
         IMarket market = IMarket(marketTransfer.market);
-        if (!market.token().eq(DSU)) revert ControllerUnsupportedMarketError(market);
+        if (!market.margin().DSU().eq(DSU) || market.factory() != marketFactory)
+            revert ControllerUnsupportedMarketError(market);
 
         account.marketTransfer(market, marketTransfer.amount);
     }
