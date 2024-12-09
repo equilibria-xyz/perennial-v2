@@ -86,22 +86,13 @@ interface IMargin is IInstance {
     /// @param amount Quantity of DSU to push to sender
     function withdraw(address account, UFixed6 amount) external;
 
-    /// @notice Disable cross-margin for a market
-    /// @param account Identifies the user
-    /// @param market Identifies where cross-margin should be disabled
-    function isolate(address account, IMarket market) external;
-
-    // TODO: this might go away if we don't support partial de-isolation
-    /// @notice Designate specified amount of collateral isolated to a specific market, reducing cross-margin balance
+    /// @notice Adjust specified amount of collateral isolated to a specific market,
+    /// positive for isolation, negative for deisolation.
+    /// If isolated collateral balance becomes zero, market implicitly becomes cross-margined.
     /// @param account User whose isolated balance will be adjusted
     /// @param amount Quantity of collateral to designate as isolated
     /// @param market Identifies where isolated balance should be adjusted
-    function adjustIsolatedBalance(address account, IMarket market, Fixed6 amount) external;
-
-    /// @notice Take a market out of isolated collateral mode and designate all collateral from that market as cross-margin
-    /// @param account Identifies the user
-    /// @param market Identifies where cross-margin should be enabled, and collateral withdrawn
-    function cross(address account, IMarket market) external;
+    function isolate(address account, IMarket market, Fixed6 amount) external;
 
     /// @notice Settles all registered markets for account and calculates whether maintenance requirements are met
     /// @param account User to settle and for whom maintenance requirement will be checked

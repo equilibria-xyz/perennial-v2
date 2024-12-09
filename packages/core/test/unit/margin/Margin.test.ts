@@ -203,22 +203,18 @@ describe('Margin', () => {
       await deposit(user, parse6decimal('1000'))
 
       // reverts attempting to isolate more than crossed balance
-      await expect(margin.connect(user).isolate(user.address, marketB.address))
-        .to.emit(margin, 'MarketIsolated')
-        .withArgs(user.address, marketB.address)
       await expect(
-        margin.connect(user).adjustIsolatedBalance(user.address, marketA.address, parse6decimal('1001')),
+        margin.connect(user).isolate(user.address, marketB.address, parse6decimal('1001')),
       ).to.be.revertedWithCustomError(margin, 'MarginInsufficientCrossedBalance')
 
-      await expect(margin.connect(user).isolate(user.address, marketA.address))
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('600')))
         .to.emit(margin, 'MarketIsolated')
         .withArgs(user.address, marketA.address)
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketA.address, parse6decimal('600')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketA.address, parse6decimal('600'))
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('600'))
 
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketB.address, parse6decimal('400')))
+      await expect(margin.connect(user).isolate(user.address, marketB.address, parse6decimal('400')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketB.address, parse6decimal('400'))
 
@@ -229,18 +225,17 @@ describe('Margin', () => {
     it('can remove isolated funds', async () => {
       await deposit(user, parse6decimal('800'))
 
-      await expect(margin.connect(user).isolate(user.address, marketB.address)).to.not.be.reverted
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketB.address, parse6decimal('600')))
+      await expect(margin.connect(user).isolate(user.address, marketB.address, parse6decimal('600')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketB.address, parse6decimal('600'))
 
       // reverts attempting to deisolate more than isolated balance
       await expect(
-        margin.connect(user).adjustIsolatedBalance(user.address, marketB.address, parse6decimal('-601')),
+        margin.connect(user).isolate(user.address, marketB.address, parse6decimal('-601')),
       ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalance')
 
       // deisolate some funds
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketB.address, parse6decimal('-325')))
+      await expect(margin.connect(user).isolate(user.address, marketB.address, parse6decimal('-325')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketB.address, parse6decimal('-325'))
 
@@ -255,8 +250,9 @@ describe('Margin', () => {
 
       // isolate some funds
       const isolated = parse6decimal('300')
-      await expect(margin.connect(user).isolate(user.address, marketA.address)).to.not.be.reverted
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketA.address, isolated))
+      await expect(margin.connect(user).isolate(user.address, marketA.address, isolated))
+        .to.emit(margin, 'MarketIsolated')
+        .withArgs(user.address, marketA.address)
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketA.address, isolated)
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('300'))
@@ -278,26 +274,28 @@ describe('Margin', () => {
       await deposit(user, parse6decimal('1000'))
 
       // since collateral is crossed by default, need to isolate some first
-      await expect(margin.connect(user).isolate(user.address, marketA.address)).to.not.be.reverted
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketA.address, parse6decimal('700')))
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('700')))
+        .to.emit(margin, 'MarketIsolated')
+        .withArgs(user.address, marketA.address)
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketA.address, parse6decimal('700'))
-      await expect(margin.connect(user).isolate(user.address, marketB.address)).to.not.be.reverted
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketB.address, parse6decimal('90')))
+      await expect(margin.connect(user).isolate(user.address, marketB.address, parse6decimal('90')))
+        .to.emit(margin, 'MarketIsolated')
+        .withArgs(user.address, marketB.address)
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketB.address, parse6decimal('90'))
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketB.address, parse6decimal('90')))
+      await expect(margin.connect(user).isolate(user.address, marketB.address, parse6decimal('90')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketB.address, parse6decimal('90'))
       expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('120')) // 1000-700-90-90
 
-      await expect(margin.connect(user).cross(user.address, marketA.address))
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('-700')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketA.address, parse6decimal('-700'))
         .to.emit(margin, 'MarketCrossed')
         .withArgs(user.address, marketA.address)
       expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('820')) // 120+700
-      await expect(margin.connect(user).cross(user.address, marketB.address))
+      await expect(margin.connect(user).isolate(user.address, marketB.address, parse6decimal('-180')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketB.address, parse6decimal('-180'))
         .to.emit(margin, 'MarketCrossed')
@@ -305,34 +303,12 @@ describe('Margin', () => {
       expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('1000')) // all of it
     })
 
-    // TODO: can't test this until Margin._isIsolated can return false
-    it.skip('reverts attempting to cross when not isolated', async () => {
-      await deposit(user, parse6decimal('400'))
-
-      // nothing isolated; cannot cross
-      await expect(margin.connect(user).cross(user.address, marketA.address)).to.be.revertedWithCustomError(
-        margin,
-        'MarginMarketNotIsolated',
-      )
-
-      // isolate market B
-      await expect(margin.connect(user).isolate(user.address, marketB.address)).to.not.be.reverted
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketB.address, parse6decimal('150')))
-        .to.emit(margin, 'IsolatedFundsChanged')
-        .withArgs(user.address, marketB.address, parse6decimal('150'))
-
-      // ensure still cannot cross market A
-      await expect(margin.connect(user).cross(user.address, marketA.address)).to.be.revertedWithCustomError(
-        margin,
-        'MarginMarketNotIsolated',
-      )
-    })
-
     it('reverts attempting to cross with position', async () => {
       // deposit and isolate some funds
       await deposit(user, parse6decimal('600'))
-      await expect(margin.connect(user).isolate(user.address, marketA.address)).to.not.be.reverted
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketA.address, parse6decimal('500')))
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('500')))
+        .to.emit(margin, 'MarketIsolated')
+        .withArgs(user.address, marketA.address)
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketA.address, parse6decimal('500'))
 
@@ -346,10 +322,9 @@ describe('Margin', () => {
       marketA.positions.whenCalledWith(user.address).returns(position)
 
       // ensure cannot cross market
-      await expect(margin.connect(user).cross(user.address, marketA.address)).to.be.revertedWithCustomError(
-        margin,
-        'MarginHasPosition',
-      )
+      await expect(
+        margin.connect(user).isolate(user.address, marketA.address, parse6decimal('-500')),
+      ).to.be.revertedWithCustomError(margin, 'MarginHasPosition')
     })
 
     it('operator may cross and isolate a market', async () => {
@@ -357,17 +332,15 @@ describe('Margin', () => {
 
       // non-operator may not isolate
       fakeAuthorization(user, userB, false)
-      await expect(margin.connect(userB).isolate(user.address, marketA.address)).to.be.revertedWithCustomError(
-        margin,
-        'MarginOperatorNotAllowedError',
-      )
+      await expect(
+        margin.connect(userB).isolate(user.address, marketA.address, parse6decimal('17')),
+      ).to.be.revertedWithCustomError(margin, 'MarginOperatorNotAllowedError')
 
       // operator can isolate
       fakeAuthorization(user, userB, true)
-      await expect(margin.connect(userB).isolate(user.address, marketB.address))
+      await expect(margin.connect(userB).isolate(user.address, marketB.address, parse6decimal('333')))
         .to.emit(margin, 'MarketIsolated')
         .withArgs(user.address, marketB.address)
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketB.address, parse6decimal('333')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketB.address, parse6decimal('333'))
       expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('444'))
@@ -375,14 +348,13 @@ describe('Margin', () => {
 
       // non-operator may not cross
       fakeAuthorization(user, userB, false)
-      await expect(margin.connect(userB).cross(user.address, marketB.address)).to.be.revertedWithCustomError(
-        margin,
-        'MarginOperatorNotAllowedError',
-      )
+      await expect(
+        margin.connect(userB).isolate(user.address, marketB.address, parse6decimal('-333')),
+      ).to.be.revertedWithCustomError(margin, 'MarginOperatorNotAllowedError')
 
       // operator can cross
       fakeAuthorization(user, userB, true)
-      await expect(margin.connect(userB).cross(user.address, marketB.address))
+      await expect(margin.connect(userB).isolate(user.address, marketB.address, parse6decimal('-333')))
         .to.emit(margin, 'MarketCrossed')
         .withArgs(user.address, marketB.address)
       expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('777'))
@@ -391,20 +363,21 @@ describe('Margin', () => {
 
     it('operator may adjust isolated balance', async () => {
       await deposit(user, parse6decimal('1000'))
-      await expect(margin.connect(user).isolate(user.address, marketA.address)).to.not.be.reverted
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketA.address, parse6decimal('500')))
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('500')))
+        .to.emit(margin, 'MarketIsolated')
+        .withArgs(user.address, marketA.address)
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketA.address, parse6decimal('500'))
 
       // non-operator may not adjust isolated balance
       fakeAuthorization(user, userB, false)
       await expect(
-        margin.connect(userB).adjustIsolatedBalance(user.address, marketA.address, parse6decimal('100')),
+        margin.connect(userB).isolate(user.address, marketA.address, parse6decimal('100')),
       ).to.be.revertedWithCustomError(margin, 'MarginOperatorNotAllowedError')
 
       // operator can adjust isolated balance
       fakeAuthorization(user, userB, true)
-      await expect(margin.connect(userB).adjustIsolatedBalance(user.address, marketA.address, parse6decimal('100')))
+      await expect(margin.connect(userB).isolate(user.address, marketA.address, parse6decimal('100')))
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketA.address, parse6decimal('100'))
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('600'))
@@ -535,20 +508,10 @@ describe('Margin', () => {
       const amount = parse6decimal('400')
       await deposit(user, amount)
 
-      await expect(margin.connect(user).isolate(user.address, marketA.address)).to.not.be.reverted
-      await expect(margin.connect(user).adjustIsolatedBalance(user.address, marketA.address, parse6decimal('200'))).to
-        .not.be.reverted
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('200'))).to.not.be.reverted
 
       // have malicious token attempt to adjust the isolated balance during withdrawal
-      await mockToken.setFunctionToCall(4)
-      await expect(margin.connect(user).withdraw(user.address, parse6decimal('100'))).to.be.revertedWithCustomError(
-        margin,
-        'ReentrancyGuardReentrantCallError',
-      )
-
-      // for completeness, have malicious token cross when withdrawing
-      // (would otherwise fail because withdraw pushes after updating crossMarginBalances)
-      await mockToken.setFunctionToCall(5)
+      await mockToken.setFunctionToCall(3)
       await expect(margin.connect(user).withdraw(user.address, parse6decimal('100'))).to.be.revertedWithCustomError(
         margin,
         'ReentrancyGuardReentrantCallError',

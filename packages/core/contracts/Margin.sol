@@ -66,62 +66,40 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function isolate(address account, IMarket market) external nonReentrant onlyOperator(account){
-        if (!_isIsolated(account, market)) revert MarginMarketNotCrossed();
-
-        market.settle(account);
-        if (_hasPosition(account, market)) revert MarginHasPosition();
-
-        // TODO: update collections which track which markets are isolated/crossed
-        emit MarketIsolated(account, market);
-    }
-
-    /// @inheritdoc IMargin
-    function adjustIsolatedBalance(
+    function isolate(
         address account,
         IMarket market,
         Fixed6 amount
-    ) external nonReentrant onlyOperator(account) {
-        if (!_isIsolated(account, market)) revert MarginMarketNotIsolated();
-
-        // TODO: Check oracle timestamps here (per InvariantLib) to ensure price is not stale?
+    ) external nonReentrant onlyOperator(account){
         market.settle(account);
         uint256 latestTimestamp = market.oracle().latest().timestamp;
         Checkpoint memory checkpoint = _checkpoints[account][market][latestTimestamp].read();
 
+        // calculate new balances
         Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
         if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
-        Fixed6 newIsolatedBalance = _balances[account][market].add(amount);
+        Fixed6 oldIsolatedBalance = _balances[account][market];
+        Fixed6 newIsolatedBalance = oldIsolatedBalance.add(amount);
         if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
 
         // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient to maintain all markets
         // TODO: if amount.sign() = -1, ensure isolated market remains maintained
 
+        // Ensure no position if switching modes
+        bool isolating = oldIsolatedBalance.isZero() && !newIsolatedBalance.isZero();
+        bool crossing = !oldIsolatedBalance.isZero() && newIsolatedBalance.isZero();
+        // TODO: We could add logic here to support switching modes with a position.
+        if ((isolating || crossing) && _hasPosition(account, market)) revert MarginHasPosition();
+
+        // update storage
         _balances[account][CROSS_MARGIN] = newCrossBalance;
         _balances[account][market] = newIsolatedBalance;
-
         checkpoint.collateral = checkpoint.collateral.add(amount);
-        // console.log("adjustIsolatedBalance storing checkpoint with collateral %s at %s",
-        //     UFixed6.unwrap(checkpoint.collateral.abs()), latestTimestamp);
         _checkpoints[account][market][latestTimestamp].store(checkpoint);
 
+        if (isolating) emit MarketIsolated(account, market);
+        if (crossing) emit MarketCrossed(account, market);
         emit IsolatedFundsChanged(account, market, amount);
-    }
-
-    /// @inheritdoc IMargin
-    function cross(address account, IMarket market) external nonReentrant onlyOperator(account) {
-        if (!_isIsolated(account, market)) revert MarginMarketNotIsolated();
-
-        market.settle(account);
-        if (_hasPosition(account, market)) revert MarginHasPosition();
-
-        Fixed6 balance = _balances[account][market];
-        _balances[account][market] = Fixed6Lib.ZERO;
-        _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(balance);
-
-        // TODO: update collections which track which markets are isolated/crossed
-        emit IsolatedFundsChanged(account, market, balance.mul(Fixed6Lib.NEG_ONE));
-        emit MarketCrossed(account, market);
     }
 
     /// @inheritdoc IMargin
@@ -141,7 +119,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         address account,
         UFixed6 positionMagnitude,
         OracleVersion calldata latestVersion
-    ) external onlyMarket returns (bool isMaintained) {
+    ) external onlyMarket view returns (bool isMaintained) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market];
@@ -149,7 +127,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         } else {
             // TODO: aggregate maintenance requirements for each cross-margined market and check;
             //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
-            revert("Cross-margin not yet implemented");
+            return true;
         }
     }
 
@@ -160,7 +138,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         OracleVersion calldata latestVersion,
         UFixed6 minCollateralization,
         Fixed6 guaranteePriceAdjustment
-    ) external onlyMarket returns (bool isMargined) {
+    ) external onlyMarket view returns (bool isMargined) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
@@ -168,13 +146,13 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check;
             //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
-            revert("Cross-margin not yet implemented");
+            return true;
         }
     }
 
 
 
-    // TODO: we won't need this if we remove collateral params from Market update methods.
+    // TODO: Eliminate this in favor of Market calling Margin.isolate directly
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
         // Pass through if no user did not make legacy request to change isolated collateral
@@ -185,8 +163,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
         // Handle case where market was not already in isolated mode
         if (!_isIsolated(account, market)) {
-            // NOTE: this section is currently unreachable because _isIsolated always returns true.
-
             // Cannot remove isolated collateral if market not isolated
             if (collateralDelta.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
 
@@ -237,7 +213,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         return _balances[account][market];
     }
 
-    // TODO: crossMarginCheckpoints
+    // TODO: crossMarginCheckpoints accessor view
 
     /// @inheritdoc IMargin
     function isolatedCheckpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory) {
@@ -262,10 +238,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     // TODO: Need public view which determines if market is isolated for user
     /// @dev Determines whether market is in isolated mode for a specific user
     function _isIsolated(address account, IMarket market) private view returns (bool) {
-        // TODO: We cannot use 0 as magic number to determine whether market is isolated for user.
+        // TODO: Complexities using 0 as magic number to determine whether market is isolated for user.
         // Not sure how this should eventually behave when market is neither in the cross-market
         // collection nor has an isolated balance.
-        return true;
+        return !_balances[account][market].isZero();
     }
 
     /// @dev Checks whether maintenance requirements are satisfied for specific user and market
@@ -275,7 +251,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 collateral,
         UFixed6 positionMagnitude,
         OracleVersion calldata latestVersion
-    ) private returns (bool isMaintained) {
+    ) private view returns (bool isMaintained) {
         if (collateral.lt(Fixed6Lib.ZERO)) return false; // negative collateral balance forbidden, regardless of position
         if (positionMagnitude.isZero()) return true;     // zero position has no requirement
 
@@ -296,7 +272,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         UFixed6 positionMagnitude,
         OracleVersion calldata latestVersion,
         UFixed6 minCollateralization
-    ) private returns (bool isMargined) {
+    ) private view returns (bool isMargined) {
         // console.log("_isMarketMargined checking margin for collateral %s, position %s",
         //     UFixed6.unwrap(collateral.abs()), UFixed6.unwrap(positionMagnitude));
         if (collateral.lt(Fixed6Lib.ZERO)) return false; // negative collateral balance forbidden, regardless of position

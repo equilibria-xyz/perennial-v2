@@ -278,8 +278,7 @@ describe('Happy Path', () => {
     const market = await createMarket(instanceVars)
     await dsu.connect(user).approve(margin.address, utils.parseEther('1000'))
     await margin.connect(user).deposit(user.address, parse6decimal('1000'))
-    await margin.connect(user).isolate(user.address, market.address)
-    await margin.connect(user).adjustIsolatedBalance(user.address, market.address, parse6decimal('900'))
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('900'))
     expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('100'))
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('900'))
     expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_0), {
@@ -310,7 +309,7 @@ describe('Happy Path', () => {
     })
 
     // user increases their isolated balance after settling
-    await margin.connect(user).adjustIsolatedBalance(user.address, market.address, parse6decimal('50'))
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('50'))
     expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('50'))
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('950'))
     expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
@@ -336,9 +335,7 @@ describe('Happy Path', () => {
           false,
         ),
     )
-    await margin
-      .connect(user)
-      .adjustIsolatedBalance(user.address, market.address, parse6decimal('-150'), { gasLimit: 3_000_000 })
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('-150'), { gasLimit: 3_000_000 })
     expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('200'))
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('800'))
     await chainlink.next()
@@ -2653,8 +2650,7 @@ describe('Happy Path', () => {
     await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
     await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
 
-    await margin.connect(user).isolate(user.address, market.address)
-    await margin.connect(user).adjustIsolatedBalance(user.address, market.address, COLLATERAL)
+    await margin.connect(user).isolate(user.address, market.address, COLLATERAL)
 
     for (let i = 0; i < delay; i++) {
       await market
