@@ -323,6 +323,9 @@ describe('Vault', () => {
       asset.connect(other).approve(btcMarket.address, ethers.constants.MaxUint256),
     ])
 
+    // allow all accounts to interact with the vault
+    await vault.connect(owner).updateAllowed(constants.AddressZero, true)
+
     // Seed markets with some activity
     await market
       .connect(user)
@@ -636,6 +639,61 @@ describe('Vault', () => {
       await expect(
         vault.connect(user).updateWeights([parse6decimal('0.4'), parse6decimal('0.6')]),
       ).to.be.revertedWithCustomError(vault, 'InstanceNotOwnerError')
+    })
+  })
+
+  describe('#updateAllowed', () => {
+    beforeEach(async () => {
+      // Disable all accounts
+      await vault.connect(owner).updateAllowed(constants.AddressZero, false)
+    })
+
+    it('updates allowed status correctly', async () => {
+      await vault.connect(owner).updateAllowed(user.address, false)
+      expect(await vault.allowed(user.address)).to.be.false
+      await vault.connect(owner).updateAllowed(user.address, true)
+      expect(await vault.allowed(user.address)).to.be.true
+    })
+
+    it('updates user position with only user allowed', async () => {
+      // check user is not allowed to interact with the vault
+      expect(await vault.allowed(user.address)).to.be.false
+      expect(await vault.allowed(constants.AddressZero)).to.be.false
+
+      // should revert if not allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.be.revertedWithCustomError(
+        vault,
+        'VaultNotAllowedError',
+      )
+
+      // allow user to interact with the vault
+      await vault.connect(owner).updateAllowed(user.address, true)
+
+      // should update allowed
+      expect(await vault.allowed(user.address)).to.be.true
+
+      // should not revert if allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.not.be.reverted
+    })
+
+    it('updates user position with all accounts allowed', async () => {
+      // check all accounts are not allowed to interact with the vault
+      expect(await vault.allowed(constants.AddressZero)).to.be.false
+
+      // should revert if not allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.be.revertedWithCustomError(
+        vault,
+        'VaultNotAllowedError',
+      )
+
+      // allow all accounts to interact with the vault
+      await vault.connect(owner).updateAllowed(constants.AddressZero, true)
+
+      // should update allowed
+      expect(await vault.allowed(constants.AddressZero)).to.be.true
+
+      // should not revert if allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.not.be.reverted
     })
   })
 
