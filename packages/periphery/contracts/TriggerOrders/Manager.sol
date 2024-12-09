@@ -218,7 +218,7 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Transfers DSU from market to manager to pay keeper or interface fee
     function _marketWithdraw(IMarket market, address account, UFixed6 amount) private {
-        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, amount), false);
+        market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(-1, amount), address(0));
     }
 
     function _placeOrder(IMarket market, address account, uint256 orderId, TriggerOrder calldata order) private {
