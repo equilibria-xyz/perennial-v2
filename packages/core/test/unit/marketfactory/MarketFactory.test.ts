@@ -121,7 +121,6 @@ describe('MarketFactory', () => {
   describe('#create', async () => {
     it('creates the market', async () => {
       const marketDefinition = {
-        token: dsu.address,
         oracle: oracle.address,
       }
 
@@ -141,7 +140,6 @@ describe('MarketFactory', () => {
 
     it('creates the market w/ zero payoff', async () => {
       const marketDefinition = {
-        token: dsu.address,
         oracle: oracle.address,
       }
 
@@ -160,7 +158,6 @@ describe('MarketFactory', () => {
 
     it('reverts when invalid oracle', async () => {
       const marketDefinition = {
-        token: dsu.address,
         oracle: oracle.address,
       }
 
@@ -174,7 +171,6 @@ describe('MarketFactory', () => {
 
     it('reverts when already registered', async () => {
       const marketDefinition = {
-        token: dsu.address,
         oracle: oracle.address,
       }
 
@@ -190,7 +186,6 @@ describe('MarketFactory', () => {
 
     it('reverts when not owner', async () => {
       const marketDefinition = {
-        token: dsu.address,
         oracle: oracle.address,
       }
 

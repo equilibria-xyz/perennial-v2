@@ -4,7 +4,6 @@ pragma solidity 0.8.24;
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { ReentrancyGuard } from "@equilibria/root/attribute/ReentrancyGuard.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
@@ -29,7 +28,6 @@ import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
 // import "hardhat/console.sol";
 
-// TODO: Can we remove ReentrancyGuard now that no calls are made to Token contract?
 /// @title Market
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
@@ -37,19 +35,20 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev Verifies intent messages
     IVerifier public immutable verifier;
 
-    // TODO: Any reason to retain this, or should we remove from MarketDefinition?
-    /// @dev The underlying token that the market settles in
-    Token18 public token;
-
-    // TODO: Is okay that this storage slot is reused, and that it is preceeded by a non-immutable field?
     /// @dev Handles collateral across all markets
     IMargin public immutable margin;
+
+    /// @dev DEPRECATED SLOT -- previously the collateral token
+    bytes32 private __unused0__;
+
+    /// @dev DEPRECATED SLOT -- previously the reward token
+    bytes32 private __unused1__;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
 
     /// @dev DEPRECATED SLOT -- previously the payoff provider
-    bytes32 private __unused1__;
+    bytes32 private __unused2__;
 
     /// @dev Beneficiary of the market, receives donations
     address public beneficiary;
@@ -70,7 +69,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     PositionStorageGlobal private _position;
 
     /// @dev DEPRECATED SLOT -- previously the global pending positions
-    bytes32 private __unused2__;
+    bytes32 private __unused3__;
 
     /// @dev Current local state of each account
     mapping(address => LocalStorage) private _locals;
@@ -79,7 +78,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     mapping(address => PositionStorageLocal) private _positions;
 
     /// @dev DEPRECATED SLOT -- previously the local pending positions
-    bytes32 private __unused3__;
+    bytes32 private __unused4__;
 
     /// @dev The historical version accumulator data for each accessed version
     mapping(uint256 => VersionStorage) private _versions;
@@ -97,7 +96,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     mapping(address => OrderStorageLocal) private _pendings;
 
     /// @dev DEPRECATED SLOT -- previously the local checkpoints
-    bytes32 private __unused4__;
+    bytes32 private __unused5__;
 
     /// @dev The liquidator for each id for each account
     mapping(address => mapping(uint256 => address)) public liquidators;
@@ -128,7 +127,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         __Instance__initialize();
         __ReentrancyGuard__initialize();
 
-        token = definition_.token;
         oracle = definition_.oracle;
     }
 

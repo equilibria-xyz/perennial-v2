@@ -138,7 +138,6 @@ describe('Happy Path', () => {
     await market.connect(owner).updateParameter(parameter)
 
     const marketDefinition = {
-      token: dsu.address,
       oracle: oracle.address,
     }
 

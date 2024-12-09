@@ -82,7 +82,6 @@ library LocalStorageLib {
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(0 << (256 - 64)) >> (256 - 32 - 32 - 64) |
             uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
 
         assembly {

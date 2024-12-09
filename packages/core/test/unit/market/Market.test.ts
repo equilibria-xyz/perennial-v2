@@ -482,7 +482,6 @@ describe('Market', () => {
     await margin.initialize(factory.address)
 
     marketDefinition = {
-      token: dsu.address,
       oracle: oracle.address,
     }
     riskParameter = {
@@ -590,7 +589,6 @@ describe('Market', () => {
       await market.connect(factorySigner).initialize(marketDefinition)
 
       expect(await market.factory()).to.equal(factory.address)
-      expect(await market.token()).to.equal(dsu.address)
       expect(await market.oracle()).to.equal(marketDefinition.oracle)
       expect(await market.margin()).to.equal(margin.address)
 

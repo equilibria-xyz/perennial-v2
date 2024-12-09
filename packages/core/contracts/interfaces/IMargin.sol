@@ -4,10 +4,11 @@ pragma solidity ^0.8.13;
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
 import { Checkpoint } from "../types/Checkpoint.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
-import { IMarket } from "./IMarket.sol";
+import { IMarket, IMarketFactory } from "./IMarketFactory.sol";
 
 interface IMargin is IInstance {
     /// @notice Emitted when DSU is transferred into the margin contract
@@ -69,11 +70,11 @@ interface IMargin is IInstance {
     /// custom:error User is not authorized for the requested action
     error MarginOperatorNotAllowedError();
 
-    /// @notice Retrieves the cross-margin balance for a user
-    function crossMarginBalances(address) external view returns (Fixed6);
+    /// @notice Retrieves the DSU token used as collateral for all markets
+    function DSU() external view returns (Token18);
 
-    /// @notice Retrieves the isolated balance for a user and market
-    function isolatedBalances(address, IMarket) external view returns (Fixed6);
+    /// @notice Retrieves the factory identifying the Perennial deployment
+    function marketFactory() external view returns (IMarketFactory);
 
     /// @notice Pull DSU funds from sender and add to a cross-margin account
     /// @param account Account to be credited
@@ -153,6 +154,12 @@ interface IMargin is IInstance {
     /// @param latest Checkpoint prepared by the market
     /// @param pnl Collateral delta for the account prepared by the Local
     function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external;
+
+    /// @notice Retrieves the cross-margin balance for a user
+    function crossMarginBalances(address) external view returns (Fixed6);
+
+    /// @notice Retrieves the isolated balance for a user and market
+    function isolatedBalances(address, IMarket) external view returns (Fixed6);
 
     /// @notice Returns information about an account's collateral for a specific version
     /// @param account User for whom the checkpoint is desired

@@ -21,8 +21,9 @@ import { VersionAccumulationResult } from "../libs/VersionLib.sol";
 import { CheckpointAccumulationResult } from "../libs/CheckpointLib.sol";
 
 interface IMarket is IInstance {
+    // TODO: Shall we eliminate this in favor of just passing IOracleProvider?
+    // Or are more market initialization args expected?
     struct MarketDefinition {
-        Token18 token;
         IOracleProvider oracle;
     }
 
@@ -137,7 +138,6 @@ interface IMarket is IInstance {
     error VersionStorageInvalidError();
 
     function initialize(MarketDefinition calldata definition_) external;
-    function token() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
     function beneficiary() external view returns (address);
     function coordinator() external view returns (address);

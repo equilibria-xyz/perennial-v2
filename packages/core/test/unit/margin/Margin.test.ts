@@ -90,6 +90,11 @@ describe('Margin', () => {
       await margin.initialize(marketFactory.address)
     })
 
+    it('initialize with the correct variables set', async () => {
+      expect(await margin.DSU()).to.equal(dsu.address)
+      expect(await margin.marketFactory()).to.equal(marketFactory.address)
+    })
+
     it('deposits funds to margin contract', async () => {
       await deposit(user, parse6decimal('3500.153'))
     })

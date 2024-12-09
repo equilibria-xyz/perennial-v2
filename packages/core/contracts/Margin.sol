@@ -15,24 +15,23 @@ import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
 // import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
+    IMarket private constant CROSS_MARGIN = IMarket(address(0));
+
     /// @dev DSU address
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @dev Contract used to validate markets
     IMarketFactory public marketFactory;
 
-    /// @notice Collateral spread across markets: user -> balance
-    mapping(address => Fixed6) public crossMarginBalances;
-
     // TODO: Introduce an iterable collection of cross-margained markets for a user.
 
-    /// @notice Non-cross-margained collateral: user -> market -> balance
-    mapping(address => mapping(IMarket => Fixed6)) public isolatedBalances;
+    /// @notice Storage for account balances: user -> market -> balance
+    /// Cross-margin balances stored under IMarket(address(0))
+    mapping(address => mapping(IMarket => Fixed6)) private _balances;
 
-    /// @dev Storage for isolated account checkpoints: user -> market -> version -> checkpoint
-    mapping(address => mapping(IMarket => mapping(uint256 => CheckpointStorage))) private _isolatedCheckpoints;
-
-    // TODO: mapping for cross-margin checkpoints
+    /// @dev Storage for account checkpoints: user -> market -> version -> checkpoint
+    /// Cross-margin checkpoints stored as IMarket(address(0))
+    mapping(address => mapping(IMarket => mapping(uint256 => CheckpointStorage))) private _checkpoints;
 
     /// @dev Creates instance
     /// @param dsu Digital Standard Unit stablecoin used as collateral
@@ -51,16 +50,16 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function deposit(address account, UFixed6 amount) external nonReentrant {
         DSU.pull(msg.sender, UFixed18Lib.from(amount));
-        crossMarginBalances[account] = crossMarginBalances[account].add(Fixed6Lib.from(amount));
+        _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(Fixed6Lib.from(amount));
         emit FundsDeposited(account, amount);
     }
 
     // TODO: support a magic number for full withdrawal?
     /// @inheritdoc IMargin
     function withdraw(address account, UFixed6 amount) external nonReentrant onlyOperator(account) {
-        Fixed6 balance = crossMarginBalances[account];
+        Fixed6 balance = _balances[account][CROSS_MARGIN];
         if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalance();
-        crossMarginBalances[account] = balance.sub(Fixed6Lib.from(amount));
+        _balances[account][CROSS_MARGIN] = balance.sub(Fixed6Lib.from(amount));
         // withdrawal goes to sender, not account, consistent with legacy Market behavior
         DSU.push(msg.sender, UFixed18Lib.from(amount));
         emit FundsWithdrawn(account, amount);
@@ -88,23 +87,23 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: Check oracle timestamps here (per InvariantLib) to ensure price is not stale?
         market.settle(account);
         uint256 latestTimestamp = market.oracle().latest().timestamp;
-        Checkpoint memory checkpoint = _isolatedCheckpoints[account][market][latestTimestamp].read();
+        Checkpoint memory checkpoint = _checkpoints[account][market][latestTimestamp].read();
 
-        Fixed6 newCrossBalance = crossMarginBalances[account].sub(amount);
+        Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
         if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
-        Fixed6 newIsolatedBalance = isolatedBalances[account][market].add(amount);
+        Fixed6 newIsolatedBalance = _balances[account][market].add(amount);
         if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
 
         // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient to maintain all markets
         // TODO: if amount.sign() = -1, ensure isolated market remains maintained
 
-        crossMarginBalances[account] = newCrossBalance;
-        isolatedBalances[account][market] = newIsolatedBalance;
+        _balances[account][CROSS_MARGIN] = newCrossBalance;
+        _balances[account][market] = newIsolatedBalance;
 
         checkpoint.collateral = checkpoint.collateral.add(amount);
         // console.log("adjustIsolatedBalance storing checkpoint with collateral %s at %s",
         //     UFixed6.unwrap(checkpoint.collateral.abs()), latestTimestamp);
-        _isolatedCheckpoints[account][market][latestTimestamp].store(checkpoint);
+        _checkpoints[account][market][latestTimestamp].store(checkpoint);
 
         emit IsolatedFundsChanged(account, market, amount);
     }
@@ -116,9 +115,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         market.settle(account);
         if (_hasPosition(account, market)) revert MarginHasPosition();
 
-        Fixed6 balance = isolatedBalances[account][market];
-        isolatedBalances[account][market] = Fixed6Lib.ZERO;
-        crossMarginBalances[account] = crossMarginBalances[account].add(balance);
+        Fixed6 balance = _balances[account][market];
+        _balances[account][market] = Fixed6Lib.ZERO;
+        _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(balance);
 
         // TODO: update collections which track which markets are isolated/crossed
         emit IsolatedFundsChanged(account, market, balance.mul(Fixed6Lib.NEG_ONE));
@@ -145,7 +144,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     ) external onlyMarket returns (bool isMaintained) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
-            Fixed6 collateral = isolatedBalances[account][market];
+            Fixed6 collateral = _balances[account][market];
             return _isMarketMaintained(account, market, collateral, positionMagnitude, latestVersion);
         } else {
             // TODO: aggregate maintenance requirements for each cross-margined market and check;
@@ -164,7 +163,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     ) external onlyMarket returns (bool isMargined) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
-            Fixed6 collateral = isolatedBalances[account][market].add(guaranteePriceAdjustment);
+            Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
             return _isMarketMargined(account, market, collateral, positionMagnitude, latestVersion, minCollateralization);
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check;
@@ -182,7 +181,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (collateralDelta.isZero()) return;
 
         IMarket market = IMarket(msg.sender);
-        Fixed6 isolatedBalance = isolatedBalances[account][market];
+        Fixed6 isolatedBalance = _balances[account][market];
 
         // Handle case where market was not already in isolated mode
         if (!_isIsolated(account, market)) {
@@ -197,7 +196,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         }
 
         // If market already in in isolated mode, adjust collateral balances
-        Fixed6 newCrossBalance = crossMarginBalances[account].sub(collateralDelta);
+        Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(collateralDelta);
         // Revert if insufficient funds to isolate
         if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
 
@@ -205,8 +204,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 newIsolatedBalance = isolatedBalance.add(collateralDelta);
         if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
 
-        crossMarginBalances[account] = newCrossBalance;
-        isolatedBalances[account][market] = newIsolatedBalance;
+        _balances[account][CROSS_MARGIN] = newCrossBalance;
+        _balances[account][market] = newIsolatedBalance;
 
         // TODO: Ensure InvariantLib checks margin and maintenance requirements and reverts where appropriate.
     }
@@ -222,24 +221,36 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // console.log("updateCheckpoint storing checkpoint with collateral %s at %s",
         //     UFixed6.unwrap(latest.collateral.abs()), version);
         // Store the checkpoint
-        _isolatedCheckpoints[account][IMarket(msg.sender)][version].store(latest);
+        _checkpoints[account][IMarket(msg.sender)][version].store(latest);
         // Adjust cross-margin or isolated collateral balance accordingly
         _updateCollateralBalance(account, IMarket(msg.sender), pnl);
         // TODO: Should probably emit an event here which indexers could use to track PnL
     }
 
     /// @inheritdoc IMargin
+    function crossMarginBalances(address account) external view returns (Fixed6) {
+        return _balances[account][CROSS_MARGIN];
+    }
+
+    /// @inheritdoc IMargin
+    function isolatedBalances(address account, IMarket market) external view returns (Fixed6) {
+        return _balances[account][market];
+    }
+
+    // TODO: crossMarginCheckpoints
+
+    /// @inheritdoc IMargin
     function isolatedCheckpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory) {
-        return _isolatedCheckpoints[account][market][version].read();
+        return _checkpoints[account][market][version].read();
     }
 
     /// @dev Applies a change in collateral to a user
     function _updateCollateralBalance(address account, IMarket market, Fixed6 collateralDelta) private {
-        Fixed6 isolatedBalance = isolatedBalances[account][market];
+        Fixed6 isolatedBalance = _balances[account][market];
         if (isolatedBalance.isZero()) {
-            crossMarginBalances[account] = crossMarginBalances[account].add(collateralDelta);
+            _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(collateralDelta);
         } else {
-            isolatedBalances[account][market] = isolatedBalance.add(collateralDelta);
+            _balances[account][market] = isolatedBalance.add(collateralDelta);
         }
     }
 
