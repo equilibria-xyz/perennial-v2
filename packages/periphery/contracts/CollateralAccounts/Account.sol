@@ -67,8 +67,8 @@ contract Account is IAccount, Instance {
          if (amount.gt(Fixed6Lib.ZERO))
             wrapIfNecessary(UFixed18Lib.from(amount.abs()), true);
 
-        // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
-        market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
+        // pass 0 to avoid changing position; market will pull/push collateral from/to this contract
+        market.update(owner, Fixed6Lib.ZERO, amount, address(0));
     }
 
     /// @inheritdoc IAccount
