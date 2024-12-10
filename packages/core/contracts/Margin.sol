@@ -72,34 +72,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 amount
     ) external nonReentrant onlyOperator(account){
         market.settle(account);
-        uint256 latestTimestamp = market.oracle().latest().timestamp;
-        Checkpoint memory checkpoint = _checkpoints[account][market][latestTimestamp].read();
-
-        // calculate new balances
-        Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
-        if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
-        Fixed6 oldIsolatedBalance = _balances[account][market];
-        Fixed6 newIsolatedBalance = oldIsolatedBalance.add(amount);
-        if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
-
-        // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient to maintain all markets
-        // TODO: if amount.sign() = -1, ensure isolated market remains maintained
-
-        // Ensure no position if switching modes
-        bool isolating = oldIsolatedBalance.isZero() && !newIsolatedBalance.isZero();
-        bool crossing = !oldIsolatedBalance.isZero() && newIsolatedBalance.isZero();
-        // TODO: We could add logic here to support switching modes with a position.
-        if ((isolating || crossing) && _hasPosition(account, market)) revert MarginHasPosition();
-
-        // update storage
-        _balances[account][CROSS_MARGIN] = newCrossBalance;
-        _balances[account][market] = newIsolatedBalance;
-        checkpoint.collateral = checkpoint.collateral.add(amount);
-        _checkpoints[account][market][latestTimestamp].store(checkpoint);
-
-        if (isolating) emit MarketIsolated(account, market);
-        if (crossing) emit MarketCrossed(account, market);
-        emit IsolatedFundsChanged(account, market, amount);
+        _isolate(account, market, amount, true);
     }
 
     /// @inheritdoc IMargin
@@ -150,39 +123,12 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         }
     }
 
-
-
-    // TODO: Eliminate this in favor of Market calling Margin.isolate directly
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
         // Pass through if no user did not make legacy request to change isolated collateral
         if (collateralDelta.isZero()) return;
 
-        IMarket market = IMarket(msg.sender);
-        Fixed6 isolatedBalance = _balances[account][market];
-
-        // Handle case where market was not already in isolated mode
-        if (!_isIsolated(account, market)) {
-            // Cannot remove isolated collateral if market not isolated
-            if (collateralDelta.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
-
-            // Users cannot change their cross-margined balance using legacy update
-            Position memory position = market.positions(account);
-            if (!position.magnitude().isZero()) revert MarginCannotUpdateCrossedMarket();
-        }
-
-        // If market already in in isolated mode, adjust collateral balances
-        Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(collateralDelta);
-        // Revert if insufficient funds to isolate
-        if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
-
-        // Revert if attempting to de-isolate more than is currently isolated
-        Fixed6 newIsolatedBalance = isolatedBalance.add(collateralDelta);
-        if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
-
-        _balances[account][CROSS_MARGIN] = newCrossBalance;
-        _balances[account][market] = newIsolatedBalance;
-
+        _isolate(account, IMarket(msg.sender), collateralDelta, false);
         // TODO: Ensure InvariantLib checks margin and maintenance requirements and reverts where appropriate.
     }
 
@@ -218,6 +164,44 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function isolatedCheckpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory) {
         return _checkpoints[account][market][version].read();
+    }
+
+    /// @dev Implementation logic for adjusting isolated collateral, without settling market
+    function _isolate(
+        address account,
+        IMarket market,
+        Fixed6 amount,
+        bool updateCheckpoint
+    ) private {
+        // calculate new balances
+        Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
+        if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
+        Fixed6 oldIsolatedBalance = _balances[account][market];
+        Fixed6 newIsolatedBalance = oldIsolatedBalance.add(amount);
+        if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
+
+        // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient to maintain all markets
+        // TODO: if amount.sign() = -1, ensure isolated market remains maintained
+
+        // Ensure no position if switching modes
+        bool isolating = oldIsolatedBalance.isZero() && !newIsolatedBalance.isZero();
+        bool crossing = !oldIsolatedBalance.isZero() && newIsolatedBalance.isZero();
+        // TODO: We could add logic here to support switching modes with a position.
+        if ((isolating || crossing) && _hasPosition(account, market)) revert MarginHasPosition();
+
+        // update storage
+        _balances[account][CROSS_MARGIN] = newCrossBalance;
+        _balances[account][market] = newIsolatedBalance;
+        if (updateCheckpoint) {
+            uint256 latestTimestamp = market.oracle().latest().timestamp;
+            Checkpoint memory checkpoint = _checkpoints[account][market][latestTimestamp].read();
+            checkpoint.collateral = checkpoint.collateral.add(amount);
+            _checkpoints[account][market][latestTimestamp].store(checkpoint);
+        }
+
+        if (isolating) emit MarketIsolated(account, market);
+        if (crossing) emit MarketCrossed(account, market);
+        emit IsolatedFundsChanged(account, market, amount);
     }
 
     /// @dev Applies a change in collateral to a user
