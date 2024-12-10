@@ -28,6 +28,9 @@ import {
   MagicValueLib__factory,
   Verifier,
   Verifier__factory,
+  IInsuranceFund__factory,
+  InsuranceFund__factory,
+  InsuranceFund,
   Margin__factory,
   Margin,
 } from '../../../types/generated'
@@ -70,6 +73,7 @@ export interface InstanceVars {
   oracle: IOracleProvider
   marketImpl: Market
   verifier: Verifier
+  insuranceFund: InsuranceFund
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
@@ -187,6 +191,17 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
+  const insuranceFundImpl = await new InsuranceFund__factory(owner).deploy(marketFactory.address, dsu.address)
+
+  const insuranceFundProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    insuranceFundImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+
+  const insuranceFund = new InsuranceFund__factory(owner).attach(insuranceFundProxy.address)
+  await insuranceFund.connect(owner).initialize()
+
   // Set state
   await fundWallet(dsu, user)
   await fundWallet(dsu, userB)
@@ -214,6 +229,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     oracle,
     marketImpl,
     verifier,
+    insuranceFund,
     margin,
   }
 }
