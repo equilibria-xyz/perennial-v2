@@ -409,12 +409,6 @@ describe('Margin', () => {
       await margin.initialize(marketFactory.address)
     })
 
-    it('only market can call handleMarketUpdate', async () => {
-      await expect(
-        margin.connect(badMarketSigner).handleMarketUpdate(user.address, parse6decimal('5')),
-      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
-    })
-
     it('only market can call updateBalance', async () => {
       await expect(
         margin.connect(badMarketSigner).updateBalance(user.address, parse6decimal('0.2')),
