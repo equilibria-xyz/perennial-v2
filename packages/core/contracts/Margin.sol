@@ -8,7 +8,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18, UFixed18Lib } from "@equilibria/root/token/types/Token18.sol";
 
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
-import { Position, PositionLib } from "./types/Position.sol";
+import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
@@ -78,25 +78,26 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function maintained(address account) external returns (bool isMaintained) {
         // TODO: settle all markets and check maintenance requirements
-        isMaintained = false;
+        revert("Not implemented");
     }
 
     /// @inheritdoc IMargin
     function margined(address account) external returns (bool isMargined) {
         // TODO: settle all markets and check margin requirements
-        isMargined = false;
+        revert("Not implemented");
     }
 
+    // TODO: remove position arguments; market should know whether to use current or latest
     /// @inheritdoc IMargin
     function checkMaintained(
         address account,
-        UFixed6 positionMagnitude,
-        OracleVersion calldata latestVersion
+        UFixed6 positionMagnitude
     ) external onlyMarket view returns (bool isMaintained) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market];
-            return _isMarketMaintained(account, market, collateral, positionMagnitude, latestVersion);
+            UFixed6 requirement = market.maintenanceRequired(account, positionMagnitude);
+            return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
             // TODO: aggregate maintenance requirements for each cross-margined market and check;
             //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
@@ -108,14 +109,14 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function checkMargained(
         address account,
         UFixed6 positionMagnitude,
-        OracleVersion calldata latestVersion,
         UFixed6 minCollateralization,
         Fixed6 guaranteePriceAdjustment
     ) external onlyMarket view returns (bool isMargined) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
-            return _isMarketMargined(account, market, collateral, positionMagnitude, latestVersion, minCollateralization);
+            UFixed6 requirement = market.marginRequired(account, positionMagnitude, minCollateralization);
+            return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check;
             //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
@@ -171,7 +172,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         address account,
         IMarket market,
         Fixed6 amount,
-        bool updateCheckpoint
+        bool updateCheckpoint_
     ) private {
         // calculate new balances
         Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
@@ -192,7 +193,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // update storage
         _balances[account][CROSS_MARGIN] = newCrossBalance;
         _balances[account][market] = newIsolatedBalance;
-        if (updateCheckpoint) {
+        if (updateCheckpoint_) {
             uint256 latestTimestamp = market.oracle().latest().timestamp;
             Checkpoint memory checkpoint = _checkpoints[account][market][latestTimestamp].read();
             checkpoint.collateral = checkpoint.collateral.add(amount);
@@ -227,49 +228,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // collection nor has an isolated balance.
         return !_balances[account][market].isZero();
     }
-
-    /// @dev Checks whether maintenance requirements are satisfied for specific user and market
-    function _isMarketMaintained(
-        address account,
-        IMarket market,
-        Fixed6 collateral,
-        UFixed6 positionMagnitude,
-        OracleVersion calldata latestVersion
-    ) private view returns (bool isMaintained) {
-        if (collateral.lt(Fixed6Lib.ZERO)) return false; // negative collateral balance forbidden, regardless of position
-        if (positionMagnitude.isZero()) return true;     // zero position has no requirement
-
-        UFixed6 requirement = PositionLib.maintenance(
-            positionMagnitude,
-            latestVersion,
-            market.riskParameter()
-        );
-        isMaintained = UFixed6Lib.unsafeFrom(collateral).gte(requirement);
-    }
-
-    /// @dev Checks whether margin requirements are satisfied for specific user and market
-    /// @param minCollateralization minimum collateralization specified on an intent, otherwise 0
-    function _isMarketMargined(
-        address account,
-        IMarket market,
-        Fixed6 collateral,
-        UFixed6 positionMagnitude,
-        OracleVersion calldata latestVersion,
-        UFixed6 minCollateralization
-    ) private view returns (bool isMargined) {
-        // console.log("_isMarketMargined checking margin for collateral %s, position %s",
-        //     UFixed6.unwrap(collateral.abs()), UFixed6.unwrap(positionMagnitude));
-        if (collateral.lt(Fixed6Lib.ZERO)) return false; // negative collateral balance forbidden, regardless of position
-        if (positionMagnitude.isZero()) return true;     // zero position has no requirement
-
-        UFixed6 requirement = PositionLib.margin(
-            positionMagnitude,
-            latestVersion,
-            market.riskParameter(),
-            minCollateralization);
-        isMargined = UFixed6Lib.unsafeFrom(collateral).gte(requirement);
-    }
-
 
     /// @dev Only if caller is a market from the same Perennial deployment
     modifier onlyMarket {

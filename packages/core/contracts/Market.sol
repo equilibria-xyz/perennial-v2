@@ -14,7 +14,7 @@ import { IVerifier } from "./interfaces/IVerifier.sol";
 import { MarketParameter, MarketParameterStorage } from "./types/MarketParameter.sol";
 import { RiskParameter, RiskParameterStorage } from "./types/RiskParameter.sol";
 import { Global, GlobalStorage } from "./types/Global.sol";
-import { Position, PositionStorageGlobal, PositionStorageLocal } from "./types/Position.sol";
+import { Position, PositionLib, PositionStorageGlobal, PositionStorageLocal } from "./types/Position.sol";
 import { Local, LocalStorage } from "./types/Local.sol";
 import { Version, VersionStorage } from "./types/Version.sol";
 import { Order, OrderLib, OrderStorageGlobal, OrderStorageLocal } from "./types/Order.sol";
@@ -429,11 +429,33 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendings[account].read();
     }
 
+    // TODO: deprecate this in favor of calling the margin contract directly
     /// @notice Returns the local isolated checkpoint for the given account and version
     /// @param account The account with isolated collateral to query
     /// @param version The version to query
     function checkpoints(address account, uint256 version) external view returns (Checkpoint memory) {
         return margin.isolatedCheckpoints(account, this, version);
+    }
+
+    // TODO: Would like to remove position magnitude from these methods,
+    // but guarantee price adjustments complicates marginRequired.
+    /// @inheritdoc IMarket
+    function maintenanceRequired(
+        address account,
+        UFixed6 positionMagnitude
+    ) external view returns (UFixed6 requirement) {
+        (OracleVersion memory latestOracleVersion, ) = oracle.status();
+        requirement = PositionLib.maintenance(positionMagnitude, latestOracleVersion, _riskParameter.read());
+    }
+
+    /// @inheritdoc IMarket
+    function marginRequired(
+        address account,
+        UFixed6 positionMagnitude,
+        UFixed6 minCollateralization
+    ) external view returns (UFixed6 requirement) {
+        (OracleVersion memory latestOracleVersion, ) = oracle.status();
+        return PositionLib.margin(positionMagnitude, latestOracleVersion, _riskParameter.read(), minCollateralization);
     }
 
     /// @notice Loads the transaction context
