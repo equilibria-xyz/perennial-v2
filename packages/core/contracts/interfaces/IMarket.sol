@@ -5,6 +5,7 @@ import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
+import { IMargin } from "./IMargin.sol";
 import { IOracleProvider } from "./IOracleProvider.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { MarketParameter } from "../types/MarketParameter.sol";
@@ -21,8 +22,9 @@ import { VersionAccumulationResult } from "../libs/VersionLib.sol";
 import { CheckpointAccumulationResult } from "../libs/CheckpointLib.sol";
 
 interface IMarket is IInstance {
+    // TODO: Shall we eliminate this in favor of just passing IOracleProvider?
+    // Or are more market initialization args expected?
     struct MarketDefinition {
-        Token18 token;
         IOracleProvider oracle;
     }
 
@@ -81,8 +83,6 @@ interface IMarket is IInstance {
     error MarketInsufficientLiquidityError();
     // sig: 0x00e2b6a8
     error MarketInsufficientMarginError();
-    // sig: 0x442145e5
-    error MarketInsufficientCollateralError();
     // sig: 0xba555da7
     error MarketProtectedError();
     // sig: 0x6ed43d8e
@@ -139,7 +139,7 @@ interface IMarket is IInstance {
     error VersionStorageInvalidError();
 
     function initialize(MarketDefinition calldata definition_) external;
-    function token() external view returns (Token18);
+    function margin() external view returns (IMargin);
     function oracle() external view returns (IOracleProvider);
     function beneficiary() external view returns (address);
     function coordinator() external view returns (address);

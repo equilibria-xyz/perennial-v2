@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { IMarket, IMargin } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { RiskParameter } from "@perennial/v2-core/contracts/types/RiskParameter.sol";
 import { Ownable } from "@equilibria/root/attribute/Ownable.sol";
 import { ICoordinator } from "./interfaces/ICoordinator.sol";
@@ -38,8 +39,8 @@ contract Coordinator is ICoordinator, Ownable {
     /// @param market The market to claim the fee for
     function claimFee(IMarket market) external {
         if (msg.sender != comptroller) revert NotComptroller();
-        market.claimFee(address(this));
-        market.token().push(comptroller);
+        UFixed6 feeReceived = market.claimFee(address(this));
+        market.margin().withdraw(comptroller, feeReceived);
     }
 
     /// @notice Updates the risk parameter for a market

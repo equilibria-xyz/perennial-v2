@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { IMargin } from "../interfaces/IMargin.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
-import { PositionLib } from "../types/Position.sol";
 import { Order } from "../types/Order.sol";
 import { Guarantee } from "../types/Guarantee.sol";
 
@@ -16,11 +16,13 @@ library InvariantLib {
     /// @param updateContext The update context to use
     /// @param newOrder The order to verify the invariant for
     /// @param newGuarantee The guarantee to verify the invariant for
+    /// @param margin Contract which manages collateral accounting
     function validate(
         IMarket.Context memory context,
         IMarket.UpdateContext memory updateContext,
         Order memory newOrder,
-        Guarantee memory newGuarantee
+        Guarantee memory newGuarantee,
+        IMargin margin
     ) external {
         // emit created event first due to early return
         emit IMarket.OrderCreated(
@@ -37,17 +39,18 @@ library InvariantLib {
 
         if (newOrder.protected() && (
             !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
-            context.latestPositionLocal.maintained(                                     // latest position is properly maintained
-                context.latestOracleVersion,
-                context.riskParameter,
-                context.local.collateral
+            margin.checkMaintained(                                                     // latest position is properly maintained
+                context.account,
+                context.latestPositionLocal.magnitude(),
+                context.latestOracleVersion
             ) ||
-            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                     // the order is modifying collateral
+            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                     // the order is modifying isolated collateral
         )) revert IMarket.MarketInvalidProtectionError();
 
+        // TODO: This needs to move to Margin contract
         if (
             !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) &&       // sender has no position
-            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                                     // sender is depositing zero or more into account, without position change
+            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                                     // sender is isolating collateral into account, without position change
             (
                 !context.latestOracleVersion.valid ||
                 context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter
@@ -77,7 +80,7 @@ library InvariantLib {
         if (
             !updateContext.signer &&                                            // sender is relaying the account's signed intention
             !updateContext.operator &&                                          // sender is operator approved for account
-            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO))    // sender is depositing zero or more into account, without position change
+            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO))    // sender is isolating collateral into account, without position change
         ) revert IMarket.MarketOperatorNotAllowedError();
 
         if (
@@ -86,12 +89,12 @@ library InvariantLib {
         ) revert IMarket.MarketExceedsPendingIdLimitError();
 
         if (
-            !PositionLib.margined(
+            !margin.checkMargained(
+                context.account,
                 context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
                 context.latestOracleVersion,
-                context.riskParameter,
                 updateContext.collateralization,
-                context.local.collateral.add(newGuarantee.priceAdjustment(context.latestOracleVersion.price)) // apply price override adjustment from intent if present
+                newGuarantee.priceAdjustment(context.latestOracleVersion.price) // apply price override adjustment from intent if present
             )
         ) revert IMarket.MarketInsufficientMarginError();
 
@@ -111,8 +114,5 @@ library InvariantLib {
             updateContext.currentPositionGlobal.socialized() &&
             newOrder.decreasesLiquidity(updateContext.currentPositionGlobal)
         ) revert IMarket.MarketInsufficientLiquidityError();
-
-        if (context.local.collateral.lt(Fixed6Lib.ZERO))
-            revert IMarket.MarketInsufficientCollateralError();
     }
 }
