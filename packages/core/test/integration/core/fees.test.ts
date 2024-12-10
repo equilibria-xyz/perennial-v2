@@ -2426,8 +2426,9 @@ describe('Fees', () => {
     it('claim protocol fee from insurance fund', async () => {
       const COLLATERAL = parse6decimal('600')
       const POSITION = parse6decimal('3')
-      const { owner, user, marketFactory, dsu, insuranceFund } = instanceVars
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+      const { owner, user, marketFactory, dsu, insuranceFund, margin } = instanceVars
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
 
       await market
         .connect(user)
@@ -2473,7 +2474,7 @@ describe('Fees', () => {
         .to.emit(market, 'FeeClaimed')
         .withArgs(owner.address, insuranceFund.address, expectedProtocolFee)
 
-      expect(await dsu.balanceOf(insuranceFund.address)).to.equal(expectedProtocolFee.mul(1e12))
+      expect(await margin.crossMarginBalances(insuranceFund.address)).to.equal(expectedProtocolFee)
     })
   })
 
