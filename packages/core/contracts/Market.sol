@@ -669,7 +669,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeLocal.add(newGuarantee);
 
         // update collateral in margin contract
-        margin.handleMarketUpdate(context.account, newOrder.collateral);
+        margin.isolate(context.account, this, newOrder.collateral);
 
         // protect account
         if (newOrder.protected()) updateContext.liquidator = msg.sender;

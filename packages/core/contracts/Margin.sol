@@ -150,42 +150,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         }
     }
 
-
-
-    // TODO: Eliminate this in favor of Market calling Margin.isolate directly
-    /// @inheritdoc IMargin
-    function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
-        // Pass through if no user did not make legacy request to change isolated collateral
-        if (collateralDelta.isZero()) return;
-
-        IMarket market = IMarket(msg.sender);
-        Fixed6 isolatedBalance = _balances[account][market];
-
-        // Handle case where market was not already in isolated mode
-        if (!_isIsolated(account, market)) {
-            // Cannot remove isolated collateral if market not isolated
-            if (collateralDelta.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
-
-            // Users cannot change their cross-margined balance using legacy update
-            Position memory position = market.positions(account);
-            if (!position.magnitude().isZero()) revert MarginCannotUpdateCrossedMarket();
-        }
-
-        // If market already in in isolated mode, adjust collateral balances
-        Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(collateralDelta);
-        // Revert if insufficient funds to isolate
-        if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
-
-        // Revert if attempting to de-isolate more than is currently isolated
-        Fixed6 newIsolatedBalance = isolatedBalance.add(collateralDelta);
-        if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
-
-        _balances[account][CROSS_MARGIN] = newCrossBalance;
-        _balances[account][market] = newIsolatedBalance;
-
-        // TODO: Ensure InvariantLib checks margin and maintenance requirements and reverts where appropriate.
-    }
-
     /// @inheritdoc IMargin
     function updateBalance(address account, Fixed6 collateralDelta) external onlyMarket {
         _updateCollateralBalance(account, IMarket(msg.sender), collateralDelta);
@@ -285,7 +249,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             minCollateralization);
         isMargined = UFixed6Lib.unsafeFrom(collateral).gte(requirement);
     }
-
 
     /// @dev Only if caller is a market from the same Perennial deployment
     modifier onlyMarket {
