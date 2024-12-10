@@ -10,6 +10,7 @@ import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
 import 'hardhat-tracer'
 import 'solidity-coverage'
+import 'solidity-docgen'
 
 import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
 
@@ -130,7 +131,7 @@ export default function defaultConfig({
           : undefined,
         chainId: getChainId('hardhat'),
         allowUnlimitedContractSize: true,
-        blockGasLimit: 32000000,
+        blockGasLimit: 32_000_000,
         mining: NODE_INTERVAL_MINING
           ? {
               interval: NODE_INTERVAL_MINING,
@@ -210,6 +211,7 @@ export default function defaultConfig({
       currency: 'USD',
       gasPrice: 100,
       enabled: process.env.REPORT_GAS ? true : false,
+      trackGasDeltas: true,
     },
     typechain: {
       outDir: 'types/generated',
@@ -221,6 +223,9 @@ export default function defaultConfig({
       slow: 1000,
       timeout: 4800000,
       retries: Number(MOCHA_RETRY_COUNT),
+    },
+    docgen: {
+      pages: 'files',
     },
     contractSizer: {
       alphaSort: true,
