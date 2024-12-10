@@ -388,9 +388,5 @@ export async function configureInvoker(
 
   await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)
   await instanceVars.marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  if (vaultFactory) {
-    await vaultFactory.connect(user).updateOperator(multiInvoker.address, true)
-    await vaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  }
   await multiInvoker.initialize(instanceVars.chainlinkKeptFeed.address)
 }
