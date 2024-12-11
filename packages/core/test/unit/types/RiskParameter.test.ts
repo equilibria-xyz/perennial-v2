@@ -61,6 +61,7 @@ const PROTOCOL_PARAMETER: ProtocolParameterStruct = {
   referralFee: 0,
   minScale: parse6decimal('0.10'),
   maxStaleAfter: 3600,
+  minMinMaintenance: 0,
 }
 
 describe('RiskParameter', () => {
@@ -822,6 +823,21 @@ describe('RiskParameter', () => {
               minMaintenance: BigNumber.from(2).pow(48),
             },
             PROTOCOL_PARAMETER,
+          ),
+        ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
+      })
+
+      it('reverts if less than minMinMaintenance', async () => {
+        await expect(
+          riskParameter.validateAndStore(
+            {
+              ...VALID_RISK_PARAMETER,
+              minMaintenance: 0,
+            },
+            {
+              ...PROTOCOL_PARAMETER,
+              minMinMaintenance: 1,
+            },
           ),
         ).to.be.revertedWithCustomError(riskParameterStorage, 'RiskParameterStorageInvalidError')
       })

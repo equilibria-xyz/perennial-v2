@@ -167,6 +167,8 @@ library RiskParameterStorageLib {
         UFixed6 scaleLimit = makerLimitTruncated.div(self.efficiencyLimit).mul(protocolParameter.minScale);
         if (takerFeeScaleTruncated.lt(scaleLimit) || makerFeeScaleTruncated.lt(scaleLimit))
             revert RiskParameterStorageInvalidError();
+
+        if (self.minMaintenance.lt(protocolParameter.minMinMaintenance)) revert RiskParameterStorageInvalidError();
     }
 
     function validateAndStore(
