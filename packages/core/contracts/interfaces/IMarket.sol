@@ -161,8 +161,7 @@ interface IMarket is IInstance {
     function settle(address account) external;
     function update(address account, Intent calldata intent, bytes memory signature) external;
     function update(address account, Fixed6 amount, Fixed6 collateral, address referrer) external;
-    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect) external;
-    function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
+    function update(address account, Fixed6 taker, Fixed6 maker, Fixed6 collateral, address referrer) external;
     function close(address account, bool protect) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);

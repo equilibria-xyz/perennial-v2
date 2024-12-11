@@ -474,13 +474,12 @@ testOracles.forEach(testOracle => {
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
+                0,
                 1,
-                0,
-                0,
                 parse6decimal('10'),
-                false,
+                constants.AddressZero,
               ),
           STARTING_TIME,
         )
@@ -512,13 +511,12 @@ testOracles.forEach(testOracle => {
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
+                0,
                 1,
-                0,
-                0,
                 parse6decimal('10'),
-                false,
+                constants.AddressZero,
               ),
           STARTING_TIME,
         )

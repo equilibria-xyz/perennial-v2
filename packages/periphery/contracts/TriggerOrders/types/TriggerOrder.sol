@@ -56,25 +56,31 @@ library TriggerOrderLib {
         IMarket market,
         address account
     ) internal {
+        if (self.delta.eq(MAGIC_VALUE_CLOSE_POSITION)) {
+            market.close(account, false);
+            return;
+        }
+
         // settle and get the pending position of the account
         market.settle(account);
         Order memory pending = market.pendings(account);
         Position memory position = market.positions(account);
         position.update(pending);
 
+        Fixed6 takerDelta;
+        Fixed6 makerDelta;
+
         // apply order to position
-        if (self.side == 4) position.maker = _add(position.maker, self.delta);
-        if (self.side == 5) position.long = _add(position.long, self.delta);
-        if (self.side == 6) position.short = _add(position.short, self.delta);
+        if (self.side == 4) makerDelta = self.delta;
+        if (self.side == 5) takerDelta = self.delta;
+        if (self.side == 6) takerDelta = self.delta.mul(Fixed6Lib.NEG_ONE);
 
         // apply position to market
         market.update(
             account,
-            position.maker,
-            position.long,
-            position.short,
+            takerDelta,
+            makerDelta,
             Fixed6Lib.ZERO,
-            false,
             self.referrer
         );
     }

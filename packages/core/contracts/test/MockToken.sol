@@ -9,7 +9,7 @@ import { IMarket } from "../interfaces/IMarket.sol";
 
 contract MockToken is ERC20 {
 
-    enum Function{ SETTLE, UPDATE, UPDATE_MAKER, UPDATE_INTENT }
+    enum Function{ SETTLE, UPDATE, UPDATE_INTENT, CLOSE }
 
     Function private functionToCall;
 
@@ -17,15 +17,15 @@ contract MockToken is ERC20 {
 
     function transferFrom(address, address, uint256) public override returns (bool) {
         // call method of market contract for reentrancy
-        if (functionToCall == Function.UPDATE_MAKER) {
-            IMarket(msg.sender).update(address(0), UFixed6Lib.from(0), UFixed6Lib.from(0), UFixed6Lib.from(0), Fixed6Lib.from(0), false);
-        } else if (functionToCall == Function.UPDATE) {
+        if (functionToCall == Function.UPDATE) {
             IMarket(msg.sender).update(address(0), Fixed6Lib.from(0), Fixed6Lib.from(0), address(0));
         } else if (functionToCall == Function.UPDATE_INTENT) {
             Intent memory intent;
             IMarket(msg.sender).update(address(0), intent, "");
         } else if (functionToCall == Function.SETTLE){
             IMarket(msg.sender).settle(address(0));
+        } else if (functionToCall == Function.CLOSE) {
+            IMarket(msg.sender).close(address(0), false);
         }
 
         return true;

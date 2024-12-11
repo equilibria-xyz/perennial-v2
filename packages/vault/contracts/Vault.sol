@@ -436,23 +436,13 @@ contract Vault is IVault, Instance {
         StrategyLib.MarketTarget memory target,
         bool shouldRebalance
     ) private {
-        if (shouldRebalance) {
-            registration.market.update(
-                address(this),
-                target.position,
-                UFixed6Lib.ZERO,
-                UFixed6Lib.ZERO,
-                target.collateral,
-                false
-            );
-        } else {
-            registration.market.update(
-                address(this),
-                Fixed6Lib.ZERO,
-                target.collateral,
-                address(0)
-            );
-        }
+        registration.market.update(
+            address(this),
+            Fixed6Lib.ZERO,
+            shouldRebalance ? target.position : Fixed6Lib.ZERO,
+            target.collateral,
+            address(0)
+        );
     }
 
     /// @notice Loads the context for the given `account`
