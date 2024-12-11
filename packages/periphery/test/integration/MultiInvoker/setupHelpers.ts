@@ -311,43 +311,39 @@ export async function createVault(
   // Seed markets with some activity
   await ethMarket
     .connect(user)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       user.address,
+      0,
       parse6decimal('100'),
-      0,
-      0,
       parse6decimal('100000'),
-      false,
+      constants.AddressZero,
     )
   await ethMarket
     .connect(userB)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userB.address,
-      0,
       parse6decimal('50'),
       0,
       parse6decimal('100000'),
-      false,
+      constants.AddressZero,
     )
   await btcMarket
     .connect(userC)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userC.address,
+      0,
       parse6decimal('20'),
-      0,
-      0,
       parse6decimal('100000'),
-      false,
+      constants.AddressZero,
     )
   await btcMarket
     .connect(userD)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userD.address,
-      0,
       parse6decimal('10'),
       0,
       parse6decimal('100000'),
-      false,
+      constants.AddressZero,
     )
 
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
