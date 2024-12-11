@@ -13,7 +13,7 @@ struct Local {
     /// @dev The latest position id
     uint256 latestId;
 
-    /// @dev The collateral balance
+    /// @dev DEPRECATED The collateral balance, used for 2.3 -> 2.4 migration only
     Fixed6 collateral;
 
     /// @dev The claimable balance
@@ -27,22 +27,15 @@ using LocalStorageLib for LocalStorage global;
 /// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the local account state
 library LocalLib {
-    /// @notice Updates the collateral with the new deposit or withdrwal
-    /// @param self The Local object to update
-    /// @param transfer The amount to update the collateral by
-    function update(Local memory self, Fixed6 transfer) internal pure {
-        self.collateral = self.collateral.add(transfer);
-    }
-
-    /// @notice Updates the collateral with the new collateral change
+    /// @notice Calculates PnL and updates the position id
     /// @param self The Local object to update
     /// @param accumulation The accumulation result
     function update(
         Local memory self,
         uint256 newId,
         CheckpointAccumulationResponse memory accumulation
-    ) internal pure {
-        self.collateral = self.collateral.add(accumulation.collateral).sub(Fixed6Lib.from(accumulation.liquidationFee));
+    ) internal pure returns (Fixed6 pnl) {
+        pnl = accumulation.collateral.sub(Fixed6Lib.from(accumulation.liquidationFee));
         self.latestId = newId;
     }
 
@@ -83,14 +76,12 @@ library LocalStorageLib {
     function store(LocalStorage storage self, Local memory newValue) internal {
         if (newValue.currentId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.latestId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
-        if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert LocalStorageInvalidError();
-        if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert LocalStorageInvalidError();
+        if (!newValue.collateral.eq(Fixed6Lib.ZERO)) revert LocalStorageInvalidError();
         if (newValue.claimable.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |
             uint256(newValue.latestId << (256 - 32)) >> (256 - 32 - 32) |
-            uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
             uint256(UFixed6.unwrap(newValue.claimable) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64);
 
         assembly {
