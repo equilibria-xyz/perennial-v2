@@ -236,5 +236,26 @@ describe('ProtocolParameter', () => {
         ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
       })
     })
+
+    context('.minMinMaintenance', async () => {
+      const STORAGE_SIZE = 48
+      it('saves if in range', async () => {
+        await protocolParameter.validateAndStore({
+          ...VALID_PROTOCOL_PARAMETER,
+          minMinMaintenance: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await protocolParameter.read()
+        expect(value.minMinMaintenance).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          protocolParameter.validateAndStore({
+            ...VALID_PROTOCOL_PARAMETER,
+            minMinMaintenance: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(protocolParameter, 'ProtocolParameterStorageInvalidError')
+      })
+    })
   })
 })
