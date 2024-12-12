@@ -74,10 +74,8 @@ library PriceResponseLib {
     /// @param maxSyncFee The max sync fee
     /// @param maxAsyncFee The max async fee
     function applyFeeMaximum(PriceResponse memory self, UFixed6 maxSyncFee, UFixed6 maxAsyncFee) internal pure {
-        if (self.syncFee.gt(maxSyncFee))
-            self.syncFee = maxSyncFee;
-        if (self.asyncFee.gt(maxAsyncFee))
-            self.asyncFee = maxAsyncFee;
+        self.syncFee = self.syncFee.min(maxSyncFee);
+        self.asyncFee = self.asyncFee.min(maxAsyncFee);
     }
 }
 
