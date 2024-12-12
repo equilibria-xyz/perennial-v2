@@ -92,6 +92,7 @@ library ProtocolParameterStorageLib {
         if (newValue.minMaintenance.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.minEfficiency.gt(UFixed6.wrap(type(uint24).max))) revert ProtocolParameterStorageInvalidError();
         if (newValue.maxStaleAfter > uint256(type(uint16).max)) revert ProtocolParameterStorageInvalidError();
+        if (newValue.minMinMaintenance.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
 
         uint256 encoded0 = 
             uint256(UFixed6.unwrap(newValue.maxFee)                << (256 - 24)) >> (256 - 24) |
