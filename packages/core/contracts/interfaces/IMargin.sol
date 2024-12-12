@@ -104,24 +104,20 @@ interface IMargin is IInstance {
     /// @return isMargined True if margin requirements met, otherwise false
     function margined(address account) external returns (bool isMargined);
 
-    /// @dev Called by market (through InvariantLib) to check maintenance requirements upon market update
+    /// @dev Called by market to check maintenance requirements upon market update
     /// @param account User whose maintenance requirement will be checked
-    /// @param positionMagnitude Size of the user's position
     /// @return isMaintained True if margin requirement met, otherwise false
     function checkMaintained(
-        address account,
-        UFixed6 positionMagnitude
+        address account
     ) external returns (bool isMaintained);
 
-    /// @dev Called by market (through InvariantLib) to check margin requirements upon market update
+    /// @dev Called by market to check margin requirements upon market update
     /// @param account User whose margin requirement will be checked
-    /// @param positionMagnitude Size of the user's position
     /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
     /// @param guaranteePriceAdjustment Collateral adjustment between an intent's price and the oracle price, 0 if none
     /// @return isMargined True if margin requirement met, otherwise false
     function checkMargained(
         address account,
-        UFixed6 positionMagnitude,
         UFixed6 minCollateralization,
         Fixed6 guaranteePriceAdjustment
     ) external returns (bool isMargined);

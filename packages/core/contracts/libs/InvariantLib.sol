@@ -16,14 +16,11 @@ library InvariantLib {
     /// @param updateContext The update context to use
     /// @param newOrder The order to verify the invariant for
     /// @param newGuarantee The guarantee to verify the invariant for
-    /// @param margin Contract which manages collateral accounting
     function validate(
         IMarket.Context memory context,
         IMarket.UpdateContext memory updateContext,
         Order memory newOrder,
-        Guarantee memory newGuarantee,
-        // TODO: remove this, pass necessary requirements from Market
-        IMargin margin
+        Guarantee memory newGuarantee
     ) external {
         // emit created event first due to early return
         emit IMarket.OrderCreated(
@@ -37,16 +34,6 @@ library InvariantLib {
 
         if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) // total pending close is greater than latest position
             revert IMarket.MarketOverCloseError();
-
-        // TODO: move out of validate
-        if (newOrder.protected() && (
-            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
-            margin.checkMaintained(                                                     // latest position is properly maintained
-                context.account,
-                context.latestPositionLocal.magnitude()
-            ) ||
-            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                     // the order is modifying isolated collateral
-        )) revert IMarket.MarketInvalidProtectionError();
 
         // TODO: This needs to move to Margin contract
         if (
@@ -88,16 +75,6 @@ library InvariantLib {
             context.global.currentId > context.global.latestId + context.marketParameter.maxPendingGlobal ||
             context.local.currentId > context.local.latestId + context.marketParameter.maxPendingLocal
         ) revert IMarket.MarketExceedsPendingIdLimitError();
-
-        // TODO: move out of validate
-        if (
-            !margin.checkMargained(
-                context.account,
-                context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
-                updateContext.collateralization,
-                newGuarantee.priceAdjustment(context.latestOracleVersion.price) // apply price override adjustment from intent if present
-            )
-        ) revert IMarket.MarketInsufficientMarginError();
 
         if (
             context.pendingLocal.protected() && // total pending position is protected

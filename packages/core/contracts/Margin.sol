@@ -12,7 +12,7 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -90,37 +90,40 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     // TODO: remove position arguments; market should know whether to use current or latest
     /// @inheritdoc IMargin
     function checkMaintained(
-        address account,
-        UFixed6 positionMagnitude
+        address account
     ) external onlyMarket view returns (bool isMaintained) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market];
-            UFixed6 requirement = market.maintenanceRequired(account, positionMagnitude);
+            UFixed6 requirement = market.maintenanceRequired(account);
             return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
             // TODO: aggregate maintenance requirements for each cross-margined market and check;
             //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
-            return true;
+            UFixed6 requirement = market.maintenanceRequired(account);
+            if (requirement.isZero()) return true;
+            revert("checkMaintained not implemented for cross-margined accounts");
         }
     }
 
     /// @inheritdoc IMargin
     function checkMargained(
         address account,
-        UFixed6 positionMagnitude,
         UFixed6 minCollateralization,
         Fixed6 guaranteePriceAdjustment
     ) external onlyMarket view returns (bool isMargined) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
-            UFixed6 requirement = market.marginRequired(account, positionMagnitude, minCollateralization);
+            UFixed6 requirement = market.marginRequired(account, minCollateralization);
+            console.log("checkMargained with requirement %s and collateral", UFixed6.unwrap(requirement));
+            console.logInt(Fixed6.unwrap(collateral));
             return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
-            // TODO: aggregate margin requirements for each cross-margined market and check;
-            //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
-            return true;
+            // TODO: aggregate margin requirements for each cross-margined market and check
+            UFixed6 requirement = market.maintenanceRequired(account);
+            if (requirement.isZero()) return true;
+            revert("checkMargained not implemented for cross-margined accounts");
         }
     }
 
@@ -141,8 +144,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external onlyMarket{
-        // console.log("updateCheckpoint storing checkpoint with collateral %s at %s",
-        //     UFixed6.unwrap(latest.collateral.abs()), version);
         // Store the checkpoint
         _checkpoints[account][IMarket(msg.sender)][version].store(latest);
         // Adjust cross-margin or isolated collateral balance accordingly

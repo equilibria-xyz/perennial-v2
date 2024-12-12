@@ -1217,7 +1217,7 @@ describe('Happy Path', () => {
   })
 
   it('disables update when settle only mode', async () => {
-    const { user, owner } = instanceVars
+    const { user, owner, dsu, margin } = instanceVars
     const market = await createMarket(instanceVars)
 
     const parameters = { ...(await market.parameter()) }
@@ -1225,10 +1225,14 @@ describe('Happy Path', () => {
 
     await market.connect(owner).updateParameter(parameters)
 
+    const COLLATERAL = parse6decimal('1000')
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+
     await expect(
       market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, parse6decimal('1000'), false),
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
     ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
   })
 

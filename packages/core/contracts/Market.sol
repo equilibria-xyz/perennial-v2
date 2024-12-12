@@ -26,7 +26,7 @@ import { InvariantLib } from "./libs/InvariantLib.sol";
 import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -437,25 +437,30 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return margin.isolatedCheckpoints(account, this, version);
     }
 
-    // TODO: Would like to remove position magnitude from these methods,
-    // but guarantee price adjustments complicates marginRequired.
     /// @inheritdoc IMarket
     function maintenanceRequired(
-        address account,
-        UFixed6 positionMagnitude
+        address account
     ) external view returns (UFixed6 requirement) {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
+        UFixed6 positionMagnitude = _pendingPosition(account).magnitude();
         requirement = PositionLib.maintenance(positionMagnitude, latestOracleVersion, _riskParameter.read());
     }
 
     /// @inheritdoc IMarket
     function marginRequired(
         address account,
-        UFixed6 positionMagnitude,
         UFixed6 minCollateralization
     ) external view returns (UFixed6 requirement) {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
+        UFixed6 positionMagnitude = _pendingPosition(account).magnitude().add(_pendings[account].read().pos());
+        console.log("marginRequired positionMagnitude %s", UFixed6.unwrap(positionMagnitude));
         return PositionLib.margin(positionMagnitude, latestOracleVersion, _riskParameter.read(), minCollateralization);
+    }
+
+    /// @dev Synthesizes a position struct with local pending order applied
+    function _pendingPosition(address account) private view returns (Position memory pending) {
+        pending = _positions[account].read().clone();
+        pending.update(_pendings[account].read());
     }
 
     /// @notice Loads the transaction context
@@ -596,6 +601,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address orderReferrer,
         address guaranteeReferrer
     ) private {
+        // update collateral in margin contract
+        margin.handleMarketUpdate(context.account, newOrder.collateral);
+
         // process update
         _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
 
@@ -690,9 +698,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeGlobal.add(newGuarantee);
         updateContext.guaranteeLocal.add(newGuarantee);
 
-        // update collateral in margin contract
-        margin.handleMarketUpdate(context.account, newOrder.collateral);
-
         // protect account
         if (newOrder.protected()) updateContext.liquidator = msg.sender;
 
@@ -703,7 +708,26 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
 
         // after
-        InvariantLib.validate(context, updateContext, newOrder, newGuarantee, margin);
+        InvariantLib.validate(context, updateContext, newOrder, newGuarantee);
+
+        // TODO: move this to _updateAndStore, after _storeContext
+        // when liquidating, ensure maintenance requirements are not met
+        if (newOrder.protected() && (
+            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
+            margin.checkMaintained(context.account)                                     // latest position is properly maintained
+        )) revert IMarket.MarketInvalidProtectionError();
+
+        // check margin
+        console.log("context positon is %s, pending local pos %s",
+            UFixed6.unwrap(context.latestPositionLocal.magnitude()),
+            UFixed6.unwrap(context.pendingLocal.pos())
+        );
+        if (!newOrder.protected() && (
+            !margin.checkMargained(
+                context.account,
+                updateContext.collateralization,
+                newGuarantee.priceAdjustment(context.latestOracleVersion.price) // apply price override adjustment from intent if present
+        ))) revert IMarket.MarketInsufficientMarginError();
 
         // store
         _storeUpdateContext(context, updateContext);
