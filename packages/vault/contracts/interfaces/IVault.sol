@@ -40,6 +40,7 @@ interface IVault is IInstance {
     event ParameterUpdated(VaultParameter newParameter);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
     event AllowedUpdate(address indexed account, bool newAllowed);
+    event CoordinatorUpdated(address newCoordinator);
 
     // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();
@@ -59,7 +60,7 @@ interface IVault is IInstance {
     error VaultNotOperatorError();
     // sig: 0xa65ac9fb
     error VaultNotSingleSidedError();
-    // sig: 0xa65ac9fb
+    // sig: 0xf2fbeec4
     error VaultInsufficientMinimumError();
     // sig: 0xdbdb7620
     error VaultAggregateWeightError();
@@ -67,6 +68,8 @@ interface IVault is IInstance {
     error VaultCurrentOutOfSyncError();
     // sig: 0xcea74672
     error VaultNotAllowedError();
+    // sig: 0xfad220c0
+    error VaultNotCoordinatorError();
 
     // sig: 0xb8a09499
     error AccountStorageInvalidError();
@@ -104,4 +107,6 @@ interface IVault is IInstance {
     function updateParameter(VaultParameter memory newParameter) external;
     function allowed(address account) external view returns (bool);
     function updateAllowed(address account, bool newAllowed) external;
+    function updateCoordinator(address newCoordinator) external;
+    function coordinator() external view returns (address);
 }

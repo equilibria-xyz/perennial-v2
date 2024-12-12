@@ -57,6 +57,9 @@ contract Vault is IVault, Instance {
     /// @dev Mapping to track allowed accounts
     mapping(address => bool) public allowed;
 
+    /// @dev Risk coordinator of the vault
+    address public coordinator;
+
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
@@ -194,7 +197,7 @@ contract Vault is IVault, Instance {
     /// @notice Settles, then updates the registration parameters for a given market
     /// @param marketId The market id
     /// @param newLeverage The new leverage
-    function updateLeverage(uint256 marketId, UFixed6 newLeverage) external onlyOwner {
+    function updateLeverage(uint256 marketId, UFixed6 newLeverage) external onlyCoordinator {
         rebalance(address(0));
 
         if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
@@ -204,7 +207,7 @@ contract Vault is IVault, Instance {
 
     /// @notice Updates the set of market weights for the vault
     /// @param newWeights The new set of market weights
-    function updateWeights(UFixed6[] calldata newWeights) external onlyOwner {
+    function updateWeights(UFixed6[] calldata newWeights) external onlyCoordinator {
         rebalance(address(0));
 
         if (newWeights.length != totalMarkets) revert VaultMarketDoesNotExistError();
@@ -230,6 +233,13 @@ contract Vault is IVault, Instance {
     function _updateParameter(VaultParameter memory newParameter) private {
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
+    }
+
+    /// @notice Updates the coordinator of the vault
+    /// @param newCoordinator The new coordinator address
+    function updateCoordinator(address newCoordinator) external onlyOwner {
+        coordinator = newCoordinator;
+        emit CoordinatorUpdated(newCoordinator);
     }
 
     /// @notice Syncs `account`'s state up to current
@@ -532,6 +542,12 @@ contract Vault is IVault, Instance {
     /// @notice Modifier to check if the caller is allowed to interact with the vault
     modifier onlyAllowed() {
         if (!allowed[address(0)] && !allowed[msg.sender]) revert VaultNotAllowedError();
+        _;
+    }
+
+    /// @notice Only the coordinator or factory owner can call
+    modifier onlyCoordinator {
+        if (msg.sender != coordinator && msg.sender != factory().owner()) revert VaultNotCoordinatorError();
         _;
     }
 }
