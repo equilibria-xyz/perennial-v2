@@ -33,9 +33,9 @@ contract PriceResponseTester {
         return PriceResponseLib.settlementFee(self, callbacks);
     }
 
-    function applyFeeMaximum(UFixed6 maxSettlementFee, uint256 callbacks) external {
+    function applyFeeMaximum(UFixed6 maxSyncFee, UFixed6 maxAsyncFee) external {
         PriceResponse memory newPriceResponse = read();
-        newPriceResponse.applyFeeMaximum(maxSettlementFee, callbacks);
+        newPriceResponse.applyFeeMaximum(maxSyncFee, maxAsyncFee);
         store(newPriceResponse);
     }
 }

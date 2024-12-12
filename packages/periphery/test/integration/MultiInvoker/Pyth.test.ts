@@ -53,7 +53,8 @@ export function RunPythOracleTests(
 
       await oracleFactory.updateParameter({
         maxGranularity: 1,
-        maxSettlementFee: parse6decimal('1.5'),
+        maxSyncFee: parse6decimal('1'),
+        maxAsyncFee: parse6decimal('1'),
         maxOracleFee: parse6decimal('0.5'),
       })
       ;[pythOracleFactory, keeperOracle] = await getKeeperOracle()
