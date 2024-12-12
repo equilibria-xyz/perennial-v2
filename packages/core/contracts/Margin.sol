@@ -98,8 +98,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             UFixed6 requirement = market.maintenanceRequired(account);
             return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
-            // TODO: aggregate maintenance requirements for each cross-margined market and check;
-            //       when aggregating sender market, use positionMagnitude and latestVersion provided by caller
+            // TODO: aggregate maintenance requirements for each cross-margined market and check
             UFixed6 requirement = market.maintenanceRequired(account);
             if (requirement.isZero()) return true;
             revert("checkMaintained not implemented for cross-margined accounts");
