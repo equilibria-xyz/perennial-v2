@@ -220,8 +220,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to operate on
     /// @param protect Whether to put the account into a protected status for liquidations
     function close(address account, bool protect) external {
+        close(account, protect, address(0));
+    }
+
+    /// @notice Closes the account's position
+    /// @param account The account to operate on
+    /// @param protect Whether to put the account into a protected status for liquidations
+    /// @param referrer The referrer of the order
+    function close(address account, bool protect, address referrer) public nonReentrant whenNotPaused {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, address(0), address(0), address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
@@ -236,7 +244,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order
         // process update
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, address(0), address(0));
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
     }
 
     /// @notice Updates the beneficiary of the market
