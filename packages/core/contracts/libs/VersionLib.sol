@@ -290,10 +290,6 @@ library VersionLib {
         (next.makerNegExposure, next.longNegExposure, next.shortNegExposure) = context.fromPosition.exposure();
         (next.makerPosExposure, next.longPosExposure, next.shortPosExposure) = toPosition.exposure();
 
-        // calculate aggregate exposure per side (mul by closed position)
-        // derive netted exposure from these values
-        (UFixed6 exposurePos, UFixed6 exposureNeg)
-
         // calculate exposure of the order components
         (UFixed6 exposurePos, UFixed6 exposureNeg) = context.order.exposure(
             context.guarantee,
@@ -399,6 +395,11 @@ library VersionLib {
 
         next.makerSpreadValue.increment(spreadMaker, closedPosition.maker); // TODO: can leftover cause non-zero maker spread w/ zero maker? (divide-by-zero)
         // TODO: who gets spread if all positions are closed in an order
+        // TODO: problem is recieving spread side is netted so we don't have proper attribution
+        // TODO: apply matcher order for receiver:
+        //       - maker close
+        //       - long / short
+        //       - maker open
     }
 
     /// @notice Calculates and applies the accumulated spread component for one side of the market
