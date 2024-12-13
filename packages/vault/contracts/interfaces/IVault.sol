@@ -39,7 +39,7 @@ interface IVault is IInstance {
     event MarketUpdated(uint256 indexed marketId, UFixed6 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
-    event AllowedUpdate(address indexed account, bool newAllowed);
+    event AllowedUpdated(address indexed account, bool newAllowed);
     event CoordinatorUpdated(address newCoordinator);
 
     // sig: 0xa9785d3d

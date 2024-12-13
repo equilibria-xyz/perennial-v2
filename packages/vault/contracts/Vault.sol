@@ -289,7 +289,7 @@ contract Vault is IVault, Instance {
     /// @param newAllowed The new allowed status
     function updateAllowed(address account, bool newAllowed) public onlyOwner {
         allowed[account] = newAllowed;
-        emit AllowedUpdate(account, newAllowed);
+        emit AllowedUpdated(account, newAllowed);
     }
 
     /// @notice Loads or initializes the current checkpoint

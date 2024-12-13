@@ -671,9 +671,13 @@ describe('Vault', () => {
     })
 
     it('updates allowed status correctly', async () => {
-      await vault.connect(owner).updateAllowed(user.address, false)
+      await expect(vault.connect(owner).updateAllowed(user.address, false))
+        .to.emit(vault, 'AllowedUpdated')
+        .withArgs(user.address, false)
       expect(await vault.allowed(user.address)).to.be.false
-      await vault.connect(owner).updateAllowed(user.address, true)
+      await expect(vault.connect(owner).updateAllowed(user.address, true))
+        .to.emit(vault, 'AllowedUpdated')
+        .withArgs(user.address, true)
       expect(await vault.allowed(user.address)).to.be.true
     })
 
@@ -689,7 +693,9 @@ describe('Vault', () => {
       )
 
       // allow user to interact with the vault
-      await vault.connect(owner).updateAllowed(user.address, true)
+      await expect(vault.connect(owner).updateAllowed(user.address, true))
+        .to.emit(vault, 'AllowedUpdated')
+        .withArgs(user.address, true)
 
       // should update allowed
       expect(await vault.allowed(user.address)).to.be.true
@@ -709,7 +715,9 @@ describe('Vault', () => {
       )
 
       // allow all accounts to interact with the vault
-      await vault.connect(owner).updateAllowed(constants.AddressZero, true)
+      await expect(vault.connect(owner).updateAllowed(constants.AddressZero, true))
+        .to.emit(vault, 'AllowedUpdated')
+        .withArgs(constants.AddressZero, true)
 
       // should update allowed
       expect(await vault.allowed(constants.AddressZero)).to.be.true
