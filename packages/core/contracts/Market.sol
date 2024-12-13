@@ -26,7 +26,7 @@ import { InvariantLib } from "./libs/InvariantLib.sol";
 import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -626,7 +626,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 updateContext.collateralization,
                 newGuarantee.priceAdjustment(context.latestOracleVersion.price) // apply price override adjustment from intent if present
         ))) revert IMarket.MarketInsufficientMarginError();
-
     }
 
     /// @notice Updates the account's position for an intent order

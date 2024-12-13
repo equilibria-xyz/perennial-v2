@@ -12,7 +12,7 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -111,25 +111,13 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         UFixed6 minCollateralization,
         Fixed6 guaranteePriceAdjustment
     ) external onlyMarket view returns (bool isMargined) {
-        IMarket market = IMarket(msg.sender);
-        if (_isIsolated(account, market)) {
-            Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
-            UFixed6 requirement = market.marginRequired(account, minCollateralization);
-            // console.log("checkMargained with requirement %s and collateral", UFixed6.unwrap(requirement));
-            // console.logInt(Fixed6.unwrap(collateral));
-            return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
-        } else {
-            // TODO: aggregate margin requirements for each cross-margined market and check
-            UFixed6 requirement = market.maintenanceRequired(account);
-            if (requirement.isZero()) return true;
-            revert("checkMargained not implemented for cross-margined accounts");
-        }
+        return _checkMargined(account, IMarket(msg.sender), minCollateralization, guaranteePriceAdjustment);
     }
+
 
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
         _isolate(account, IMarket(msg.sender), collateralDelta, false);
-        // TODO: Ensure InvariantLib checks margin and maintenance requirements and reverts where appropriate.
     }
 
     /// @inheritdoc IMargin
@@ -164,6 +152,27 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         return _checkpoints[account][market][version].read();
     }
 
+    /// @dev Shares logic for margin checks initiated internally and from a Market
+    function _checkMargined(
+        address account,
+        IMarket market,
+        UFixed6 minCollateralization,
+        Fixed6 guaranteePriceAdjustment
+    ) private view returns (bool isMargined) {
+        if (_isIsolated(account, market)) {
+            Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
+            UFixed6 requirement = market.marginRequired(account, minCollateralization);
+            // console.log("checkMargained with requirement %s and collateral", UFixed6.unwrap(requirement));
+            // console.logInt(Fixed6.unwrap(collateral));
+            return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
+        } else {
+            // TODO: aggregate margin requirements for each cross-margined market and check
+            UFixed6 requirement = market.maintenanceRequired(account);
+            if (requirement.isZero()) return true;
+            revert("checkMargained not implemented for cross-margined accounts");
+        }
+    }
+
     /// @dev Implementation logic for adjusting isolated collateral, without settling market
     function _isolate(
         address account,
@@ -177,9 +186,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 oldIsolatedBalance = _balances[account][market];
         Fixed6 newIsolatedBalance = oldIsolatedBalance.add(amount);
         if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
-
-        // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient to maintain all markets
-        // TODO: if amount.sign() = -1, ensure isolated market remains maintained
 
         // Ensure no position if switching modes
         bool isolating = oldIsolatedBalance.isZero() && !newIsolatedBalance.isZero();
@@ -196,6 +202,12 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             checkpoint.collateral = checkpoint.collateral.add(amount);
             _checkpoints[account][market][latestTimestamp].store(checkpoint);
         }
+
+        // TODO: not sure how I feel about Margin contract reverting with a Market error
+        if (amount.sign() == -1 && !_checkMargined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
+            revert IMarket.MarketInsufficientMarginError();
+        }
+        // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient margin for all markets
 
         if (isolating) emit MarketIsolated(account, market);
         if (crossing) emit MarketCrossed(account, market);

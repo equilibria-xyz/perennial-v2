@@ -243,6 +243,28 @@ describe('Margin', () => {
       expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('525')) // 200+325
     })
 
+    it('checks margin when deisolating funds', async () => {
+      // deposit collateral and isolate all of it
+      await deposit(user, parse6decimal('500'))
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('500')))
+        .to.emit(margin, 'IsolatedFundsChanged')
+        .withArgs(user.address, marketA.address, parse6decimal('500'))
+
+      // simulate a position which requires more collateral than is isolated
+      marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('450'))
+
+      // try to deisolate such that user would be undermargined
+      await expect(
+        margin.connect(user).isolate(user.address, marketA.address, parse6decimal('-100')),
+      ).to.be.revertedWithCustomError(margin, 'MarketInsufficientMarginError')
+
+      // try to deisolate less such that margin requirements are satisfied
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('-10')))
+        .to.emit(margin, 'IsolatedFundsChanged')
+        .withArgs(user.address, marketA.address, parse6decimal('-10'))
+      expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
+    })
+
     it('can withdraw crossed funds with some isolated', async () => {
       // deposit
       const depositAmount = parse6decimal('500')
