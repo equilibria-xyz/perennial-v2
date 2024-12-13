@@ -452,10 +452,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         UFixed6 minCollateralization
     ) external view returns (UFixed6 requirement) {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
-        // TODO: The old implementation added pendingOrder.pos() to the current position, but that didn't work here.
-        Position memory pendingPosition = _positions[account].read().clone();
-        pendingPosition.update(_pendings[account].read());
-        UFixed6 positionMagnitude = pendingPosition.magnitude();
+        UFixed6 positionMagnitude = _positions[account].read().magnitude().add(_pendings[account].read().pos());
         return PositionLib.margin(positionMagnitude, latestOracleVersion, _riskParameter.read(), minCollateralization);
     }
 
@@ -598,7 +595,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address guaranteeReferrer
     ) private {
         // update collateral in margin contract
-        margin.handleMarketUpdate(context.account, newOrder.collateral);
+        if (!newOrder.collateral.isZero()) {
+            if (
+                !updateContext.signer && // sender is relaying the account's signed intention
+                !updateContext.operator  // sender is operator approved for account
+            ) revert IMarket.MarketOperatorNotAllowedError();
+            margin.handleMarketUpdate(context.account, newOrder.collateral);
+        }
 
         // process update
         _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
@@ -613,10 +616,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         )) revert IMarket.MarketInvalidProtectionError();
 
         // check margin
-        console.log("context positon is %s, pending local pos %s",
-            UFixed6.unwrap(context.latestPositionLocal.magnitude()),
-            UFixed6.unwrap(context.pendingLocal.pos())
-        );
+        // console.log("context positon is %s, pending local pos %s",
+        //     UFixed6.unwrap(context.latestPositionLocal.magnitude()),
+        //     UFixed6.unwrap(context.pendingLocal.pos())
+        // );
         if (!newOrder.protected() && (
             !margin.checkMargained(
                 context.account,

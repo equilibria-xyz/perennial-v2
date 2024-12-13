@@ -115,8 +115,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
             UFixed6 requirement = market.marginRequired(account, minCollateralization);
-            console.log("checkMargained with requirement %s and collateral", UFixed6.unwrap(requirement));
-            console.logInt(Fixed6.unwrap(collateral));
+            // console.log("checkMargained with requirement %s and collateral", UFixed6.unwrap(requirement));
+            // console.logInt(Fixed6.unwrap(collateral));
             return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check
@@ -128,9 +128,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
-        // Pass through if no user did not make legacy request to change isolated collateral
-        if (collateralDelta.isZero()) return;
-
         _isolate(account, IMarket(msg.sender), collateralDelta, false);
         // TODO: Ensure InvariantLib checks margin and maintenance requirements and reverts where appropriate.
     }

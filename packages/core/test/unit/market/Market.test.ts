@@ -415,12 +415,14 @@ describe('Market', () => {
   let riskParameter: RiskParameterStruct
   let marketParameter: MarketParameterStruct
 
+  // TODO: may want to rework usages of this function,
+  // as non-operators may not isolate collateral into another user's account.
   async function deposit(amount: BigNumber, account: SignerWithAddress, sender?: SignerWithAddress) {
     if (!sender) sender = account
     dsu.transferFrom.whenCalledWith(sender.address, margin.address, amount.mul(1e12)).returns(true)
     await margin.connect(sender).deposit(account.address, amount)
     return await market
-      .connect(sender)
+      .connect(account)
       ['update(address,uint256,uint256,uint256,int256,bool)'](
         account.address,
         ethers.constants.MaxUint256,
@@ -15372,7 +15374,7 @@ describe('Market', () => {
               market
                 .connect(userB)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
-            ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+            ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
           })
 
           it('it reverts if already liquidated', async () => {
@@ -15401,7 +15403,7 @@ describe('Market', () => {
               market
                 .connect(liquidator)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, -1, true),
-            ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
+            ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
           })
 
           it('it reverts if position doesnt close', async () => {
@@ -15954,7 +15956,7 @@ describe('Market', () => {
             market
               .connect(liquidator)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), -1, true),
-          ).to.revertedWithCustomError(market, 'MarketInvalidProtectionError')
+          ).to.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
 
           await expect(
             market

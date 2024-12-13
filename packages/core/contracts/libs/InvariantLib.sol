@@ -35,7 +35,7 @@ library InvariantLib {
         if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) // total pending close is greater than latest position
             revert IMarket.MarketOverCloseError();
 
-        // TODO: This needs to move to Margin contract
+        // TODO: Move this to Margin contract
         if (
             !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) &&       // sender has no position
             !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                                     // sender is isolating collateral into account, without position change
@@ -66,9 +66,9 @@ library InvariantLib {
         if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            !updateContext.signer &&                                            // sender is relaying the account's signed intention
-            !updateContext.operator &&                                          // sender is operator approved for account
-            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO))    // sender is isolating collateral into account, without position change
+            !updateContext.signer &&   // sender is relaying the account's signed intention
+            !updateContext.operator && // sender is operator approved for account
+            !newOrder.isEmpty()        // sender is attempting to change position
         ) revert IMarket.MarketOperatorNotAllowedError();
 
         if (
