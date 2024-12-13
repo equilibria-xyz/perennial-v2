@@ -77,6 +77,8 @@ contract Vault is IVault, Instance {
         _name = name_;
         _register(initialMarket);
         _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+
+        // permits the vault factory to make the initial deposit to prevent inflation attacks
         allowed[msg.sender] = true;
     }
 
@@ -539,7 +541,9 @@ contract Vault is IVault, Instance {
         }
     }
 
-    /// @notice Modifier to check if the caller is allowed to interact with the vault
+    /// @notice Modifier to check if the caller is allowed to interact with the vault.
+    /// @dev `address(0)` is used for permissionless vaults, enabling all accounts to interact with the vault.
+    ///      This allows the same VaultFactory to support both permissioned and permissionless Vaults.
     modifier onlyAllowed() {
         if (!allowed[address(0)] && !allowed[msg.sender]) revert VaultNotAllowedError();
         _;
