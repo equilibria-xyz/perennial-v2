@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 // import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6Lib, UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
@@ -16,6 +16,7 @@ import { OracleParameter } from "../types/OracleParameter.sol";
 import { PriceResponse, PriceResponseStorage, PriceResponseLib } from "./types/PriceResponse.sol";
 import { KeeperOracleParameter } from "./types/KeeperOracleParameter.sol";
 import { IOracle } from "../interfaces/IOracle.sol";
+// import "hardhat/console.sol";
 
 /// @title KeeperOracle
 /// @notice Generic implementation of the IOracle interface for keeper-based oracles.
@@ -151,7 +152,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         market.settle(address(0));
         oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
-        market.margin().withdraw(receiver, priceResponse.syncFee);
+        // console.log("commit attempting to push %s DSU syncFee from %s to %s", UFixed6.unwrap(priceResponse.syncFee), address(this), receiver);
+        market.margin().DSU().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
+        // console.log("commit done pushing DSU");
     }
 
     /// @notice Performs an asynchronous local settlement callback
@@ -176,7 +179,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
             // full settlement fee already cleamed in commit
             PriceResponse memory priceResponse = _responses[version].read();
-            market.margin().withdraw(receiver, priceResponse.asyncFee);
+            market.margin().DSU().push(receiver, UFixed18Lib.from(priceResponse.asyncFee));
         }
     }
 

@@ -147,7 +147,6 @@ jobs:
 
   # [ORACLE]
   oracle-unit-test:
-    if: false
     name: '[Oracle] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:

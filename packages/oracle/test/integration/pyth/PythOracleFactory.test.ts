@@ -244,7 +244,7 @@ testOracles.forEach(testOracle => {
         'ETH²-USD',
       )
 
-      marketFactory = await deployMarketFactory(owner, oracleFactory)
+      marketFactory = await deployMarketFactory(owner, oracleFactory, dsu)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
@@ -307,45 +307,18 @@ testOracles.forEach(testOracle => {
         closed: false,
         settle: false,
       }
-      market = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracle.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracle.address,
-      })
+      market = Market__factory.connect(await marketFactory.callStatic.create({ oracle: oracle.address }), owner)
+      await marketFactory.create({ oracle: oracle.address })
       await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
 
-      market2 = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracle2.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracle2.address,
-      })
+      market2 = Market__factory.connect(await marketFactory.callStatic.create({ oracle: oracle2.address }), owner)
+      await marketFactory.create({ oracle: oracle2.address })
       await market2.updateParameter(marketParameter)
       await market2.updateRiskParameter(riskParameter)
 
-      marketBtc = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracleBtc.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracleBtc.address,
-      })
+      marketBtc = Market__factory.connect(await marketFactory.callStatic.create({ oracle: oracleBtc.address }), owner)
+      await marketFactory.create({ oracle: oracleBtc.address })
       await marketBtc.updateParameter(marketParameter)
       await marketBtc.updateRiskParameter(riskParameter)
 

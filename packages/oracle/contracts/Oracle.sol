@@ -130,7 +130,7 @@ contract Oracle is IOracle, Instance {
         UFixed6 feeReceived = market.claimFee(address(this));
 
         // return the settlement fee portion to the sub oracle's factory
-        market.margin().withdraw(msg.sender, settlementFeeRequested);
+        market.margin().DSU().push(msg.sender, UFixed18Lib.from(settlementFeeRequested));
 
         emit FeeReceived(settlementFeeRequested, feeReceived.sub(settlementFeeRequested));
     }
