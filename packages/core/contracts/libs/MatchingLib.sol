@@ -46,15 +46,13 @@ struct MatchingResult {
     UFixed6 exposurePos;
     Fixed6 spreadNeg;
     UFixed6 exposureNeg;
-    Fixed6 spreadCloseMaker;
+    Fixed6 spreadMaker;
+    Fixed6 spreadPreLong;
+    Fixed6 spreadPreShort;
     Fixed6 spreadCloseLong;
     Fixed6 spreadCloseShort;
-    Fixed6 spreadTakerMaker;
-    Fixed6 spreadTakerLong;
-    Fixed6 spreadTakerShort;
-    Fixed6 spreadOpenMaker;
-    Fixed6 spreadOpenLong;
-    Fixed6 spreadOpenShort;
+    Fixed6 spreadPostLong;
+    Fixed6 spreadPostShort;
     Fixed6 exposureMakerPos;
     Fixed6 exposureMakerNeg;
     Fixed6 exposureLongPos;
@@ -133,15 +131,16 @@ library MatchingLib {
             .add(takerNegFillResult.spreadNeg)
             .add(makerOpenFillResult.spreadNeg);
         result.exposureNeg = UFixed6Lib.from(orderbook.midpoint.sub(orderbook.bid));
-        result.spreadCloseMaker = makerCloseFillResult.spreadMaker;
-        result.spreadCloseLong = makerCloseFillResult.spreadLong;
-        result.spreadCloseShort = makerCloseFillResult.spreadShort;
-        result.spreadTakerMaker = takerPosFillResult.spreadMaker.add(takerNegFillResult.spreadMaker);
-        result.spreadTakerLong = takerPosFillResult.spreadLong.add(takerNegFillResult.spreadLong);
-        result.spreadTakerShort = takerPosFillResult.spreadShort.add(takerNegFillResult.spreadShort);
-        result.spreadOpenMaker = makerOpenFillResult.spreadMaker;
-        result.spreadOpenLong = makerOpenFillResult.spreadLong;
-        result.spreadOpenShort = makerOpenFillResult.spreadShort;
+        result.spreadMaker = makerCloseFillResult.spreadMaker
+            .add(takerPosFillResult.spreadMaker)
+            .add(takerNegFillResult.spreadMaker)
+            .add(makerOpenFillResult.spreadMaker);
+        result.spreadPreLong = makerCloseFillResult.spreadLong;
+        result.spreadPreShort = makerCloseFillResult.spreadShort;
+        result.spreadCloseLong = takerPosFillResult.spreadLong.add(takerNegFillResult.spreadLong);
+        result.spreadCloseShort = takerPosFillResult.spreadShort.add(takerNegFillResult.spreadShort);
+        result.spreadPostLong = makerOpenFillResult.spreadLong;
+        result.spreadPostShort = makerOpenFillResult.spreadShort;
 
         result.exposureMakerNeg = makerCloseExposure.maker;
         result.exposureLongNeg = takerCloseExposure.long;

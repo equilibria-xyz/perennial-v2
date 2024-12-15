@@ -43,32 +43,29 @@ struct VersionAccumulationResult {
     /// @dev The total notional spread paid by negative exposure orders
     Fixed6 spreadNeg;
 
-    /// @dev The total notional spread received by the makers (maker close)
-    Fixed6 spreadCloseMaker;
+    /// @dev The total notional spread received by the makers (all phases)
+    Fixed6 spreadMaker;
 
     /// @dev The total notional spread received by the longs (maker close, socialization)
-    Fixed6 spreadCloseLong;
+    Fixed6 spreadPreLong;
 
     /// @dev The total notional spread received by the shorts (maker close, socialization)
-    Fixed6 spreadCloseShort;
-
-    /// @dev The total notional spread received by the makers (taker)
-    Fixed6 spreadTakerMaker;
+    Fixed6 spreadPreShort;
 
     /// @dev The total notional spread received by the longs (taker, socialization)
-    Fixed6 spreadTakerLong;
+    Fixed6 spreadCloseLong;
 
     /// @dev The total notional spread received by the shorts (taker, socialization)
-    Fixed6 spreadTakerShort;
+    Fixed6 spreadCloseShort;
 
     /// @dev The total notional spread received by the makers (maker open)
-    Fixed6 spreadOpenMaker;
+    Fixed6 spreadPostMaker;
 
     /// @dev The total notional spread received by the longs (maker open, socialization)
-    Fixed6 spreadOpenLong;
+    Fixed6 spreadPostLong;
 
     /// @dev The total notional spread received by the shorts (maker open, socialization)
-    Fixed6 spreadOpenShort;
+    Fixed6 spreadPostShort;
 
     /// @dev Funding accrued by makers
     Fixed6 fundingMaker;
@@ -330,29 +327,27 @@ library VersionLib {
         next.spreadNeg.decrement(matchingResult.spreadNeg, matchingResult.exposureNeg);
         result.spreadNeg = matchingResult.spreadNeg;
 
-        // accumulate spread for maker orders (maker close)
-        next.makerCloseValue.increment(matchingResult.spreadCloseMaker, closedPosition.maker);
-        result.spreadCloseMaker = matchingResult.spreadCloseMaker;
+        // accumulate spread for maker orders (makers)
+        next.makerCloseValue.increment(matchingResult.spreadMaker, closedPosition.maker);
+        result.spreadMaker = matchingResult.spreadMaker;
+
+        // accumulate spread for maker orders (long / short pre)
         next.longPreValue.increment(matchingResult.spreadCloseLong, context.fromPosition.long);
-        result.spreadCloseLong = matchingResult.spreadCloseLong;
+        result.spreadPreLong = matchingResult.spreadCloseLong;
         next.shortPreValue.increment(matchingResult.spreadCloseShort, context.fromPosition.short);
+        result.spreadPreShort = matchingResult.spreadCloseShort;
+
+        // accumulate spread for maker orders (long / short close)
+        next.longCloseValue.increment(matchingResult.spreadCloseLong, closedPosition.long);
+        result.spreadCloseLong = matchingResult.spreadCloseLong;
+        next.shortCloseValue.increment(matchingResult.spreadCloseShort, closedPosition.short);
         result.spreadCloseShort = matchingResult.spreadCloseShort;
 
-        // accumulate spread for maker orders (taker)
-        next.makerCloseValue.increment(matchingResult.spreadTakerMaker, closedPosition.maker);
-        result.spreadTakerMaker = matchingResult.spreadTakerMaker;
-        next.longCloseValue.increment(matchingResult.spreadTakerLong, closedPosition.long);
-        result.spreadTakerLong = matchingResult.spreadTakerLong;
-        next.shortCloseValue.increment(matchingResult.spreadTakerShort, closedPosition.short);
-        result.spreadTakerShort = matchingResult.spreadTakerShort;
-
-        // accumulate spread for maker orders (maker open)
-        next.makerCloseValue.increment(matchingResult.spreadOpenMaker, closedPosition.maker);
-        result.spreadOpenMaker = matchingResult.spreadOpenMaker;
-        next.longPostValue.increment(matchingResult.spreadOpenLong, toPosition.long);
-        result.spreadOpenLong = matchingResult.spreadOpenLong;
-        next.shortPostValue.increment(matchingResult.spreadOpenShort, toPosition.short);
-        result.spreadOpenShort = matchingResult.spreadOpenShort;
+        // accumulate spread for maker orders (long / short post)
+        next.longPostValue.increment(matchingResult.spreadPostLong, toPosition.long);
+        result.spreadPostLong = matchingResult.spreadPostLong;
+        next.shortPostValue.increment(matchingResult.spreadPostShort, toPosition.short);
+        result.spreadPostShort = matchingResult.spreadPostShort;
     }
 
     /// @notice Globally accumulates all long-short funding since last oracle update
