@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { SynBook6 } from "@equilibria/root/synbook/types/SynBook6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 
-struct Exposure {
+struct MatchingExposure {
     Fixed6 maker;
     Fixed6 long;
     Fixed6 short;
 }
 
-struct Order {
+struct MatchingOrder {
     UFixed6 makerPos;
     UFixed6 makerNeg;
     UFixed6 longPos;
@@ -21,28 +21,31 @@ struct Order {
     UFixed6 shortNeg;
 }
 
-struct Position {
+struct MatchingPosition {
     UFixed6 maker;
     UFixed6 long;
     UFixed6 short;
 }
 
-struct Orderbook {
+struct MatchingOrderbook {
+    Fixed6 midpoint;
     Fixed6 bid;
     Fixed6 ask;
 }
 
-struct FillResult {
+struct MatchingFillResult {
     Fixed6 spreadPos;
     Fixed6 spreadNeg;
-    Fixed6 spreadMake;
+    Fixed6 spreadMaker;
     Fixed6 spreadLong;
     Fixed6 spreadShort;
 }
 
-struct Result {
+struct MatchingResult {
     Fixed6 spreadPos;
+    UFixed6 exposurePos;
     Fixed6 spreadNeg;
+    UFixed6 exposureNeg;
     Fixed6 spreadMakerClose;
     Fixed6 spreadLongClose;
     Fixed6 spreadShortClose;
@@ -69,34 +72,35 @@ struct Result {
 /// @notice
 library MatchingLib {
     function execute(
-        Position memory position,
-        Order memory order,
+        MatchingPosition memory position,
+        MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) private pure returns (Result memory) {
-        Orderbook memory orderbook = _orderbook(position);
+    ) internal pure returns (MatchingResult memory) { // TODO: take into account guarantee?
+        MatchingOrderbook memory orderbook = _orderbook(position);
 
         // fill maker close
-        Exposure memory makerCloseExposure = _exposure(position);
+        MatchingExposure memory makerCloseExposure = _exposure(position); // TODO: needs to be per position, round up when exposure is charging a fee
 
-        FillResult memory makerCloseFillResult = _fill(orderbook, position, _extractMakerClose(order), synBook, price);
+        MatchingFillResult memory makerCloseFillResult = _fill(orderbook, position, _extractMakerClose(order), synBook, price);
 
         // fill taker orders (use same starting skew for both positive and negative orders)
-        Exposure memory takerCloseExposure = _exposure(position);
+        MatchingExposure memory takerCloseExposure = _exposure(position);
 
-        Position memory position2 = _position(position); // snapshot the position to apply to both order components
-        FillResult memory takerPosFillResult = _fill(orderbook, position, _extractTakerPos(order), synBook, price);
-        FillResult memory takerNegFillResult = _fill(orderbook, position2, _extractTakerNeg(order), synBook, price);
+        MatchingPosition memory position2 = _position(position); // snapshot the position to apply to both order components
+        MatchingFillResult memory takerPosFillResult = _fill(orderbook, position, _extractTakerPos(order), synBook, price);
+        MatchingFillResult memory takerNegFillResult = _fill(orderbook, position2, _extractTakerNeg(order), synBook, price);
         _apply(position, _extractTakerNeg(order)); // apply both order components to the position before proceeding
 
-        Exposure memory takerOpenExposure = _exposure(position);
+        MatchingExposure memory takerOpenExposure = _exposure(position);
 
         // fill maker open
-        FillResult memory makerOpenFillResult = _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
+        MatchingFillResult memory makerOpenFillResult = _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
 
-        Exposure memory makerOpenExposure = _exposure(position);
+        MatchingExposure memory makerOpenExposure = _exposure(position);
 
-        return _result(
+        return _result( // TODO: verify all warnings
+            orderbook,  // TOD): compile w/o optimizer
             makerCloseExposure,
             makerCloseFillResult,
             takerCloseExposure,
@@ -104,28 +108,31 @@ library MatchingLib {
             takerNegFillResult,
             takerOpenExposure,
             makerOpenFillResult,
-            takerOpenExposure
+            makerOpenExposure
         );
     }
 
     function _result(
-        Exposure memory makerCloseExposure,
-        FillResult memory makerCloseFillResult,
-        Exposure memory takerOpenExposure,
-        FillResult memory takerPosFillResult,
-        FillResult memory takerNegFillResult,
-        Exposure memory takerCloseExposure,
-        FillResult memory makerOpenFillResult,
-        Exposure memory makerOpenExposure
-    ) private pure returns (Result memory result) {
+        MatchingOrderbook memory orderbook,
+        MatchingExposure memory makerCloseExposure,
+        MatchingFillResult memory makerCloseFillResult,
+        MatchingExposure memory takerOpenExposure,
+        MatchingFillResult memory takerPosFillResult,
+        MatchingFillResult memory takerNegFillResult,
+        MatchingExposure memory takerCloseExposure,
+        MatchingFillResult memory makerOpenFillResult,
+        MatchingExposure memory makerOpenExposure
+    ) private pure returns (MatchingResult memory result) {
         result.spreadPos = makerCloseFillResult.spreadPos
             .add(takerPosFillResult.spreadPos)
             .add(takerNegFillResult.spreadPos)
             .add(makerOpenFillResult.spreadPos);
+        result.exposurePos = UFixed6Lib.from(orderbook.ask.sub(orderbook.midpoint));
         result.spreadNeg = makerCloseFillResult.spreadNeg
             .add(takerPosFillResult.spreadNeg)
             .add(takerNegFillResult.spreadNeg)
             .add(makerOpenFillResult.spreadNeg);
+        result.exposureNeg = UFixed6Lib.from(orderbook.midpoint.sub(orderbook.bid));
         result.spreadMakerClose = makerCloseFillResult.spreadMaker;
         result.spreadLongClose = makerCloseFillResult.spreadLong;
         result.spreadShortClose = makerCloseFillResult.spreadShort;
@@ -136,31 +143,31 @@ library MatchingLib {
         result.spreadLongOpen = makerOpenFillResult.spreadLong;
         result.spreadShortOpen = makerOpenFillResult.spreadShort;
 
-        result.exposureMakerNeg = makerCloseExposure.makerNeg;
-        result.exposureLongNeg = takerCloseExposure.longNeg;
-        result.exposureShortNeg = takerCloseExposure.shortNeg;
-        result.exposureLongPos = takerOpenExposure.longPos;
-        result.exposureShortPos = takerOpenExposure.shortPos;
-        result.exposureMakerPos = makerOpenExposure.makerPos;
+        result.exposureMakerNeg = makerCloseExposure.maker;
+        result.exposureLongNeg = takerCloseExposure.long;
+        result.exposureShortNeg = takerCloseExposure.short;
+        result.exposureLongPos = takerOpenExposure.long;
+        result.exposureShortPos = takerOpenExposure.short;
+        result.exposureMakerPos = makerOpenExposure.maker;
     }
 
     function _fill(
-        Orderbook memory orderbook,
-        Position memory position,
-        Order memory order,
+        MatchingOrderbook memory orderbook,
+        MatchingPosition memory position,
+        MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) private pure returns (FillResult memory fillResult) {
+    ) private pure returns (MatchingFillResult memory fillResult) {
         // compute the change in exposure after applying the order to the position
-        Exposure memory exposure = _exposure(position);
+        MatchingExposure memory exposure = _exposure(position);
         _apply(position, order);
-        Exposure memory change = _change(exposure, _exposure(position));
+        MatchingExposure memory change = _change(exposure, _exposure(position));
         Fixed6 changeTotal = _skew(change);
 
         // compute the synthetic spread taken from the positive and negative sides of the order
-        Orderbook memory newOrderbook = _orderbook(orderbook, _flip(exposure));
-        fillResult.spreadPos = synBook.compute(orderbook.pos, newOrderbook.pos, price.abs());
-        fillResult.spreadNeg = synBook.compute(orderbook.neg, newOrderbook.neg, price.abs());
+        MatchingOrderbook memory newOrderbook = _orderbook(orderbook, _flip(exposure)); // TODO: need to update `orderbook`
+        fillResult.spreadPos = synBook.compute(orderbook.ask, newOrderbook.ask, price.abs());
+        fillResult.spreadNeg = synBook.compute(orderbook.bid, newOrderbook.bid, price.abs());
         Fixed6 spreadTotal = fillResult.spreadPos.add(fillResult.spreadNeg);
 
         // compute the portions of the spread that are received by the maker, long, and short sides
@@ -169,75 +176,75 @@ library MatchingLib {
         fillResult.spreadShort = spreadTotal.muldiv(change.short, changeTotal); // TODO: can have dust here
     }
 
-    function _skew(Position memory position) private pure returns (Fixed6) {
+    function _skew(MatchingPosition memory position) private pure returns (Fixed6) {
         return Fixed6Lib.from(position.long).sub(Fixed6Lib.from(position.short));
     }
 
-    function _skew(Exposure memory exposure) private pure returns (Fixed6) {
+    function _skew(MatchingExposure memory exposure) private pure returns (Fixed6) {
         return exposure.long.add(exposure.short).add(exposure.maker);
     }
 
-    function _position(Position memory position) private pure returns (Position memory) {
-        return Position({ maker: position.maker, long: position.long, short: position.short });
+    function _position(MatchingPosition memory position) private pure returns (MatchingPosition memory) {
+        return MatchingPosition({ maker: position.maker, long: position.long, short: position.short });
     }
 
-    function _orderbook(Position memory position) private pure returns (Orderbook memory) {
-        return Orderbook({ bid: _skew(position), ask: _skew(position) }); // TODO: round up when exposure is charging a fee
+    function _orderbook(MatchingPosition memory position) private pure returns (MatchingOrderbook memory) {
+        Fixed6 midpoint = _skew(position);
+        return MatchingOrderbook({ midpoint: midpoint, bid: midpoint, ask: midpoint });
     }
 
     function _orderbook(
-        Orderbook memory orderbook,
-        Exposure memory exposure
-    ) private pure returns (Orderbook memory newOrderbook) {
-        newOrderbook = Orderbook({ bid: orderbook.bid, ask: orderbook.ask });
+        MatchingOrderbook memory orderbook,
+        MatchingExposure memory exposure
+    ) private pure returns (MatchingOrderbook memory newOrderbook) {
         _apply(newOrderbook, exposure.maker);
         _apply(newOrderbook, exposure.long);
         _apply(newOrderbook, exposure.short);
     }
 
-    function _apply(Orderbook memory orderbook, Fixed6 side) private pure {
+    function _apply(MatchingOrderbook memory orderbook, Fixed6 side) private pure {
         if (side.gt(Fixed6Lib.ZERO)) orderbook.ask = orderbook.ask.add(side);
         else orderbook.bid = orderbook.bid.add(side);
     }
 
-    function _flip(Exposure memory exposure) private pure returns (Exposure memory) {
-        return Exposure({
+    function _flip(MatchingExposure memory exposure) private pure returns (MatchingExposure memory) {
+        return MatchingExposure({
             maker: exposure.maker.mul(Fixed6Lib.NEG_ONE),
             long: exposure.long.mul(Fixed6Lib.NEG_ONE),
             short: exposure.short.mul(Fixed6Lib.NEG_ONE)
         });
     }
 
-    function _extractMakerClose(Order memory order) private pure returns (Order memory newOrder) {
+    function _extractMakerClose(MatchingOrder memory order) private pure returns (MatchingOrder memory newOrder) {
         newOrder.makerNeg = order.makerNeg;
     }
 
-    function _extractTakerPos(Order memory order) private pure returns (Order memory newOrder) {
+    function _extractTakerPos(MatchingOrder memory order) private pure returns (MatchingOrder memory newOrder) {
         newOrder.longPos = order.longPos;
         newOrder.shortNeg = order.shortNeg;
     }
 
-    function _extractTakerNeg(Order memory order) private pure returns (Order memory newOrder) {
+    function _extractTakerNeg(MatchingOrder memory order) private pure returns (MatchingOrder memory newOrder) {
         newOrder.longNeg = order.longNeg;
         newOrder.shortPos = order.shortPos;
     }
 
-    function _extractMakerOpen(Order memory order) private pure returns (Order memory newOrder) {
+    function _extractMakerOpen(MatchingOrder memory order) private pure returns (MatchingOrder memory newOrder) {
         newOrder.makerPos = order.makerPos;
     }
 
-    function _apply(Order memory order, Exposure memory exposure) private pure returns (Fixed6) {
+    function _apply(MatchingOrder memory order, MatchingExposure memory exposure) private pure returns (Fixed6) {
         return Fixed6Lib.from(order.shortPos).sub(Fixed6Lib.from(order.longPos)).add(Fixed6Lib.from(order.makerPos));
     }
 
-    function _apply(Position memory position, Order memory order) private pure {
+    function _apply(MatchingPosition memory position, MatchingOrder memory order) private pure {
         position.maker = position.maker.add(order.makerPos).sub(order.makerNeg);
         position.long = position.long.add(order.longPos).sub(order.longNeg);
         position.short = position.short.add(order.shortPos).sub(order.shortNeg);
     }
 
-    function _exposure(Position memory position) private pure returns (Position memory) {
-        return Exposure({
+    function _exposure(MatchingPosition memory position) private pure returns (MatchingExposure memory) {
+        return MatchingExposure({
             maker: Fixed6Lib.from(position.short).sub(Fixed6Lib.from(position.long))
                 .min(Fixed6Lib.from(1, position.maker)).max(Fixed6Lib.from(-1, position.maker)),
             long: Fixed6Lib.from(1, position.long.min(position.maker.add(position.short))),
@@ -245,8 +252,8 @@ library MatchingLib {
         });
     }
 
-    function _change(Exposure memory exposureFrom, Exposure memory exposureTo) private pure returns (Exposure memory) {
-        return Exposure({
+    function _change(MatchingExposure memory exposureFrom, MatchingExposure memory exposureTo) private pure returns (MatchingExposure memory) {
+        return MatchingExposure({
             maker: exposureTo.maker.sub(exposureFrom.maker),
             long: exposureTo.long.sub(exposureFrom.long),
             short: exposureTo.short.sub(exposureFrom.short)

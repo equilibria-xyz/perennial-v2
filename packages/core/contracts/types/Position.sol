@@ -57,7 +57,7 @@ library PositionLib {
             self.long.add(order.longPos),
             self.short.sub(order.shortNeg)
         );
-    }
+    } // TODO: not used anymore
 
     /// @notice Updates the position with only the negative side of a new order
     /// @param self The position object to update

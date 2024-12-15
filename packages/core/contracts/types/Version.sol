@@ -47,13 +47,13 @@ struct Version {
     Accumulator6 spreadNeg;
 
     /// @dev The maker spread from maker close accumulator value (recieves spread)
-    Accumulator6 makerMakerCloseSpreadValue;
+    Accumulator6 makerMakerCloseSpreadValue; // TODO: finalized naming
 
     /// @dev The long spread from maker close accumulator value (recieves spread during socialization)
-    Accumulator6 longMakerCloseSpreadValue;
+    Accumulator6 longMakerCloseSpreadValue; // TODO: only need one maker
 
     /// @dev The short spread from maker close accumulator value (recieves spread during socialization)
-    Accumulator6 shortMakerCloseSpreadValue;
+    Accumulator6 shortMakerCloseSpreadValue; // TODO: may be able to include one of these with value?
 
     /// @dev The maker spread from taker accumulator value (recieves spread)
     Accumulator6 makerTakerSpreadValue;

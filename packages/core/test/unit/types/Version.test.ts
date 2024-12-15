@@ -552,84 +552,6 @@ describe('Version', () => {
       })
     })
 
-    describe('.makerFee', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.makerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.makerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.takerFee', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.takerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.takerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
     describe('.spreadPos', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
@@ -708,31 +630,31 @@ describe('Version', () => {
       })
     })
 
-    describe('.makerSpreadValue', async () => {
+    describe('.makerMakerCloseSpreadValue', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          makerMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.makerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          makerMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.makerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.makerMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            makerMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -741,37 +663,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            makerMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.longSpreadValue', async () => {
+    describe('.longMakerCloseSpreadValue', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          longSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          longMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.longSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.longMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          longSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          longMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.longSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.longMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            longSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            longMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -780,37 +702,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            longSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            longMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.shortSpreadValue', async () => {
+    describe('.shortMakerCloseSpreadValue', async () => {
       const STORAGE_SIZE = 47
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          shortSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          shortMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.shortSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.shortMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          shortSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          shortMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.shortSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.shortMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            shortSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            shortMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -819,7 +741,319 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            shortSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            shortMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.makerTakerSpreadValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.makerTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.makerTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.longTakerSpreadValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.longTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.longTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.shortTakerSpreadValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.shortTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.shortTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.makerMakerOpenSpreadValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.makerMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.makerMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.longMakerOpenSpreadValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.longMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.longMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.shortMakerOpenSpreadValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.shortMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.shortMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.makerFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.makerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.makerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.takerFee', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.takerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.takerFee._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            takerFee: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })

@@ -123,6 +123,14 @@ library CheckpointLib {
         Version memory fromVersion,
         Version memory toVersion
     ) private pure returns (Fixed6 collateral) {
+        // calculate position after closes
+        Position memory closedPosition = fromPosition.clone();
+        closedPosition.updateClose(order); // TODO: move these to MatchingLib
+
+        // calculate position after order
+        Position memory toPosition = fromPosition.clone();
+        toPosition.update(order);
+
         // accumulate pnl
         collateral = collateral
             .add(toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker))
@@ -131,9 +139,15 @@ library CheckpointLib {
 
         // accumulate received spread (process position closures prior to accumulation)
         collateral = collateral
-            .add(toVersion.makerSpreadValue.accumulated(fromVersion.makerSpreadValue, fromPosition.maker.sub(order.makerNeg)))
-            .add(toVersion.longSpreadValue.accumulated(fromVersion.longSpreadValue, fromPosition.long.sub(order.longNeg)))
-            .add(toVersion.shortSpreadValue.accumulated(fromVersion.shortSpreadValue, fromPosition.short.sub(order.shortNeg)));
+            .add(toVersion.makerMakerCloseSpreadValue.accumulated(fromVersion.makerMakerCloseSpreadValue, closedPosition.maker))
+            .add(toVersion.longMakerCloseSpreadValue.accumulated(fromVersion.longMakerCloseSpreadValue, fromPosition.long))
+            .add(toVersion.shortMakerCloseSpreadValue.accumulated(fromVersion.shortMakerCloseSpreadValue, fromPosition.short))
+            .add(toVersion.makerTakerSpreadValue.accumulated(fromVersion.makerTakerSpreadValue, closedPosition.maker))
+            .add(toVersion.longTakerSpreadValue.accumulated(fromVersion.longTakerSpreadValue, closedPosition.long))
+            .add(toVersion.shortTakerSpreadValue.accumulated(fromVersion.shortTakerSpreadValue, closedPosition.short))
+            .add(toVersion.makerMakerOpenSpreadValue.accumulated(fromVersion.makerMakerOpenSpreadValue, closedPosition.maker))
+            .add(toVersion.longMakerOpenSpreadValue.accumulated(fromVersion.longMakerOpenSpreadValue, toPosition.long))
+            .add(toVersion.shortMakerOpenSpreadValue.accumulated(fromVersion.shortMakerOpenSpreadValue, toPosition.short));
     }
 
     /// @notice Accumulate trade fees for the next position

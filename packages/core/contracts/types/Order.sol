@@ -224,7 +224,7 @@ library OrderLib {
     function exposure(
         Order memory self,
         Guarantee memory guarantee,
-        Fixed6 makerPosExposure,
+        Fixed6 makerPosExposure, // TODO: change to version since only used in checkpoint
         Fixed6 makerNegExposure,
         UFixed6 longPosExposure,
         UFixed6 longNegExposure,

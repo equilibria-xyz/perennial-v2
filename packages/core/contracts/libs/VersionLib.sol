@@ -14,6 +14,7 @@ import { Guarantee } from "../types/Guarantee.sol";
 import { Version } from "../types/Version.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { OracleReceipt } from "../types/OracleReceipt.sol";
+import { MatchingLib, MatchingResult, MatchingPosition, MatchingOrder } from "../libs/MatchingLib.sol";
 import "hardhat/console.sol";
 
 /// @dev The response of the version accumulation
@@ -43,14 +44,32 @@ struct VersionAccumulationResult {
     /// @dev The total notional spread paid by negative exposure orders
     Fixed6 spreadNeg;
 
-    /// @dev The total notional spread received by the makers
-    Fixed6 spreadMaker;
+    /// @dev The total notional spread received by the makers (maker close)
+    Fixed6 spreadCloseMaker;
 
-    /// @dev The total notional spread received by the longs (socialization)
-    Fixed6 spreadLong;
+    /// @dev The total notional spread received by the longs (maker close, socialization)
+    Fixed6 spreadCloseLong;
 
-    /// @dev The total notional spread received by the shorts (socialization)
-    Fixed6 spreadShort;
+    /// @dev The total notional spread received by the shorts (maker close, socialization)
+    Fixed6 spreadCloseShort;
+
+    /// @dev The total notional spread received by the makers (taker)
+    Fixed6 spreadTakerMaker;
+
+    /// @dev The total notional spread received by the longs (taker, socialization)
+    Fixed6 spreadTakerLong;
+
+    /// @dev The total notional spread received by the shorts (taker, socialization)
+    Fixed6 spreadTakerShort;
+
+    /// @dev The total notional spread received by the makers (maker open)
+    Fixed6 spreadOpenMaker;
+
+    /// @dev The total notional spread received by the longs (maker open, socialization)
+    Fixed6 spreadOpenLong;
+
+    /// @dev The total notional spread received by the shorts (maker open, socialization)
+    Fixed6 spreadOpenShort;
 
     /// @dev Funding accrued by makers
     Fixed6 fundingMaker;
@@ -211,9 +230,15 @@ library VersionLib {
         next.makerValue._value = self.makerValue._value;
         next.longValue._value = self.longValue._value;
         next.shortValue._value = self.shortValue._value;
-        next.makerSpreadValue._value = self.makerSpreadValue._value;
-        next.longSpreadValue._value = self.longSpreadValue._value;
-        next.shortSpreadValue._value = self.shortSpreadValue._value;
+        next.makerMakerCloseSpreadValue._value = self.makerMakerCloseSpreadValue._value;
+        next.longMakerCloseSpreadValue._value = self.longMakerCloseSpreadValue._value;
+        next.shortMakerCloseSpreadValue._value = self.shortMakerCloseSpreadValue._value;
+        next.makerTakerSpreadValue._value = self.makerTakerSpreadValue._value;
+        next.longTakerSpreadValue._value = self.longTakerSpreadValue._value;
+        next.shortTakerSpreadValue._value = self.shortTakerSpreadValue._value;
+        next.makerMakerOpenSpreadValue._value = self.makerMakerOpenSpreadValue._value;
+        next.longMakerOpenSpreadValue._value = self.longMakerOpenSpreadValue._value;
+        next.shortMakerOpenSpreadValue._value = self.shortMakerOpenSpreadValue._value;
     }
 
     /// @notice Globally accumulates settlement fees since last oracle update
@@ -280,150 +305,62 @@ library VersionLib {
     ) private view {
         // calculate position after closes
         Position memory closedPosition = context.fromPosition.clone();
-        closedPosition.updateClose(context.order);
+        closedPosition.updateClose(context.order); // TODO: move these to MatchingLib
 
         // calculate position after order
         Position memory toPosition = context.fromPosition.clone();
         toPosition.update(context.order);
 
-        // calculate exposure before and after order
-        (next.makerNegExposure, next.longNegExposure, next.shortNegExposure) = context.fromPosition.exposure();
-        (next.makerPosExposure, next.longPosExposure, next.shortPosExposure) = toPosition.exposure();
-
-        // calculate exposure of the order components
-        (UFixed6 exposurePos, UFixed6 exposureNeg) = context.order.exposure(
-            context.guarantee,
-            next.makerPosExposure,
-            next.makerNegExposure,
-            next.longPosExposure,
-            next.shortNegExposure,
-            next.shortPosExposure,
-            next.shortNegExposure
+        MatchingResult memory matchingResult = MatchingLib.execute( // TODO: populate VersionAccumulationResult directly
+            MatchingPosition({
+                long: context.fromPosition.long,
+                short: context.fromPosition.short,
+                maker: context.fromPosition.maker
+            }),
+            MatchingOrder({
+                makerPos: context.order.makerPos,
+                makerNeg: context.order.makerNeg,
+                longPos: context.order.longPos,
+                longNeg: context.order.longNeg,
+                shortPos: context.order.shortPos,
+                shortNeg: context.order.shortNeg
+            }),
+            context.riskParameter.synBook,
+            context.toOracleVersion.price
         );
 
-        // apply spread for positive exposure
-        toPosition = context.fromPosition.clone();
-        toPosition.updatePos(context.order);
-        (Fixed6 spreadMakerPos, Fixed6 spreadLongPos, Fixed6 spreadShortPos) = _accumulateSpreadComponent(
-            next,
-            context,
-            toPosition,
-            closedPosition,
-            Fixed6Lib.from(1, exposurePos)
-        );
-        result.spreadMaker = spreadMakerPos;
-        result.spreadLong = spreadLongPos;
-        result.spreadShort = spreadShortPos;
-        result.spreadPos = spreadMakerPos.add(spreadLongPos).add(spreadShortPos);
-        next.spreadPos.decrement(result.spreadPos, exposurePos);
+        // accumulate spread for taker orders
+        next.spreadPos.decrement(matchingResult.spreadPos, matchingResult.exposurePos);
+        result.spreadPos = matchingResult.spreadPos;
+        next.spreadNeg.decrement(matchingResult.spreadNeg, matchingResult.exposureNeg);
+        result.spreadNeg = matchingResult.spreadNeg;
 
-        // apply spread for negative exposure
-        toPosition = context.fromPosition.clone();
-        toPosition.updateNeg(context.order);
-        (Fixed6 spreadMakerNeg, Fixed6 spreadLongNeg, Fixed6 spreadShortNeg) = _accumulateSpreadComponent(
-            next,
-            context,
-            toPosition,
-            closedPosition,
-            Fixed6Lib.from(-1, exposureNeg)
-        );
-        result.spreadMaker = result.spreadMaker.add(spreadMakerNeg);
-        result.spreadLong = result.spreadLong.add(spreadLongNeg);
-        result.spreadShort = result.spreadShort.add(spreadShortNeg);
-        result.spreadNeg = spreadMakerNeg.add(spreadLongNeg).add(spreadShortNeg);
-        next.spreadNeg.decrement(result.spreadNeg, exposureNeg);
-    }
+        // TODO: we only need one accumulator for maker
 
-    /// @notice Globally accumulates the spread from one component of the order
-    /// @param next The Version object to update
-    /// @param context The accumulation context
-    /// @param closedPosition The position after applying the closing portion of the order
-    /// @param toPosition The position after the order is applied
-    /// @param exposure The exposure of the order component
-    /// @return spreadMaker The spread received by the maker
-    /// @return spreadLong The spread received by the longs
-    /// @return spreadShort The spread received by the shorts
-    function _accumulateSpreadComponent(
-        Version memory next,
-        VersionAccumulationContext memory context,
-        Position memory closedPosition,
-        Position memory toPosition,
-        Fixed6 exposure
-    ) internal view returns (Fixed6 spreadMaker, Fixed6 spreadLong, Fixed6 spreadShort) {
-        if (exposure.isZero()) return (Fixed6Lib.ZERO, Fixed6Lib.ZERO, Fixed6Lib.ZERO);
 
-        // compute spread
-        Fixed6 spread = context.riskParameter.synBook.compute(
-            context.fromPosition.skew(),
-            exposure,
-            context.toOracleVersion.price.abs()
-        );
+        // accumulate spread for maker orders (maker close)
+        next.makerMakerCloseSpreadValue.increment(matchingResult.spreadMakerClose, closedPosition.maker);
+        result.spreadCloseMaker = matchingResult.spreadMakerClose;
+        next.longMakerCloseSpreadValue.increment(matchingResult.spreadLongClose, context.fromPosition.long);
+        result.spreadCloseLong = matchingResult.spreadLongClose;
+        next.shortMakerCloseSpreadValue.increment(matchingResult.spreadShortClose, context.fromPosition.short);
+        result.spreadCloseShort = matchingResult.spreadShortClose;
 
-        // compute exposure after order
-        (, UFixed6 longExposureFrom, UFixed6 shortExposureFrom) = context.fromPosition.exposure();
-        (, UFixed6 longExposureTo, UFixed6 shortExposureTo) = toPosition.exposure();
+        // accumulate spread for maker orders (taker)
+        next.makerTakerSpreadValue.increment(matchingResult.spreadMakerTaker, closedPosition.maker);
+        result.spreadTakerMaker = matchingResult.spreadMakerTaker;
+        next.longTakerSpreadValue.increment(matchingResult.spreadLongTaker, closedPosition.long);
+        result.spreadTakerLong = matchingResult.spreadLongTaker;
+        next.shortTakerSpreadValue.increment(matchingResult.spreadShortTaker, closedPosition.short);
+        result.spreadTakerShort = matchingResult.spreadShortTaker;
 
-        // compute spread components
-        spreadLong = _applySpreadComponent(
-            next.longSpreadValue,
-            closedPosition.long,
-            spread,
-            longExposureFrom,
-            longExposureTo,
-            exposure
-        );
-
-        spreadShort = _applySpreadComponent(
-            next.shortSpreadValue,
-            closedPosition.short,
-            spread,
-            shortExposureFrom,
-            shortExposureTo,
-            exposure
-        );
-
-        spreadMaker = spread.sub(spreadLong).sub(spreadShort);
-
-        console.log("spreadMaker", uint256(Fixed6.unwrap(spreadMaker)));
-        console.log("closedPosition.maker", UFixed6.unwrap(closedPosition.maker));
-
-        console.log("spreadLong", uint256(Fixed6.unwrap(spreadLong)));
-        console.log("closedPosition.long", UFixed6.unwrap(closedPosition.long));
-
-        console.log("spreadShort", uint256(Fixed6.unwrap(spreadShort)));
-        console.log("closedPosition.short", UFixed6.unwrap(closedPosition.short));
-
-        next.makerSpreadValue.increment(spreadMaker, closedPosition.maker); // TODO: can leftover cause non-zero maker spread w/ zero maker? (divide-by-zero)
-        // TODO: who gets spread if all positions are closed in an order
-        // TODO: problem is recieving spread side is netted so we don't have proper attribution
-        // TODO: apply matcher order for receiver:
-        //       - maker close
-        //       - long / short
-        //       - maker open
-    }
-
-    /// @notice Calculates and applies the accumulated spread component for one side of the market
-    /// @dev Helper due to stack constraint
-    /// @param spreadValueComponent The spread accumulator to update
-    /// @param closedPosition The position after applying the closing portion of the order
-    /// @param spread The spread of the order component
-    /// @param exposureComponentFrom The exposure of the side prior to the order compenent being applied
-    /// @param exposureComponentTo The exposure of the side after the order component is applied
-    /// @param exposure The exposure of the order component
-    /// @return spreadComponent The spread received by the side
-    function _applySpreadComponent(
-        Accumulator6 memory spreadValueComponent,
-        UFixed6 closedPosition,
-        Fixed6 spread,
-        UFixed6 exposureComponentFrom,
-        UFixed6 exposureComponentTo,
-        Fixed6 exposure
-    ) private pure returns (Fixed6 spreadComponent) {
-        Fixed6 exposureComponent = Fixed6Lib.from(exposureComponentTo).sub(Fixed6Lib.from(exposureComponentFrom));
-        spreadComponent = spread
-            .mul(Fixed6Lib.from(closedPosition))
-            .muldiv(Fixed6Lib.from(exposureComponent.abs()), Fixed6Lib.from(exposure.abs()));
-        spreadValueComponent.increment(spreadComponent, closedPosition);
+        // accumulate spread for maker orders (maker open)
+        next.makerMakerOpenSpreadValue.increment(matchingResult.spreadMakerOpen, closedPosition.maker);
+        result.spreadOpenMaker = matchingResult.spreadMakerOpen;
+        next.longMakerOpenSpreadValue.increment(matchingResult.spreadLongOpen, toPosition.long);
+        result.spreadOpenLong = matchingResult.spreadLongOpen;
+        next.shortMakerOpenSpreadValue.increment(matchingResult.spreadShortOpen, toPosition.short);
+        result.spreadOpenShort = matchingResult.spreadShortOpen;
     }
 
     /// @notice Globally accumulates all long-short funding since last oracle update
