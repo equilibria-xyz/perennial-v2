@@ -227,18 +227,14 @@ library VersionLib {
     /// @notice Copies over the version-over-version accumulators to prepare the next version
     /// @param self The Version object to update
     function _next(Version memory self, Version memory next) internal pure {
-        next.makerValue._value = self.makerValue._value;
-        next.longValue._value = self.longValue._value;
-        next.shortValue._value = self.shortValue._value;
-        next.makerMakerCloseSpreadValue._value = self.makerMakerCloseSpreadValue._value;
-        next.longMakerCloseSpreadValue._value = self.longMakerCloseSpreadValue._value;
-        next.shortMakerCloseSpreadValue._value = self.shortMakerCloseSpreadValue._value;
-        next.makerTakerSpreadValue._value = self.makerTakerSpreadValue._value;
-        next.longTakerSpreadValue._value = self.longTakerSpreadValue._value;
-        next.shortTakerSpreadValue._value = self.shortTakerSpreadValue._value;
-        next.makerMakerOpenSpreadValue._value = self.makerMakerOpenSpreadValue._value;
-        next.longMakerOpenSpreadValue._value = self.longMakerOpenSpreadValue._value;
-        next.shortMakerOpenSpreadValue._value = self.shortMakerOpenSpreadValue._value;
+        next.makerPreValue._value = self.makerPreValue._value;
+        next.longPreValue._value = self.longPreValue._value;
+        next.shortPreValue._value = self.shortPreValue._value;
+        next.makerCloseValue._value = self.makerCloseValue._value;
+        next.longCloseValue._value = self.longCloseValue._value;
+        next.shortCloseValue._value = self.shortCloseValue._value;
+        next.longPostValue._value = self.longPostValue._value;
+        next.shortPostValue._value = self.shortPostValue._value;
     }
 
     /// @notice Globally accumulates settlement fees since last oracle update
@@ -335,31 +331,28 @@ library VersionLib {
         next.spreadNeg.decrement(matchingResult.spreadNeg, matchingResult.exposureNeg);
         result.spreadNeg = matchingResult.spreadNeg;
 
-        // TODO: we only need one accumulator for maker
-
-
         // accumulate spread for maker orders (maker close)
-        next.makerMakerCloseSpreadValue.increment(matchingResult.spreadMakerClose, closedPosition.maker);
+        next.makerCloseValue.increment(matchingResult.spreadMakerClose, closedPosition.maker);
         result.spreadCloseMaker = matchingResult.spreadMakerClose;
-        next.longMakerCloseSpreadValue.increment(matchingResult.spreadLongClose, context.fromPosition.long);
+        next.longPreValue.increment(matchingResult.spreadLongClose, context.fromPosition.long);
         result.spreadCloseLong = matchingResult.spreadLongClose;
-        next.shortMakerCloseSpreadValue.increment(matchingResult.spreadShortClose, context.fromPosition.short);
+        next.shortPreValue.increment(matchingResult.spreadShortClose, context.fromPosition.short);
         result.spreadCloseShort = matchingResult.spreadShortClose;
 
         // accumulate spread for maker orders (taker)
-        next.makerTakerSpreadValue.increment(matchingResult.spreadMakerTaker, closedPosition.maker);
+        next.makerCloseValue.increment(matchingResult.spreadMakerTaker, closedPosition.maker);
         result.spreadTakerMaker = matchingResult.spreadMakerTaker;
-        next.longTakerSpreadValue.increment(matchingResult.spreadLongTaker, closedPosition.long);
+        next.longCloseValue.increment(matchingResult.spreadLongTaker, closedPosition.long);
         result.spreadTakerLong = matchingResult.spreadLongTaker;
-        next.shortTakerSpreadValue.increment(matchingResult.spreadShortTaker, closedPosition.short);
+        next.shortCloseValue.increment(matchingResult.spreadShortTaker, closedPosition.short);
         result.spreadTakerShort = matchingResult.spreadShortTaker;
 
         // accumulate spread for maker orders (maker open)
-        next.makerMakerOpenSpreadValue.increment(matchingResult.spreadMakerOpen, closedPosition.maker);
+        next.makerCloseValue.increment(matchingResult.spreadMakerOpen, closedPosition.maker);
         result.spreadOpenMaker = matchingResult.spreadMakerOpen;
-        next.longMakerOpenSpreadValue.increment(matchingResult.spreadLongOpen, toPosition.long);
+        next.longPostValue.increment(matchingResult.spreadLongOpen, toPosition.long);
         result.spreadOpenLong = matchingResult.spreadLongOpen;
-        next.shortMakerOpenSpreadValue.increment(matchingResult.spreadShortOpen, toPosition.short);
+        next.shortPostValue.increment(matchingResult.spreadShortOpen, toPosition.short);
         result.spreadOpenShort = matchingResult.spreadShortOpen;
     }
 
@@ -416,9 +409,9 @@ library VersionLib {
             fundingLong = fundingLong.sub(fundingMaker);
         }
 
-        next.makerValue.increment(fundingMaker, context.fromPosition.maker);
-        next.longValue.increment(fundingLong, context.fromPosition.long);
-        next.shortValue.increment(fundingShort, context.fromPosition.short);
+        next.makerPreValue.increment(fundingMaker, context.fromPosition.maker);
+        next.longPreValue.increment(fundingLong, context.fromPosition.long);
+        next.shortPreValue.increment(fundingShort, context.fromPosition.short);
     }
 
     /// @notice Globally accumulates all maker interest since last oracle update
@@ -456,9 +449,9 @@ library VersionLib {
 
         interestLong = interestLong.mul(Fixed6Lib.NEG_ONE);
         interestShort = interestShort.mul(Fixed6Lib.NEG_ONE);
-        next.makerValue.increment(interestMaker, context.fromPosition.maker);
-        next.longValue.increment(interestLong, context.fromPosition.long);
-        next.shortValue.increment(interestShort, context.fromPosition.short);
+        next.makerPreValue.increment(interestMaker, context.fromPosition.maker);
+        next.longPreValue.increment(interestLong, context.fromPosition.long);
+        next.shortPreValue.increment(interestShort, context.fromPosition.short);
     }
 
     /// @notice Globally accumulates position profit & loss since last oracle update
@@ -477,8 +470,8 @@ library VersionLib {
             .mul(Fixed6Lib.from(context.fromPosition.shortSocialized()));
         pnlMaker = pnlLong.add(pnlShort).mul(Fixed6Lib.NEG_ONE);
 
-        next.longValue.increment(pnlLong, context.fromPosition.long);
-        next.shortValue.increment(pnlShort, context.fromPosition.short);
-        next.makerValue.increment(pnlMaker, context.fromPosition.maker);
+        next.longPreValue.increment(pnlLong, context.fromPosition.long);
+        next.shortPreValue.increment(pnlShort, context.fromPosition.short);
+        next.makerPreValue.increment(pnlMaker, context.fromPosition.maker);
     }
 }

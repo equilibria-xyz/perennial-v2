@@ -100,7 +100,7 @@ library MatchingLib {
         MatchingExposure memory makerOpenExposure = _exposure(position);
 
         return _result( // TODO: verify all warnings
-            orderbook,  // TOD): compile w/o optimizer
+            orderbook,  // TODO: compile w/o optimizer
             makerCloseExposure,
             makerCloseFillResult,
             takerCloseExposure,

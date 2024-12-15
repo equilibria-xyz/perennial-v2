@@ -133,21 +133,20 @@ library CheckpointLib {
 
         // accumulate pnl
         collateral = collateral
-            .add(toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker))
-            .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
-            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
 
-        // accumulate received spread (process position closures prior to accumulation)
-        collateral = collateral
-            .add(toVersion.makerMakerCloseSpreadValue.accumulated(fromVersion.makerMakerCloseSpreadValue, closedPosition.maker))
-            .add(toVersion.longMakerCloseSpreadValue.accumulated(fromVersion.longMakerCloseSpreadValue, fromPosition.long))
-            .add(toVersion.shortMakerCloseSpreadValue.accumulated(fromVersion.shortMakerCloseSpreadValue, fromPosition.short))
-            .add(toVersion.makerTakerSpreadValue.accumulated(fromVersion.makerTakerSpreadValue, closedPosition.maker))
-            .add(toVersion.longTakerSpreadValue.accumulated(fromVersion.longTakerSpreadValue, closedPosition.long))
-            .add(toVersion.shortTakerSpreadValue.accumulated(fromVersion.shortTakerSpreadValue, closedPosition.short))
-            .add(toVersion.makerMakerOpenSpreadValue.accumulated(fromVersion.makerMakerOpenSpreadValue, closedPosition.maker))
-            .add(toVersion.longMakerOpenSpreadValue.accumulated(fromVersion.longMakerOpenSpreadValue, toPosition.long))
-            .add(toVersion.shortMakerOpenSpreadValue.accumulated(fromVersion.shortMakerOpenSpreadValue, toPosition.short));
+            // collateral change pre position change
+            .add(toVersion.makerPreValue.accumulated(fromVersion.makerPreValue, fromPosition.maker))
+            .add(toVersion.longPreValue.accumulated(fromVersion.longPreValue, fromPosition.long))
+            .add(toVersion.shortPreValue.accumulated(fromVersion.shortPreValue, fromPosition.short))
+
+            // collateral change after applying closing portion of order ()
+            .add(toVersion.makerCloseValue.accumulated(fromVersion.makerCloseValue, closedPosition.maker))
+            .add(toVersion.longCloseValue.accumulated(fromVersion.longCloseValue, closedPosition.long))
+            .add(toVersion.shortCloseValue.accumulated(fromVersion.shortCloseValue, closedPosition.short))
+
+            // collateral change after applying entire order
+            .add(toVersion.longPostValue.accumulated(fromVersion.longPostValue, toPosition.long))
+            .add(toVersion.shortPostValue.accumulated(fromVersion.shortPostValue, toPosition.short));
     }
 
     /// @notice Accumulate trade fees for the next position

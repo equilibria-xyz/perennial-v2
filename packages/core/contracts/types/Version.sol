@@ -32,13 +32,13 @@ struct Version {
     UFixed6 shortNegExposure;
 
     /// @dev The maker accumulator value
-    Accumulator6 makerValue;
+    Accumulator6 makerPreValue;
 
     /// @dev The long accumulator value
-    Accumulator6 longValue;
+    Accumulator6 longPreValue;
 
     /// @dev The short accumulator value
-    Accumulator6 shortValue;
+    Accumulator6 shortPreValue;
 
     /// @dev The accumulated spread for positive taker or maker orders (open long / close short)
     Accumulator6 spreadPos;
@@ -47,31 +47,19 @@ struct Version {
     Accumulator6 spreadNeg;
 
     /// @dev The maker spread from maker close accumulator value (recieves spread)
-    Accumulator6 makerMakerCloseSpreadValue; // TODO: finalized naming
+    Accumulator6 makerCloseValue; // TODO: finalized naming
 
     /// @dev The long spread from maker close accumulator value (recieves spread during socialization)
-    Accumulator6 longMakerCloseSpreadValue; // TODO: only need one maker
+    Accumulator6 longCloseValue;
 
     /// @dev The short spread from maker close accumulator value (recieves spread during socialization)
-    Accumulator6 shortMakerCloseSpreadValue; // TODO: may be able to include one of these with value?
-
-    /// @dev The maker spread from taker accumulator value (recieves spread)
-    Accumulator6 makerTakerSpreadValue;
+    Accumulator6 shortCloseValue;
 
     /// @dev The long spread from taker accumulator value (recieves spread during socialization)
-    Accumulator6 longTakerSpreadValue;
+    Accumulator6 longPostValue;
 
     /// @dev The short spread from taker accumulator value (recieves spread during socialization)
-    Accumulator6 shortTakerSpreadValue;
-
-    /// @dev The maker spread from maker open accumulator value (recieves spread)
-    Accumulator6 makerMakerOpenSpreadValue;
-
-    /// @dev The long spread from maker open accumulator value (recieves spread during socialization)
-    Accumulator6 longMakerOpenSpreadValue;
-
-    /// @dev The short spread from maker open accumulator value (recieves spread during socialization)
-    Accumulator6 shortMakerOpenSpreadValue;
+    Accumulator6 shortPostValue;
 
     /// @dev The accumulated fee for maker orders
     Accumulator6 makerFee;
@@ -85,7 +73,7 @@ struct Version {
     /// @dev The accumulated liquidation fee for each individual order
     Accumulator6 liquidationFee;
 }
-struct VersionStorage { uint256 slot0; uint256 slot1; uint256 slot2; uint256 slot3; uint256 slot4;}
+struct VersionStorage { uint256 slot0; uint256 slot1; uint256 slot2; uint256 slot3; }
 using VersionStorageLib for VersionStorage global;
 
 /// @dev Manually encodes and decodes the Version struct into storage.
@@ -94,9 +82,9 @@ using VersionStorageLib for VersionStorage global;
 ///     struct StoredVersion {
 ///         /* slot 0 */
 ///         bool valid;
-///         int64 makerValue;   (must remain in place for backwards compatibility)
-///         int64 longValue;    (must remain in place for backwards compatibility)
-///         int64 shortValue;   (must remain in place for backwards compatibility)
+///         int64 makerPreValue;   (must remain in place for backwards compatibility)
+///         int64 longPreValue;    (must remain in place for backwards compatibility)
+///         int64 shortPreValue;   (must remain in place for backwards compatibility)
 ///         uint48 liquidationFee;
 ///
 ///         /* slot 1 */
@@ -116,17 +104,11 @@ using VersionStorageLib for VersionStorage global;
 ///         int48 spreadNeg;
 ///
 ///         /* slot 3 */
-///         int48 makerMakerCloseSpreadValue;   (must remain in place for backwards compatibility)
-///         int48 longMakerCloseSpreadValue;    (must remain in place for backwards compatibility)
-///         int48 shortMakerCloseSpreadValue;   (must remain in place for backwards compatibility)
-///         int48 makerTakerSpreadValue;        (must remain in place for backwards compatibility)
-///         int48 longTakerSpreadValue;         (must remain in place for backwards compatibility)
-///
-///         /* slot 4 */
-///         int48 shortTakerSpreadValue;        (must remain in place for backwards compatibility)
-///         int48 makerMakerOpenSpreadValue;    (must remain in place for backwards compatibility)
-///         int48 longMakerOpenSpreadValue;     (must remain in place for backwards compatibility)
-///         int48 shortMakerOpenSpreadValue;    (must remain in place for backwards compatibility)
+///         int48 makerCloseValue;  (must remain in place for backwards compatibility)
+///         int48 longCloseValue;   (must remain in place for backwards compatibility)
+///         int48 shortCloseValue;  (must remain in place for backwards compatibility)
+///         int48 longPostValue;    (must remain in place for backwards compatibility)
+///         int48 shortPosValue;    (must remain in place for backwards compatibility)
 ///     }
 ///
 library VersionStorageLib {
@@ -134,8 +116,8 @@ library VersionStorageLib {
     error VersionStorageInvalidError();
 
     function read(VersionStorage storage self) internal view returns (Version memory) {
-        (uint256 slot0, uint256 slot1, uint256 slot2, uint256 slot3, uint256 slot4) =
-            (self.slot0, self.slot1, self.slot2, self.slot3, self.slot4);
+        (uint256 slot0, uint256 slot1, uint256 slot2, uint256 slot3) =
+            (self.slot0, self.slot1, self.slot2, self.slot3);
         return Version(
                                    (uint256(slot0 << (256 - 8)) >> (256 - 8)) != 0,                                     // valid
                          Fixed6.wrap(int256(slot1 << (256 - 64)) >> (256 - 64)),                                        // price
@@ -154,15 +136,11 @@ library VersionStorageLib {
             Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48)) >> (256 - 48))),                             // spreadPos
             Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),                        // spreadNeg
 
-            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48)) >> (256 - 48))),                                       // makerMakerCloseSpreadValue
-            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48)) >> (256 - 48))),                                  // longMakerCloseSpreadValue
-            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48)) >> (256 - 48))),                             // shortMakerCloseSpreadValue
-            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),                        // makerTakerSpreadValue
-            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48))),                   // longTakerSpreadValue
-            Accumulator6(Fixed6.wrap(int256(slot4 << (256 - 48)) >> (256 - 48))),                                       // shortTakerSpreadValue
-            Accumulator6(Fixed6.wrap(int256(slot4 << (256 - 48 - 48)) >> (256 - 48))),                                  // makerMakerOpenSpreadValue
-            Accumulator6(Fixed6.wrap(int256(slot4 << (256 - 48 - 48 - 48)) >> (256 - 48))),                             // longMakerOpenSpreadValue
-            Accumulator6(Fixed6.wrap(int256(slot4 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),                        // shortMakerOpenSpreadValue
+            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48)) >> (256 - 48))),                                       // makerCloseValue
+            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48)) >> (256 - 48))),                                  // longCloseValue
+            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48)) >> (256 - 48))),                             // shortCloseValue
+            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),                        // longPostValue
+            Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48))),                   // shortPostValue
 
             Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48)) >> (256 - 48))),                                       // makerFee
             Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48)) >> (256 - 48))),                                  // takerFee
@@ -187,34 +165,26 @@ library VersionStorageLib {
         if (newValue.shortPosExposure.lt(UFixed6.wrap(type(uint24).min))) revert VersionStorageInvalidError();
         if (newValue.shortNegExposure.gt(UFixed6.wrap(type(uint24).max))) revert VersionStorageInvalidError();
         if (newValue.shortNegExposure.lt(UFixed6.wrap(type(uint24).min))) revert VersionStorageInvalidError();
-        if (newValue.makerValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
-        if (newValue.makerValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
-        if (newValue.longValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
-        if (newValue.shortValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
+        if (newValue.makerPreValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
+        if (newValue.makerPreValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
+        if (newValue.longPreValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
+        if (newValue.longPreValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
+        if (newValue.shortPreValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
+        if (newValue.shortPreValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.spreadPos._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
         if (newValue.spreadPos._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.spreadNeg._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
         if (newValue.spreadNeg._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.makerMakerCloseSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.makerMakerCloseSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.longMakerCloseSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.longMakerCloseSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.shortMakerCloseSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.shortMakerCloseSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.makerTakerSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.makerTakerSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.longTakerSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.longTakerSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.shortTakerSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.shortTakerSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.makerMakerOpenSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.makerMakerOpenSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.longMakerOpenSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.longMakerOpenSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
-        if (newValue.shortMakerOpenSpreadValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
-        if (newValue.shortMakerOpenSpreadValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.makerCloseValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.makerCloseValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.longCloseValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.longCloseValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.shortCloseValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.shortCloseValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.longPostValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.longPostValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
+        if (newValue.shortPostValue._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
+        if (newValue.shortPostValue._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.makerFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
         if (newValue.makerFee._value.lt(Fixed6.wrap(type(int48).min))) revert VersionStorageInvalidError();
         if (newValue.takerFee._value.gt(Fixed6.wrap(type(int48).max))) revert VersionStorageInvalidError();
@@ -226,9 +196,9 @@ library VersionStorageLib {
 
         uint256 encoded0 =
             uint256(              (newValue.valid ? uint256(1) : uint256(0))    << (256 - 8 )) >> (256 - 8) |
-            uint256( Fixed6.unwrap(newValue.makerValue._value)                  << (256 - 64)) >> (256 - 8 - 64) |
-            uint256( Fixed6.unwrap(newValue.longValue._value)                   << (256 - 64)) >> (256 - 8 - 64 - 64) |
-            uint256( Fixed6.unwrap(newValue.shortValue._value)                  << (256 - 64)) >> (256 - 8 - 64 - 64 - 64) |
+            uint256( Fixed6.unwrap(newValue.makerPreValue._value)                  << (256 - 64)) >> (256 - 8 - 64) |
+            uint256( Fixed6.unwrap(newValue.longPreValue._value)                   << (256 - 64)) >> (256 - 8 - 64 - 64) |
+            uint256( Fixed6.unwrap(newValue.shortPreValue._value)                  << (256 - 64)) >> (256 - 8 - 64 - 64 - 64) |
             uint256( Fixed6.unwrap(newValue.liquidationFee._value)              << (256 - 48)) >> (256 - 8 - 64 - 64 - 64 - 48);
         uint256 encoded1 =
             uint256( Fixed6.unwrap(newValue.price)                              << (256 - 64)) >> (256 - 64) |
@@ -245,23 +215,17 @@ library VersionStorageLib {
             uint256( Fixed6.unwrap(newValue.spreadPos._value)                   << (256 - 48)) >> (256 - 48 - 48 - 48) |
             uint256( Fixed6.unwrap(newValue.spreadNeg._value)                   << (256 - 48)) >> (256 - 48 - 48 - 48 - 48);
         uint256 encoded3 =
-            uint256( Fixed6.unwrap(newValue.makerMakerCloseSpreadValue._value)  << (256 - 48)) >> (256 - 48) |
-            uint256( Fixed6.unwrap(newValue.longMakerCloseSpreadValue._value)   << (256 - 48)) >> (256 - 48 - 48) |
-            uint256( Fixed6.unwrap(newValue.shortMakerCloseSpreadValue._value)  << (256 - 48)) >> (256 - 48 - 48 - 48) |
-            uint256( Fixed6.unwrap(newValue.makerTakerSpreadValue._value)       << (256 - 48)) >> (256 - 48 - 48 - 48 - 48) |
-            uint256( Fixed6.unwrap(newValue.longTakerSpreadValue._value)        << (256 - 48)) >> (256 - 48 - 48 - 48 - 48 - 48);
-        uint256 encoded4 =
-            uint256( Fixed6.unwrap(newValue.shortTakerSpreadValue._value)       << (256 - 48)) >> (256 - 48) |
-            uint256( Fixed6.unwrap(newValue.makerMakerOpenSpreadValue._value)   << (256 - 48)) >> (256 - 48 - 48) |
-            uint256( Fixed6.unwrap(newValue.longMakerOpenSpreadValue._value)    << (256 - 48)) >> (256 - 48 - 48 - 48) |
-            uint256( Fixed6.unwrap(newValue.shortMakerOpenSpreadValue._value)   << (256 - 48)) >> (256 - 48 - 48 - 48 - 48);
+            uint256( Fixed6.unwrap(newValue.makerCloseValue._value)  << (256 - 48)) >> (256 - 48) |
+            uint256( Fixed6.unwrap(newValue.longCloseValue._value)   << (256 - 48)) >> (256 - 48 - 48) |
+            uint256( Fixed6.unwrap(newValue.shortCloseValue._value)  << (256 - 48)) >> (256 - 48 - 48 - 48) |
+            uint256( Fixed6.unwrap(newValue.longPostValue._value)    << (256 - 48)) >> (256 - 48 - 48 - 48 - 48) |
+            uint256( Fixed6.unwrap(newValue.shortPostValue._value)   << (256 - 48)) >> (256 - 48 - 48 - 48 - 48 - 48);
 
         assembly {
             sstore(self.slot, encoded0)
             sstore(add(self.slot, 1), encoded1)
             sstore(add(self.slot, 2), encoded2)
             sstore(add(self.slot, 3), encoded3)
-            sstore(add(self.slot, 4), encoded4)
         }
     }
 }
