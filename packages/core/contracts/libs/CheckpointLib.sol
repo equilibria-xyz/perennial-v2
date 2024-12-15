@@ -131,20 +131,20 @@ library CheckpointLib {
         Position memory toPosition = fromPosition.clone();
         toPosition.update(order);
 
-        // accumulate pnl
+        // collateral change pre position change
         collateral = collateral
-
-            // collateral change pre position change
             .add(toVersion.makerPreValue.accumulated(fromVersion.makerPreValue, fromPosition.maker))
             .add(toVersion.longPreValue.accumulated(fromVersion.longPreValue, fromPosition.long))
-            .add(toVersion.shortPreValue.accumulated(fromVersion.shortPreValue, fromPosition.short))
+            .add(toVersion.shortPreValue.accumulated(fromVersion.shortPreValue, fromPosition.short));
 
-            // collateral change after applying closing portion of order ()
+        // collateral change after applying closing portion of order ()
+        collateral = collateral
             .add(toVersion.makerCloseValue.accumulated(fromVersion.makerCloseValue, closedPosition.maker))
             .add(toVersion.longCloseValue.accumulated(fromVersion.longCloseValue, closedPosition.long))
-            .add(toVersion.shortCloseValue.accumulated(fromVersion.shortCloseValue, closedPosition.short))
+            .add(toVersion.shortCloseValue.accumulated(fromVersion.shortCloseValue, closedPosition.short));
 
-            // collateral change after applying entire order
+        // collateral change after applying entire order
+        collateral = collateral
             .add(toVersion.longPostValue.accumulated(fromVersion.longPostValue, toPosition.long))
             .add(toVersion.shortPostValue.accumulated(fromVersion.shortPostValue, toPosition.short));
     }

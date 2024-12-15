@@ -15,7 +15,6 @@ import { Version } from "../types/Version.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { OracleReceipt } from "../types/OracleReceipt.sol";
 import { MatchingLib, MatchingResult, MatchingPosition, MatchingOrder } from "../libs/MatchingLib.sol";
-import "hardhat/console.sol";
 
 /// @dev The response of the version accumulation
 ///      Contains only select fee information needed for the downstream market contract
@@ -332,28 +331,28 @@ library VersionLib {
         result.spreadNeg = matchingResult.spreadNeg;
 
         // accumulate spread for maker orders (maker close)
-        next.makerCloseValue.increment(matchingResult.spreadMakerClose, closedPosition.maker);
-        result.spreadCloseMaker = matchingResult.spreadMakerClose;
-        next.longPreValue.increment(matchingResult.spreadLongClose, context.fromPosition.long);
-        result.spreadCloseLong = matchingResult.spreadLongClose;
-        next.shortPreValue.increment(matchingResult.spreadShortClose, context.fromPosition.short);
-        result.spreadCloseShort = matchingResult.spreadShortClose;
+        next.makerCloseValue.increment(matchingResult.spreadCloseMaker, closedPosition.maker);
+        result.spreadCloseMaker = matchingResult.spreadCloseMaker;
+        next.longPreValue.increment(matchingResult.spreadCloseLong, context.fromPosition.long);
+        result.spreadCloseLong = matchingResult.spreadCloseLong;
+        next.shortPreValue.increment(matchingResult.spreadCloseShort, context.fromPosition.short);
+        result.spreadCloseShort = matchingResult.spreadCloseShort;
 
         // accumulate spread for maker orders (taker)
-        next.makerCloseValue.increment(matchingResult.spreadMakerTaker, closedPosition.maker);
-        result.spreadTakerMaker = matchingResult.spreadMakerTaker;
-        next.longCloseValue.increment(matchingResult.spreadLongTaker, closedPosition.long);
-        result.spreadTakerLong = matchingResult.spreadLongTaker;
-        next.shortCloseValue.increment(matchingResult.spreadShortTaker, closedPosition.short);
-        result.spreadTakerShort = matchingResult.spreadShortTaker;
+        next.makerCloseValue.increment(matchingResult.spreadTakerMaker, closedPosition.maker);
+        result.spreadTakerMaker = matchingResult.spreadTakerMaker;
+        next.longCloseValue.increment(matchingResult.spreadTakerLong, closedPosition.long);
+        result.spreadTakerLong = matchingResult.spreadTakerLong;
+        next.shortCloseValue.increment(matchingResult.spreadTakerShort, closedPosition.short);
+        result.spreadTakerShort = matchingResult.spreadTakerShort;
 
         // accumulate spread for maker orders (maker open)
-        next.makerCloseValue.increment(matchingResult.spreadMakerOpen, closedPosition.maker);
-        result.spreadOpenMaker = matchingResult.spreadMakerOpen;
-        next.longPostValue.increment(matchingResult.spreadLongOpen, toPosition.long);
-        result.spreadOpenLong = matchingResult.spreadLongOpen;
-        next.shortPostValue.increment(matchingResult.spreadShortOpen, toPosition.short);
-        result.spreadOpenShort = matchingResult.spreadShortOpen;
+        next.makerCloseValue.increment(matchingResult.spreadOpenMaker, closedPosition.maker);
+        result.spreadOpenMaker = matchingResult.spreadOpenMaker;
+        next.longPostValue.increment(matchingResult.spreadOpenLong, toPosition.long);
+        result.spreadOpenLong = matchingResult.spreadOpenLong;
+        next.shortPostValue.increment(matchingResult.spreadOpenShort, toPosition.short);
+        result.spreadOpenShort = matchingResult.spreadOpenShort;
     }
 
     /// @notice Globally accumulates all long-short funding since last oracle update
