@@ -14631,6 +14631,72 @@ describe('Market', () => {
           await settle(market, user)
           expect(await market.hasPosition(user.address)).to.be.false
         })
+
+        it('calculates maintenance', async () => {
+          // no position
+          await margin.connect(user).isolate(user.address, market.address, COLLATERAL)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
+          expect(await market.maintenanceRequired(user.address)).to.equal(0)
+
+          // pending order
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, 0, false),
+          ).to.not.be.reverted
+          // TODO: update for implementation change
+          expect(await market.maintenanceRequired(user.address)).to.equal(0)
+
+          // settled with position
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          await settle(market, user)
+          // maintenance percentage * position * price = 0.3 * 10 * 123 = 369
+          expect(await market.maintenanceRequired(user.address)).to.equal(parse6decimal('369'))
+        })
+
+        it('calculates margin', async () => {
+          // no position
+          await margin.connect(user).isolate(user.address, market.address, COLLATERAL)
+          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
+          expect(await market.marginRequired(user.address, 0)).to.equal(0)
+          expect(await market.marginRequired(user.address, parse6decimal('0.55'))).to.equal(0)
+
+          // pending order
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, 0, false),
+          ).to.not.be.reverted
+          // margin percentage * position * price = 0.35 * 10 * 123 = 430.5
+          expect(await market.marginRequired(user.address, 0)).to.equal(parse6decimal('430.5'))
+          // min collateralization * position * price = 0.55 * 10 * 123 = 430.5
+          expect(await market.marginRequired(user.address, parse6decimal('0.55'))).to.equal(parse6decimal('676.5'))
+
+          // settled with position
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          await settle(market, user)
+          expect(await market.marginRequired(user.address, 0)).to.equal(parse6decimal('430.5'))
+          expect(await market.marginRequired(user.address, parse6decimal('0.55'))).to.equal(parse6decimal('676.5'))
+        })
+
+        it('checks whether price is stale', async () => {
+          // current version = latest version
+          oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_1.timestamp])
+          expect(await market.stale()).to.be.false
+
+          // current version < latest version but within stale threshold
+          const riskParameter = { ...(await market.riskParameter()) }
+          const freshCurrentTimestamp = ORACLE_VERSION_1.timestamp + riskParameter.staleAfter.div(2).toNumber()
+          oracle.status.returns([ORACLE_VERSION_1, freshCurrentTimestamp])
+          expect(await market.stale()).to.be.false
+
+          // current version < latest version and exceeds stale threshold
+          const staleCurrentTimestamp = ORACLE_VERSION_1.timestamp + riskParameter.staleAfter.mul(2).toNumber()
+          oracle.status.returns([ORACLE_VERSION_1, staleCurrentTimestamp])
+          expect(await market.stale()).to.be.true
+        })
       })
 
       context('invariant violations', async () => {

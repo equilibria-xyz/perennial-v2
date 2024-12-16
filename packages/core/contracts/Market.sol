@@ -446,7 +446,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return !(position_.magnitude().isZero() && pending_.isEmpty());
     }
 
-    // TODO: unit test outside of Margin
     /// @inheritdoc IMarket
     function maintenanceRequired(
         address account
@@ -457,7 +456,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         requirement = PositionLib.maintenance(positionMagnitude, latestOracleVersion, _riskParameter.read());
     }
 
-    // TODO: unit test outside of Margin
     /// @inheritdoc IMarket
     function marginRequired(
         address account,
@@ -468,7 +466,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return PositionLib.margin(positionMagnitude, latestOracleVersion, _riskParameter.read(), minCollateralization);
     }
 
-    // TODO: unit test outside of Margin
     /// @inheritdoc IMarket
     function stale() external view returns (bool isStale) {
         isStale = _stale();
