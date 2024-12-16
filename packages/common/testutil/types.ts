@@ -88,16 +88,18 @@ export interface Version {
   longNegExposure: BigNumberish
   shortPosExposure: BigNumberish
   shortNegExposure: BigNumberish
-  makerValue: Accumulator
-  longValue: Accumulator
-  shortValue: Accumulator
-  makerFee: Accumulator
-  takerFee: Accumulator
+  makerPreValue: Accumulator
+  longPreValue: Accumulator
+  shortPreValue: Accumulator
+  makerCloseValue: Accumulator
+  longCloseValue: Accumulator
+  shortCloseValue: Accumulator
+  longPostValue: Accumulator
+  shortPostValue: Accumulator
   spreadPos: Accumulator
   spreadNeg: Accumulator
-  makerSpreadValue: Accumulator
-  longSpreadValue: Accumulator
-  shortSpreadValue: Accumulator
+  makerFee: Accumulator
+  takerFee: Accumulator
   settlementFee: Accumulator
   liquidationFee: Accumulator
 }
@@ -241,16 +243,18 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.longNegExposure).to.equal(b.longNegExposure, 'Version:LongNegExposure')
   expect(a.shortPosExposure).to.equal(b.shortPosExposure, 'Version:ShortPosExposure')
   expect(a.shortNegExposure).to.equal(b.shortNegExposure, 'Version:ShortNegExposure')
-  expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
-  expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
-  expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
-  expect(a.makerFee._value).to.equal(b.makerFee._value, 'Version:MakerFee')
-  expect(a.takerFee._value).to.equal(b.takerFee._value, 'Version:TakerFee')
+  expect(a.makerPreValue._value).to.equal(b.makerPreValue._value, 'Version:MakerPreValue')
+  expect(a.longPreValue._value).to.equal(b.longPreValue._value, 'Version:LongPreValue')
+  expect(a.shortPreValue._value).to.equal(b.shortPreValue._value, 'Version:ShortPreValue')
+  expect(a.makerCloseValue._value).to.equal(b.makerCloseValue._value, 'Version:MakerCloseValue')
+  expect(a.longCloseValue._value).to.equal(b.longCloseValue._value, 'Version:LongCloseValue')
+  expect(a.shortCloseValue._value).to.equal(b.shortCloseValue._value, 'Version:ShortCloseValue')
+  expect(a.longPostValue._value).to.equal(b.longPostValue._value, 'Version:LongPostValue')
+  expect(a.shortPostValue._value).to.equal(b.shortPostValue._value, 'Version:ShortPostValue')
   expect(a.spreadPos._value).to.equal(b.spreadPos._value, 'Version:SpreadPos')
   expect(a.spreadNeg._value).to.equal(b.spreadNeg._value, 'Version:SpreadNeg')
-  expect(a.makerSpreadValue._value).to.equal(b.makerSpreadValue._value, 'Version:MakerSpreadValue')
-  expect(a.longSpreadValue._value).to.equal(b.longSpreadValue._value, 'Version:LongSpreadValue')
-  expect(a.shortSpreadValue._value).to.equal(b.shortSpreadValue._value, 'Version:ShortSpreadValue')
+  expect(a.makerFee._value).to.equal(b.makerFee._value, 'Version:MakerFee')
+  expect(a.takerFee._value).to.equal(b.takerFee._value, 'Version:TakerFee')
   expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
   expect(a.liquidationFee._value).to.equal(b.liquidationFee._value, 'Version:LiquidationFee')
 }
@@ -352,16 +356,18 @@ export const DEFAULT_VERSION: Version = {
   longNegExposure: 0,
   shortPosExposure: 0,
   shortNegExposure: 0,
-  makerValue: { _value: 0 },
-  longValue: { _value: 0 },
-  shortValue: { _value: 0 },
-  makerFee: { _value: 0 },
-  takerFee: { _value: 0 },
+  makerPreValue: { _value: 0 },
+  longPreValue: { _value: 0 },
+  shortPreValue: { _value: 0 },
+  makerCloseValue: { _value: 0 },
+  longCloseValue: { _value: 0 },
+  shortCloseValue: { _value: 0 },
+  longPostValue: { _value: 0 },
+  shortPostValue: { _value: 0 },
   spreadPos: { _value: 0 },
   spreadNeg: { _value: 0 },
-  makerSpreadValue: { _value: 0 },
-  longSpreadValue: { _value: 0 },
-  shortSpreadValue: { _value: 0 },
+  makerFee: { _value: 0 },
+  takerFee: { _value: 0 },
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
 }

@@ -40,14 +40,8 @@ struct Version {
     /// @dev The short accumulator value
     Accumulator6 shortPreValue;
 
-    /// @dev The accumulated spread for positive taker or maker orders (open long / close short)
-    Accumulator6 spreadPos;
-
-    /// @dev The accumulated spread for negative  taker or maker orders (close long / open short)
-    Accumulator6 spreadNeg;
-
     /// @dev The maker spread from maker close accumulator value (recieves spread)
-    Accumulator6 makerCloseValue; // TODO: finalized naming
+    Accumulator6 makerCloseValue;
 
     /// @dev The long spread from maker close accumulator value (recieves spread during socialization)
     Accumulator6 longCloseValue;
@@ -60,6 +54,12 @@ struct Version {
 
     /// @dev The short spread from taker accumulator value (recieves spread during socialization)
     Accumulator6 shortPostValue;
+
+    /// @dev The accumulated spread for positive taker or maker orders (open long / close short)
+    Accumulator6 spreadPos;
+
+    /// @dev The accumulated spread for negative  taker or maker orders (close long / open short)
+    Accumulator6 spreadNeg;
 
     /// @dev The accumulated fee for maker orders
     Accumulator6 makerFee;
@@ -133,14 +133,14 @@ library VersionStorageLib {
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),                              // longValue
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64 - 64)) >> (256 - 64))),                         // shortValue
 
-            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48)) >> (256 - 48))),                             // spreadPos
-            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),                        // spreadNeg
-
             Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48)) >> (256 - 48))),                                       // makerCloseValue
             Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48)) >> (256 - 48))),                                  // longCloseValue
             Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48)) >> (256 - 48))),                             // shortCloseValue
             Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),                        // longPostValue
             Accumulator6(Fixed6.wrap(int256(slot3 << (256 - 48 - 48 - 48 - 48 - 48)) >> (256 - 48))),                   // shortPostValue
+
+            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48)) >> (256 - 48))),                             // spreadPos
+            Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48 - 48 - 48)) >> (256 - 48))),                        // spreadNeg
 
             Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48)) >> (256 - 48))),                                       // makerFee
             Accumulator6(Fixed6.wrap(int256(slot2 << (256 - 48 - 48)) >> (256 - 48))),                                  // takerFee

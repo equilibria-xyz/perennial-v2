@@ -18,9 +18,7 @@ import {
   DEFAULT_VERSION,
   DEFAULT_GUARANTEE,
   parse6decimal,
-  Guarantee,
   DEFAULT_ORACLE_RECEIPT,
-  DEFAULT_CHECKPOINT,
   DEFAULT_CONTEXT,
   DEFAULT_SETTLEMENT_CONTEXT,
 } from '../../../../common/testutil/types'
@@ -49,16 +47,18 @@ const VALID_VERSION: VersionStruct = {
   longNegExposure: 24,
   shortPosExposure: 25,
   shortNegExposure: 26,
-  makerValue: { _value: 1 },
-  longValue: { _value: 2 },
-  shortValue: { _value: 3 },
-  makerFee: { _value: 14 },
-  takerFee: { _value: 16 },
+  makerPreValue: { _value: 1 },
+  longPreValue: { _value: 2 },
+  shortPreValue: { _value: 3 },
+  makerCloseValue: { _value: 8 },
+  longCloseValue: { _value: 9 },
+  shortCloseValue: { _value: 10 },
+  longPostValue: { _value: 11 },
+  shortPostValue: { _value: 12 },
   spreadPos: { _value: 6 },
   spreadNeg: { _value: 7 },
-  makerSpreadValue: { _value: 8 },
-  longSpreadValue: { _value: 9 },
-  shortSpreadValue: { _value: 10 },
+  makerFee: { _value: 14 },
+  takerFee: { _value: 16 },
   settlementFee: { _value: -8 },
   liquidationFee: { _value: -9 },
 }
@@ -209,16 +209,18 @@ describe('Version', () => {
       expect(value.longNegExposure).to.equal(24)
       expect(value.shortPosExposure).to.equal(25)
       expect(value.shortNegExposure).to.equal(26)
-      expect(value.makerValue._value).to.equal(1)
-      expect(value.longValue._value).to.equal(2)
-      expect(value.shortValue._value).to.equal(3)
-      expect(value.makerFee._value).to.equal(14)
-      expect(value.takerFee._value).to.equal(16)
+      expect(value.makerPreValue._value).to.equal(1)
+      expect(value.longPreValue._value).to.equal(2)
+      expect(value.shortPreValue._value).to.equal(3)
+      expect(value.makerCloseValue._value).to.equal(8)
+      expect(value.longCloseValue._value).to.equal(9)
+      expect(value.shortCloseValue._value).to.equal(10)
+      expect(value.longPostValue._value).to.equal(11)
+      expect(value.shortPostValue._value).to.equal(12)
       expect(value.spreadPos._value).to.equal(6)
       expect(value.spreadNeg._value).to.equal(7)
-      expect(value.makerSpreadValue._value).to.equal(8)
-      expect(value.longSpreadValue._value).to.equal(9)
-      expect(value.shortSpreadValue._value).to.equal(10)
+      expect(value.makerFee._value).to.equal(14)
+      expect(value.takerFee._value).to.equal(16)
       expect(value.settlementFee._value).to.equal(-8)
       expect(value.liquidationFee._value).to.equal(-9)
     })
@@ -435,31 +437,31 @@ describe('Version', () => {
       })
     })
 
-    describe('.makerValue', async () => {
+    describe('.makerPreValue', async () => {
       const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          makerPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.makerValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.makerPreValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          makerValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          makerPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.makerValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.makerPreValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            makerPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -468,37 +470,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            makerValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            makerPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.longValue', async () => {
+    describe('.longPreValue', async () => {
       const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          longValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          longPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.longValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.longPreValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          longValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          longPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.longValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.longPreValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            longValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            longPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -507,37 +509,37 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            longValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            longPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
     })
 
-    describe('.shortValue', async () => {
+    describe('.shortPreValue', async () => {
       const STORAGE_SIZE = 63
       it('saves if in range (above)', async () => {
         await version.store({
           ...VALID_VERSION,
-          shortValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+          shortPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
         })
         const value = await version.read()
-        expect(value.shortValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.shortPreValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
       it('saves if in range (below)', async () => {
         await version.store({
           ...VALID_VERSION,
-          shortValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+          shortPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
         })
         const value = await version.read()
-        expect(value.shortValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+        expect(value.shortPreValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
       })
 
       it('reverts if out of range (above)', async () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            shortValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+            shortPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -546,7 +548,202 @@ describe('Version', () => {
         await expect(
           version.store({
             ...VALID_VERSION,
-            shortValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+            shortPreValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.makerCloseValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.makerCloseValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          makerCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.makerCloseValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            makerCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.longCloseValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.longCloseValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.longCloseValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.shortCloseValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.shortCloseValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.shortCloseValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortCloseValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.longPostValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longPostValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.longPostValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          longPostValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.longPostValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longPostValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            longPostValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+    })
+
+    describe('.shortPostValue', async () => {
+      const STORAGE_SIZE = 47
+      it('saves if in range (above)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortPostValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
+        })
+        const value = await version.read()
+        expect(value.shortPostValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('saves if in range (below)', async () => {
+        await version.store({
+          ...VALID_VERSION,
+          shortPostValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
+        })
+        const value = await version.read()
+        expect(value.shortPostValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
+      })
+
+      it('reverts if out of range (above)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortPostValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
+          }),
+        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
+      })
+
+      it('reverts if out of range (below)', async () => {
+        await expect(
+          version.store({
+            ...VALID_VERSION,
+            shortPostValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -625,357 +822,6 @@ describe('Version', () => {
           version.store({
             ...VALID_VERSION,
             spreadNeg: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.makerMakerCloseSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.makerMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.makerMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.longMakerCloseSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          longMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.longMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          longMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.longMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            longMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            longMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.shortMakerCloseSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          shortMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.shortMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          shortMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.shortMakerCloseSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            shortMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            shortMakerCloseSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.makerTakerSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.makerTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.makerTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.longTakerSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          longTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.longTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          longTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.longTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            longTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            longTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.shortTakerSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          shortTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.shortTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          shortTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.shortTakerSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            shortTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            shortTakerSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.makerMakerOpenSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.makerMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          makerMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.makerMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            makerMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.longMakerOpenSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          longMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.longMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          longMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.longMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            longMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            longMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-    })
-
-    describe('.shortMakerOpenSpreadValue', async () => {
-      const STORAGE_SIZE = 47
-      it('saves if in range (above)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          shortMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).sub(1) },
-        })
-        const value = await version.read()
-        expect(value.shortMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('saves if in range (below)', async () => {
-        await version.store({
-          ...VALID_VERSION,
-          shortMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).mul(-1) },
-        })
-        const value = await version.read()
-        expect(value.shortMakerOpenSpreadValue._value).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).mul(-1))
-      })
-
-      it('reverts if out of range (above)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            shortMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE) },
-          }),
-        ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
-      })
-
-      it('reverts if out of range (below)', async () => {
-        await expect(
-          version.store({
-            ...VALID_VERSION,
-            shortMakerOpenSpreadValue: { _value: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1) },
           }),
         ).to.be.revertedWithCustomError(versionStorageLib, 'VersionStorageInvalidError')
       })
@@ -1170,9 +1016,9 @@ describe('Version', () => {
         )
 
         expect(value.valid).to.be.true
-        expect(value.makerValue._value).to.equal(1)
-        expect(value.longValue._value).to.equal(2)
-        expect(value.shortValue._value).to.equal(3)
+        expect(value.makerPreValue._value).to.equal(1)
+        expect(value.longPreValue._value).to.equal(2)
+        expect(value.shortPreValue._value).to.equal(3)
 
         expect(ret.tradeFee).to.equal(BigNumber.from('12300000'))
         expect(ret.subtractiveFee).to.equal(0)
@@ -1548,7 +1394,7 @@ describe('Version', () => {
     })
 
     describe('price impact accumulation', () => {
-      it.only('allocates when no makers', async () => {
+      it('allocates when no makers', async () => {
         await version.store(VALID_VERSION)
 
         const { ret, value } = await accumulateWithReturn(
@@ -1618,9 +1464,9 @@ describe('Version', () => {
         expect(value.longNegExposure).to.equal(longNegExposure)
         expect(value.shortPosExposure).to.equal(shortPosExposure)
         expect(value.shortNegExposure).to.equal(shortNegExposure)
-        expect(value.makerValue._value).to.equal(1)
-        expect(value.longValue._value).to.equal(parse6decimal('2').add(2)) // pnl
-        expect(value.shortValue._value).to.equal(parse6decimal('-2').mul(2).div(3).sub(1).add(3)) // pnl
+        expect(value.makerPreValue._value).to.equal(1)
+        expect(value.longPreValue._value).to.equal(parse6decimal('2').add(2)) // pnl
+        expect(value.shortPreValue._value).to.equal(parse6decimal('-2').mul(2).div(3).sub(1).add(3)) // pnl
         expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(10))
         expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
         expect(value.spreadPos._value).to.equal(spreadPos.div(exposurePos))
@@ -1723,9 +1569,9 @@ describe('Version', () => {
           .add(proportional3.mul(-1).mul(123).div(60))
           .add(impact2.mul(-1).mul(123).div(60))
 
-        expect(value.makerValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1))
-        expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
-        expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
+        expect(value.makerPreValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1))
+        expect(value.longPreValue._value).to.equal(parse6decimal('2').add(2))
+        expect(value.shortPreValue._value).to.equal(parse6decimal('-2').add(3))
         expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(30))
         expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
         expect(value.makerOffset._value).to.equal(makerOffset)
@@ -1826,9 +1672,9 @@ describe('Version', () => {
           .add(proportional3.mul(-1).mul(123).div(60))
           .add(impact2.mul(-1).mul(123).div(60))
 
-        expect(value.makerValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1))
-        expect(value.longValue._value).to.equal(parse6decimal('2').add(2))
-        expect(value.shortValue._value).to.equal(parse6decimal('-2').add(3))
+        expect(value.makerPreValue._value).to.equal(offset.sub(exposure).add(parse6decimal('2').mul(10)).div(50).add(1))
+        expect(value.longPreValue._value).to.equal(parse6decimal('2').add(2))
+        expect(value.shortPreValue._value).to.equal(parse6decimal('-2').add(3))
         expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(30))
         expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(190))
         expect(value.makerOffset._value).to.equal(makerOffset)
@@ -1885,9 +1731,9 @@ describe('Version', () => {
           expect(ret.fundingLong).to.equal(0)
           expect(ret.fundingShort).to.equal(0)
 
-          expect(value.makerValue._value).to.equal(0)
-          expect(value.longValue._value).to.equal(0)
-          expect(value.shortValue._value).to.equal(0)
+          expect(value.makerPreValue._value).to.equal(0)
+          expect(value.longPreValue._value).to.equal(0)
+          expect(value.shortPreValue._value).to.equal(0)
         })
       })
 
@@ -1934,9 +1780,9 @@ describe('Version', () => {
           expect(ret.fundingLong).to.equal(0)
           expect(ret.fundingShort).to.equal(0)
 
-          expect(value.makerValue._value).to.equal(0)
-          expect(value.longValue._value).to.equal(0)
-          expect(value.shortValue._value).to.equal(0)
+          expect(value.makerPreValue._value).to.equal(0)
+          expect(value.longPreValue._value).to.equal(0)
+          expect(value.shortPreValue._value).to.equal(0)
         })
       })
 
@@ -1980,9 +1826,9 @@ describe('Version', () => {
           expect(ret.fundingLong).to.equal(BigNumber.from('-1788'))
           expect(ret.fundingShort).to.equal(BigNumber.from('1169'))
 
-          expect(value.makerValue._value).to.equal(BigNumber.from('58'))
-          expect(value.longValue._value).to.equal(BigNumber.from('-149'))
-          expect(value.shortValue._value).to.equal(BigNumber.from('146'))
+          expect(value.makerPreValue._value).to.equal(BigNumber.from('58'))
+          expect(value.longPreValue._value).to.equal(BigNumber.from('-149'))
+          expect(value.shortPreValue._value).to.equal(BigNumber.from('146'))
         })
       })
 
@@ -2026,9 +1872,9 @@ describe('Version', () => {
           expect(ret.fundingLong).to.equal(BigNumber.from('-1193'))
           expect(ret.fundingShort).to.equal(BigNumber.from('1753'))
 
-          expect(value.makerValue._value).to.equal(BigNumber.from('-60'))
-          expect(value.longValue._value).to.equal(BigNumber.from('-150'))
-          expect(value.shortValue._value).to.equal(BigNumber.from('146'))
+          expect(value.makerPreValue._value).to.equal(BigNumber.from('-60'))
+          expect(value.longPreValue._value).to.equal(BigNumber.from('-150'))
+          expect(value.shortPreValue._value).to.equal(BigNumber.from('146'))
         })
       })
 
@@ -2073,9 +1919,9 @@ describe('Version', () => {
           expect(ret.fundingLong).to.equal(BigNumber.from('1169'))
           expect(ret.fundingShort).to.equal(BigNumber.from('-1787'))
 
-          expect(value.makerValue._value).to.equal(BigNumber.from('58'))
-          expect(value.longValue._value).to.equal(BigNumber.from('146'))
-          expect(value.shortValue._value).to.equal(BigNumber.from('-149'))
+          expect(value.makerPreValue._value).to.equal(BigNumber.from('58'))
+          expect(value.longPreValue._value).to.equal(BigNumber.from('146'))
+          expect(value.shortPreValue._value).to.equal(BigNumber.from('-149'))
         })
       })
     })
@@ -2120,9 +1966,9 @@ describe('Version', () => {
           expect(ret.interestLong).to.equal(0)
           expect(ret.interestShort).to.equal(0)
 
-          expect(value.makerValue._value).to.equal(0)
-          expect(value.longValue._value).to.equal(0)
-          expect(value.shortValue._value).to.equal(0)
+          expect(value.makerPreValue._value).to.equal(0)
+          expect(value.longPreValue._value).to.equal(0)
+          expect(value.shortPreValue._value).to.equal(0)
         })
       })
 
@@ -2172,9 +2018,9 @@ describe('Version', () => {
           expect(ret.interestLong).to.equal(parse6decimal('-0.012035'))
           expect(ret.interestShort).to.equal(parse6decimal('-0.002006'))
 
-          expect(value.makerValue._value).to.equal(parse6decimal('0.001376'))
-          expect(value.longValue._value).to.equal(parse6decimal('-0.001003'))
-          expect(value.shortValue._value).to.equal(parse6decimal('-0.001003'))
+          expect(value.makerPreValue._value).to.equal(parse6decimal('0.001376'))
+          expect(value.longPreValue._value).to.equal(parse6decimal('-0.001003'))
+          expect(value.shortPreValue._value).to.equal(parse6decimal('-0.001003'))
         })
       })
 
@@ -2224,9 +2070,9 @@ describe('Version', () => {
           expect(ret.interestLong).to.equal(parse6decimal('-0.0112328'))
           expect(ret.interestShort).to.equal(parse6decimal('-0.002809'))
 
-          expect(value.makerValue._value).to.equal(parse6decimal('0.000688'))
-          expect(value.longValue._value).to.equal(parse6decimal('-0.0014041'))
-          expect(value.shortValue._value).to.equal(parse6decimal('-0.001405'))
+          expect(value.makerPreValue._value).to.equal(parse6decimal('0.000688'))
+          expect(value.longPreValue._value).to.equal(parse6decimal('-0.0014041'))
+          expect(value.shortPreValue._value).to.equal(parse6decimal('-0.001405'))
         })
       })
 
@@ -2270,9 +2116,9 @@ describe('Version', () => {
           expect(ret.interestLong).to.equal(0)
           expect(ret.interestShort).to.equal(0)
 
-          expect(value.makerValue._value).to.equal(0)
-          expect(value.longValue._value).to.equal(0)
-          expect(value.shortValue._value).to.equal(0)
+          expect(value.makerPreValue._value).to.equal(0)
+          expect(value.longPreValue._value).to.equal(0)
+          expect(value.shortPreValue._value).to.equal(0)
         })
       })
     })
@@ -2317,9 +2163,9 @@ describe('Version', () => {
           expect(ret.pnlLong).to.equal(0)
           expect(ret.pnlShort).to.equal(0)
 
-          expect(value.makerValue._value).to.equal(0)
-          expect(value.longValue._value).to.equal(0)
-          expect(value.shortValue._value).to.equal(0)
+          expect(value.makerPreValue._value).to.equal(0)
+          expect(value.longPreValue._value).to.equal(0)
+          expect(value.shortPreValue._value).to.equal(0)
         })
       })
 
@@ -2377,9 +2223,9 @@ describe('Version', () => {
             expect(ret.pnlLong).to.equal(parse6decimal('18'))
             expect(ret.pnlShort).to.equal(parse6decimal('-18'))
 
-            expect(value.makerValue._value).to.equal(0)
-            expect(value.longValue._value).to.equal(parse6decimal('2'))
-            expect(value.shortValue._value).to.equal(parse6decimal('-2'))
+            expect(value.makerPreValue._value).to.equal(0)
+            expect(value.longPreValue._value).to.equal(parse6decimal('2'))
+            expect(value.shortPreValue._value).to.equal(parse6decimal('-2'))
           })
         })
 
@@ -2436,9 +2282,9 @@ describe('Version', () => {
             expect(ret.pnlLong).to.equal(parse6decimal('4'))
             expect(ret.pnlShort).to.equal(parse6decimal('-18'))
 
-            expect(value.makerValue._value).to.equal(parse6decimal('1.4'))
-            expect(value.longValue._value).to.equal(parse6decimal('2'))
-            expect(value.shortValue._value).to.equal(parse6decimal('-2'))
+            expect(value.makerPreValue._value).to.equal(parse6decimal('1.4'))
+            expect(value.longPreValue._value).to.equal(parse6decimal('2'))
+            expect(value.shortPreValue._value).to.equal(parse6decimal('-2'))
           })
         })
 
@@ -2495,9 +2341,9 @@ describe('Version', () => {
             expect(ret.pnlLong).to.equal(parse6decimal('40'))
             expect(ret.pnlShort).to.equal(parse6decimal('-30'))
 
-            expect(value.makerValue._value).to.equal(parse6decimal('-2'))
-            expect(value.longValue._value).to.equal(parse6decimal('2'))
-            expect(value.shortValue._value).to.equal(parse6decimal('-2'))
+            expect(value.makerPreValue._value).to.equal(parse6decimal('-2'))
+            expect(value.longPreValue._value).to.equal(parse6decimal('2'))
+            expect(value.shortPreValue._value).to.equal(parse6decimal('-2'))
           })
         })
       })
@@ -2556,9 +2402,9 @@ describe('Version', () => {
             expect(ret.pnlLong).to.equal(parse6decimal('-18'))
             expect(ret.pnlShort).to.equal(parse6decimal('18'))
 
-            expect(value.makerValue._value).to.equal(0)
-            expect(value.longValue._value).to.equal(parse6decimal('-2'))
-            expect(value.shortValue._value).to.equal(parse6decimal('2'))
+            expect(value.makerPreValue._value).to.equal(0)
+            expect(value.longPreValue._value).to.equal(parse6decimal('-2'))
+            expect(value.shortPreValue._value).to.equal(parse6decimal('2'))
           })
         })
 
@@ -2615,9 +2461,9 @@ describe('Version', () => {
             expect(ret.pnlLong).to.equal(parse6decimal('-4'))
             expect(ret.pnlShort).to.equal(parse6decimal('18'))
 
-            expect(value.makerValue._value).to.equal(parse6decimal('-1.4'))
-            expect(value.longValue._value).to.equal(parse6decimal('-2'))
-            expect(value.shortValue._value).to.equal(parse6decimal('2'))
+            expect(value.makerPreValue._value).to.equal(parse6decimal('-1.4'))
+            expect(value.longPreValue._value).to.equal(parse6decimal('-2'))
+            expect(value.shortPreValue._value).to.equal(parse6decimal('2'))
           })
         })
 
@@ -2674,9 +2520,9 @@ describe('Version', () => {
             expect(ret.pnlLong).to.equal(parse6decimal('-40'))
             expect(ret.pnlShort).to.equal(parse6decimal('30'))
 
-            expect(value.makerValue._value).to.equal(parse6decimal('2'))
-            expect(value.longValue._value).to.equal(parse6decimal('-2'))
-            expect(value.shortValue._value).to.equal(parse6decimal('2'))
+            expect(value.makerPreValue._value).to.equal(parse6decimal('2'))
+            expect(value.longPreValue._value).to.equal(parse6decimal('-2'))
+            expect(value.shortPreValue._value).to.equal(parse6decimal('2'))
           })
         })
       })
