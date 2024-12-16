@@ -660,8 +660,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
-            amount,
             Fixed6Lib.ZERO,
+            amount,
             Fixed6Lib.ZERO,
             false,
             updateContext.orderReferralFee
