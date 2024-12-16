@@ -439,13 +439,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     // TODO: unit test outside of Margin
     /// @inheritdoc IMarket
-    function hasPosition(address account) external view returns (bool hasPosition) {
+    function hasPosition(address account) external view returns (bool) {
         //_positions[account].read().magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()
         //updateContext.currentPositionLocal.update(context.pendingLocal);
-        Position memory position = _positions[account].read();
-        Order memory pending = _pendings[account].read();
-        position.update(pending);
-        return !position.magnitude().isZero();
+        Position memory position_ = _positions[account].read();
+        Order memory pending_ = _pendings[account].read();
+        position_.update(pending_);
+        return !position_.magnitude().isZero();
     }
 
     // TODO: unit test outside of Margin
@@ -633,7 +633,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // when liquidating, ensure maintenance requirements are not met
         if (newOrder.protected() && (
             !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) || // total pending close is not equal to latest position
-            margin.checkMaintained(context.account)                                    // latest position is properly maintained
+            margin.maintained(context.account)                                    // latest position is properly maintained
         )) revert IMarket.MarketInvalidProtectionError();
 
         // TODO: This doesn't need to be done post-save; keeping adjacent to maintenance/margin checks for future refactoring.
@@ -649,7 +649,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         //     UFixed6.unwrap(context.pendingLocal.pos())
         // );
         if (!newOrder.protected() && (
-            !margin.checkMargained(
+            !margin.margined(
                 context.account,
                 updateContext.collateralization,
                 newGuarantee.priceAdjustment(context.latestOracleVersion.price) // apply price override adjustment from intent if present

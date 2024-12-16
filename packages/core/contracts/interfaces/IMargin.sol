@@ -94,20 +94,10 @@ interface IMargin is IInstance {
     /// @param market Identifies where isolated balance should be adjusted
     function isolate(address account, IMarket market, Fixed6 amount) external;
 
-    /*/// @notice Settles all registered markets for account and calculates whether maintenance requirements are met
-    /// @param account User to settle and for whom maintenance requirement will be checked
-    /// @return isMaintained True if maintenance requirement met, otherwise false
-    function maintained(address account) external returns (bool isMaintained);
-
-    /// @notice Settles all registered markets for account and calculates whether margin requirements are met
-    /// @param account User to settle and for whom margin requirements will be checked
-    /// @return isMargined True if margin requirements met, otherwise false
-    function margined(address account) external returns (bool isMargined);*/
-
     /// @dev Called by market to check maintenance requirements upon market update
     /// @param account User whose maintenance requirement will be checked
     /// @return isMaintained True if margin requirement met, otherwise false
-    function checkMaintained(
+    function maintained(
         address account
     ) external returns (bool isMaintained);
 
@@ -116,7 +106,7 @@ interface IMargin is IInstance {
     /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
     /// @param guaranteePriceAdjustment Collateral adjustment between an intent's price and the oracle price, 0 if none
     /// @return isMargined True if margin requirement met, otherwise false
-    function checkMargained(
+    function margined(
         address account,
         UFixed6 minCollateralization,
         Fixed6 guaranteePriceAdjustment

@@ -12,7 +12,7 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -75,21 +75,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         _isolate(account, market, amount, true);
     }
 
-    /*/// @inheritdoc IMargin
-    function maintained(address account) external returns (bool isMaintained) {
-        // TODO: settle all markets and check maintenance requirements
-        revert("Not implemented");
-    }
-
     /// @inheritdoc IMargin
-    function margined(address account) external returns (bool isMargined) {
-        // TODO: settle all markets and check margin requirements
-        revert("Not implemented");
-    }*/
-
-    // TODO: rename to "maintained" and "margined"
-    /// @inheritdoc IMargin
-    function checkMaintained(
+    function maintained(
         address account
     ) external onlyMarket view returns (bool isMaintained) {
         IMarket market = IMarket(msg.sender);
@@ -101,17 +88,17 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             // TODO: aggregate maintenance requirements for each cross-margined market and check
             UFixed6 requirement = market.maintenanceRequired(account);
             if (requirement.isZero()) return true;
-            revert("checkMaintained not implemented for cross-margined accounts");
+            revert("maintained not implemented for cross-margined accounts");
         }
     }
 
     /// @inheritdoc IMargin
-    function checkMargained(
+    function margined(
         address account,
         UFixed6 minCollateralization,
         Fixed6 guaranteePriceAdjustment
     ) external onlyMarket view returns (bool isMargined) {
-        return _checkMargined(account, IMarket(msg.sender), minCollateralization, guaranteePriceAdjustment);
+        return _margined(account, IMarket(msg.sender), minCollateralization, guaranteePriceAdjustment);
     }
 
 
@@ -153,7 +140,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @dev Shares logic for margin checks initiated internally and from a Market
-    function _checkMargined(
+    function _margined(
         address account,
         IMarket market,
         UFixed6 minCollateralization,
@@ -162,14 +149,14 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
             UFixed6 requirement = market.marginRequired(account, minCollateralization);
-            // console.log("checkMargained with requirement %s and collateral", UFixed6.unwrap(requirement));
+            // console.log("margined with requirement %s and collateral", UFixed6.unwrap(requirement));
             // console.logInt(Fixed6.unwrap(collateral));
             return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check
             UFixed6 requirement = market.maintenanceRequired(account);
             if (requirement.isZero()) return true;
-            revert("checkMargained not implemented for cross-margined accounts");
+            revert("margined not implemented for cross-margined accounts");
         }
     }
 
@@ -205,7 +192,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
         // TODO: not sure how I feel about Margin contract reverting with Market errors here
         if (amount.sign() == -1) {
-            if (!_checkMargined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
+            if (!_margined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
                 revert IMarket.MarketInsufficientMarginError();
             }
             if (market.hasPosition(account) && market.stale()) {

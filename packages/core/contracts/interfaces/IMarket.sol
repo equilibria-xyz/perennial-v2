@@ -159,7 +159,7 @@ interface IMarket is IInstance {
     function orderReferrers(address account, uint256 id) external view returns (address);
     function guaranteeReferrers(address account, uint256 id) external view returns (address);
     /// @notice Returns true if user has an existing position or pending order which will create a position
-    function hasPosition(address account) external view returns (bool hasPosition);
+    function hasPosition(address account) external view returns (bool);
     /// @notice Retrieves the maintenance requirement for an account
     /// @param account User for whom maintenance requirement will be checked
     function maintenanceRequired(address account) external view returns (UFixed6 requirement);
