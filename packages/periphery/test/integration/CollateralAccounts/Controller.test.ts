@@ -112,18 +112,18 @@ export function RunControllerBaseTests(
     // updates the market and returns the version timestamp
     async function changePosition(
       user: SignerWithAddress,
-      newMaker = constants.MaxUint256,
-      newLong = constants.MaxUint256,
-      newShort = constants.MaxUint256,
+      newMaker?: BigNumber,
+      newLong?: BigNumber,
+      newShort?: BigNumber,
     ): Promise<BigNumber> {
       const positions = await ethMarket.positions(user.address)
       const tx = await ethMarket
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
           user.address,
-          newMaker == constants.MaxUint256 ? positions.maker : newMaker,
-          newLong == constants.MaxUint256 ? positions.long : newLong,
-          newShort == constants.MaxUint256 ? positions.short : newShort,
+          newMaker ?? positions.maker,
+          newLong ?? positions.long,
+          newShort ?? positions.short,
           0,
           false,
           TX_OVERRIDES,
