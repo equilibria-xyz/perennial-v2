@@ -257,8 +257,31 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Closes the account's position
     /// @param account The account to operate on
     /// @param protect Whether to put the account into a protected status for liquidations
-    function close(address account, bool protect) external {
-        update(account, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, Fixed6Lib.ZERO, protect, address(0));
+    /// @param referrer The referrer of the order
+    function close(address account, bool protect, address referrer) external {
+        (Context memory context, UpdateContext memory updateContext) =
+            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+
+        UFixed6 newMaker = _processCloseAllPosition(context, updateContext.currentPositionLocal.maker);
+        UFixed6 newLong = _processCloseAllPosition(context, updateContext.currentPositionLocal.long);
+        UFixed6 newShort = _processCloseAllPosition(context, updateContext.currentPositionLocal.short);
+
+        // create new order & guarantee
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            Fixed6Lib.ZERO,
+            newMaker,
+            newLong,
+            newShort,
+            protect,
+            updateContext.orderReferralFee
+        );
+
+        Guarantee memory newGuarantee; // no guarantee is created for a market order
+
+        // process update
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
     }
 
     /// @notice Updates the beneficiary of the market
@@ -866,6 +889,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
         _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
         _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
+    }
+
+    /// @notice Processes the current position for a fully close order
+    /// @param context The context to use
+    /// @param currentPosition The position to process
+    /// @return newPosition The new position
+    function _processCloseAllPosition(
+        Context memory context,
+        UFixed6 currentPosition
+    ) private pure returns (UFixed6 newPosition) {
+        return currentPosition.isZero()
+            ? UFixed6Lib.ZERO
+            : currentPosition.sub(context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg()));
     }
 
     /// @notice Credits an account's claimable
