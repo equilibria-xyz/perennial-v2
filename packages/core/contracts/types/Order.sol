@@ -94,11 +94,13 @@ library OrderLib {
         Fixed6 makerAmount,
         Fixed6 takerAmount,
         Fixed6 collateral,
+        bool protect,
         UFixed6 referralFee
     ) internal pure returns (Order memory newOrder) {
         newOrder.timestamp = timestamp;
         newOrder.collateral = collateral;
         newOrder.orders = makerAmount.isZero() && takerAmount.isZero() ? 0 : 1;
+        newOrder.protection = protect ? 1 : 0;
         newOrder.takerReferral = makerAmount.abs().add(takerAmount.abs()).mul(referralFee);
 
         // If the order is not counter to the current position, it is opening

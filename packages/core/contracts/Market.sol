@@ -208,6 +208,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             makerAmount,
             takerAmount,
             collateral,
+            false,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order
@@ -279,18 +280,27 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
-        UFixed6 newMaker = _processCloseAllPosition(context, updateContext.currentPositionLocal.maker);
-        UFixed6 newLong = _processCloseAllPosition(context, updateContext.currentPositionLocal.long);
-        UFixed6 newShort = _processCloseAllPosition(context, updateContext.currentPositionLocal.short);
+        Fixed6 makerAmount;
+        Fixed6 takerAmount;
+
+        Fixed6 closable = Fixed6Lib.from(context.latestPositionLocal.magnitude())
+            .sub(Fixed6Lib.from(context.pendingLocal.neg()));
+        
+        if (updateContext.currentPositionLocal.maker.gt(UFixed6Lib.ZERO)) {
+            makerAmount = closable.mul(Fixed6Lib.NEG_ONE);
+        } else if (updateContext.currentPositionLocal.long.gt(UFixed6Lib.ZERO)) {
+            takerAmount = closable.mul(Fixed6Lib.NEG_ONE);
+        } else {
+            takerAmount = closable;
+        }
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
+            makerAmount,
+            takerAmount,
             Fixed6Lib.ZERO,
-            newMaker,
-            newLong,
-            newShort,
             protect,
             updateContext.orderReferralFee
         );
@@ -653,6 +663,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             amount,
             Fixed6Lib.ZERO,
             Fixed6Lib.ZERO,
+            false,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee = GuaranteeLib.from(
@@ -907,19 +918,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
         _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
         _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
-    }
-
-    /// @notice Processes the current position for a fully close order
-    /// @param context The context to use
-    /// @param currentPosition The position to process
-    /// @return newPosition The new position
-    function _processCloseAllPosition(
-        Context memory context,
-        UFixed6 currentPosition
-    ) private pure returns (UFixed6 newPosition) {
-        return currentPosition.isZero()
-            ? UFixed6Lib.ZERO
-            : currentPosition.sub(context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg()));
     }
 
     /// @notice Credits an account's claimable
