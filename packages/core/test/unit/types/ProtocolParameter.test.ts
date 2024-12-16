@@ -49,6 +49,7 @@ describe('ProtocolParameter', () => {
       expect(value.referralFee).to.equal(9)
       expect(value.minScale).to.equal(10)
       expect(value.maxStaleAfter).to.equal(11)
+      expect(value.minMinMaintenance).to.equal(12)
     })
 
     context('.maxFee', async () => {

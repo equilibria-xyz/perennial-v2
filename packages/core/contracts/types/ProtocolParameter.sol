@@ -52,6 +52,7 @@ struct ProtocolParameter {
 //     uint48 minMinMaintenance;       // <= 281m
 // }
 
+// SECURITY: update ProtocolParameterStorage to 2 slots.
 struct ProtocolParameterStorage { uint256 slot0; uint256 slot1; }
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
 
