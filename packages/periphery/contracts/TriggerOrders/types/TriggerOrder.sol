@@ -57,7 +57,7 @@ library TriggerOrderLib {
         address account
     ) internal {
         if (self.delta.eq(MAGIC_VALUE_CLOSE_POSITION)) {
-            market.close(account, false);
+            market.close(account, false, address(0));
             return;
         }
 

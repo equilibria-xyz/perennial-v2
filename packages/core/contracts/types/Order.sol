@@ -83,17 +83,18 @@ library OrderLib {
     /// @notice Creates a new order from the an intent order request
     /// @param timestamp The current timestamp
     /// @param position The current position
-    /// @param takerAmount The magnitude and direction of taker position
     /// @param makerAmount The magnitude and direction of maker position
+    /// @param takerAmount The magnitude and direction of taker position
     /// @param collateral The change in the collateral
     /// @param referralFee The referral fee
     /// @return newOrder The resulting order
     function from(
         uint256 timestamp,
         Position memory position,
-        Fixed6 takerAmount,
         Fixed6 makerAmount,
+        Fixed6 takerAmount,
         Fixed6 collateral,
+        bool protect,
         UFixed6 referralFee
     ) internal pure returns (Order memory newOrder) {
         newOrder.timestamp = timestamp;
@@ -101,6 +102,7 @@ library OrderLib {
         newOrder.orders = makerAmount.isZero() && takerAmount.isZero() ? 0 : 1;
         newOrder.makerReferral = makerAmount.abs().mul(referralFee);
         newOrder.takerReferral = takerAmount.abs().mul(referralFee);
+        newOrder.protection = protect ? 1 : 0;
 
         // If the order is not counter to the current position, it is opening
         if (takerAmount.sign() == 0 || position.skew().sign() == 0 || position.skew().sign() == takerAmount.sign()) {

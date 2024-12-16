@@ -23859,7 +23859,7 @@ describe('Market', () => {
         oracle.request.whenCalledWith(user.address).returns()
 
         await settle(market, user)
-        await expect(market.connect(user)['close(address,bool)'](user.address, false))
+        await expect(market.connect(user).close(user.address, false, constants.AddressZero))
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
@@ -23935,7 +23935,7 @@ describe('Market', () => {
 
         await settle(market, user)
 
-        await expect(market.connect(user)['close(address,bool)'](user.address, false))
+        await expect(market.connect(user).close(user.address, false, constants.AddressZero))
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
@@ -24012,7 +24012,7 @@ describe('Market', () => {
 
         await settle(market, user)
 
-        await expect(market.connect(user)['close(address,bool)'](user.address, false))
+        await expect(market.connect(user).close(user.address, false, constants.AddressZero))
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,
@@ -24110,7 +24110,7 @@ describe('Market', () => {
         dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
         dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-        await expect(market.connect(liquidator)['close(address,bool)'](user.address, true))
+        await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
           .to.emit(market, 'OrderCreated')
           .withArgs(
             user.address,

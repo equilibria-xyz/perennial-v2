@@ -25,7 +25,7 @@ contract MockToken is ERC20 {
         } else if (functionToCall == Function.SETTLE){
             IMarket(msg.sender).settle(address(0));
         } else if (functionToCall == Function.CLOSE) {
-            IMarket(msg.sender).close(address(0), false);
+            IMarket(msg.sender).close(address(0), false, address(0));
         }
 
         return true;

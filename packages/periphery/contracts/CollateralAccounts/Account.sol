@@ -16,8 +16,6 @@ import { IMarket, Position } from "@perennial/v2-core/contracts/interfaces/IMark
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 contract Account is IAccount, Instance {
-    UFixed6 private constant UNCHANGED_POSITION = UFixed6Lib.MAX;
-
     /// @dev EOA of the user who owns this collateral account
     address public owner;
 
