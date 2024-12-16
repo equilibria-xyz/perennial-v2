@@ -10,7 +10,7 @@ import { IMarket, IMargin } from "@perennial/v2-core/contracts/interfaces/IMarke
 import { OracleVersion } from "@perennial/v2-core/contracts/types/OracleVersion.sol";
 import { OracleReceipt } from "@perennial/v2-core/contracts/types/OracleReceipt.sol";
 import { IOracle } from "./interfaces/IOracle.sol";
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 /// @title Oracle
 /// @notice The top-level oracle contract that implements an oracle provider interface.
@@ -131,9 +131,9 @@ contract Oracle is IOracle, Instance {
         UFixed6 feeReceived = market.claimFee(address(this));
 
         // return the settlement fee portion to the sub oracle's factory
-        console.log("Oracle.claimFee pushing %s DSU from %s to %s", UFixed6.unwrap(settlementFeeRequested), address(this), msg.sender);
+        // console.log("Oracle.claimFee pushing %s DSU from %s to %s", UFixed6.unwrap(settlementFeeRequested), address(this), msg.sender);
         market.margin().DSU().push(msg.sender, UFixed18Lib.from(settlementFeeRequested));
-        console.log("Oracle.claimFee done pushing DSU");
+        // console.log("Oracle.claimFee done pushing DSU");
 
         emit FeeReceived(settlementFeeRequested, feeReceived.sub(settlementFeeRequested));
     }
