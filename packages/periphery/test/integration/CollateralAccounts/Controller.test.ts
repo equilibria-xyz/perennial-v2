@@ -144,27 +144,22 @@ export function RunControllerBaseTests(
         ...createAction(user.address, signer.address),
       }
 
+      // sign the message
+      const signature = await signMarketTransfer(signer, verifier, marketTransferMessage)
+
       // determine expected event parameters
       let expectedFrom: Address, expectedTo: Address, expectedAmount: BigNumber
       if (amount.gt(constants.Zero)) {
         // deposits transfer from collateral account into market
         expectedFrom = accountA.address
         expectedTo = market.address
-        if (amount === constants.MaxInt256) {
-          expectedAmount = await dsu.balanceOf(accountA.address)
-          marketTransferMessage.amount = expectedAmount.div(1e12)
-        } else expectedAmount = amount.mul(1e12)
+        expectedAmount = amount.mul(1e12)
       } else {
         // withdrawals transfer from market into account
         expectedFrom = market.address
         expectedTo = accountA.address
-        if (amount === constants.MinInt256) {
-          marketTransferMessage.amount = (await market.locals(user.address)).collateral.mul(-1)
-          expectedAmount = marketTransferMessage.amount.mul(-1e12)
-        } else expectedAmount = amount.mul(-1e12)
+        expectedAmount = amount.mul(-1e12)
       }
-
-      const signature = await signMarketTransfer(signer, verifier, marketTransferMessage)
 
       // perform transfer
       await expect(
@@ -522,7 +517,7 @@ export function RunControllerBaseTests(
         await transfer(depositAmount, userA)
 
         // sign a message to fully withdraw from the market
-        await transfer(constants.MinInt256, userA)
+        await transfer(depositAmount.mul(-1), userA)
 
         // verify balances
         await expectMarketCollateralBalance(userA, constants.Zero)
