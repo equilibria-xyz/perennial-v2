@@ -74,82 +74,97 @@ library MatchingLib {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) internal pure returns (MatchingResult memory) { // TODO: take into account guarantee?
+    ) internal pure returns (MatchingResult memory result) {
         MatchingOrderbook memory orderbook = _orderbook(position);
 
-        // fill maker close
-        MatchingExposure memory makerCloseExposure = _exposure(position); // TODO: needs to be per position, round up when exposure is charging a fee
+        _executeClose(orderbook, position, order, synBook, price, result);
+        _executeTaker(orderbook, position, order, synBook, price, result);
+        _executeOpen(orderbook, position, order, synBook, price, result);
 
-        MatchingFillResult memory makerCloseFillResult = _fill(orderbook, position, _extractMakerClose(order), synBook, price);
+        result.exposurePos = UFixed6Lib.from(orderbook.ask.sub(orderbook.midpoint));
+        result.exposureNeg = UFixed6Lib.from(orderbook.midpoint.sub(orderbook.bid));
+    }
 
-        // fill taker orders (use same starting skew for both positive and negative orders)
-        MatchingExposure memory takerCloseExposure = _exposure(position); // snapshot the position to apply to both order components
+    function _executeClose(
+        MatchingOrderbook memory orderbook,
+        MatchingPosition memory position,
+        MatchingOrder memory order,
+        SynBook6 memory synBook,
+        Fixed6 price,
+        MatchingResult memory result
+    ) private pure {
+        // calculate exposure
+        result.exposureMakerNeg = _exposure(position).maker; // TODO: needs to be per position, round up when exposure is charging a fee
+
+        // fill order
+        MatchingFillResult memory fillResult = _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
+        result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
+        result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
+        result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
+        result.spreadPreLong = fillResult.spreadLong;
+        result.spreadPreShort = fillResult.spreadShort;
+    }
+
+    function _executeTaker(
+        MatchingOrderbook memory orderbook,
+        MatchingPosition memory position,
+        MatchingOrder memory order,
+        SynBook6 memory synBook,
+        Fixed6 price,
+        MatchingResult memory result
+    ) private pure {
+        // calculate close exposure
+        MatchingExposure memory exposure = _exposure(position); // TODO: needs to be per position, round up when exposure is charging a fee
+        result.exposureLongNeg = exposure.long;
+        result.exposureShortNeg = exposure.short;
+
+        // snapshot position and orderbook so both long and short start from the same skew
         MatchingPosition memory position2 = _position(position);
         MatchingOrderbook memory orderbook2 = _orderbook(orderbook);
 
-        MatchingFillResult memory takerPosFillResult = _fill(orderbook, position, _extractTakerPos(order), synBook, price);
-        MatchingFillResult memory takerNegFillResult = _fill(orderbook2, position2, _extractTakerNeg(order), synBook, price);
+        // fill positive side of order
+        MatchingFillResult memory fillResult = _fill(orderbook, position, _extractTakerPos(order), synBook, price);
+        result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
+        result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
+        result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
+        result.spreadCloseLong = fillResult.spreadLong;
+        result.spreadCloseShort = fillResult.spreadShort;
 
-        _apply(position, _extractTakerNeg(order)); // apply both order components to the position before proceeding
-        MatchingExposure memory takerOpenExposure = _exposure(position);
-        _apply(orderbook, _flip(_change(takerCloseExposure, takerOpenExposure)));
+        // fill negative side of order
+        fillResult = _fill(orderbook2, position2, _extractTakerNeg(order), synBook, price);
+        result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
+        result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
+        result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
+        result.spreadCloseLong = fillResult.spreadLong;
+        result.spreadCloseShort = fillResult.spreadShort;
 
-        // fill maker open
-        MatchingFillResult memory makerOpenFillResult = _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
+        // true up underlying position and orderbook to contain both executed sides for next step
+        _fill(orderbook, position, _extractTakerNeg(order), synBook, price);
 
-        MatchingExposure memory makerOpenExposure = _exposure(position);
-
-        return _result(
-            orderbook,  // TODO: compile w/o optimizer
-            makerCloseExposure,
-            makerCloseFillResult,
-            takerCloseExposure,
-            takerPosFillResult,
-            takerNegFillResult,
-            takerOpenExposure,
-            makerOpenFillResult,
-            makerOpenExposure
-        );
+        // calculate open exposure
+        exposure = _exposure(position); // TODO: needs to be per position, round up when exposure is charging a fee
+        result.exposureLongPos = exposure.long;
+        result.exposureShortPos = exposure.short;
     }
 
-    function _result(
+    function _executeOpen(
         MatchingOrderbook memory orderbook,
-        MatchingExposure memory makerCloseExposure,
-        MatchingFillResult memory makerCloseFillResult,
-        MatchingExposure memory takerOpenExposure,
-        MatchingFillResult memory takerPosFillResult,
-        MatchingFillResult memory takerNegFillResult,
-        MatchingExposure memory takerCloseExposure,
-        MatchingFillResult memory makerOpenFillResult,
-        MatchingExposure memory makerOpenExposure
-    ) private pure returns (MatchingResult memory result) {
-        result.spreadPos = makerCloseFillResult.spreadPos
-            .add(takerPosFillResult.spreadPos)
-            .add(takerNegFillResult.spreadPos)
-            .add(makerOpenFillResult.spreadPos);
-        result.exposurePos = UFixed6Lib.from(orderbook.ask.sub(orderbook.midpoint));
-        result.spreadNeg = makerCloseFillResult.spreadNeg
-            .add(takerPosFillResult.spreadNeg)
-            .add(takerNegFillResult.spreadNeg)
-            .add(makerOpenFillResult.spreadNeg);
-        result.exposureNeg = UFixed6Lib.from(orderbook.midpoint.sub(orderbook.bid));
-        result.spreadMaker = makerCloseFillResult.spreadMaker
-            .add(takerPosFillResult.spreadMaker)
-            .add(takerNegFillResult.spreadMaker)
-            .add(makerOpenFillResult.spreadMaker);
-        result.spreadPreLong = makerCloseFillResult.spreadLong;
-        result.spreadPreShort = makerCloseFillResult.spreadShort;
-        result.spreadCloseLong = takerPosFillResult.spreadLong.add(takerNegFillResult.spreadLong);
-        result.spreadCloseShort = takerPosFillResult.spreadShort.add(takerNegFillResult.spreadShort);
-        result.spreadPostLong = makerOpenFillResult.spreadLong;
-        result.spreadPostShort = makerOpenFillResult.spreadShort;
+        MatchingPosition memory position,
+        MatchingOrder memory order,
+        SynBook6 memory synBook,
+        Fixed6 price,
+        MatchingResult memory result
+    ) private pure {
+        // fill order
+        MatchingFillResult memory fillResult = _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
+        result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
+        result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
+        result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
+        result.spreadPostLong = fillResult.spreadLong;
+        result.spreadPostShort = fillResult.spreadShort;
 
-        result.exposureMakerNeg = makerCloseExposure.maker;
-        result.exposureLongNeg = takerCloseExposure.long;
-        result.exposureShortNeg = takerCloseExposure.short;
-        result.exposureLongPos = takerOpenExposure.long;
-        result.exposureShortPos = takerOpenExposure.short;
-        result.exposureMakerPos = makerOpenExposure.maker;
+        // calculate exposure
+        result.exposureMakerPos = _exposure(position).maker; // TODO: needs to be per position, round up when exposure is charging a fee
     }
 
     /// @dev order must be a single uni-directional segment of an order.

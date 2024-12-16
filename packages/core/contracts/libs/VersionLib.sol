@@ -305,7 +305,7 @@ library VersionLib {
 
         MatchingResult memory matchingResult = MatchingLib.execute( // TODO: populate VersionAccumulationResult directly
             MatchingPosition({
-                long: context.fromPosition.long,
+                long: context.fromPosition.long, // TODO: take into account guarantee?
                 short: context.fromPosition.short,
                 maker: context.fromPosition.maker
             }),
