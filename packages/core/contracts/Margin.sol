@@ -12,7 +12,7 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -75,7 +75,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         _isolate(account, market, amount, true);
     }
 
-    /// @inheritdoc IMargin
+    /*/// @inheritdoc IMargin
     function maintained(address account) external returns (bool isMaintained) {
         // TODO: settle all markets and check maintenance requirements
         revert("Not implemented");
@@ -85,9 +85,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function margined(address account) external returns (bool isMargined) {
         // TODO: settle all markets and check margin requirements
         revert("Not implemented");
-    }
+    }*/
 
-    // TODO: remove position arguments; market should know whether to use current or latest
+    // TODO: rename to "maintained" and "margined"
     /// @inheritdoc IMargin
     function checkMaintained(
         address account
@@ -203,9 +203,14 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             _checkpoints[account][market][latestTimestamp].store(checkpoint);
         }
 
-        // TODO: not sure how I feel about Margin contract reverting with a Market error
-        if (amount.sign() == -1 && !_checkMargined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
-            revert IMarket.MarketInsufficientMarginError();
+        // TODO: not sure how I feel about Margin contract reverting with Market errors here
+        if (amount.sign() == -1) {
+            if (!_checkMargined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
+                revert IMarket.MarketInsufficientMarginError();
+            }
+            if (market.hasPosition(account) && market.stale()) {
+                revert IMarket.MarketStalePriceError();
+            }
         }
         // TODO: if amount.sign() = 1, ensure remaining cross-margin balance is sufficient margin for all markets
 

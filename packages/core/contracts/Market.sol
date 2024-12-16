@@ -437,15 +437,29 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return margin.isolatedCheckpoints(account, this, version);
     }
 
+    // TODO: unit test outside of Margin
+    /// @inheritdoc IMarket
+    function hasPosition(address account) external view returns (bool hasPosition) {
+        //_positions[account].read().magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()
+        //updateContext.currentPositionLocal.update(context.pendingLocal);
+        Position memory position = _positions[account].read();
+        Order memory pending = _pendings[account].read();
+        position.update(pending);
+        return !position.magnitude().isZero();
+    }
+
+    // TODO: unit test outside of Margin
     /// @inheritdoc IMarket
     function maintenanceRequired(
         address account
     ) external view returns (UFixed6 requirement) {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
+        // TODO: add pending pos() to this as well, even though previous implementation excluded it
         UFixed6 positionMagnitude = _positions[account].read().magnitude();
         requirement = PositionLib.maintenance(positionMagnitude, latestOracleVersion, _riskParameter.read());
     }
 
+    // TODO: unit test outside of Margin
     /// @inheritdoc IMarket
     function marginRequired(
         address account,
@@ -454,6 +468,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
         UFixed6 positionMagnitude = _positions[account].read().magnitude().add(_pendings[account].read().pos());
         return PositionLib.margin(positionMagnitude, latestOracleVersion, _riskParameter.read(), minCollateralization);
+    }
+
+    function stale() external view returns (bool isStale) {
+        isStale = _stale();
     }
 
     /// @notice Loads the transaction context
@@ -609,11 +627,21 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // store updated state
         _storeContext(context);
 
+        // TODO: consider updating these three checks into a post-save invariant;
+        // perhaps moving into a new InvariantLib function to reduce contract size
+
         // when liquidating, ensure maintenance requirements are not met
         if (newOrder.protected() && (
-            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
-            margin.checkMaintained(context.account)                                     // latest position is properly maintained
+            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) || // total pending close is not equal to latest position
+            margin.checkMaintained(context.account)                                    // latest position is properly maintained
         )) revert IMarket.MarketInvalidProtectionError();
+
+        // TODO: This doesn't need to be done post-save; keeping adjacent to maintenance/margin checks for future refactoring.
+        if (
+            !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) && // sender has no position
+            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                               // sender is isolating collateral into account, without position change
+            _stale()                                                                                                          // price is not stale
+        ) revert IMarket.MarketStalePriceError();
 
         // check margin
         // console.log("context positon is %s, pending local pos %s",
@@ -928,6 +956,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             receiverLocal.credit(amount);
             _locals[receiver].store(receiverLocal);
         }
+    }
+
+    /// @dev Returns true if the oracle price is stale, which should prevent position change and deisolation of collateral
+    function _stale() private view returns (bool isStale) {
+        (OracleVersion memory latest, uint256 currentTimestamp) = oracle.status();
+        isStale = !latest.valid || currentTimestamp - latest.timestamp >= _riskParameter.read().staleAfter;
     }
 
     /// @notice Only the coordinator or the owner can call

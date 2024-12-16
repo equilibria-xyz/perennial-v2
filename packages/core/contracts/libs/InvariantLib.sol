@@ -35,16 +35,6 @@ library InvariantLib {
         if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) // total pending close is greater than latest position
             revert IMarket.MarketOverCloseError();
 
-        // TODO: Move this to Margin contract
-        if (
-            !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) &&       // sender has no position
-            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                                     // sender is isolating collateral into account, without position change
-            (
-                !context.latestOracleVersion.valid ||
-                context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter
-            )                                                                                                                       // price is not stale
-        ) revert IMarket.MarketStalePriceError();
-
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert IMarket.MarketClosedError();
 

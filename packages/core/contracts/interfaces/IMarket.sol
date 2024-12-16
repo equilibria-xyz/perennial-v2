@@ -158,6 +158,8 @@ interface IMarket is IInstance {
     function liquidators(address account, uint256 id) external view returns (address);
     function orderReferrers(address account, uint256 id) external view returns (address);
     function guaranteeReferrers(address account, uint256 id) external view returns (address);
+    /// @notice Returns true if user has an existing position or pending order which will create a position
+    function hasPosition(address account) external view returns (bool hasPosition);
     /// @notice Retrieves the maintenance requirement for an account
     /// @param account User for whom maintenance requirement will be checked
     function maintenanceRequired(address account) external view returns (UFixed6 requirement);
@@ -165,6 +167,8 @@ interface IMarket is IInstance {
     /// @param account User for whom margin requirement will be checked
     /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
     function marginRequired(address account, UFixed6 minCollateralization) external view returns (UFixed6 requirement);
+    /// @notice Returns true if oracle price is older than the period configured in risk parameters
+    function stale() external view returns (bool isStale);
     function settle(address account) external;
     function update(address account, Intent calldata intent, bytes memory signature) external;
     function update(address account, Fixed6 amount, Fixed6 collateral, address referrer) external;

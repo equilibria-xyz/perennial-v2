@@ -58,9 +58,11 @@ describe('Margin', () => {
     marketA = await smock.fake<IMarket>('IMarket')
     marketA.factory.whenCalledWith().returns(marketFactory.address)
     marketA.oracle.whenCalledWith().returns(oracle.address)
+    marketA.stale.returns(false)
     marketB = await smock.fake<IMarket>('IMarket')
     marketB.factory.whenCalledWith().returns(marketFactory.address)
     marketB.oracle.whenCalledWith().returns(oracle.address)
+    marketB.stale.returns(false)
   })
 
   describe('normal operation', async () => {
@@ -263,6 +265,32 @@ describe('Margin', () => {
         .to.emit(margin, 'IsolatedFundsChanged')
         .withArgs(user.address, marketA.address, parse6decimal('-10'))
       expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
+    })
+
+    it('reverts if price stale when deisolating funds', async () => {
+      await deposit(user, parse6decimal('500'))
+
+      // isolate some funds
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('500')))
+        .to.emit(margin, 'MarketIsolated')
+        .withArgs(user.address, marketA.address)
+        .to.emit(margin, 'IsolatedFundsChanged')
+        .withArgs(user.address, marketA.address, parse6decimal('500'))
+
+      // simulate stale price
+      marketA.hasPosition.whenCalledWith(user.address).returns(true)
+      marketA.stale.returns(true)
+
+      // reverts if price is stale
+      await expect(
+        margin.connect(user).isolate(user.address, marketA.address, parse6decimal('-100')),
+      ).to.be.revertedWithCustomError(margin, 'MarketStalePriceError')
+
+      // should not revert if user has no position in market
+      marketA.hasPosition.whenCalledWith(user.address).returns(false)
+      await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('-200')))
+        .to.emit(margin, 'IsolatedFundsChanged')
+        .withArgs(user.address, marketA.address, parse6decimal('-200'))
     })
 
     it('can withdraw crossed funds with some isolated', async () => {

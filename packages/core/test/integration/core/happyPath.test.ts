@@ -23,12 +23,9 @@ import {
   expectGuaranteeEq,
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 import { signAccessUpdateBatch, signIntent, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
