@@ -14595,6 +14595,44 @@ describe('Market', () => {
         })
       })
 
+      context('properties', async () => {
+        it('checks whether user has position', async () => {
+          await margin.connect(user).isolate(user.address, market.address, COLLATERAL)
+
+          // no position
+          expect(await market.hasPosition(user.address)).to.be.false
+
+          // pending order
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, 0, false),
+          ).to.not.be.reverted
+          expect(await market.hasPosition(user.address)).to.be.true
+
+          // settled with position
+          await settle(market, user)
+          expect(await market.hasPosition(user.address)).to.be.true
+
+          // position with pending close order
+          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+          ).to.not.be.reverted
+          expect(await market.hasPosition(user.address)).to.be.true
+
+          // settled with no position
+          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_3.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+          await settle(market, user)
+          expect(await market.hasPosition(user.address)).to.be.false
+        })
+      })
+
       context('invariant violations', async () => {
         it('reverts if under margin', async () => {
           await expect(

@@ -437,15 +437,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return margin.isolatedCheckpoints(account, this, version);
     }
 
-    // TODO: unit test outside of Margin
     /// @inheritdoc IMarket
     function hasPosition(address account) external view returns (bool) {
         //_positions[account].read().magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()
         //updateContext.currentPositionLocal.update(context.pendingLocal);
         Position memory position_ = _positions[account].read();
         Order memory pending_ = _pendings[account].read();
-        position_.update(pending_);
-        return !position_.magnitude().isZero();
+        return !(position_.magnitude().isZero() && pending_.isEmpty());
     }
 
     // TODO: unit test outside of Margin
@@ -470,6 +468,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return PositionLib.margin(positionMagnitude, latestOracleVersion, _riskParameter.read(), minCollateralization);
     }
 
+    // TODO: unit test outside of Margin
+    /// @inheritdoc IMarket
     function stale() external view returns (bool isStale) {
         isStale = _stale();
     }
