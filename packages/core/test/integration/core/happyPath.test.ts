@@ -1045,7 +1045,7 @@ describe('Happy Path', () => {
     await chainlink.next()
 
     // close userB's position
-    await expect(market.connect(userB).close(userB.address, false))
+    await expect(market.connect(userB).close(userB.address, false, constants.AddressZero))
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,

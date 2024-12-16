@@ -93,7 +93,7 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
     // liquidate user
-    await market.connect(userB).close(user.address, true)
+    await market.connect(userB).close(user.address, true, constants.AddressZero)
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
