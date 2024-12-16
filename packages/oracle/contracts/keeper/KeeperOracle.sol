@@ -16,7 +16,7 @@ import { OracleParameter } from "../types/OracleParameter.sol";
 import { PriceResponse, PriceResponseStorage, PriceResponseLib } from "./types/PriceResponse.sol";
 import { KeeperOracleParameter } from "./types/KeeperOracleParameter.sol";
 import { IOracle } from "../interfaces/IOracle.sol";
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 /// @title KeeperOracle
 /// @notice Generic implementation of the IOracle interface for keeper-based oracles.
@@ -152,9 +152,9 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         market.settle(address(0));
         oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
-        // console.log("commit attempting to push %s DSU syncFee from %s to %s", UFixed6.unwrap(priceResponse.syncFee), address(this), receiver);
+        console.log("KeeperOracle.commit attempting to push %s DSU syncFee from %s to %s", UFixed6.unwrap(priceResponse.syncFee), address(this), receiver);
         market.margin().DSU().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
-        // console.log("commit done pushing DSU");
+        console.log("KeeperOracle.commit done pushing DSU");
     }
 
     /// @notice Performs an asynchronous local settlement callback

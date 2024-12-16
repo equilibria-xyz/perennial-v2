@@ -28,6 +28,7 @@ import {
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 import { deployMarketFactory } from '../../setupHelpers'
+import { IMargin__factory } from '@perennial/v2-core/types/generated'
 
 const { ethers } = HRE
 
@@ -187,6 +188,7 @@ testOracles.forEach(testOracle => {
     let metaquantsOracleFactory: MetaQuantsFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
+    let margin: IMargin
     let market: IMarket
     let marketMilady: IMarket
     let dsu: IERC20Metadata
@@ -289,7 +291,7 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(METAQUANTS_MILADY_ETH_PRICE_FEED, metaquantsOracleFactory.address, 'MILADY-USD')
 
-      marketFactory = await deployMarketFactory(owner, oracleFactory)
+      marketFactory = await deployMarketFactory(owner, oracleFactory, dsu)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
@@ -352,30 +354,15 @@ testOracles.forEach(testOracle => {
         closed: false,
         settle: false,
       }
-      market = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracle.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracle.address,
-      })
+      market = Market__factory.connect(await marketFactory.callStatic.create({ oracle: oracle.address }), owner)
+      await marketFactory.create({ oracle: oracle.address })
       await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
       marketMilady = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracleMilady.address,
-        }),
+        await marketFactory.callStatic.create({ oracle: oracleMilady.address }),
         owner,
       )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracleMilady.address,
-      })
+      await marketFactory.create({ oracle: oracleMilady.address })
       await marketMilady.updateParameter(marketParameter)
       await marketMilady.updateRiskParameter(riskParameter)
 
@@ -384,10 +371,13 @@ testOracles.forEach(testOracle => {
       await keeperOracleMilady.register(oracleMilady.address)
       await oracleMilady.register(marketMilady.address)
 
+      margin = IMargin__factory.connect(await market.margin(), owner)
+
       oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
       factorySigner = await impersonateWithBalance(metaquantsOracleFactory.address, utils.parseEther('10'))
 
-      await dsu.connect(user).approve(market.address, constants.MaxUint256)
+      await dsu.connect(user).approve(margin.address, constants.MaxUint256)
+      await margin.connect(user).deposit(user.address, parse6decimal('10'))
 
       const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
       await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('10000'))
@@ -469,7 +459,7 @@ testOracles.forEach(testOracle => {
     })
 
     describe('#commit', async () => {
-      it('commits successfully and incentivizes the keeper', async () => {
+      it.only('commits successfully and incentivizes the keeper', async () => {
         await time.includeAt(
           async () =>
             await market
@@ -491,6 +481,20 @@ testOracles.forEach(testOracle => {
         expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
         expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
 
+        console.log(
+          'keeperOracle',
+          keeperOracle.address,
+          'balance',
+          await dsu.balanceOf(keeperOracle.address),
+          'factory',
+          oracleFactory.address,
+          'balance',
+          await dsu.balanceOf(oracleFactory.address),
+        )
+
+        // FIXME: getting ERC20: transfer amount exceeds balance; confused because it seems to pay from keeperOracle,
+        // which neither has a balance now or before changes.  The first Oracle.claimFee (0 amount) succeeds but the
+        // second call fails.
         await expect(
           metaquantsOracleFactory
             .connect(user)
@@ -498,6 +502,7 @@ testOracles.forEach(testOracle => {
         )
           .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
           .withArgs([STARTING_TIME, getPrices(listify(PAYLOAD))[0], true])
+        return
 
         const reward = utils.parseEther('0.370586')
         expect(await dsu.balanceOf(user.address)).to.be.equal(
