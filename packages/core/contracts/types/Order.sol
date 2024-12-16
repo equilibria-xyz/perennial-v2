@@ -80,12 +80,13 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
-    /// @notice Creates a new order from the an intent order request
+    /// @notice Creates a new order from the an intent and delta order request
     /// @param timestamp The current timestamp
     /// @param position The current position
     /// @param makerAmount The magnitude and direction of maker position
     /// @param takerAmount The magnitude and direction of taker position
     /// @param collateral The change in the collateral
+    /// @param protect Whether the order is protected
     /// @param referralFee The referral fee
     /// @return newOrder The resulting order
     function from(
@@ -117,51 +118,6 @@ library OrderLib {
 
         newOrder.makerPos = makerAmount.max(Fixed6Lib.ZERO).abs();
         newOrder.makerNeg = makerAmount.min(Fixed6Lib.ZERO).abs();
-    }
-
-    /// @notice Creates a new order from the current position and an update request
-    /// @param timestamp The current timestamp
-    /// @param position The current position
-    /// @param collateral The change in the collateral
-    /// @param newMaker The new maker
-    /// @param newLong The new long
-    /// @param newShort The new short
-    /// @param protect Whether to protect the order
-    /// @param referralFee The referral fee
-    /// @return newOrder The resulting order
-    function from(
-        uint256 timestamp,
-        Position memory position,
-        Fixed6 collateral,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        bool protect,
-        UFixed6 referralFee
-    ) internal pure returns (Order memory newOrder) {
-        (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) = (
-            Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(position.maker)),
-            Fixed6Lib.from(newLong).sub(Fixed6Lib.from(position.long)),
-            Fixed6Lib.from(newShort).sub(Fixed6Lib.from(position.short))
-        );
-
-        UFixed6 referral = makerAmount.abs().add(longAmount.abs()).add(shortAmount.abs()).mul(referralFee);
-
-        newOrder = Order(
-            timestamp,
-            0,
-            collateral,
-            makerAmount.max(Fixed6Lib.ZERO).abs(),
-            makerAmount.min(Fixed6Lib.ZERO).abs(),
-            longAmount.max(Fixed6Lib.ZERO).abs(),
-            longAmount.min(Fixed6Lib.ZERO).abs(),
-            shortAmount.max(Fixed6Lib.ZERO).abs(),
-            shortAmount.min(Fixed6Lib.ZERO).abs(),
-            protect ? 1 : 0,
-            makerAmount.isZero() ? UFixed6Lib.ZERO : referral,
-            makerAmount.isZero() ? referral : UFixed6Lib.ZERO
-        );
-        if (!isEmpty(newOrder)) newOrder.orders = 1;
     }
 
     /// @notice Returns whether the order increases any of the account's positions
