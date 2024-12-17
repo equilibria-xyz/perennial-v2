@@ -707,11 +707,25 @@ describe('Manager_Arbitrum', () => {
       await executeOrder(userA, 509)
       await commitPrice()
 
+      // cannot close with pending closed position
+      orderId = await placeOrder(userB, Side.LONG, Compare.LTE, parse6decimal('4001'), MAGIC_VALUE_CLOSE_POSITION)
+      expect(orderId).to.equal(BigNumber.from(505))
+      await expect(
+        manager.connect(keeper).executeOrder(market.address, userB.address, orderId, TX_OVERRIDES),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotExecuteError')
+
       // settle and confirm positions are closed
       await market.settle(userA.address, TX_OVERRIDES)
       await ensureNoPosition(userA)
       await market.settle(userB.address, TX_OVERRIDES)
       await ensureNoPosition(userB)
+
+      // cannot close with no position
+      orderId = await placeOrder(userB, Side.LONG, Compare.LTE, parse6decimal('4002'), MAGIC_VALUE_CLOSE_POSITION)
+      expect(orderId).to.equal(BigNumber.from(506))
+      await expect(
+        manager.connect(keeper).executeOrder(market.address, userB.address, orderId, TX_OVERRIDES),
+      ).to.be.revertedWithCustomError(manager, 'ManagerCannotExecuteError')
     })
   })
 

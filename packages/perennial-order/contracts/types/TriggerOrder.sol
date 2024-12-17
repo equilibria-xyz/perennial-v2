@@ -30,7 +30,7 @@ using TriggerOrderLib for TriggerOrder global;
 /// @notice Logic for interacting with trigger orders
 /// @dev (external-unsafe): this library must be used internally only
 library TriggerOrderLib {
-    Fixed6 private constant MAGIC_VALUE_CLOSE_POSITION = Fixed6.wrap(type(int64).min);
+    Fixed6 public constant MAGIC_VALUE_CLOSE_POSITION = Fixed6.wrap(type(int64).min);
 
     // sig: 0x5b8c7e99
     /// @custom:error side or comparison is not supported
@@ -40,8 +40,13 @@ library TriggerOrderLib {
     /// @param self Trigger order
     /// @param latestVersion Latest oracle version
     /// @return Whether the trigger order is fillable
-    function canExecute(TriggerOrder memory self, OracleVersion memory latestVersion) internal pure returns (bool) {
+    function canExecute(
+        TriggerOrder memory self,
+        OracleVersion memory latestVersion,
+        Position memory position
+    ) internal pure returns (bool) {
         if (!latestVersion.valid) return false;
+        if (self.delta.eq(MAGIC_VALUE_CLOSE_POSITION) && position.empty()) return false;
         if (self.comparison == 1) return latestVersion.price.gte(self.price);
         if (self.comparison == -1) return latestVersion.price.lte(self.price);
         return false;
