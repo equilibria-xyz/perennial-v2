@@ -131,7 +131,7 @@ abstract contract Manager is IManager, Kept {
         order = _orders[market][account][orderId].read();
         // prevent calling canExecute on a spent or empty order
         if (order.isSpent || order.isEmpty()) revert ManagerInvalidOrderNonceError();
-        canExecute = order.canExecute(market.oracle().latest());
+        canExecute = order.canExecute(market, account);
     }
 
     /// @inheritdoc IManager
