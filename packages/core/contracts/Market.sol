@@ -283,15 +283,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 makerAmount;
         Fixed6 takerAmount;
 
-        Fixed6 closable = Fixed6Lib.from(context.latestPositionLocal.magnitude())
-            .sub(Fixed6Lib.from(context.pendingLocal.neg()));
+        UFixed6 closable = context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg());
         
         if (updateContext.currentPositionLocal.maker.gt(UFixed6Lib.ZERO)) {
-            makerAmount = closable.mul(Fixed6Lib.NEG_ONE);
+            makerAmount = Fixed6Lib.from(-1, closable);
         } else if (updateContext.currentPositionLocal.long.gt(UFixed6Lib.ZERO)) {
-            takerAmount = closable.mul(Fixed6Lib.NEG_ONE);
+            takerAmount = Fixed6Lib.from(-1, closable);
         } else {
-            takerAmount = closable;
+            takerAmount = Fixed6Lib.from(1, closable);
         }
 
         // create new order & guarantee
