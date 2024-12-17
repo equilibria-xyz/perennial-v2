@@ -52,8 +52,7 @@ struct ProtocolParameter {
 //     uint48 minMinMaintenance;       // <= 281m
 // }
 
-// SECURITY: update ProtocolParameterStorage to 2 slots.
-struct ProtocolParameterStorage { uint256 slot0; uint256 slot1; }
+struct ProtocolParameterStorage { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
 using ProtocolParameterStorageLib for ProtocolParameterStorage global;
 
 /// @dev (external-safe): this library is safe to externalize
@@ -73,7 +72,7 @@ library ProtocolParameterStorageLib {
             UFixed6.wrap(uint256(    slot0 << (256 - 24 - 32 - 24 - 32 - 24 - 24 - 24)) >> (256 - 24)),
             UFixed6.wrap(uint256(    slot0 << (256 - 24 - 32 - 24 - 32 - 24 - 24 - 24 - 24)) >> (256 - 24)),
             uint16(                  slot0 << (256 - 24 - 32 - 24 - 32 - 24 - 24 - 24 - 24 - 16) >> (256 - 16)),
-            
+
             UFixed6.wrap(uint256(    slot1 << (256 - 48)) >> (256 - 48))
         );
     }
@@ -95,7 +94,7 @@ library ProtocolParameterStorageLib {
         if (newValue.maxStaleAfter > uint256(type(uint16).max)) revert ProtocolParameterStorageInvalidError();
         if (newValue.minMinMaintenance.gt(UFixed6.wrap(type(uint48).max))) revert ProtocolParameterStorageInvalidError();
 
-        uint256 encoded0 = 
+        uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.maxFee)                << (256 - 24)) >> (256 - 24) |
             uint256(UFixed6.unwrap(newValue.maxLiquidationFee)     << (256 - 32)) >> (256 - 24 - 32) |
             uint256(UFixed6.unwrap(newValue.maxCut)                << (256 - 24)) >> (256 - 24 - 32 - 24) |
@@ -106,7 +105,7 @@ library ProtocolParameterStorageLib {
             uint256(UFixed6.unwrap(newValue.minScale)              << (256 - 24)) >> (256 - 24 - 32 - 24 - 32 - 24 - 24 - 24 - 24) |
             uint256(newValue.maxStaleAfter                         << (256 - 16)) >> (256 - 24 - 32 - 24 - 32 - 24 - 24 - 24 - 24 - 16);
 
-        uint256 encoded1 = 
+        uint256 encoded1 =
             uint256(UFixed6.unwrap(newValue.minMinMaintenance)     << (256 - 48)) >> (256 - 48);
 
         assembly {
