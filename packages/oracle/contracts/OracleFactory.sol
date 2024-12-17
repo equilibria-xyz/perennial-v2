@@ -43,7 +43,7 @@ contract OracleFactory is IOracleFactory, Factory {
         // Re-initialize if owner is unset
         if (owner() == address(0)) __Factory__initialize();
 
-        _parameter.store(OracleParameter(1, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
+        _parameter.store(OracleParameter(1, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
     }
 
     /// @notice Returns the global oracle parameter

@@ -135,7 +135,8 @@ testOracles.forEach(testOracle => {
       await oracleFactory.initialize()
       await oracleFactory.connect(owner).updateParameter({
         maxGranularity: 10000,
-        maxSettlementFee: parse6decimal('1000'),
+        maxSyncFee: parse6decimal('500'),
+        maxAsyncFee: parse6decimal('500'),
         maxOracleFee: parse6decimal('0.5'),
       })
 
