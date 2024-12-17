@@ -67,8 +67,8 @@ library TriggerOrderLib {
         Position memory position = market.positions(account);
         position.update(pending);
 
-        Fixed6 takerDelta;
         Fixed6 makerDelta;
+        Fixed6 takerDelta;
 
         // apply order to position
         if (self.side == 4) makerDelta = self.delta;
@@ -78,8 +78,8 @@ library TriggerOrderLib {
         // apply position to market
         market.update(
             account,
-            takerDelta,
             makerDelta,
+            takerDelta,
             Fixed6Lib.ZERO,
             self.referrer
         );

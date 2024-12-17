@@ -438,8 +438,8 @@ contract Vault is IVault, Instance {
     ) private {
         registration.market.update(
             address(this),
-            Fixed6Lib.ZERO,
             shouldRebalance ? target.position : Fixed6Lib.ZERO,
+            Fixed6Lib.ZERO,
             target.collateral,
             address(0)
         );

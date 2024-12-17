@@ -131,15 +131,15 @@ contract MultiInvoker is IMultiInvoker, Initializable {
                 (
                     // update data
                     IMarket market,
-                    Fixed6 taker,
                     Fixed6 maker,
+                    Fixed6 taker,
                     Fixed6 collateral,
                     bool wrap,
                     InterfaceFee memory interfaceFee1,
                     InterfaceFee memory interfaceFee2
                 ) = abi.decode(invocation.args, (IMarket, Fixed6, Fixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
 
-                _update(account, market, taker, maker, collateral, wrap, interfaceFee1, interfaceFee2);
+                _update(account, market, maker, taker, collateral, wrap, interfaceFee1, interfaceFee2);
             } else if (invocation.action == PerennialAction.UPDATE_INTENT) {
                 (IMarket market, Intent memory intent, bytes memory signature) = abi.decode(invocation.args, (IMarket, Intent, bytes));
 
@@ -179,8 +179,8 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     function _update(
         address account,
         IMarket market,
-        Fixed6 taker,
         Fixed6 maker,
+        Fixed6 taker,
         Fixed6 collateral,
         bool wrap,
         InterfaceFee memory interfaceFee1,
@@ -193,8 +193,8 @@ contract MultiInvoker is IMultiInvoker, Initializable {
 
         market.update(
             account,
-            taker,
             maker,
+            taker,
             collateral,
             interfaceFee1.receiver == address(0) ? interfaceFee2.receiver : interfaceFee1.receiver
         );

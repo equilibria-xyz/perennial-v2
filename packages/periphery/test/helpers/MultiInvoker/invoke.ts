@@ -37,8 +37,8 @@ export const buildUpdateMarket = ({
   interfaceFee2,
 }: {
   market: string
-  makerDelta?: BigNumber
   longDelta?: BigNumber
+  makerDelta?: BigNumber
   shortDelta?: BigNumber
   collateral?: BigNumber
   handleWrap?: boolean
@@ -52,8 +52,8 @@ export const buildUpdateMarket = ({
         ['address', 'int256', 'int256', 'int256', 'bool', 'tuple(uint256,address)', 'tuple(uint256,address)'],
         [
           market,
-          longDelta.sub(shortDelta),
           makerDelta,
+          longDelta.sub(shortDelta),
           collateral,
           handleWrap,
           [interfaceFee1 ? interfaceFee1.amount : 0, interfaceFee1 ? interfaceFee1.receiver : constants.AddressZero],
