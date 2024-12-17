@@ -310,7 +310,7 @@ contract Vault is IVault, Instance {
         if (redeemShares.eq(UFixed6Lib.MAX)) redeemShares = context.local.shares;
 
         // invariant
-        if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
+        if (msg.sender != account && !IVaultFactory(address(factory())).marketFactory().operators(account, msg.sender))
             revert VaultNotOperatorError();
         if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets)))
             revert VaultNotSingleSidedError();
