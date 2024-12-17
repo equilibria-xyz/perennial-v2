@@ -196,7 +196,7 @@ describe('Version', () => {
     ).deploy()
   })
 
-  describe.only('#store', () => {
+  describe('#store', () => {
     it('stores a new value', async () => {
       await version.store(VALID_VERSION)
 

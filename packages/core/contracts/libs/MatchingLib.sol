@@ -198,6 +198,7 @@ library MatchingLib {
         return Fixed6Lib.from(position.long).sub(Fixed6Lib.from(position.short));
     }
 
+    /// @dev assumes all skew is in a single direction
     function _skew(MatchingExposure memory exposure) internal pure returns (Fixed6) {
         return exposure.long.add(exposure.short).add(exposure.maker);
     }
