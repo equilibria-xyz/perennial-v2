@@ -313,8 +313,8 @@ export async function createVault(
     .connect(user)
     ['update(address,int256,int256,int256,address)'](
       user.address,
-      0,
       parse6decimal('100'),
+      0,
       parse6decimal('100000'),
       constants.AddressZero,
     )
@@ -322,8 +322,8 @@ export async function createVault(
     .connect(userB)
     ['update(address,int256,int256,int256,address)'](
       userB.address,
-      parse6decimal('50'),
       0,
+      parse6decimal('50'),
       parse6decimal('100000'),
       constants.AddressZero,
     )
@@ -331,8 +331,8 @@ export async function createVault(
     .connect(userC)
     ['update(address,int256,int256,int256,address)'](
       userC.address,
-      0,
       parse6decimal('20'),
+      0,
       parse6decimal('100000'),
       constants.AddressZero,
     )
@@ -340,8 +340,8 @@ export async function createVault(
     .connect(userD)
     ['update(address,int256,int256,int256,address)'](
       userD.address,
-      parse6decimal('10'),
       0,
+      parse6decimal('10'),
       parse6decimal('100000'),
       constants.AddressZero,
     )

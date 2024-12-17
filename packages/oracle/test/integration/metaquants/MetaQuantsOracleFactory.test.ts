@@ -476,8 +476,8 @@ testOracles.forEach(testOracle => {
               .connect(user)
               ['update(address,int256,int256,int256,address)'](
                 user.address,
-                0,
                 1,
+                0,
                 parse6decimal('10'),
                 constants.AddressZero,
               ),
@@ -513,8 +513,8 @@ testOracles.forEach(testOracle => {
               .connect(user)
               ['update(address,int256,int256,int256,address)'](
                 user.address,
-                0,
                 1,
+                0,
                 parse6decimal('10'),
                 constants.AddressZero,
               ),

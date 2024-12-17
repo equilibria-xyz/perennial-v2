@@ -791,8 +791,8 @@ export function RunInvokerTests(
               .connect(userC)
               ['update(address,int256,int256,int256,address)'](
                 userC.address,
-                0,
                 parse6decimal('1'),
+                0,
                 ethers.utils.parseUnits('1000', 6),
                 constants.AddressZero,
               )
@@ -859,8 +859,8 @@ export function RunInvokerTests(
                 .connect(userB)
                 ['update(address,int256,int256,int256,address)'](
                   userB.address,
-                  0,
                   parse6decimal('3'),
+                  0,
                   parse6decimal('600'),
                   user.address,
                 )

@@ -120,8 +120,8 @@ export function RunControllerBaseTests(
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          longDelta.sub(shortDelta),
           makerDelta,
+          longDelta.sub(shortDelta),
           BigNumber.from(0),
           constants.AddressZero,
           TX_OVERRIDES,

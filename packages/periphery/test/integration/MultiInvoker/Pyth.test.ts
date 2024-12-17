@@ -91,8 +91,8 @@ export function RunPythOracleTests(
               .connect(user)
               ['update(address,int256,int256,int256,address)'](
                 user.address,
-                0,
                 1,
+                0,
                 parse6decimal('1000'),
                 constants.AddressZero,
               ),

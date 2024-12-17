@@ -122,8 +122,8 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,int256,int256,int256,address)'](
             user.address,
-            0,
             POSITION,
+            0,
             COLLATERAL,
             constants.AddressZero,
           ),
@@ -231,8 +231,8 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,int256,int256,int256,address)'](
             user.address,
-            0,
             POSITION,
+            0,
             COLLATERAL,
             constants.AddressZero,
           ),
@@ -252,7 +252,7 @@ describe('Fees', () => {
 
       await market.updateRiskParameter(previousRiskParams)
       await market.updateParameter(previousMarketParams)
-      await market.connect(user)['close(address,bool)'](user.address, false)
+      await market.connect(user).close(user.address, false, constants.AddressZero)
 
       // Settle the market with a new oracle version
       await nextWithConstantPrice()
@@ -342,8 +342,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           MAKER_POSITION,
+          0,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -352,8 +352,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            LONG_POSITION,
             0,
+            LONG_POSITION,
             COLLATERAL,
             constants.AddressZero,
           ),
@@ -480,8 +480,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           MAKER_POSITION,
+          0,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -495,8 +495,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            LONG_POSITION,
             0,
+            LONG_POSITION,
             COLLATERAL,
             constants.AddressZero,
           ),
@@ -664,8 +664,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           MAKER_POSITION,
+          0,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -674,8 +674,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            LONG_POSITION,
             0,
+            LONG_POSITION,
             COLLATERAL,
             constants.AddressZero,
           ),
@@ -714,7 +714,7 @@ describe('Fees', () => {
         makerFee: 0,
       })
 
-      await market.connect(userB)['close(address,bool)'](userB.address, false)
+      await market.connect(userB).close(userB.address, false, constants.AddressZero)
 
       await nextWithConstantPrice()
       const txLong = await settle(market, userB)
@@ -843,8 +843,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           MAKER_POSITION,
+          0,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -853,8 +853,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            SHORT_POSITION.mul(-1),
             0,
+            SHORT_POSITION.mul(-1),
             COLLATERAL,
             constants.AddressZero,
           ),
@@ -981,8 +981,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           MAKER_POSITION,
+          0,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -995,8 +995,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            SHORT_POSITION.mul(-1),
             0,
+            SHORT_POSITION.mul(-1),
             COLLATERAL,
             constants.AddressZero,
           ),
@@ -1162,8 +1162,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           MAKER_POSITION,
+          0,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -1172,8 +1172,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            SHORT_POSITION.mul(-1),
             0,
+            SHORT_POSITION.mul(-1),
             COLLATERAL,
             constants.AddressZero,
           ),
@@ -1211,7 +1211,7 @@ describe('Fees', () => {
         fundingFee: BigNumber.from('0'),
         makerFee: 0,
       })
-      await market.connect(userB)['close(address,bool)'](userB.address, false)
+      await market.connect(userB).close(userB.address, false, constants.AddressZero)
 
       await nextWithConstantPrice()
       const txLong = await settle(market, userB)
@@ -1354,8 +1354,8 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,int256,int256,int256,address)'](
             user.address,
-            0,
             MAKER_POSITION,
+            0,
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1371,8 +1371,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            SHORT_POSITION.mul(-1),
             0,
+            SHORT_POSITION.mul(-1),
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1399,8 +1399,8 @@ describe('Fees', () => {
           .connect(userC)
           ['update(address,int256,int256,int256,address)'](
             userC.address,
-            LONG_POSITION.mul(2),
             0,
+            LONG_POSITION.mul(2),
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1467,8 +1467,8 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,int256,int256,int256,address)'](
             user.address,
-            0,
             MAKER_POSITION,
+            0,
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1484,8 +1484,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            SHORT_POSITION.mul(-1),
             0,
+            SHORT_POSITION.mul(-1),
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1511,8 +1511,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            LONG_POSITION,
             0,
+            LONG_POSITION,
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1538,8 +1538,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            SHORT_POSITION.mul(-1),
             0,
+            SHORT_POSITION.mul(-1),
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1562,8 +1562,8 @@ describe('Fees', () => {
           .connect(userC)
           ['update(address,int256,int256,int256,address)'](
             userC.address,
-            LONG_POSITION,
             0,
+            LONG_POSITION,
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1592,8 +1592,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            SHORT_POSITION.mul(-1),
             0,
+            SHORT_POSITION.mul(-1),
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1616,8 +1616,8 @@ describe('Fees', () => {
           .connect(userC)
           ['update(address,int256,int256,int256,address)'](
             userC.address,
-            LONG_POSITION,
             0,
+            LONG_POSITION,
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1678,8 +1678,8 @@ describe('Fees', () => {
           .connect(user)
           ['update(address,int256,int256,int256,address)'](
             user.address,
-            0,
             MAKER_POSITION,
+            0,
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1700,8 +1700,8 @@ describe('Fees', () => {
           .connect(instanceVars.user)
           ['update(address,int256,int256,int256,address)'](
             instanceVars.user.address,
-            0,
             MAKER_POSITION,
+            0,
             0,
             constants.AddressZero,
           )
@@ -1731,8 +1731,8 @@ describe('Fees', () => {
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
-            LONG_POSITION,
             0,
+            LONG_POSITION,
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1740,8 +1740,8 @@ describe('Fees', () => {
           .connect(userC)
           ['update(address,int256,int256,int256,address)'](
             userC.address,
-            SHORT_POSITION.mul(-1),
             0,
+            SHORT_POSITION.mul(-1),
             COLLATERAL,
             constants.AddressZero,
           )
@@ -1811,8 +1811,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           MAKER_POSITION,
+          0,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -1827,8 +1827,8 @@ describe('Fees', () => {
         .connect(userB)
         ['update(address,int256,int256,int256,address)'](
           userB.address,
-          LONG_POSITION,
           0,
+          LONG_POSITION,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -1871,8 +1871,8 @@ describe('Fees', () => {
         .connect(userB)
         ['update(address,int256,int256,int256,address)'](
           userB.address,
-          SHORT_POSITION.mul(-1),
           0,
+          SHORT_POSITION.mul(-1),
           COLLATERAL,
           constants.AddressZero,
         )
@@ -1947,8 +1947,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           MAKER_POSITION,
+          0,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -1963,8 +1963,8 @@ describe('Fees', () => {
         .connect(userB)
         ['update(address,int256,int256,int256,address)'](
           userB.address,
-          LONG_POSITION,
           0,
+          LONG_POSITION,
           COLLATERAL,
           constants.AddressZero,
         )
@@ -2007,8 +2007,8 @@ describe('Fees', () => {
         .connect(userB)
         ['update(address,int256,int256,int256,address)'](
           userB.address,
-          SHORT_POSITION.mul(-1),
           0,
+          SHORT_POSITION.mul(-1),
           COLLATERAL,
           constants.AddressZero,
         )
@@ -2078,7 +2078,7 @@ describe('Fees', () => {
       // userB creates a maker position, referred by user
       await market
         .connect(userB)
-        ['update(address,int256,int256,int256,address)'](userB.address, 0, POSITION, COLLATERAL, user.address)
+        ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, user.address)
       const expectedReferral = parse6decimal('0.15').mul(3) // referralFee * position
       expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,
@@ -2122,8 +2122,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           POSITION.mul(2),
+          0,
           COLLATERAL.mul(2),
           constants.AddressZero,
         )
@@ -2133,8 +2133,8 @@ describe('Fees', () => {
         .connect(userC)
         ['update(address,int256,int256,int256,address)'](
           userC.address,
-          POSITION.mul(-1),
           0,
+          POSITION.mul(-1),
           COLLATERAL.mul(2),
           userB.address,
         )
@@ -2184,7 +2184,7 @@ describe('Fees', () => {
       // userB creates a maker position, referred by user
       await market
         .connect(userB)
-        ['update(address,int256,int256,int256,address)'](userB.address, 0, POSITION, COLLATERAL, user.address)
+        ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, user.address)
       const expectedReferral = parse6decimal('0.17').mul(3) // referralFee * position
       expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,
@@ -2221,15 +2221,15 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           POSITION.mul(2),
+          0,
           COLLATERAL.mul(2),
           userB.address,
         )
       // userC creates a long position referred by user
       await market
         .connect(userC)
-        ['update(address,int256,int256,int256,address)'](userC.address, POSITION, 0, COLLATERAL.mul(2), user.address)
+        ['update(address,int256,int256,int256,address)'](userC.address, 0, POSITION, COLLATERAL.mul(2), user.address)
       expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -2278,8 +2278,8 @@ describe('Fees', () => {
         .connect(userD)
         ['update(address,int256,int256,int256,address)'](
           userD.address,
-          POSITION.mul(2).div(3).mul(-1),
           0,
+          POSITION.mul(2).div(3).mul(-1),
           COLLATERAL,
           user.address,
         )
@@ -2314,8 +2314,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          0,
           POSITION.mul(2),
+          0,
           COLLATERAL.mul(2),
           constants.AddressZero,
         )
@@ -2325,8 +2325,8 @@ describe('Fees', () => {
         .connect(userC)
         ['update(address,int256,int256,int256,address)'](
           userC.address,
-          POSITION.mul(-1),
           0,
+          POSITION.mul(-1),
           COLLATERAL.mul(2),
           userB.address,
         )
@@ -2363,7 +2363,7 @@ describe('Fees', () => {
         .withArgs(userB.address, userB.address, expectedClaimable)
 
       // userC closes a short position referred by user
-      await market.connect(userC)['close(address,bool,address)'](userC.address, false, user.address)
+      await market.connect(userC).close(userC.address, false, user.address)
 
       await nextWithConstantPrice()
       await settle(market, user)
@@ -2388,7 +2388,7 @@ describe('Fees', () => {
 
       await nextWithConstantPrice()
       // userC opens a short position referred by no one
-      await market.connect(userC)['close(address,bool)'](userC.address, false)
+      await market.connect(userC).close(userC.address, false, constants.AddressZero)
       await nextWithConstantPrice()
       expect(await market.orderReferrers(userC.address, currentId.add(2))).to.equal(constants.AddressZero)
     })
@@ -2403,7 +2403,7 @@ describe('Fees', () => {
 
       await market
         .connect(user)
-        ['update(address,int256,int256,int256,address)'](user.address, 0, POSITION, COLLATERAL, constants.AddressZero)
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
       expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,
@@ -2478,7 +2478,7 @@ describe('Fees', () => {
 
       await market
         .connect(userB)
-        ['update(address,int256,int256,int256,address)'](userB.address, 0, POSITION, COLLATERAL, constants.AddressZero)
+        ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
       await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
@@ -2490,7 +2490,7 @@ describe('Fees', () => {
 
       await market
         .connect(userD)
-        ['update(address,int256,int256,int256,address)'](userD.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+        ['update(address,int256,int256,int256,address)'](userD.address, 0, POSITION, COLLATERAL, constants.AddressZero)
 
       const intent = {
         amount: POSITION.div(2),

@@ -597,8 +597,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -635,8 +635,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -672,8 +672,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -704,8 +704,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -722,8 +722,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -736,7 +736,7 @@ testOracles.forEach(testOracle => {
           })
           await market
             .connect(user)
-            ['update(address,int256,int256,int256,address)'](user.address, 0, 2, 0, constants.AddressZero) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero) // make request to oracle (new price)
           await expect(
             pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
               value: 1,
@@ -751,8 +751,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -774,8 +774,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -785,7 +785,7 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,int256,int256,int256,address)'](user.address, 0, 2, 0, constants.AddressZero), // make request to oracle (new price)
+                ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero), // make request to oracle (new price)
             STARTING_TIME + 1,
           )
 
@@ -806,8 +806,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -817,7 +817,7 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,int256,int256,int256,address)'](user.address, 0, 2, 0, constants.AddressZero), // make request to oracle (new price)
+                ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero), // make request to oracle (new price)
             STARTING_TIME + 60,
           )
           expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
@@ -884,8 +884,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -909,8 +909,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -922,7 +922,7 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,int256,int256,int256,address)'](user.address, 0, 2, 0, constants.AddressZero), // make request to oracle (new price)
+                ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero), // make request to oracle (new price)
             1686199141,
           )
           const secondRequestedVersion = await time.currentBlockTimestamp()
@@ -957,8 +957,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -982,8 +982,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -1020,8 +1020,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -1046,8 +1046,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -1079,8 +1079,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ),
@@ -1100,8 +1100,8 @@ testOracles.forEach(testOracle => {
               .connect(user)
               ['update(address,int256,int256,int256,address)'](
                 user.address,
-                0,
                 1,
+                0,
                 parse6decimal('10'),
                 constants.AddressZero,
               )
@@ -1109,8 +1109,8 @@ testOracles.forEach(testOracle => {
               .connect(user)
               ['update(address,int256,int256,int256,address)'](
                 user.address,
-                0,
                 1,
+                0,
                 parse6decimal('10'),
                 constants.AddressZero,
               )
@@ -1156,8 +1156,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ), // make request to oracle (new price)
@@ -1196,8 +1196,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ), // make request to oracle (new price)
@@ -1223,8 +1223,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ), // make request to oracle (new price)
@@ -1247,8 +1247,8 @@ testOracles.forEach(testOracle => {
             .connect(user)
             ['update(address,int256,int256,int256,address)'](
               user.address,
-              0,
               1,
+              0,
               parse6decimal('10'),
               constants.AddressZero,
             ) // make request to oracle (new price)
@@ -1273,8 +1273,8 @@ testOracles.forEach(testOracle => {
                   .connect(user)
                   ['update(address,int256,int256,int256,address)'](
                     user.address,
-                    0,
                     1,
+                    0,
                     parse6decimal('10'),
                     constants.AddressZero,
                   ), // make request to oracle (new price)
@@ -1298,8 +1298,8 @@ testOracles.forEach(testOracle => {
             .connect(user)
             ['update(address,int256,int256,int256,address)'](
               user.address,
-              0,
               1,
+              0,
               parse6decimal('10'),
               constants.AddressZero,
             ) // make request to oracle (new price)
@@ -1330,14 +1330,14 @@ testOracles.forEach(testOracle => {
             .connect(user)
             ['update(address,int256,int256,int256,address)'](
               user.address,
-              0,
               1,
+              0,
               parse6decimal('10'),
               constants.AddressZero,
             ) // make request to oracle (new price)
           await market
             .connect(user)
-            ['update(address,int256,int256,int256,address)'](user.address, 0, 2, 0, constants.AddressZero) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero) // make request to oracle (new price)
 
           await ethers.provider.send('evm_mine', [])
 
@@ -1355,8 +1355,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ), // make request to oracle (new price)
@@ -1507,8 +1507,8 @@ testOracles.forEach(testOracle => {
                 .connect(user)
                 ['update(address,int256,int256,int256,address)'](
                   user.address,
-                  0,
                   1,
+                  0,
                   parse6decimal('10'),
                   constants.AddressZero,
                 ), // make request to oracle (new price)
@@ -1536,8 +1536,8 @@ testOracles.forEach(testOracle => {
             .connect(user)
             ['update(address,int256,int256,int256,address)'](
               user.address,
-              0,
               1,
+              0,
               parse6decimal('10'),
               constants.AddressZero,
             ) // make request to oracle (new price)

@@ -525,8 +525,8 @@ describe('Verify Arbitrum v2.3 Migration', () => {
     await commitPriceForIds([oracleIDs[0].id, oracleIDs[1].id], currentTimestamp)
 
     const nextVersionTimestamp = nextVersionForTimestamp(await currentBlockTimestamp())
-    await ethMarket.connect(liquidatorSigner)['close(address,bool)'](liquidatorSigner.address, false)
-    await btcMarket.connect(liquidatorSigner)['close(address,bool)'](liquidatorSigner.address, false)
+    await ethMarket.connect(liquidatorSigner).close(liquidatorSigner.address, false, constants.AddressZero)
+    await btcMarket.connect(liquidatorSigner).close(liquidatorSigner.address, false, constants.AddressZero)
 
     await increase(10)
 
@@ -558,7 +558,7 @@ describe('Verify Arbitrum v2.3 Migration', () => {
       .connect(ownerSigner)
       .updateRiskParameter({ ...riskParameter, minMargin: 500e6, minMaintenance: 500e6 })
 
-    await ethMarket.connect(liquidator)['close(address,bool)'](perennialUser.address, true)
+    await ethMarket.connect(liquidator).close(perennialUser.address, true, constants.AddressZero)
     await commitPriceForIds([oracleIDs[0].id], nextVersionForTimestamp(await currentBlockTimestamp()) + 4)
 
     await ethMarket.connect(liquidator).settle(perennialUser.address)
