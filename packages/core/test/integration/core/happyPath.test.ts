@@ -94,13 +94,6 @@ describe('Happy Path', () => {
   it('creates a market', async () => {
     const { owner, marketFactory, payoff, oracle, dsu } = instanceVars
 
-    const definition = {
-      name: 'Squeeth',
-      symbol: 'SQTH',
-      token: dsu.address,
-      oracle: dsu.address,
-      payoff: payoff.address,
-    }
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
@@ -115,18 +108,17 @@ describe('Happy Path', () => {
     }
 
     // revert when invalid oracle is provided
-    await expect(marketFactory.create(definition)).to.be.revertedWithCustomError(
+    await expect(marketFactory.create(dsu.address)).to.be.revertedWithCustomError(
       marketFactory,
       'FactoryInvalidOracleError',
     )
 
     // update correct oracle address
-    definition.oracle = oracle.address
-    await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
+    await expect(marketFactory.create(oracle.address)).to.emit(marketFactory, 'MarketCreated')
     const marketAddress = await marketFactory.markets(oracle.address)
 
     // revert when creating another market with same oracle
-    await expect(marketFactory.create(definition)).to.be.revertedWithCustomError(
+    await expect(marketFactory.create(oracle.address)).to.be.revertedWithCustomError(
       marketFactory,
       'FactoryAlreadyRegisteredError',
     )
@@ -134,12 +126,8 @@ describe('Happy Path', () => {
     await market.connect(owner).updateRiskParameter(riskParameter)
     await market.connect(owner).updateParameter(parameter)
 
-    const marketDefinition = {
-      oracle: oracle.address,
-    }
-
     // revert when reinitialized
-    await expect(market.connect(owner).initialize(marketDefinition))
+    await expect(market.connect(owner).initialize(oracle.address))
       .to.be.revertedWithCustomError(market, 'InitializableAlreadyInitializedError')
       .withArgs(1)
   })
@@ -1167,15 +1155,7 @@ describe('Happy Path', () => {
   it('disables actions when unauthorized access', async () => {
     const { marketFactory, user, oracle, dsu, payoff } = instanceVars
 
-    const definition = {
-      name: 'Squeeth',
-      symbol: 'SQTH',
-      token: dsu.address,
-      oracle: oracle.address,
-      payoff: payoff.address,
-    }
-
-    await expect(marketFactory.connect(user).create(definition)).to.be.revertedWithCustomError(
+    await expect(marketFactory.connect(user).create(oracle.address)).to.be.revertedWithCustomError(
       marketFactory,
       'OwnableNotOwnerError',
     )

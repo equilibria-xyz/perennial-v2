@@ -122,12 +122,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @notice Initializes the contract state
-    /// @param definition_ The market definition
-    function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
+    /// @param oracle_ Provider used for requesting prices
+    function initialize(IOracleProvider oracle_) external initializer(1) {
         __Instance__initialize();
         __ReentrancyGuard__initialize();
 
-        oracle = definition_.oracle;
+        oracle = oracle_;
     }
 
     /// @notice Settles the account's position and collateral
@@ -439,8 +439,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMarket
     function hasPosition(address account) external view returns (bool) {
-        //_positions[account].read().magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()
-        //updateContext.currentPositionLocal.update(context.pendingLocal);
         Position memory position_ = _positions[account].read();
         Order memory pending_ = _pendings[account].read();
         return !(position_.magnitude().isZero() && pending_.isEmpty());

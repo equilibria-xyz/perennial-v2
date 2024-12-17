@@ -120,18 +120,14 @@ describe('MarketFactory', () => {
 
   describe('#create', async () => {
     it('creates the market', async () => {
-      const marketDefinition = {
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      const marketAddress = await factory.callStatic.create(marketDefinition)
-      await expect(factory.connect(owner).create(marketDefinition))
+      const marketAddress = await factory.callStatic.create(oracle.address)
+      await expect(factory.connect(owner).create(oracle.address))
         .to.emit(factory, 'InstanceRegistered')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
-        .withArgs(marketAddress, marketDefinition)
+        .withArgs(marketAddress, oracle.address)
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
@@ -139,59 +135,43 @@ describe('MarketFactory', () => {
     })
 
     it('creates the market w/ zero payoff', async () => {
-      const marketDefinition = {
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      const marketAddress = await factory.callStatic.create(marketDefinition)
-      await expect(factory.connect(owner).create(marketDefinition))
+      const marketAddress = await factory.callStatic.create(oracle.address)
+      await expect(factory.connect(owner).create(oracle.address))
         .to.emit(factory, 'InstanceRegistered')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
-        .withArgs(marketAddress, marketDefinition)
+        .withArgs(marketAddress, oracle.address)
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
     })
 
     it('reverts when invalid oracle', async () => {
-      const marketDefinition = {
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(false)
 
-      await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(oracle.address)).to.revertedWithCustomError(
         factory,
         'FactoryInvalidOracleError',
       )
     })
 
     it('reverts when already registered', async () => {
-      const marketDefinition = {
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      await factory.connect(owner).create(marketDefinition)
+      await factory.connect(owner).create(oracle.address)
 
-      await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(oracle.address)).to.revertedWithCustomError(
         factory,
         'FactoryAlreadyRegisteredError',
       )
     })
 
     it('reverts when not owner', async () => {
-      const marketDefinition = {
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      await expect(factory.connect(user).create(marketDefinition)).to.revertedWithCustomError(
+      await expect(factory.connect(user).create(oracle.address)).to.revertedWithCustomError(
         factory,
         'OwnableNotOwnerError',
       )

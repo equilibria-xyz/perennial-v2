@@ -253,10 +253,6 @@ export async function createMarket(
 ): Promise<Market> {
   const { owner, marketFactory, coordinator, beneficiaryB, oracle, dsu } = instanceVars
 
-  const definition = {
-    token: dsu.address,
-    oracle: (oracleOverride ?? oracle).address,
-  }
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
@@ -304,8 +300,8 @@ export async function createMarket(
     settle: false,
     ...marketParamOverrides,
   }
-  const marketAddress = await marketFactory.callStatic.create(definition)
-  await marketFactory.create(definition)
+  const marketAddress = await marketFactory.callStatic.create(oracle.address)
+  await marketFactory.create(oracle.address)
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateRiskParameter(riskParameter)

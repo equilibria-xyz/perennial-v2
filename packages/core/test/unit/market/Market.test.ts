@@ -411,7 +411,6 @@ describe('Market', () => {
   let dsu: FakeContract<IERC20Metadata>
 
   let market: Market
-  let marketDefinition: IMarket.MarketDefinitionStruct
   let riskParameter: RiskParameterStruct
   let marketParameter: MarketParameterStruct
 
@@ -483,9 +482,6 @@ describe('Market', () => {
     factory.oracleFactory.returns(oracleFactorySigner.address)
     await margin.initialize(factory.address)
 
-    marketDefinition = {
-      oracle: oracle.address,
-    }
     riskParameter = {
       margin: parse6decimal('0.35'),
       maintenance: parse6decimal('0.3'),
@@ -588,10 +584,10 @@ describe('Market', () => {
 
   describe('#initialize', async () => {
     it('initialize with the correct variables set', async () => {
-      await market.connect(factorySigner).initialize(marketDefinition)
+      await market.connect(factorySigner).initialize(oracle.address)
 
       expect(await market.factory()).to.equal(factory.address)
-      expect(await market.oracle()).to.equal(marketDefinition.oracle)
+      expect(await market.oracle()).to.equal(oracle.address)
       expect(await market.margin()).to.equal(margin.address)
 
       const riskParameterResult = await market.riskParameter()
@@ -629,8 +625,8 @@ describe('Market', () => {
     })
 
     it('reverts if already initialized', async () => {
-      await market.initialize(marketDefinition)
-      await expect(market.initialize(marketDefinition))
+      await market.initialize(oracle.address)
+      await expect(market.initialize(oracle.address))
         .to.be.revertedWithCustomError(market, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -638,7 +634,7 @@ describe('Market', () => {
 
   context('already initialized', async () => {
     beforeEach(async () => {
-      await market.connect(factorySigner).initialize(marketDefinition)
+      await market.connect(factorySigner).initialize(oracle.address)
       await market.connect(owner).updateBeneficiary(beneficiary.address)
       await market.connect(owner).updateCoordinator(coordinator.address)
       await market.connect(owner).updateRiskParameter(riskParameter)
@@ -14644,7 +14640,6 @@ describe('Market', () => {
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, 0, false),
           ).to.not.be.reverted
-          // TODO: update for implementation change
           expect(await market.maintenanceRequired(user.address)).to.equal(0)
 
           // settled with position
