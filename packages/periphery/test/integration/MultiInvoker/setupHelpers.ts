@@ -145,6 +145,7 @@ export async function deployProtocol(
     referralFee: 0,
     minScale: parse6decimal('0.001'),
     maxStaleAfter: 7200,
+    minMinMaintenance: 0,
   })
 
   return {
