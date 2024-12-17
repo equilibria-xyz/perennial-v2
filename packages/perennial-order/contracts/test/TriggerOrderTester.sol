@@ -21,8 +21,8 @@ contract TriggerOrderTester {
         order.store(newOrder);
     }
 
-    function canExecute(TriggerOrder calldata order_, OracleVersion calldata version) external pure returns (bool) {
-        return order_.canExecute(version);
+    function canExecute(TriggerOrder calldata order_, IMarket market, address user) external view returns (bool) {
+        return order_.canExecute(market, user);
     }
 
     function notionalValue(TriggerOrder calldata order_, IMarket market, address user) external view returns (UFixed6) {
