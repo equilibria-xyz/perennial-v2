@@ -7,14 +7,15 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
-import { IMarket, IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
+import { IMarket, Order, Position } from "@perennial/core/contracts/interfaces/IMarket.sol";
+import { IMarketFactory } from "@perennial/core/contracts/interfaces/IMarketFactory.sol";
 
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action } from "./types/Action.sol";
 import { CancelOrderAction } from "./types/CancelOrderAction.sol";
 import { InterfaceFee } from "./types/InterfaceFee.sol";
-import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
+import { TriggerOrder, TriggerOrderLib, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 
 /// @notice Base class with business logic to store and execute trigger orders.
@@ -131,7 +132,16 @@ abstract contract Manager is IManager, Kept {
         order = _orders[market][account][orderId].read();
         // prevent calling canExecute on a spent or empty order
         if (order.isSpent || order.isEmpty()) revert ManagerInvalidOrderNonceError();
-        canExecute = order.canExecute(market, account);
+        Position memory position;
+        if (order.delta.eq(TriggerOrderLib.MAGIC_VALUE_CLOSE_POSITION)) {
+            position = market.positions(account);
+            Order memory pending = market.pendings(account);
+            position.update(pending);
+        } else {
+            position = Position(0, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        }
+
+        canExecute = order.canExecute(market.oracle().latest(), position);
     }
 
     /// @inheritdoc IManager

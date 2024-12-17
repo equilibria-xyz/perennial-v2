@@ -38,6 +38,13 @@ const ORDER_SHORT: TriggerOrderStruct = {
   maxFee: parse6decimal('0.66'),
 }
 
+const EMPTY_POSITION: PositionStruct = {
+  timestamp: BigNumber.from(0),
+  maker: BigNumber.from(0),
+  long: BigNumber.from(0),
+  short: BigNumber.from(0),
+}
+
 function now(): BigNumber {
   return BigNumber.from(Math.floor(Date.now() / 1000))
 }
@@ -46,72 +53,59 @@ describe('TriggerOrder', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let orderTester: TriggerOrderTester
-  let market: FakeContract<IMarket>
-  let oracle: FakeContract<IOracleProvider>
 
   before(async () => {
     ;[owner, user] = await ethers.getSigners()
     orderTester = await new TriggerOrderTester__factory(owner).deploy()
-    market = await smock.fake<IMarket>('IMarket')
-    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
-    market.oracle.returns(oracle.address)
-    fakeMakerPosition(constants.Zero)
   })
 
-  function fakeOracleVersion(price: BigNumber, valid = true) {
-    const version: OracleVersionStruct = {
+  function createOracleVersion(price: BigNumber, valid = true): OracleVersionStruct {
+    return {
       timestamp: now(),
       price: price,
       valid: valid,
     }
-    oracle.latest.returns(version)
   }
 
-  function fakeMakerPosition(size: BigNumber) {
-    const position: PositionStruct = {
+  function createMakerPosition(size: BigNumber): PositionStruct {
+    return {
       timestamp: now(),
       maker: size,
       long: constants.Zero,
       short: constants.Zero,
     }
-    market.positions.whenCalledWith(user.address).returns(position)
   }
 
   describe('#logic', () => {
     it('handles invalid oracle version', async () => {
-      fakeOracleVersion(parse6decimal('2444.66'), false)
-      expect(await orderTester.canExecute(ORDER_SHORT, market.address, user.address)).to.be.false
+      expect(
+        await orderTester.canExecute(ORDER_SHORT, createOracleVersion(parse6decimal('2444.66'), false), EMPTY_POSITION),
+      ).to.be.false
     })
 
     it('compares greater than', async () => {
       // ORDER_SHORT price is 2444.55
-      fakeOracleVersion(parse6decimal('3000'))
-      expect(await orderTester.canExecute(ORDER_SHORT, market.address, user.address)).to.be.true
-      fakeOracleVersion(parse6decimal('2000'))
-      expect(await orderTester.canExecute(ORDER_SHORT, market.address, user.address)).to.be.false
+      expect(await orderTester.canExecute(ORDER_SHORT, createOracleVersion(parse6decimal('3000')), EMPTY_POSITION)).to
+        .be.true
+      expect(await orderTester.canExecute(ORDER_SHORT, createOracleVersion(parse6decimal('2000')), EMPTY_POSITION)).to
+        .be.false
     })
 
     it('compares less than', async () => {
       // ORDER_LONG price is 1999.88
-      fakeOracleVersion(parse6decimal('1800'))
-      expect(await orderTester.canExecute(ORDER_LONG, market.address, user.address)).to.be.true
-      fakeOracleVersion(parse6decimal('2000'))
-      expect(await orderTester.canExecute(ORDER_LONG, market.address, user.address)).to.be.false
+      expect(await orderTester.canExecute(ORDER_LONG, createOracleVersion(parse6decimal('1800')), EMPTY_POSITION)).to.be
+        .true
+      expect(await orderTester.canExecute(ORDER_LONG, createOracleVersion(parse6decimal('2000')), EMPTY_POSITION)).to.be
+        .false
     })
 
     it('handles invalid comparison', async () => {
       const badOrder = { ...ORDER_SHORT }
       badOrder.comparison = 0
-      fakeOracleVersion(parse6decimal('1800'))
-      await expect(orderTester.canExecute(badOrder, market.address, user.address)).to.be.revertedWithCustomError(
-        orderTester,
-        'TriggerOrderInvalidError',
-      )
-      fakeOracleVersion(parse6decimal('2000'))
-      await expect(orderTester.canExecute(badOrder, market.address, user.address)).to.be.revertedWithCustomError(
-        orderTester,
-        'TriggerOrderInvalidError',
-      )
+      expect(await orderTester.canExecute(badOrder, createOracleVersion(parse6decimal('1800')), EMPTY_POSITION)).to.be
+        .false
+      expect(await orderTester.canExecute(badOrder, createOracleVersion(parse6decimal('2000')), EMPTY_POSITION)).to.be
+        .false
     })
 
     it('allows execution greater than 0 trigger price', async () => {
@@ -123,8 +117,9 @@ describe('TriggerOrder', () => {
         delta: parse6decimal('200'),
         maxFee: parse6decimal('0.55'),
       }
-      fakeOracleVersion(parse6decimal('1'))
-      expect(await orderTester.canExecute(zeroPriceOrder, market.address, user.address)).to.be.true
+
+      expect(await orderTester.canExecute(zeroPriceOrder, createOracleVersion(parse6decimal('1')), EMPTY_POSITION)).to
+        .be.true
     })
 
     it('can execute close position order', async () => {
@@ -136,13 +131,11 @@ describe('TriggerOrder', () => {
         delta: MAGIC_VALUE_CLOSE_POSITION,
         maxFee: parse6decimal('0.56'),
       }
-      fakeOracleVersion(parse6decimal('123'))
+      const oracleVersion = createOracleVersion(parse6decimal('123'))
       // can execute with position
-      fakeMakerPosition(position)
-      expect(await orderTester.canExecute(closeOrder, market.address, user.address)).to.be.true
+      expect(await orderTester.canExecute(closeOrder, oracleVersion, createMakerPosition(position))).to.be.true
       // cannot execute without position
-      fakeMakerPosition(constants.Zero)
-      expect(await orderTester.canExecute(closeOrder, market.address, user.address)).to.be.false
+      expect(await orderTester.canExecute(closeOrder, oracleVersion, createMakerPosition(constants.Zero))).to.be.false
     })
   })
 

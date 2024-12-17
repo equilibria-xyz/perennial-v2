@@ -30,7 +30,7 @@ using TriggerOrderLib for TriggerOrder global;
 /// @notice Logic for interacting with trigger orders
 /// @dev (external-unsafe): this library must be used internally only
 library TriggerOrderLib {
-    Fixed6 private constant MAGIC_VALUE_CLOSE_POSITION = Fixed6.wrap(type(int64).min);
+    Fixed6 public constant MAGIC_VALUE_CLOSE_POSITION = Fixed6.wrap(type(int64).min);
 
     // sig: 0x5b8c7e99
     /// @custom:error side or comparison is not supported
@@ -38,24 +38,18 @@ library TriggerOrderLib {
 
     /// @notice Determines whether the trigger order is fillable at the latest price
     /// @param self Trigger order
-    /// @param market Market for which the order is intended to be executed
-    /// @param account Market participant
+    /// @param latestVersion Latest oracle version
     /// @return Whether the trigger order is fillable
-    function canExecute(TriggerOrder memory self, IMarket market, address account) internal view returns (bool) {
-        OracleVersion memory latestVersion = market.oracle().latest();
-
+    function canExecute(
+        TriggerOrder memory self,
+        OracleVersion memory latestVersion,
+        Position memory position
+    ) internal pure returns (bool) {
         if (!latestVersion.valid) return false;
-        if (self.comparison == 1 && latestVersion.price.lt(self.price)) return false;
-        if (self.comparison == -1 && latestVersion.price.gt(self.price)) return false;
-        if (self.comparison != 1 && self.comparison != -1) revert TriggerOrderInvalidError();
-
-        if (self.delta.eq(MAGIC_VALUE_CLOSE_POSITION)) {
-            Position memory position = market.positions(account);
-            // prevent execution if the position was not opened or is already closed
-            if (position.empty()) return false;
-        }
-
-        return true;
+        if (self.delta.eq(MAGIC_VALUE_CLOSE_POSITION) && position.empty()) return false;
+        if (self.comparison == 1) return latestVersion.price.gte(self.price);
+        if (self.comparison == -1) return latestVersion.price.lte(self.price);
+        return false;
     }
 
     /// @notice Applies the order to the user's position and updates the market
