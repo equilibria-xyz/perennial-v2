@@ -286,9 +286,7 @@ contract Vault is IVault, Instance {
         _saveContext(context, account);
     }
 
-    /// @notice Updates the allowed account status for a given account
-    /// @param account The account to update
-    /// @param newAllowed The new allowed status
+    /// @inheritdoc IVault
     function updateAllowed(address account, bool newAllowed) public onlyOwner {
         allowed[account] = newAllowed;
         emit AllowedUpdated(account, newAllowed);

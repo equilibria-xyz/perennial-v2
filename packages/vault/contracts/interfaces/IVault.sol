@@ -105,8 +105,17 @@ interface IVault is IInstance {
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;
     function updateWeights(UFixed6[] calldata newWeights) external;
     function updateParameter(VaultParameter memory newParameter) external;
+
+    /// @notice Returns the allowed status of an account
+    /// @param account The account to check
+    /// @return The allowed status
     function allowed(address account) external view returns (bool);
+
+    /// @notice Updates the allowed status of an account
+    /// @param account The account to update
+    /// @param newAllowed The new allowed status
     function updateAllowed(address account, bool newAllowed) external;
+
     function updateCoordinator(address newCoordinator) external;
     function coordinator() external view returns (address);
 }
