@@ -1020,6 +1020,97 @@ describe('Happy Path', () => {
     })
   })
 
+  it('closes long position with close', async () => {
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await expect(
+      market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
+    ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false)
+
+    await chainlink.next()
+
+    // close userB's position
+    await expect(market.connect(userB).close(userB.address, false, constants.AddressZero))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_2,
+          orders: 1,
+          longNeg: POSITION_B,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    // User State
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 2,
+      latestId: 1,
+      collateral: COLLATERAL,
+    })
+    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_2,
+      orders: 1,
+      longNeg: POSITION_B,
+    })
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      long: POSITION_B,
+      timestamp: TIMESTAMP_1,
+    })
+
+    // Global State
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 2,
+      latestId: 1,
+      latestPrice: PRICE_1,
+    })
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_2,
+      orders: 1,
+      longNeg: POSITION_B,
+    })
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      maker: POSITION,
+      long: POSITION_B,
+      timestamp: TIMESTAMP_1,
+    })
+    expectVersionEq(await market.versions(TIMESTAMP_1), {
+      ...DEFAULT_VERSION,
+      price: PRICE_1,
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+    })
+  })
+
   it('settle no op (gas test)', async () => {
     const { user } = instanceVars
 
