@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { IMargin } from "../interfaces/IMargin.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
-import { PositionLib } from "../types/Position.sol";
 import { Order } from "../types/Order.sol";
 import { Guarantee } from "../types/Guarantee.sol";
 
@@ -35,25 +35,6 @@ library InvariantLib {
         if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) // total pending close is greater than latest position
             revert IMarket.MarketOverCloseError();
 
-        if (newOrder.protected() && (
-            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
-            context.latestPositionLocal.maintained(                                     // latest position is properly maintained
-                context.latestOracleVersion,
-                context.riskParameter,
-                context.local.collateral
-            ) ||
-            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                     // the order is modifying collateral
-        )) revert IMarket.MarketInvalidProtectionError();
-
-        if (
-            !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) &&       // sender has no position
-            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                                     // sender is depositing zero or more into account, without position change
-            (
-                !context.latestOracleVersion.valid ||
-                context.currentTimestamp - context.latestOracleVersion.timestamp >= context.riskParameter.staleAfter
-            )                                                                                                                       // price is not stale
-        ) revert IMarket.MarketStalePriceError();
-
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert IMarket.MarketClosedError();
 
@@ -75,25 +56,15 @@ library InvariantLib {
         if (newOrder.protected()) return; // The following invariants do not apply to protected position updates (liquidations)
 
         if (
-            !updateContext.signer &&                                            // sender is relaying the account's signed intention
-            !updateContext.operator &&                                          // sender is operator approved for account
-            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO))    // sender is depositing zero or more into account, without position change
+            !updateContext.signer &&   // sender is relaying the account's signed intention
+            !updateContext.operator && // sender is operator approved for account
+            !newOrder.isEmpty()        // sender is attempting to change position
         ) revert IMarket.MarketOperatorNotAllowedError();
 
         if (
             context.global.currentId > context.global.latestId + context.marketParameter.maxPendingGlobal ||
             context.local.currentId > context.local.latestId + context.marketParameter.maxPendingLocal
         ) revert IMarket.MarketExceedsPendingIdLimitError();
-
-        if (
-            !PositionLib.margined(
-                context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
-                context.latestOracleVersion,
-                context.riskParameter,
-                updateContext.collateralization,
-                context.local.collateral.add(newGuarantee.priceAdjustment(context.latestOracleVersion.price)) // apply price override adjustment from intent if present
-            )
-        ) revert IMarket.MarketInsufficientMarginError();
 
         if (
             context.pendingLocal.protected() && // total pending position is protected
@@ -111,8 +82,5 @@ library InvariantLib {
             updateContext.currentPositionGlobal.socialized() &&
             newOrder.decreasesLiquidity(updateContext.currentPositionGlobal)
         ) revert IMarket.MarketInsufficientLiquidityError();
-
-        if (context.local.collateral.lt(Fixed6Lib.ZERO))
-            revert IMarket.MarketInsufficientCollateralError();
     }
 }

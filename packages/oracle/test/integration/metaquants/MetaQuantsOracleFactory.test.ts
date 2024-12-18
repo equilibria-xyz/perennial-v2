@@ -28,6 +28,7 @@ import {
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 import { deployMarketFactory } from '../../setupHelpers'
+import { IMargin, IMargin__factory } from '@perennial/v2-core/types/generated'
 
 const { ethers } = HRE
 
@@ -35,7 +36,6 @@ const METAQUANTS_BAYC_ETH_PRICE_FEED = '0x000000000000000000000000bc4ca0eda7647a
 const METAQUANTS_MILADY_ETH_PRICE_FEED = '0x0000000000000000000000005af0d9827e0c53e4799bb226655a1de152a425a5'
 const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
-const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 interface UpdateAndSignature {
@@ -187,11 +187,10 @@ testOracles.forEach(testOracle => {
     let metaquantsOracleFactory: MetaQuantsFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
+    let margin: IMargin
     let market: IMarket
     let marketMilady: IMarket
     let dsu: IERC20Metadata
-    let oracleSigner: SignerWithAddress
-    let factorySigner: SignerWithAddress
     let powerTwoPayoff: PowerTwo
 
     const fixture = async () => {
@@ -290,7 +289,7 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(METAQUANTS_MILADY_ETH_PRICE_FEED, metaquantsOracleFactory.address, 'MILADY-USD')
 
-      marketFactory = await deployMarketFactory(owner, oracleFactory)
+      marketFactory = await deployMarketFactory(owner, oracleFactory, dsu)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
@@ -354,30 +353,12 @@ testOracles.forEach(testOracle => {
         closed: false,
         settle: false,
       }
-      market = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracle.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracle.address,
-      })
+      market = Market__factory.connect(await marketFactory.callStatic.create(oracle.address), owner)
+      await marketFactory.create(oracle.address)
       await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
-      marketMilady = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracleMilady.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracleMilady.address,
-      })
+      marketMilady = Market__factory.connect(await marketFactory.callStatic.create(oracleMilady.address), owner)
+      await marketFactory.create(oracleMilady.address)
       await marketMilady.updateParameter(marketParameter)
       await marketMilady.updateRiskParameter(riskParameter)
 
@@ -386,13 +367,9 @@ testOracles.forEach(testOracle => {
       await keeperOracleMilady.register(oracleMilady.address)
       await oracleMilady.register(marketMilady.address)
 
-      oracleSigner = await impersonateWithBalance(oracle.address, utils.parseEther('10'))
-      factorySigner = await impersonateWithBalance(metaquantsOracleFactory.address, utils.parseEther('10'))
-
-      await dsu.connect(user).approve(market.address, constants.MaxUint256)
-
-      const dsuHolder = await impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-      await dsu.connect(dsuHolder).transfer(oracleFactory.address, utils.parseEther('10000'))
+      margin = IMargin__factory.connect(await market.margin(), owner)
+      await dsu.connect(user).approve(margin.address, constants.MaxUint256)
+      await margin.connect(user).deposit(user.address, parse6decimal('10'))
 
       await testOracle.gasMock()
     }

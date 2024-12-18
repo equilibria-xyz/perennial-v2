@@ -14,6 +14,7 @@ import {
   IMarketFactory,
   Oracle,
   GasOracle,
+  IMargin,
 } from '../../../types/generated'
 import { utils, BigNumber } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -73,7 +74,10 @@ describe('KeeperOracle', () => {
     market.factory.returns(marketFactory.address)
     marketFactory.instances.whenCalledWith(market.address).returns(true)
     market.settle.whenCalledWith(ethers.constants.AddressZero).returns()
-    market.token.returns(dsu.address)
+
+    const margin = await smock.fake<IMargin>('IMargin')
+    market.margin.returns(margin.address)
+    margin.DSU.returns(dsu.address)
 
     // deploy prerequisites
     const oracleImpl = await new Oracle__factory(owner).deploy()
