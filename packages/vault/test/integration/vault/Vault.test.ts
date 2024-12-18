@@ -2070,18 +2070,18 @@ describe('Vault', () => {
             .connect(user2)
             ['update(address,int256,int256,int256,address)'](
               user2.address,
+              0,
               parse6decimal('100').mul(-1),
               parse6decimal('100000'),
-              0,
               constants.AddressZero,
             )
           await btcMarket
             .connect(btcUser2)
             ['update(address,int256,int256,int256,address)'](
               btcUser2.address,
+              0,
               parse6decimal('10').mul(-1),
               parse6decimal('100000'),
-              0,
               constants.AddressZero,
             )
           await updateOracle()

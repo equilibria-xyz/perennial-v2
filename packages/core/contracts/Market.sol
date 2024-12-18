@@ -229,7 +229,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 takerAmount;
 
         UFixed6 closable = context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg());
-        
+
         if (updateContext.currentPositionLocal.maker.gt(UFixed6Lib.ZERO)) {
             makerAmount = Fixed6Lib.from(-1, closable);
         } else if (updateContext.currentPositionLocal.long.gt(UFixed6Lib.ZERO)) {
