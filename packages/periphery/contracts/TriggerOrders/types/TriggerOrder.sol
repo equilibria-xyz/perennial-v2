@@ -56,11 +56,6 @@ library TriggerOrderLib {
         IMarket market,
         address account
     ) internal {
-        if (self.delta.eq(MAGIC_VALUE_CLOSE_POSITION)) {
-            market.close(account, false, address(0));
-            return;
-        }
-
         // settle and get the pending position of the account
         market.settle(account);
         Order memory pending = market.pendings(account);
@@ -71,9 +66,9 @@ library TriggerOrderLib {
         Fixed6 takerDelta;
 
         // apply order to position
-        if (self.side == 4) makerDelta = self.delta;
-        if (self.side == 5) takerDelta = self.delta;
-        if (self.side == 6) takerDelta = self.delta.mul(Fixed6Lib.NEG_ONE);
+        if (self.side == 4) makerDelta = _computeDelta(position.maker, self.delta);
+        if (self.side == 5) takerDelta = _computeDelta(position.long, self.delta);
+        if (self.side == 6) takerDelta = _computeDelta(position.short, self.delta).mul(Fixed6Lib.NEG_ONE);
 
         // apply position to market
         market.update(
@@ -107,11 +102,12 @@ library TriggerOrderLib {
         }
     }
 
-    /// @notice Helper function to improve readability of TriggerOrderLib.execute
-    function _add(UFixed6 lhs, Fixed6 rhs) private pure returns (UFixed6) {
-        return rhs.eq(MAGIC_VALUE_CLOSE_POSITION) ?
-            UFixed6Lib.ZERO :
-            UFixed6Lib.from(Fixed6Lib.from(lhs).add(rhs));
+    /// @notice Returns the delta to apply to the position
+    /// @dev If the delta is MAGIC_VALUE_CLOSE_POSITION, it will close the position
+    function _computeDelta(UFixed6 currentPosition, Fixed6 delta) private pure returns (Fixed6) {
+        return delta.eq(MAGIC_VALUE_CLOSE_POSITION) ?
+            Fixed6Lib.from(-1, currentPosition) :
+            delta;
     }
 
     /// @notice Returns user's position for the side of the order they placed
