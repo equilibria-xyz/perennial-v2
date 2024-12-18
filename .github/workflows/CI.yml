@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - v2.4
+      - prateek/pe-1629-remove-magic-values
   workflow_dispatch:
 
 env:
