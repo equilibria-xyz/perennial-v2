@@ -27,7 +27,7 @@ describe('Closed Market', () => {
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await market
       .connect(user)
-      ['update(address,int256,int256,int256,address)'](user.address, 0, POSITION, COLLATERAL, constants.AddressZero)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     expect((await market.parameter()).closed).to.be.false
 
