@@ -176,7 +176,6 @@ jobs:
           name: oracle_unit_test_coverage
           path: ./packages/oracle/coverage/lcov.info
   oracle-integration-test:
-    if: false
     name: '[Oracle] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:

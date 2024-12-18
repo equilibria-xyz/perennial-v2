@@ -319,12 +319,12 @@ testOracles.forEach(testOracle => {
         closed: false,
         settle: false,
       }
-      market = Market__factory.connect(await marketFactory.callStatic.create({ oracle: oracle.address }), owner)
-      await marketFactory.create({ oracle: oracle.address })
+      market = Market__factory.connect(await marketFactory.callStatic.create(oracle.address), owner)
+      await marketFactory.create(oracle.address)
       await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
-      marketBtc = Market__factory.connect(await marketFactory.callStatic.create({ oracle: oracleBtc.address }), owner)
-      await marketFactory.create({ oracle: oracleBtc.address })
+      marketBtc = Market__factory.connect(await marketFactory.callStatic.create(oracleBtc.address), owner)
+      await marketFactory.create(oracleBtc.address)
       await marketBtc.updateParameter(marketParameter)
       await marketBtc.updateRiskParameter(riskParameter)
 
