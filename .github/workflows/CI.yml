@@ -206,7 +206,6 @@ jobs:
           name: oracle_integration_test_coverage
           path: ./packages/oracle/coverage/lcov.info
   oracle-integrationSepolia-test:
-    if: false
     name: '[Oracle] Sepolia Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
