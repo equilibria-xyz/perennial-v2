@@ -47,12 +47,7 @@ import {
   DEFAULT_ORACLE_RECEIPT,
   expectGuaranteeEq,
 } from '../../../../common/testutil/types'
-import {
-  IMarket,
-  IntentStruct,
-  MarketParameterStruct,
-  RiskParameterStruct,
-} from '../../../types/generated/contracts/Market'
+import { IntentStruct, MarketParameterStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
 
@@ -588,6 +583,7 @@ describe('Market', () => {
 
       expect(await market.factory()).to.equal(factory.address)
       expect(await market.oracle()).to.equal(oracle.address)
+      expect(await market.verifier()).to.equal(verifier.address)
       expect(await market.margin()).to.equal(margin.address)
 
       const riskParameterResult = await market.riskParameter()

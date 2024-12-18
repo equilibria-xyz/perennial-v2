@@ -6,6 +6,7 @@ import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMargin } from "./IMargin.sol";
+import { IVerifier } from "./IVerifier.sol";
 import { IOracleProvider } from "./IOracleProvider.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { MarketParameter } from "../types/MarketParameter.sol";
@@ -133,6 +134,7 @@ interface IMarket is IInstance {
     error VersionStorageInvalidError();
 
     function initialize(IOracleProvider oracle) external;
+    function verifier() external view returns (IVerifier);
     function margin() external view returns (IMargin);
     function oracle() external view returns (IOracleProvider);
     function beneficiary() external view returns (address);
