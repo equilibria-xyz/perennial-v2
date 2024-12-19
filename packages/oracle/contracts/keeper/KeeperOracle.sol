@@ -203,13 +203,13 @@ contract KeeperOracle is IKeeperOracle, Instance {
             priceResponse.valid = false;
         }
 
-        priceResponse.syncFee = UFixed6Lib.from(factory.commitmentGasOracle().cost(value), true);
-        priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true);
+        // Apply maximum fee limits
+        priceResponse.syncFee = UFixed6Lib.from(factory.commitmentGasOracle().cost(value), true)
+            .min(oracleParameter.maxSyncFee);
+        priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true)
+            .min(oracleParameter.maxAsyncFee);
+
         priceResponse.oracleFee = keeperOracleParameter.oracleFee;
-        priceResponse.applyFeeMaximum(
-            oracleParameter.maxSettlementFee,
-            _localCallbacks[oracleVersion.timestamp].length()
-        );
 
         _responses[oracleVersion.timestamp].store(priceResponse);
         _global.latestIndex++;

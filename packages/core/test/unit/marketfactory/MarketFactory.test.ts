@@ -309,6 +309,7 @@ describe('MarketFactory', () => {
       referralFee: parse6decimal('0.2'),
       minScale: parse6decimal('0.001'),
       maxStaleAfter: 3600,
+      minMinMaintenance: 0,
     }
 
     it('updates the parameters', async () => {
@@ -324,6 +325,7 @@ describe('MarketFactory', () => {
       expect(parameter.referralFee).to.equal(newParameter.referralFee)
       expect(parameter.minScale).to.equal(newParameter.minScale)
       expect(parameter.maxStaleAfter).to.equal(newParameter.maxStaleAfter)
+      expect(parameter.minMinMaintenance).to.equal(newParameter.minMinMaintenance)
     })
 
     it('reverts if not owner', async () => {

@@ -207,7 +207,8 @@ testOracles.forEach(testOracle => {
       await oracleFactory.initialize()
       await oracleFactory.connect(owner).updateParameter({
         maxGranularity: 10000,
-        maxSettlementFee: parse6decimal('1000'),
+        maxSyncFee: parse6decimal('500'),
+        maxAsyncFee: parse6decimal('500'),
         maxOracleFee: parse6decimal('0.5'),
       })
 
@@ -300,6 +301,7 @@ testOracles.forEach(testOracle => {
         referralFee: 0,
         minScale: parse6decimal('0.001'),
         maxStaleAfter: 7200,
+        minMinMaintenance: 0,
       })
 
       const riskParameter = {

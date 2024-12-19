@@ -146,6 +146,7 @@ export async function deployProtocol(
     referralFee: 0,
     minScale: parse6decimal('0.001'),
     maxStaleAfter: 7200,
+    minMinMaintenance: 0,
   })
 
   return {
@@ -389,9 +390,5 @@ export async function configureInvoker(
 
   await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)
   await instanceVars.marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  if (vaultFactory) {
-    await vaultFactory.connect(user).updateOperator(multiInvoker.address, true)
-    await vaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  }
   await multiInvoker.initialize(instanceVars.chainlinkKeptFeed.address)
 }

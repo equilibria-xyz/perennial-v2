@@ -54,6 +54,9 @@ contract Vault is IVault, Instance {
     /// @dev DEPRECATED SLOT -- previously the mappings
     bytes32 private __unused0__;
 
+    /// @dev Mapping to track allowed accounts
+    mapping(address => bool) public allowed;
+
     /// @dev Risk coordinator of the vault
     address public coordinator;
 
@@ -74,6 +77,9 @@ contract Vault is IVault, Instance {
         _name = name_;
         _register(initialMarket);
         _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+
+        // permits the vault factory to make the initial deposit to prevent inflation attacks
+        allowed[msg.sender] = true;
     }
 
     /// @notice Returns the vault parameter set
@@ -270,7 +276,7 @@ contract Vault is IVault, Instance {
         UFixed6 depositAssets,
         UFixed6 redeemShares,
         UFixed6 claimAssets
-    ) external whenNotPaused {
+    ) external whenNotPaused onlyAllowed {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
@@ -278,6 +284,12 @@ contract Vault is IVault, Instance {
         _checkpoint(context);
         _update(context, account, depositAssets, redeemShares, claimAssets);
         _saveContext(context, account);
+    }
+
+    /// @inheritdoc IVault
+    function updateAllowed(address account, bool newAllowed) public onlyOwner {
+        allowed[account] = newAllowed;
+        emit AllowedUpdated(account, newAllowed);
     }
 
     /// @notice Loads or initializes the current checkpoint
@@ -310,7 +322,7 @@ contract Vault is IVault, Instance {
         if (redeemShares.eq(UFixed6Lib.MAX)) redeemShares = context.local.shares;
 
         // invariant
-        if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
+        if (msg.sender != account && !IVaultFactory(address(factory())).marketFactory().operators(account, msg.sender))
             revert VaultNotOperatorError();
         if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets)))
             revert VaultNotSingleSidedError();
@@ -525,6 +537,14 @@ contract Vault is IVault, Instance {
                 checkpoint.settlementFee.add(marketCheckpoint.settlementFee)
             );
         }
+    }
+
+    /// @notice Modifier to check if the caller is allowed to interact with the vault.
+    /// @dev `address(0)` is used for permissionless vaults, enabling all accounts to interact with the vault.
+    ///      This allows the same VaultFactory to support both permissioned and permissionless Vaults.
+    modifier onlyAllowed() {
+        if (!allowed[address(0)] && !allowed[msg.sender]) revert VaultNotAllowedError();
+        _;
     }
 
     /// @notice Only the coordinator or factory owner can call

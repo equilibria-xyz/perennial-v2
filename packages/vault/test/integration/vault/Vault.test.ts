@@ -326,6 +326,9 @@ describe('Vault', () => {
       asset.connect(other).approve(btcMarket.address, ethers.constants.MaxUint256),
     ])
 
+    // allow all accounts to interact with the vault
+    await vault.connect(owner).updateAllowed(constants.AddressZero, true)
+
     // Seed markets with some activity
     await market
       .connect(user)
@@ -658,6 +661,69 @@ describe('Vault', () => {
         vault,
         'InstanceNotOwnerError',
       )
+    })
+  })
+
+  describe('#updateAllowed', () => {
+    beforeEach(async () => {
+      // Disable all accounts
+      await vault.connect(owner).updateAllowed(constants.AddressZero, false)
+    })
+
+    it('updates allowed status correctly', async () => {
+      await expect(vault.connect(owner).updateAllowed(user.address, false))
+        .to.emit(vault, 'AllowedUpdated')
+        .withArgs(user.address, false)
+      expect(await vault.allowed(user.address)).to.be.false
+      await expect(vault.connect(owner).updateAllowed(user.address, true))
+        .to.emit(vault, 'AllowedUpdated')
+        .withArgs(user.address, true)
+      expect(await vault.allowed(user.address)).to.be.true
+    })
+
+    it('updates user position with only user allowed', async () => {
+      // check user is not allowed to interact with the vault
+      expect(await vault.allowed(user.address)).to.be.false
+      expect(await vault.allowed(constants.AddressZero)).to.be.false
+
+      // should revert if not allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.be.revertedWithCustomError(
+        vault,
+        'VaultNotAllowedError',
+      )
+
+      // allow user to interact with the vault
+      await expect(vault.connect(owner).updateAllowed(user.address, true))
+        .to.emit(vault, 'AllowedUpdated')
+        .withArgs(user.address, true)
+
+      // should update allowed
+      expect(await vault.allowed(user.address)).to.be.true
+
+      // should not revert if allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.not.be.reverted
+    })
+
+    it('updates user position with all accounts allowed', async () => {
+      // check all accounts are not allowed to interact with the vault
+      expect(await vault.allowed(constants.AddressZero)).to.be.false
+
+      // should revert if not allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.be.revertedWithCustomError(
+        vault,
+        'VaultNotAllowedError',
+      )
+
+      // allow all accounts to interact with the vault
+      await expect(vault.connect(owner).updateAllowed(constants.AddressZero, true))
+        .to.emit(vault, 'AllowedUpdated')
+        .withArgs(constants.AddressZero, true)
+
+      // should update allowed
+      expect(await vault.allowed(constants.AddressZero)).to.be.true
+
+      // should not revert if allowed
+      await expect(vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)).to.not.be.reverted
     })
   })
 
@@ -1296,9 +1362,9 @@ describe('Vault', () => {
         vault,
         'VaultNotOperatorError',
       )
-      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      await marketFactory.connect(user).updateOperator(liquidator.address, true)
       vault.connect(liquidator).update(user.address, largeDeposit, 0, 0)
-      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+      await marketFactory.connect(user).updateOperator(liquidator.address, false)
 
       await updateOracle()
       await vault.rebalance(user.address)
@@ -1311,9 +1377,9 @@ describe('Vault', () => {
       await expect(
         vault.connect(liquidator).update(user.address, parse6decimal('10000'), 0, 0),
       ).to.revertedWithCustomError(vault, 'VaultNotOperatorError')
-      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      await marketFactory.connect(user).updateOperator(liquidator.address, true)
       await vault.connect(liquidator).update(user.address, 0, parse6decimal('10000'), 0)
-      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+      await marketFactory.connect(user).updateOperator(liquidator.address, false)
       await updateOracle()
       await vault.rebalance(user.address)
 
@@ -1321,9 +1387,9 @@ describe('Vault', () => {
       await expect(
         vault.connect(liquidator).update(user.address, 0, 0, ethers.constants.MaxUint256),
       ).to.revertedWithCustomError(vault, 'VaultNotOperatorError')
-      await vaultFactory.connect(user).updateOperator(liquidator.address, true)
+      await marketFactory.connect(user).updateOperator(liquidator.address, true)
       await vault.connect(liquidator).update(user.address, 0, 0, ethers.constants.MaxUint256)
-      await vaultFactory.connect(user).updateOperator(liquidator.address, false)
+      await marketFactory.connect(user).updateOperator(liquidator.address, false)
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)

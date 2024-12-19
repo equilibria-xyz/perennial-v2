@@ -178,11 +178,13 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     referralFee: 0,
     minScale: parse6decimal('0.001'),
     maxStaleAfter: 64800, // 18 hours
+    minMinMaintenance: 0,
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).updateParameter({
     maxGranularity: 10000,
-    maxSettlementFee: parse6decimal('1000'),
+    maxAsyncFee: parse6decimal('500'),
+    maxSyncFee: parse6decimal('500'),
     maxOracleFee: parse6decimal('0.5'),
   })
   const oracle = IOracle__factory.connect(
