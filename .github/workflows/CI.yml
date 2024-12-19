@@ -301,7 +301,6 @@ jobs:
 
   # [PERIPHERY]
   periphery-unit-test:
-    if: false
     name: '[Periphery] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -331,7 +330,6 @@ jobs:
           name: periphery_unit_test_coverage
           path: ./packages/periphery/coverage/lcov.info
   periphery-integration-test:
-    if: false
     name: '[Periphery] Mainnet Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -362,7 +360,6 @@ jobs:
           name: periphery_integration_test_coverage
           path: ./packages/periphery/coverage/lcov.info
   periphery-integrationL2-test:
-    if: false
     name: '[Periphery] L2 Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:

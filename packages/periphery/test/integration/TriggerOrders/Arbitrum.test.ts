@@ -56,7 +56,7 @@ async function setupUser(
 ) {
   // funds, approves, and deposits DSU into the market
   await fundWalletDSU(user, amount.mul(1e12))
-  await dsu.connect(user).approve(market.address, amount.mul(1e12))
+  await dsu.connect(user).approve(await market.margin(), amount.mul(1e12))
   await transferCollateral(user, market, amount)
 
   // allows manager to interact with markets on the user's behalf

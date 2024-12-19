@@ -12,7 +12,6 @@ import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
 import { IMargin, IMarket, Position } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
-// import "hardhat/console.sol";
 
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
@@ -71,14 +70,15 @@ contract Account is IAccount, Instance {
             wrapIfNecessary(UFixed18Lib.from(amount.abs()), true);
 
         // deposit or withdraw DSU to/from the margin contract prior to isolation
-        // console.log("  Account.marketTransfer %s depositing/withdrawing to/from margin contract with amount", address(market));
-        // console.logInt(Fixed6.unwrap(amount));
         if (amount.sign() == 1) margin.deposit(owner, amount.abs());
 
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
         // TODO: just use Margin.isolate here for gas efficiency
         market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
 
+        // TODO: Add support for full withdrawals, which used to use UInt256.minValue.
+        // Market is dropping support for that (PR#491) and Margin currently does not support it.
+        // Also should consider settlement flow for full withdrawals.
         if (amount.sign() == -1) margin.withdraw(owner, amount.abs());
     }
 

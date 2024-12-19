@@ -390,7 +390,7 @@ export function RunIncentivizedTests(
           controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
         )
           .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, ethMarket.address, transferAmount.mul(1e12)) // scale to token precision
+          .withArgs(accountA.address, margin.address, transferAmount.mul(1e12)) // scale to token precision
           .to.emit(ethMarket, 'OrderCreated')
           .withArgs(
             userA.address,
@@ -426,7 +426,7 @@ export function RunIncentivizedTests(
           controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
         )
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
+          .withArgs(margin.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
           .to.emit(ethMarket, 'OrderCreated')
           .withArgs(
             userA.address,
@@ -443,21 +443,13 @@ export function RunIncentivizedTests(
         await checkCompensation(2)
       })
 
-      it('collects fee for withdrawing native deposit from market', async () => {
-        // user directly deposits collateral to the market
+      // TODO: Add Margin support for full withdrawals
+      it.skip('collects fee for withdrawing native deposit from market', async () => {
+        // user directly isolates collateral to the market
         const depositAmount = parse6decimal('13000')
         await deployment.fundWalletDSU(userA, depositAmount.mul(1e12), TX_OVERRIDES)
-        await ethMarket
-          .connect(userA)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userA.address,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            depositAmount,
-            false,
-            { maxFeePerGas: 150000000 },
-          )
+        await margin.connect(userA).deposit(userA.address, depositAmount, TX_OVERRIDES)
+        await margin.connect(userA).isolate(userA.address, ethMarket.address, depositAmount, TX_OVERRIDES)
         await expectMarketIsolatedBalance(userA, ethMarket, depositAmount)
 
         // sign a message to withdraw everything from the market back into the collateral account
@@ -473,7 +465,7 @@ export function RunIncentivizedTests(
           controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
         )
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
+          .withArgs(margin.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
           .to.emit(ethMarket, 'OrderCreated')
           .withArgs(
             userA.address,
@@ -511,7 +503,7 @@ export function RunIncentivizedTests(
           controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
         )
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, anyValue)
+          .withArgs(margin.address, accountA.address, anyValue)
           .to.emit(ethMarket, 'OrderCreated')
           .withArgs(
             userA.address,
@@ -634,8 +626,8 @@ export function RunIncentivizedTests(
         expect(keeperFeePaid).to.equal(utils.parseEther('0.00923'))
       })
 
-      // TODO: Delete this test.  The attack vector is no longer possible because non-operators
-      // cannot isolate another user's funds into a market.
+      // TODO: See if this test can be resurrected once cross-margin is implemented.
+      // Cannot work with isolated collateral because non-operators may not isolate on behalf of others.
       it.skip('cannot award more keeper fees than collateral rebalanced', async () => {
         // create a new group with two markets
         const message = {

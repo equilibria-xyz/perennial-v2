@@ -1,7 +1,14 @@
 import { CallOverrides } from 'ethers'
 import HRE from 'hardhat'
 
-import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../../types/generated'
+import {
+  AccountVerifier__factory,
+  IAccountVerifier,
+  IMargin,
+  IMargin__factory,
+  IMarket,
+  IMarket__factory,
+} from '../../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerArbitrum,
@@ -30,12 +37,15 @@ async function deployProtocol(
 ): Promise<DeploymentVars> {
   const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
+  const marketImpl: IMarket = IMarket__factory.connect(await marketFactory.implementation(), owner)
+  const margin: IMargin = IMargin__factory.connect(await marketImpl.margin(), owner)
 
   const deployment: DeploymentVars = {
     dsu,
     usdc,
     oracleFactory,
     pythOracleFactory,
+    margin,
     marketFactory,
     ethMarket: createMarketETH
       ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)

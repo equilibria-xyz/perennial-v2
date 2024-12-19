@@ -27,6 +27,7 @@ import { parse6decimal } from '../../../common/testutil/types'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/v2-core/types/generated/contracts/Market'
 import { MockContract, smock } from '@defi-wonderland/smock'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
+import { IMargin__factory } from '@perennial/v2-vault/types/generated'
 
 export async function createMarket(
   owner: SignerWithAddress,
@@ -196,7 +197,12 @@ export async function mockMarket(): Promise<IMarket> {
 
 // Deposits collateral to (amount > 0) or withdraws collateral from (amount < 0) a market
 export async function transferCollateral(user: SignerWithAddress, market: IMarket, amount: BigNumber) {
-  await market
-    .connect(user)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, amount, false)
+  const margin: IMargin = IMargin__factory.connect(await market.margin(), user)
+  if (amount.gt(0)) {
+    await margin.deposit(user.address, amount)
+    await margin.isolate(user.address, market.address, amount)
+  } else if (amount.lt(0)) {
+    await margin.isolate(user.address, market.address, amount)
+    await margin.withdraw(user.address, amount.mul(-1))
+  }
 }

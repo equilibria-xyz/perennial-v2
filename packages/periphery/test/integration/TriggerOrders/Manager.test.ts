@@ -10,7 +10,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
 import { IKeeperOracle } from '@perennial/v2-oracle/types/generated'
-import { IEmptySetReserve, IManager, IOrderVerifier } from '../../../types/generated'
+import { IManager, IMargin, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
@@ -26,6 +26,7 @@ import { advanceToPrice } from '../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { impersonate } from '../../../../common/testutil'
 import { FixtureVars } from './setupTypes'
+import { IMargin__factory } from '@perennial/v2-vault/types/generated'
 
 const MAX_FEE = utils.parseEther('0.88')
 
@@ -45,9 +46,9 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
   describe(name, () => {
     let dsu: IERC20Metadata
     let usdc: IERC20Metadata
-    let reserve: IEmptySetReserve
     let keeperOracle: IKeeperOracle
     let manager: IManager
+    let margin: IMargin
     let marketFactory: IMarketFactory
     let market: IMarket
     let oracle: IOracleProvider
@@ -160,11 +161,11 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
           if (order.interfaceFee.unwrap) {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(market.address, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
           } else {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(market.address, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
           }
         }
       }
@@ -285,7 +286,6 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       const fixture = await getFixture(TX_OVERRIDES)
       dsu = fixture.dsu
       usdc = fixture.usdc
-      reserve = fixture.reserve
       keeperOracle = fixture.keeperOracle
       manager = fixture.manager
       marketFactory = fixture.marketFactory
@@ -299,6 +299,8 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       userD = fixture.userD
       keeper = fixture.keeper
       oracleFeeReceiver = fixture.oracleFeeReceiver
+
+      margin = IMargin__factory.connect(await market.margin(), owner)
 
       nextOrderId[userA.address] = BigNumber.from(500)
       nextOrderId[userB.address] = BigNumber.from(500)
