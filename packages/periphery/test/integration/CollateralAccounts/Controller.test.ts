@@ -15,6 +15,7 @@ import {
   Controller,
   IAccountVerifier,
   IERC20Metadata,
+  IMargin,
 } from '../../../types/generated'
 import { IMarket, IMarketFactory } from '@perennial/v2-core/types/generated'
 import {
@@ -46,6 +47,7 @@ export function RunControllerBaseTests(
     let usdc: IERC20Metadata
     let controller: Controller
     let verifier: IAccountVerifier
+    let margin: IMargin
     let marketFactory: IMarketFactory
     let ethMarket: IMarket
     let ethMarketDeployment: MarketWithOracle
@@ -93,9 +95,8 @@ export function RunControllerBaseTests(
     }
 
     // ensures user has expected amount of collateral in a market
-    async function expectMarketCollateralBalance(user: SignerWithAddress, amount: BigNumber) {
-      const local = await ethMarket.locals(user.address)
-      expect(local.collateral).to.equal(amount)
+    async function expectMarketIsolatedBalance(user: SignerWithAddress, amount: BigNumber) {
+      expect(await margin.isolatedBalances(user.address, ethMarket.address)).to.equal(amount)
     }
 
     // funds specified wallet with 50k collateral
@@ -149,14 +150,15 @@ export function RunControllerBaseTests(
       if (amount.gt(constants.Zero)) {
         // deposits transfer from collateral account into market
         expectedFrom = accountA.address
-        expectedTo = market.address
+        expectedTo = margin.address
         if (amount === constants.MaxInt256) expectedAmount = await dsu.balanceOf(accountA.address)
         else expectedAmount = amount.mul(1e12)
       } else {
         // withdrawals transfer from market into account
-        expectedFrom = market.address
+        expectedFrom = margin.address
         expectedTo = accountA.address
-        if (amount === constants.MinInt256) expectedAmount = (await market.locals(user.address)).collateral.mul(1e12)
+        if (amount === constants.MinInt256)
+          expectedAmount = (await margin.isolatedBalances(user.address, market.address)).mul(1e12)
         else expectedAmount = amount.mul(-1e12)
       }
 
@@ -186,6 +188,7 @@ export function RunControllerBaseTests(
 
       // deploy protocol
       deployment = await deployProtocol(owner, true, true)
+      margin = deployment.margin
       marketFactory = deployment.marketFactory
       dsu = deployment.dsu
       usdc = deployment.usdc
@@ -216,6 +219,8 @@ export function RunControllerBaseTests(
         TX_OVERRIDES,
       )
       lastPrice = (await ethMarketDeployment.oracle.status())[0].price
+
+      await dsu.connect(userA).approve(deployment.margin.address, constants.MaxUint256)
 
       // create a collateral account for userA with 15k collateral in it
       await fundWallet(userA)
@@ -311,9 +316,9 @@ export function RunControllerBaseTests(
 
         await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES))
           .to.emit(dsu, 'Transfer')
-          .withArgs(btcMarket.address, accountA.address, utils.parseEther('2250'))
+          .withArgs(margin.address, accountA.address, utils.parseEther('2250'))
           .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, ethMarket.address, utils.parseEther('2250'))
+          .withArgs(accountA.address, margin.address, utils.parseEther('2250'))
           .to.emit(controller, 'GroupRebalanced')
           .withArgs(userA.address, 1)
 
@@ -340,9 +345,9 @@ export function RunControllerBaseTests(
 
         await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES))
           .to.emit(dsu, 'Transfer')
-          .withArgs(btcMarket.address, accountA.address, utils.parseEther('9750'))
+          .withArgs(margin.address, accountA.address, utils.parseEther('9750'))
           .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, ethMarket.address, utils.parseEther('9750'))
+          .withArgs(accountA.address, margin.address, utils.parseEther('9750'))
           .to.emit(controller, 'GroupRebalanced')
           .withArgs(userA.address, 1)
 
@@ -373,9 +378,9 @@ export function RunControllerBaseTests(
 
         await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES))
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, utils.parseEther('1000'))
+          .withArgs(margin.address, accountA.address, utils.parseEther('1000'))
           .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, btcMarket.address, utils.parseEther('1000'))
+          .withArgs(accountA.address, margin.address, utils.parseEther('1000'))
           .to.emit(controller, 'GroupRebalanced')
           .withArgs(userA.address, 1)
 
@@ -433,9 +438,9 @@ export function RunControllerBaseTests(
 
         await expect(controller.rebalanceGroup(userA.address, 1, TX_OVERRIDES))
           .to.emit(dsu, 'Transfer')
-          .withArgs(btcMarket.address, accountA.address, utils.parseEther('2500'))
+          .withArgs(margin.address, accountA.address, utils.parseEther('2500'))
           .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, ethMarket.address, utils.parseEther('2500'))
+          .withArgs(accountA.address, margin.address, utils.parseEther('2500'))
           .to.emit(controller, 'GroupRebalanced')
           .withArgs(userA.address, 1)
 
@@ -453,7 +458,7 @@ export function RunControllerBaseTests(
         await transfer(transferAmount, userA)
 
         // verify balances
-        await expectMarketCollateralBalance(userA, transferAmount)
+        await expectMarketIsolatedBalance(userA, transferAmount)
         expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('9000')) // 15k-6k
       })
 
@@ -471,7 +476,7 @@ export function RunControllerBaseTests(
         await transfer(transferAmount, userA)
 
         // verify balances
-        await expectMarketCollateralBalance(userA, parse6decimal('20000'))
+        await expectMarketIsolatedBalance(userA, parse6decimal('20000'))
         expect(await dsu.balanceOf(accountA.address)).to.equal(0)
         expect(await usdc.balanceOf(accountA.address)).to.equal(0)
       })
@@ -485,7 +490,7 @@ export function RunControllerBaseTests(
         await transfer(transferAmount, userA, ethMarket, userB)
 
         // verify balances
-        await expectMarketCollateralBalance(userA, transferAmount)
+        await expectMarketIsolatedBalance(userA, transferAmount)
         expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('11000')) // 15k-4k
       })
 
@@ -494,7 +499,7 @@ export function RunControllerBaseTests(
           currentTime = await transfer(parse6decimal('100'), userA)
           await advanceAndSettle(userA, receiver, currentTime)
         }
-        await expectMarketCollateralBalance(userA, parse6decimal('800'))
+        await expectMarketIsolatedBalance(userA, parse6decimal('800'))
       })
 
       it('can withdraw funds from a market', async () => {
@@ -506,7 +511,7 @@ export function RunControllerBaseTests(
         await transfer(transferAmount, userA)
 
         // verify balances
-        await expectMarketCollateralBalance(userA, parse6decimal('7000')) // 10k-3k
+        await expectMarketIsolatedBalance(userA, parse6decimal('7000')) // 10k-3k
         expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('8000')) // 15k-10k+3k
       })
 
@@ -519,7 +524,7 @@ export function RunControllerBaseTests(
         await transfer(constants.MinInt256, userA)
 
         // verify balances
-        await expectMarketCollateralBalance(userA, constants.Zero)
+        await expectMarketIsolatedBalance(userA, constants.Zero)
         expect(await dsu.balanceOf(accountA.address)).to.equal(utils.parseEther('15000'))
       })
 
@@ -548,7 +553,7 @@ export function RunControllerBaseTests(
         ).to.be.revertedWithCustomError(ethMarket, 'MarketInsufficientMarginError')
 
         // 7000 - one settlement fee
-        expect((await ethMarket.locals(userA.address)).collateral).to.be.within(
+        expect(await margin.isolatedBalances(userA.address, ethMarket.address)).to.be.within(
           parse6decimal('7000').sub(parse6decimal('1')),
           parse6decimal('7000'),
         )

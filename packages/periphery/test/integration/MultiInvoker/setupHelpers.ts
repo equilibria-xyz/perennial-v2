@@ -5,44 +5,45 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import HRE from 'hardhat'
 
 import {
+  IBatcher,
+  IBatcher__factory,
+  IEmptySetReserve,
+  IEmptySetReserve__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
+  IMarket,
+  IMargin,
+  IOracle,
+  IOracleFactory,
+  IOracleProvider,
+  IOracle__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
-  IOracleProvider,
-  MultiInvoker,
-  Market,
-  PowerTwo__factory,
-  IMarket,
   IVault,
   IVaultFactory__factory,
   IVault__factory,
+  MarketFactory,
+  MarketFactory__factory,
+  MultiInvoker,
+  OracleFactory,
+  OracleFactory__factory,
+  Oracle__factory,
+  PowerTwo__factory,
   VaultFactory,
   VaultFactory__factory,
   Vault__factory,
-  OracleFactory,
-  Oracle__factory,
-  OracleFactory__factory,
-  IOracle,
-  IOracle__factory,
-  IOracleFactory,
-  MarketFactory,
-  MarketFactory__factory,
-  IBatcher,
-  IEmptySetReserve,
-  IBatcher__factory,
-  IEmptySetReserve__factory,
 } from '../../../types/generated'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 
 import { deployProductOnFork } from '@perennial/v2-vault/test/integration/helpers/setupHelpers'
 import {
+  AggregatorV3Interface,
+  AggregatorV3Interface__factory,
+  IVerifier,
+  Margin__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
-  IVerifier,
-  AggregatorV3Interface,
-  AggregatorV3Interface__factory,
 } from '@perennial/v2-core/types/generated'
 import { Verifier__factory } from '@perennial/v2-core/types/generated'
 import { deployMarketImplementation } from '../../helpers/marketHelpers'
@@ -62,6 +63,7 @@ export interface InstanceVars {
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   marketFactory: MarketFactory
+  margin: IMargin
   verifier: IVerifier
   payoff: IPayoffProvider
   dsu: IERC20Metadata
@@ -70,7 +72,6 @@ export interface InstanceVars {
   dsuBatcher: IBatcher | undefined
   chainlinkKeptFeed: AggregatorV3Interface
   oracle: IOracle
-  marketImpl: Market
 }
 
 // used to pass Verifyable Action Approvals to MultiInvoker Pyth tests
@@ -111,8 +112,7 @@ export async function deployProtocol(
     [],
   )
   const verifier = Verifier__factory.connect(verifierProxy.address, owner)
-
-  const marketImpl = await deployMarketImplementation(owner, verifier.address)
+  const [marketImpl, margin] = await deployMarketImplementation(owner, dsu, verifier)
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
@@ -132,6 +132,7 @@ export async function deployProtocol(
   await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
   await verifier.connect(owner).initialize(marketFactory.address)
+  await margin.initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
@@ -157,6 +158,7 @@ export async function deployProtocol(
     proxyAdmin,
     oracleFactory,
     marketFactory,
+    margin,
     verifier,
     chainlinkKeptFeed: AggregatorV3Interface__factory.connect(chainlinkKeptFeedAddress, owner),
     payoff,
@@ -166,7 +168,6 @@ export async function deployProtocol(
       dsuBatcherAddress === constants.AddressZero ? undefined : IBatcher__factory.connect(dsuBatcherAddress, owner),
     dsuReserve: IEmptySetReserve__factory.connect(dsuReserveAddress, owner),
     oracle: oracleImpl, // placeholder until real oracle is deployed in chain-specific test setup
-    marketImpl,
   }
 }
 

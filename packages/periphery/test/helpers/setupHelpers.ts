@@ -15,12 +15,11 @@ import {
   IMarket,
   IMarketFactory,
   IOracleProvider,
-  IVerifier,
+  Margin__factory,
   MarketFactory,
   MarketFactory__factory,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
-  Verifier__factory,
 } from '@perennial/v2-core/types/generated'
 
 import {
@@ -49,11 +48,13 @@ export async function createFactories(
   owner: SignerWithAddress,
   pythAddress: Address,
   chainLinkFeedAddress: Address,
+  dsuAddress: Address,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
   // Deploy the oracle factory, which markets created by the market factory will query
   const oracleFactory = await deployOracleFactory(owner)
   // Deploy the market factory and authorize it with the oracle factory
-  const marketFactory = await deployProtocolForOracle(owner, oracleFactory)
+  const dsu = IERC20Metadata__factory.connect(dsuAddress, owner)
+  const marketFactory = await deployProtocolForOracle(owner, oracleFactory, dsu)
   // Connect the Chainlink ETH feed used for keeper compensation
   const chainlinkKeptFeed = AggregatorV3Interface__factory.connect(chainLinkFeedAddress, owner)
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
@@ -135,8 +136,7 @@ export async function deployProtocol(
   const oracleFactory = await deployOracleFactory(owner)
 
   // Deploy the market factory and authorize it with the oracle factory
-  const marketVerifier = await new Verifier__factory(owner).deploy()
-  const marketFactory = await deployProtocolForOracle(owner, oracleFactory, marketVerifier)
+  const marketFactory = await deployProtocolForOracle(owner, oracleFactory, dsu)
   return [marketFactory, dsu, oracleFactory]
 }
 
@@ -144,18 +144,11 @@ export async function deployProtocol(
 export async function deployProtocolForOracle(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
-  verifier: IVerifier | undefined = undefined,
+  dsu: IERC20Metadata,
 ): Promise<IMarketFactory> {
   // Deploy protocol contracts
-  if (!verifier) verifier = await new Verifier__factory(owner).deploy()
-  const marketImpl = await deployMarketImplementation(owner, verifier.address)
-  const marketFactory = await deployMarketFactory(
-    owner,
-    owner,
-    oracleFactory.address,
-    verifier.address,
-    marketImpl.address,
-  )
+  const [marketImpl, margin] = await deployMarketImplementation(owner, dsu)
+  const marketFactory = await deployMarketFactory(owner, owner, oracleFactory.address, marketImpl)
   return marketFactory
 }
 
@@ -164,14 +157,13 @@ async function deployMarketFactory(
   owner: SignerWithAddress,
   pauser: SignerWithAddress,
   oracleFactoryAddress: Address,
-  verifierAddress: Address,
-  marketImplAddress: Address,
+  marketImpl: IMarket,
 ): Promise<MarketFactory> {
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactoryAddress,
-    verifierAddress,
-    marketImplAddress,
+    await marketImpl.verifier(),
+    marketImpl.address,
   )
   const factoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     factoryImpl.address,
@@ -180,6 +172,9 @@ async function deployMarketFactory(
   )
   const marketFactory = new MarketFactory__factory(owner).attach(factoryProxy.address)
   await marketFactory.connect(owner).initialize()
+
+  const margin = Margin__factory.connect(await marketImpl.margin(), owner)
+  margin.initialize(marketFactory.address)
 
   // Set protocol parameters
   await marketFactory.updatePauser(pauser.address)

@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { BigNumber, utils } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { time } from '../../../../common/testutil'
@@ -85,18 +85,14 @@ export function RunPythOracleTests(
 
     describe('PerennialAction.COMMIT_PRICE', async () => {
       it('commits a requested pyth version', async () => {
+        const deposit = parse6decimal('1000')
+        await dsu.connect(user).approve(instanceVars.margin.address, constants.MaxUint256)
+        await expect(instanceVars.margin.connect(user).deposit(user.address, deposit)).to.not.be.reverted
         await time.includeAt(
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                1,
-                0,
-                0,
-                parse6decimal('1000'),
-                false,
-              ),
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, deposit, false),
           vaaVars.startingTime,
         )
 

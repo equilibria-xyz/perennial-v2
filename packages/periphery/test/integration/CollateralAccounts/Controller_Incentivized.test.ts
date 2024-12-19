@@ -16,6 +16,7 @@ import {
   IAccount,
   IAccountVerifier,
   IERC20Metadata,
+  IMargin,
   IMarket,
   IMarketFactory,
 } from '../../../types/generated'
@@ -73,6 +74,7 @@ export function RunIncentivizedTests(
     let usdc: IERC20Metadata
     let controller: Controller_Incentivized
     let accountVerifier: IAccountVerifier
+    let margin: IMargin
     let marketFactory: IMarketFactory
     let ethMarket: IMarket
     let btcMarket: IMarket
@@ -167,7 +169,7 @@ export function RunIncentivizedTests(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       )
         .to.emit(dsu, 'Transfer')
-        .withArgs(account.address, ethMarket.address, anyValue) // scale to token precision
+        .withArgs(account.address, margin.address, anyValue) // scale to token precision
         .to.emit(ethMarket, 'OrderCreated')
         .withArgs(
           userA.address,
@@ -181,12 +183,18 @@ export function RunIncentivizedTests(
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
     }
 
+    // ensures user has expected amount of collateral in a market
+    async function expectMarketIsolatedBalance(user: SignerWithAddress, market: IMarket, amount: BigNumber) {
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(amount)
+    }
+
     const fixture = async () => {
       // deploy the protocol
       ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
       deployment = await deployProtocol(owner, true, true, TX_OVERRIDES)
       dsu = deployment.dsu
       usdc = deployment.usdc
+      margin = deployment.margin
       marketFactory = deployment.marketFactory
       let ethMarketDeployment
       if (deployment.ethMarket) {
@@ -226,7 +234,7 @@ export function RunIncentivizedTests(
       )
 
       // fund userA
-      await dsu.connect(userA).approve(ethMarket.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
+      await dsu.connect(userA).approve(deployment.margin.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
       await deployment.fundWalletUSDC(userA, parse6decimal('50000'), { maxFeePerGas: 100000000 })
     }
 
@@ -394,7 +402,7 @@ export function RunIncentivizedTests(
           )
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(transferAmount)
+        await expectMarketIsolatedBalance(userA, ethMarket, transferAmount)
 
         await checkCompensation(1)
       })
@@ -402,7 +410,7 @@ export function RunIncentivizedTests(
       it('collects fee for withdrawing some funds from market', async () => {
         // user deposits collateral to the market
         await deposit(parse6decimal('12000'), accountA)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(parse6decimal('12000'))
+        await expectMarketIsolatedBalance(userA, ethMarket, parse6decimal('12000'))
 
         // sign a message to make a partial withdrawal
         const withdrawal = parse6decimal('-2000')
@@ -430,7 +438,7 @@ export function RunIncentivizedTests(
           )
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(parse6decimal('10000')) // 12k-2k
+        await expectMarketIsolatedBalance(userA, ethMarket, parse6decimal('10000')) // 12k-2k
 
         await checkCompensation(2)
       })
@@ -450,7 +458,7 @@ export function RunIncentivizedTests(
             false,
             { maxFeePerGas: 150000000 },
           )
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(depositAmount)
+        await expectMarketIsolatedBalance(userA, ethMarket, depositAmount)
 
         // sign a message to withdraw everything from the market back into the collateral account
         const marketTransferMessage = {
@@ -477,7 +485,7 @@ export function RunIncentivizedTests(
           )
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(0)
+        await expectMarketIsolatedBalance(userA, ethMarket, constants.Zero)
 
         await checkCompensation(1)
       })
@@ -515,7 +523,7 @@ export function RunIncentivizedTests(
           )
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-        expect((await ethMarket.locals(userA.address)).collateral).to.be.within(
+        expect(await margin.isolatedBalances(userA.address, ethMarket.address)).to.be.within(
           parse6decimal('9999'),
           parse6decimal('10000'),
         ) // 12k-2k
@@ -571,19 +579,20 @@ export function RunIncentivizedTests(
 
         // transfer all collateral to ethMarket
         await deposit(parse6decimal('10000'), accountA)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(parse6decimal('10000'))
-        expect((await btcMarket.locals(userA.address)).collateral).to.equal(0)
+        await expectMarketIsolatedBalance(userA, ethMarket, parse6decimal('10000'))
+        await expectMarketIsolatedBalance(userA, btcMarket, constants.Zero)
 
         // rebalance the group
         await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES))
-          .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, utils.parseEther('5000'))
-          .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, btcMarket.address, utils.parseEther('5000'))
           .to.emit(controller, 'GroupRebalanced')
           .withArgs(userA.address, 4)
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+
+        // check the group
+        const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 4)
+        expect(groupCollateral).to.equal(parse6decimal('10000'))
+        expect(canRebalance).to.be.false
 
         // confirm keeper earned their fee
         await checkCompensation(2)
@@ -612,9 +621,9 @@ export function RunIncentivizedTests(
         // rebalance the group
         await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES))
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, utils.parseEther('1250'))
+          .withArgs(margin.address, accountA.address, utils.parseEther('1250'))
           .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, btcMarket.address, utils.parseEther('1250'))
+          .withArgs(accountA.address, margin.address, utils.parseEther('1250'))
           .to.emit(controller, 'GroupRebalanced')
           .withArgs(userA.address, 4)
           .to.emit(controller, 'KeeperCall')
@@ -625,7 +634,9 @@ export function RunIncentivizedTests(
         expect(keeperFeePaid).to.equal(utils.parseEther('0.00923'))
       })
 
-      it('cannot award more keeper fees than collateral rebalanced', async () => {
+      // TODO: Delete this test.  The attack vector is no longer possible because non-operators
+      // cannot isolate another user's funds into a market.
+      it.skip('cannot award more keeper fees than collateral rebalanced', async () => {
         // create a new group with two markets
         const message = {
           group: 4,
@@ -642,7 +653,8 @@ export function RunIncentivizedTests(
           .not.be.reverted
 
         let dustAmount = parse6decimal('0.000001')
-        await dsu.connect(keeper).approve(ethMarket.address, dustAmount.mul(1e12), TX_OVERRIDES)
+        await dsu.connect(keeper).approve(margin.address, dustAmount.mul(1e12), TX_OVERRIDES)
+        await margin.connect(keeper).deposit(accountA.address, dustAmount, TX_OVERRIDES)
 
         // keeper dusts one of the markets
         await ethMarket
@@ -656,7 +668,7 @@ export function RunIncentivizedTests(
             false,
             { maxFeePerGas: 150000000 },
           )
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(dustAmount)
+        await expectMarketIsolatedBalance(userA, ethMarket, dustAmount)
 
         // keeper cannot rebalance because dust did not exceed maxFee
         await expect(
@@ -677,7 +689,7 @@ export function RunIncentivizedTests(
             false,
             { maxFeePerGas: 150000000 },
           )
-        expect((await btcMarket.locals(userA.address)).collateral).to.equal(dustAmount)
+        await expectMarketIsolatedBalance(userA, btcMarket, dustAmount)
 
         // keeper still cannot rebalance because dust did not exceed maxFee
         await expect(

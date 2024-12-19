@@ -20,6 +20,7 @@ import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { RebalanceConfig, RebalanceConfigLib } from "./types/RebalanceConfig.sol";
 import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
+// import "hardhat/console.sol";
 
 /// @title Controller
 /// @notice Facilitates unpermissioned actions between collateral accounts and markets,
@@ -198,10 +199,11 @@ contract Controller is Factory, IController {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyMarketTransfer(marketTransfer, signature);
 
-        // only Markets with DSU collateral for the same deployment are supported
+        // ensure the market is from the expected Perennial deployment
         IMarket market = IMarket(marketTransfer.market);
-        if (!market.margin().DSU().eq(DSU) || market.factory() != marketFactory)
+        if (market.factory() != marketFactory) {
             revert ControllerUnsupportedMarketError(market);
+        }
 
         account.marketTransfer(market, marketTransfer.amount);
     }
@@ -219,7 +221,7 @@ contract Controller is Factory, IController {
     }
 
     function _rebalanceGroup(address owner, uint256 group) internal {
-        // settles each markets, such that locals are up-to-date
+        // settles each markets, such that isolated collateral is up-to-date
         _settleMarkets(owner, group);
 
         // determine imbalances
@@ -242,14 +244,15 @@ contract Controller is Factory, IController {
         emit GroupRebalanced(owner, group);
     }
 
-    /// @dev checks current collateral for each market in a group and aggregates collateral for the group
+    /// @dev checks current isolated collateral for each market in a group and aggregates collateral for the group
     function _queryMarketCollateral(address owner, uint256 group) private view returns (
         Fixed6[] memory actualCollateral,
         Fixed6 groupCollateral
     ) {
         actualCollateral = new Fixed6[](groupToMarkets[owner][group].length);
         for (uint256 i; i < actualCollateral.length; i++) {
-            Fixed6 collateral = groupToMarkets[owner][group][i].locals(owner).collateral;
+            IMarket market = groupToMarkets[owner][group][i];
+            Fixed6 collateral = market.margin().isolatedBalances(owner, market);
             actualCollateral[i] = collateral;
             groupCollateral = groupCollateral.add(collateral);
         }

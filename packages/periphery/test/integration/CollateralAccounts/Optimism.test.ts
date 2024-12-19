@@ -2,7 +2,14 @@ import { smock } from '@defi-wonderland/smock'
 import { CallOverrides } from 'ethers'
 import HRE from 'hardhat'
 
-import { AccountVerifier__factory, AggregatorV3Interface, IAccountVerifier, OptGasInfo } from '../../../types/generated'
+import {
+  AccountVerifier__factory,
+  AggregatorV3Interface,
+  IAccountVerifier,
+  IMargin,
+  IMarket__factory,
+  OptGasInfo,
+} from '../../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerOptimism,
@@ -18,6 +25,7 @@ import { Controller_Incentivized, IMarketFactory } from '../../../types/generate
 import { RunAccountTests } from './Account.test'
 import { RunControllerBaseTests } from './Controller.test'
 import { DeploymentVars } from './setupTypes'
+import { IMargin__factory, IMarket } from '@perennial/v2-oracle/types/generated'
 
 const { ethers } = HRE
 
@@ -29,12 +37,15 @@ async function deployProtocol(
 ): Promise<DeploymentVars> {
   const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
+  const marketImpl: IMarket = IMarket__factory.connect(await marketFactory.implementation(), owner)
+  const margin: IMargin = IMargin__factory.connect(await marketImpl.margin(), owner)
 
   const deployment: DeploymentVars = {
     dsu,
     usdc,
     oracleFactory,
     pythOracleFactory,
+    margin,
     marketFactory,
     ethMarket: createMarketETH
       ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)

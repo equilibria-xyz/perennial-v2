@@ -8,6 +8,7 @@ import {
   IMarket,
   IMarketFactory,
   InvariantLib__factory,
+  Margin,
   MarketParameterStorageLib__factory,
   Market__factory,
   PositionStorageGlobalLib__factory,
@@ -16,28 +17,26 @@ import {
   VersionLib__factory,
   VersionStorageLib__factory,
   MagicValueLib__factory,
+  Margin__factory,
+  Verifier__factory,
 } from '@perennial/v2-core/types/generated'
 import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IERC20Metadata, IOracleProvider, IVerifier } from '../../types/generated'
+import { ERC20, IERC20Metadata, IMargin, IOracleProvider, IVerifier } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/v2-core/types/generated/contracts/Market'
-import { smock } from '@defi-wonderland/smock'
+import { MockContract, smock } from '@defi-wonderland/smock'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 
 export async function createMarket(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
-  dsu: IERC20Metadata,
+  dsu: IERC20Metadata, // TODO: eliminate param
   oracle: IOracle,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
   overrides?: CallOverrides,
 ): Promise<IMarket> {
-  const definition = {
-    token: dsu.address,
-    oracle: oracle.address,
-  }
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
@@ -89,8 +88,8 @@ export async function createMarket(
     settle: false,
     ...marketParamOverrides,
   }
-  const marketAddress = await marketFactory.callStatic.create(definition)
-  await marketFactory.create(definition, overrides ?? {})
+  const marketAddress = await marketFactory.callStatic.create(oracle.address)
+  await marketFactory.create(oracle.address, overrides ?? {})
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateRiskParameter(riskParameter, overrides ?? {})
@@ -99,17 +98,30 @@ export async function createMarket(
   return market
 }
 
-// Deploys an empty market used by the factory as a template for creating new markets
-export async function deployMarketImplementation(owner: SignerWithAddress, verifierAddress: Address): Promise<Market> {
+// Deploys market implementation and margin contract,
+// allows passing in verifier created through proxy, or creates one if not provided
+export async function deployMarketImplementation(
+  owner: SignerWithAddress,
+  dsu: IERC20Metadata,
+  verifier: IVerifier | undefined = undefined,
+): Promise<[IMarket, Margin]> {
+  const margin = await new Margin__factory(
+    {
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+    },
+    owner,
+  ).deploy(dsu.address)
+
+  if (!verifier) verifier = await new Verifier__factory(owner).deploy()
+
   const marketImpl = await new Market__factory(
     {
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
       'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
       'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
       'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
-      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
       'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
       'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
         await new MarketParameterStorageLib__factory(owner).deploy()
@@ -126,27 +138,39 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy(verifierAddress)
-  return marketImpl
+  ).deploy(verifier.address, margin.address)
+  return [marketImpl, margin]
 }
 
 // Creates a market for a specified collateral token, which can't do much of anything
-export async function mockMarket(token: Address): Promise<IMarket> {
+export async function mockMarket(): Promise<IMarket> {
   const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
   const verifier = await smock.fake<IVerifier>('IVerifier')
   const factory = await smock.fake<IMarketFactory>('IMarketFactory')
   const factorySigner = await impersonateWithBalance(factory.address, utils.parseEther('10'))
 
-  // deploy market
+  // mock a token which supports the IERC20Metadata interface
+  const dsuMock: MockContract<ERC20> = await (await smock.mock('ERC20')).deploy('Digital Standard Unit', 'DSU')
+  // create a fake for the mocked contract
+  const dsu = await smock.fake(dsuMock)
+
   const [owner] = await ethers.getSigners()
+  const margin = await new Margin__factory(
+    {
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+    },
+    owner,
+  ).deploy(dsu.address)
+  await margin.initialize(factory.address)
+
+  // deploy market
   const market = await new Market__factory(
     {
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
       'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
       'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
       'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
       'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
         await new MarketParameterStorageLib__factory(owner).deploy()
@@ -164,14 +188,9 @@ export async function mockMarket(token: Address): Promise<IMarket> {
       'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy(verifier.address)
+  ).deploy(verifier.address, margin.address)
 
-  // initialize market
-  const marketDefinition = {
-    token: token,
-    oracle: oracle.address,
-  }
-  await market.connect(factorySigner).initialize(marketDefinition)
+  await market.connect(factorySigner).initialize(oracle.address)
   return market
 }
 

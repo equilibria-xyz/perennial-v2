@@ -11,7 +11,8 @@ import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
-import { IMarket, Position } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMargin, IMarket, Position } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+// import "hardhat/console.sol";
 
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
@@ -60,15 +61,25 @@ contract Account is IAccount, Instance {
 
     /// @inheritdoc IAccount
     function marketTransfer(IMarket market, Fixed6 amount) external ownerOrController {
+        IMargin margin = market.margin();
         // implicitly approve this market to spend our DSU
-        DSU.approve(address(market));
+        DSU.approve(address(market)); // TODO: remove this line
+        DSU.approve(address(margin));
 
         // if account does not have enough DSU for the deposit, wrap everything
          if (amount.gt(Fixed6Lib.ZERO))
             wrapIfNecessary(UFixed18Lib.from(amount.abs()), true);
 
+        // deposit or withdraw DSU to/from the margin contract prior to isolation
+        // console.log("  Account.marketTransfer %s depositing/withdrawing to/from margin contract with amount", address(market));
+        // console.logInt(Fixed6.unwrap(amount));
+        if (amount.sign() == 1) margin.deposit(owner, amount.abs());
+
         // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
+        // TODO: just use Margin.isolate here for gas efficiency
         market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
+
+        if (amount.sign() == -1) margin.withdraw(owner, amount.abs());
     }
 
     /// @inheritdoc IAccount
