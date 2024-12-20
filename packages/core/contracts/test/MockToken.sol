@@ -18,7 +18,7 @@ contract MockToken is ERC20 {
     function transferFrom(address, address, uint256) public override returns (bool) {
         // call method of market contract for reentrancy
         if (functionToCall == Function.UPDATE) {
-            IMarket(msg.sender).update(address(0), Fixed6Lib.from(0), Fixed6Lib.from(0), address(0));
+            IMarket(msg.sender).update(address(0), Fixed6Lib.from(0), Fixed6Lib.from(0), Fixed6Lib.from(0), address(0));
         } else if (functionToCall == Function.UPDATE_INTENT) {
             Intent memory intent;
             IMarket(msg.sender).update(address(0), intent, "");
