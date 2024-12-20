@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { BigNumber, CallOverrides, utils } from 'ethers'
+import { BigNumber, CallOverrides, utils, constants } from 'ethers'
 import { Address } from 'hardhat-deploy/dist/types'
 import {
   CheckpointLib__factory,
@@ -174,7 +174,5 @@ export async function mockMarket(token: Address): Promise<IMarket> {
 
 // Deposits collateral to (amount > 0) or withdraws collateral from (amount < 0) a market
 export async function transferCollateral(user: SignerWithAddress, market: IMarket, amount: BigNumber) {
-  await market
-    .connect(user)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, amount, false)
+  await market.connect(user)['update(address,int256,int256,address)'](user.address, 0, amount, constants.AddressZero)
 }
