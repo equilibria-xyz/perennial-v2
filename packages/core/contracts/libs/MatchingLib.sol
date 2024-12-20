@@ -5,6 +5,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { SynBook6 } from "@equilibria/root/synbook/types/SynBook6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
+import "hardhat/console.sol";
 
 struct MatchingExposure {
     Fixed6 maker;
@@ -74,7 +75,7 @@ library MatchingLib {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) internal pure returns (MatchingResult memory result) {
+    ) internal view returns (MatchingResult memory result) {
         MatchingOrderbook memory orderbook = _orderbook(position);
 
         _executeClose(orderbook, position, order, synBook, price, result);
@@ -92,17 +93,15 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal pure {
-        // calculate exposure
-        result.exposureMakerNeg = _exposure(position).maker; // TODO: needs to be per position, round up when exposure is charging a fee
-
-        // fill order
-        MatchingFillResult memory fillResult = _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
+    ) internal view {
+        (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, ) =
+            _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
         result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
         result.spreadPreLong = fillResult.spreadLong;
         result.spreadPreShort = fillResult.spreadShort;
+        result.exposureMakerNeg = exposureClose.maker;
     }
 
     function _executeTaker(
@@ -112,18 +111,14 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal pure {
-        // calculate close exposure
-        MatchingExposure memory exposure = _exposure(position); // TODO: needs to be per position, round up when exposure is charging a fee
-        result.exposureLongNeg = exposure.long;
-        result.exposureShortNeg = exposure.short;
-
+    ) internal view {
         // snapshot position and orderbook so both long and short start from the same skew
         MatchingPosition memory position2 = _position(position);
         MatchingOrderbook memory orderbook2 = _orderbook(orderbook);
 
         // fill positive side of order
-        MatchingFillResult memory fillResult = _fill(orderbook, position, _extractTakerPos(order), synBook, price);
+        (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, ) =
+            _fill(orderbook, position, _extractTakerPos(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
         result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
@@ -131,20 +126,23 @@ library MatchingLib {
         result.spreadCloseShort = fillResult.spreadShort;
 
         // fill negative side of order
-        fillResult = _fill(orderbook2, position2, _extractTakerNeg(order), synBook, price);
-        result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
-        result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
-        result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
-        result.spreadCloseLong = fillResult.spreadLong;
-        result.spreadCloseShort = fillResult.spreadShort;
+        (MatchingFillResult memory fillResult2, , ) =
+            _fill(orderbook2, position2, _extractTakerNeg(order), synBook, price);
+        result.spreadPos = result.spreadPos.add(fillResult2.spreadPos);
+        result.spreadNeg = result.spreadNeg.add(fillResult2.spreadNeg);
+        result.spreadMaker = result.spreadMaker.add(fillResult2.spreadMaker);
+        result.spreadCloseLong = fillResult2.spreadLong;
+        result.spreadCloseShort = fillResult2.spreadShort;
 
         // true up underlying position and orderbook to contain both executed sides for next step
-        _fill(orderbook, position, _extractTakerNeg(order), synBook, price);
+        ( , , MatchingExposure memory exposureOpen) =
+            _fill(orderbook, position, _extractTakerNeg(order), synBook, price);
 
-        // calculate open exposure
-        exposure = _exposure(position); // TODO: needs to be per position, round up when exposure is charging a fee
-        result.exposureLongPos = exposure.long;
-        result.exposureShortPos = exposure.short;
+        // calculate exposure
+        result.exposureLongNeg = exposureClose.long;
+        result.exposureShortNeg = exposureClose.short;
+        result.exposureLongPos = exposureOpen.long;
+        result.exposureShortPos = exposureOpen.short;
     }
 
     function _executeOpen(
@@ -154,17 +152,15 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal pure {
-        // fill order
-        MatchingFillResult memory fillResult = _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
+    ) internal view {
+        (MatchingFillResult memory fillResult, , MatchingExposure memory exposureOpen) =
+            _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
         result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
         result.spreadPostLong = fillResult.spreadLong;
         result.spreadPostShort = fillResult.spreadShort;
-
-        // calculate exposure
-        result.exposureMakerPos = _exposure(position).maker; // TODO: needs to be per position, round up when exposure is charging a fee
+        result.exposureMakerPos = exposureOpen.maker;
     }
 
     /// @dev order must be a single uni-directional segment of an order.
@@ -174,12 +170,20 @@ library MatchingLib {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) internal pure returns (MatchingFillResult memory fillResult) {
+    ) internal view returns (
+        MatchingFillResult memory fillResult,
+        MatchingExposure memory exposureClose,
+        MatchingExposure memory exposureOpen
+    ) {
         // compute the change in exposure after applying the order to the position
-        MatchingExposure memory exposure = _exposure(position);
-        _apply(position, order);
-        MatchingExposure memory change = _change(exposure, _exposure(position));
+        (exposureClose, exposureOpen) = _match(position, order);
+        MatchingExposure memory change = _add(exposureOpen, exposureClose);
         Fixed6 changeTotal = _skew(change);
+
+        // console.log("-exposure.maker", uint256(-Fixed6.unwrap(exposure.maker)));
+        // console.log("-_exposure(position).maker", uint256(-Fixed6.unwrap(_exposure(position).maker)));
+        // console.log("change.maker", uint256(Fixed6.unwrap(change.maker)));
+        // console.log("changeTotal", uint256(Fixed6.unwrap(changeTotal)));
 
         // compute the synthetic spread taken from the positive and negative sides of the order
         MatchingOrderbook memory latestOrderbook = _orderbook(orderbook);
@@ -252,6 +256,12 @@ library MatchingLib {
         newOrder.makerPos = order.makerPos;
     }
 
+    function _extractClose(MatchingOrder memory order) internal pure returns (MatchingOrder memory newOrder) {
+        newOrder.makerNeg = order.makerNeg;
+        newOrder.longNeg = order.longNeg;
+        newOrder.shortNeg = order.shortNeg;
+    }
+
     function _apply(MatchingPosition memory position, MatchingOrder memory order) internal pure {
         position.maker = position.maker.add(order.makerPos).sub(order.makerNeg);
         position.long = position.long.add(order.longPos).sub(order.longNeg);
@@ -267,14 +277,40 @@ library MatchingLib {
         });
     }
 
-    function _change(
-        MatchingExposure memory exposureFrom,
-        MatchingExposure memory exposureTo
+    function _match(
+        MatchingPosition memory position,
+        MatchingOrder memory order
+    ) internal pure returns (
+        MatchingExposure memory exposureClose,
+        MatchingExposure memory exposureOpen
+    ) {
+        MatchingPosition memory closedPosition = _position(position);
+        _apply(closedPosition, _extractClose(order));
+        _apply(position, order);
+
+        exposureClose = _div(_exposure(closedPosition), closedPosition);
+        exposureOpen = _div(_exposure(position), position);
+    }
+
+    function _add(
+        MatchingExposure memory exposureClose,
+        MatchingExposure memory exposureOpen
     ) internal pure returns (MatchingExposure memory) {
         return MatchingExposure({
-            maker: exposureTo.maker.sub(exposureFrom.maker),
-            long: exposureTo.long.sub(exposureFrom.long),
-            short: exposureTo.short.sub(exposureFrom.short)
+            maker: exposureClose.maker.add(exposureOpen.maker),
+            long: exposureClose.long.add(exposureOpen.long),
+            short: exposureClose.short.add(exposureOpen.short)
+        });
+    }
+
+    function _div(
+        MatchingExposure memory exposure,
+        MatchingPosition memory position
+    ) internal pure returns (MatchingExposure memory) {
+        return MatchingExposure({
+            maker: exposure.maker.div(Fixed6Lib.from(position.maker)),
+            long: exposure.long.div(Fixed6Lib.from(position.long)),
+            short: exposure.short.div(Fixed6Lib.from(position.short))
         });
     }
 }

@@ -19,7 +19,7 @@ contract MatchingLibTester {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) external pure returns (MatchingResult memory result) {
+    ) external view returns (MatchingResult memory result) {
         return MatchingLib.execute(position, order, synBook, price);
     }
 
@@ -30,7 +30,7 @@ contract MatchingLibTester {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) external pure returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
+    ) external view returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
         MatchingLib._executeClose(orderbook, position, order, synBook, price, result);
         return (orderbook, position, result);
     }
@@ -42,7 +42,7 @@ contract MatchingLibTester {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) external pure returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
+    ) external view returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
         MatchingLib._executeTaker(orderbook, position, order, synBook, price, result);
         return (orderbook, position, result);
     }
@@ -54,7 +54,7 @@ contract MatchingLibTester {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) external pure returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
+    ) external view returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
         MatchingLib._executeOpen(orderbook, position, order, synBook, price, result);
         return (orderbook, position, result);
     }
@@ -65,8 +65,14 @@ contract MatchingLibTester {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) external pure returns (MatchingFillResult memory fillResult, MatchingOrderbook memory newOrderbook, MatchingPosition memory newPosition) {
-        fillResult = MatchingLib._fill(orderbook, position, order, synBook, price);
+    ) external view returns (
+        MatchingFillResult memory fillResult,
+        MatchingExposure memory exposureClose,
+        MatchingExposure memory exposureOpen,
+        MatchingOrderbook memory newOrderbook,
+        MatchingPosition memory newPosition
+    ) {
+        (fillResult, exposureClose, exposureOpen) = MatchingLib._fill(orderbook, position, order, synBook, price);
         newOrderbook = orderbook;
         newPosition = position;
     }
@@ -120,6 +126,10 @@ contract MatchingLibTester {
         return MatchingLib._extractMakerOpen(order);
     }
 
+    function _extractClose(MatchingOrder memory order) external pure returns (MatchingOrder memory) {
+        return MatchingLib._extractClose(order);
+    }
+
     function _apply(MatchingPosition memory position, MatchingOrder memory order) external pure returns (MatchingPosition memory newPosition) {
         MatchingLib._apply(position, order);
         newPosition = position;
@@ -129,7 +139,26 @@ contract MatchingLibTester {
         return MatchingLib._exposure(position);
     }
 
-    function _change(MatchingExposure memory exposureFrom,MatchingExposure memory exposureTo) external pure returns (MatchingExposure memory) {
-        return MatchingLib._change(exposureFrom, exposureTo);
+    function _match(MatchingPosition memory position, MatchingOrder memory order) external pure returns (
+        MatchingExposure memory exposureClose,
+        MatchingExposure memory exposureOpen,
+        MatchingPosition memory newPosition
+    ) {
+        (exposureClose, exposureOpen) = MatchingLib._match(position, order);
+        newPosition = position;
+    }
+
+    function _add(
+        MatchingExposure memory exposureClose,
+        MatchingExposure memory exposureOpen
+    ) internal pure returns (MatchingExposure memory) {
+        return MatchingLib._add(exposureClose, exposureOpen);
+    }
+
+    function _div(
+        MatchingExposure memory exposure,
+        MatchingPosition memory position
+    ) internal pure returns (MatchingExposure memory) {
+        return MatchingLib._div(exposure, position);
     }
 }

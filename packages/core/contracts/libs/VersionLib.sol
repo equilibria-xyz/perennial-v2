@@ -294,7 +294,7 @@ library VersionLib {
         Version memory next,
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
-    ) private pure {
+    ) private view {
         // calculate position after closes
         Position memory closedPosition = context.fromPosition.clone();
         closedPosition.updateClose(context.order); // TODO: move these to MatchingLib

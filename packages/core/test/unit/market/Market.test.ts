@@ -2674,7 +2674,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: { _value: MAKER_OFFSET.div(10) },
+                makerPreValue: { _value: MAKER_OFFSET.div(10) },
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
@@ -3194,10 +3194,10 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
-                longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+                longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
               })
             })
@@ -3314,10 +3314,10 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
-                longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+                longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
               })
             })
@@ -3451,10 +3451,10 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
-                longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+                longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
@@ -3603,12 +3603,12 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: TAKER_OFFSET_MAKER.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .div(10),
                 },
-                longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+                longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
@@ -3801,10 +3801,10 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -3970,10 +3970,10 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -4076,10 +4076,10 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -4200,24 +4200,24 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_2_25_123)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_25_123)
                       .div(10)
                       .sub(1), // loss of precision
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                       .div(5)
                       .add(EXPECTED_FUNDING_WITH_FEE_2_25_123.add(EXPECTED_INTEREST_25_123).mul(2).div(5))
@@ -4321,10 +4321,10 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -4453,12 +4453,12 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .add(TAKER_OFFSET_MAKER)
                       .div(10),
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -4709,12 +4709,12 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .div(10),
               },
-              longValue: {
+              longPreValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
               price: oracleVersionLowerPrice.price,
@@ -4853,13 +4853,13 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .div(10)
                   .sub(1),
               }, // loss of precision
-              longValue: {
+              longPreValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
               price: oracleVersionHigherPrice.price,
@@ -5051,13 +5051,13 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
                     .div(10)
                     .sub(1),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_PNL)
                     .div(5)
@@ -5067,14 +5067,14 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                     .div(10)
                     .sub(2), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                     .add(EXPECTED_INTEREST_5_150)
@@ -5088,14 +5088,14 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                     .div(10)
                     .sub(2), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                     .add(EXPECTED_INTEREST_5_150)
@@ -5323,14 +5323,14 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .sub(EXPECTED_PNL.mul(2))
                     .mul(2)
                     .div(25)
                     .sub(1),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
                     .sub(EXPECTED_PNL.mul(2))
                     .div(5)
@@ -5340,14 +5340,14 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
                     .mul(2)
                     .div(25)
                     .sub(1), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_150.add(EXPECTED_INTEREST_2))
                     .div(5)
@@ -5360,7 +5360,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
                     .mul(2)
@@ -5369,7 +5369,7 @@ describe('Market', () => {
                     .sub(EXPECTED_PNL.mul(2).div(5))
                     .sub(4), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_150.add(EXPECTED_INTEREST_2))
                     .add(EXPECTED_FUNDING_WITH_FEE_3_25_123.add(EXPECTED_INTEREST_3))
@@ -5523,19 +5523,19 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
                     .div(10)
                     .sub(1),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_PNL)
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
+                shortPreValue: { _value: 0 },
                 price: oracleVersionHigherPrice.price,
               })
 
@@ -5796,54 +5796,54 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
                     .div(10),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_PNL)
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
+                shortPreValue: { _value: 0 },
                 price: oracleVersionLowerPrice.price,
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                     .div(10)
                     .sub(2),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
+                shortPreValue: { _value: 0 },
                 price: PRICE,
                 settlementFee: { _value: parse6decimal('-1') },
                 liquidationFee: { _value: parse6decimal('-10') },
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                     .div(10)
                     .sub(2),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
+                shortPreValue: { _value: 0 },
                 price: oracleVersionLowerPrice2.price,
               })
             })
@@ -5975,18 +5975,18 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
                     .div(10),
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_PNL)
                     .div(5)
                     .mul(-1),
                 },
-                shortValue: { _value: 0 },
+                shortPreValue: { _value: 0 },
                 price: oracleVersionLowerPrice.price,
               })
 
@@ -6705,11 +6705,13 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
-                longValue: { _value: 0 },
-                shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+                longPreValue: { _value: 0 },
+                shortPreValue: {
+                  _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
+                },
                 price: PRICE,
               })
             })
@@ -6830,11 +6832,13 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
-                longValue: { _value: 0 },
-                shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+                longPreValue: { _value: 0 },
+                shortPreValue: {
+                  _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
+                },
                 price: PRICE,
               })
             })
@@ -6970,11 +6974,13 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                 },
-                longValue: { _value: 0 },
-                shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+                longPreValue: { _value: 0 },
+                shortPreValue: {
+                  _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
+                },
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
@@ -7123,13 +7129,15 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: TAKER_OFFSET_MAKER.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .div(10),
                 },
-                longValue: { _value: 0 },
-                shortValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+                longPreValue: { _value: 0 },
+                shortPreValue: {
+                  _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
+                },
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
@@ -7323,11 +7331,11 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: { _value: 0 },
-                  shortValue: {
+                  longPreValue: { _value: 0 },
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -7493,11 +7501,11 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: { _value: 0 },
-                  shortValue: {
+                  longPreValue: { _value: 0 },
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -7599,11 +7607,11 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: { _value: 0 },
-                  shortValue: {
+                  longPreValue: { _value: 0 },
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -7724,26 +7732,26 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: { _value: 0 },
-                  shortValue: {
+                  longPreValue: { _value: 0 },
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_2_25_123)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_25_123)
                       .div(10)
                       .sub(1), // loss of precision
                   },
-                  longValue: { _value: 0 },
-                  shortValue: {
+                  longPreValue: { _value: 0 },
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                       .div(5)
                       .add(EXPECTED_FUNDING_WITH_FEE_2_25_123.add(EXPECTED_INTEREST_25_123).mul(2).div(5))
@@ -7847,11 +7855,11 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
                   },
-                  longValue: { _value: 0 },
-                  shortValue: {
+                  longPreValue: { _value: 0 },
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -7981,13 +7989,13 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                       .add(TAKER_OFFSET_MAKER)
                       .div(10),
                   },
-                  longValue: { _value: 0 },
-                  shortValue: {
+                  longPreValue: { _value: 0 },
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
@@ -8238,14 +8246,14 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .div(10)
                   .sub(1),
               }, // loss of precision
-              longValue: { _value: 0 },
-              shortValue: {
+              longPreValue: { _value: 0 },
+              shortPreValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
               price: oracleVersionLowerPrice.price,
@@ -8384,13 +8392,13 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                   .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                   .div(10),
               },
-              longValue: { _value: 0 },
-              shortValue: {
+              longPreValue: { _value: 0 },
+              shortPreValue: {
                 _value: EXPECTED_PNL.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
               price: oracleVersionHigherPrice.price,
@@ -8582,14 +8590,14 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
                     .div(10)
                     .sub(1),
                 }, // loss of precision
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_PNL)
                     .div(5)
@@ -8599,14 +8607,14 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                     .div(10)
                     .sub(2),
                 }, // loss of precision
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                     .div(5)
@@ -8618,14 +8626,14 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                     .div(10)
                     .sub(2),
                 }, // loss of precision
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                     .div(5)
@@ -8850,15 +8858,15 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .sub(EXPECTED_PNL.mul(2))
                     .mul(2)
                     .div(25)
                     .sub(1),
                 }, // loss of precision
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
                     .sub(EXPECTED_PNL.mul(2))
                     .div(5)
@@ -8868,15 +8876,15 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
                     .mul(2)
                     .div(25)
                     .sub(1), // loss of precision
                 }, // loss of precision
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_2))
                     .div(5)
@@ -8888,7 +8896,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_2))
                     .mul(2)
@@ -8897,8 +8905,8 @@ describe('Market', () => {
                     .sub(EXPECTED_PNL.mul(2).div(5))
                     .sub(4), // loss of precision
                 },
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_1)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_2))
                     .add(EXPECTED_FUNDING_WITH_FEE_3_25_123.add(EXPECTED_INTEREST_3))
@@ -9027,14 +9035,14 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .sub(EXPECTED_PNL)
                     .div(10)
                     .sub(1),
                 }, // loss of precision
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .sub(EXPECTED_PNL)
                     .div(5)
@@ -9300,13 +9308,13 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
                     .div(10),
                 },
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_PNL)
                     .div(5)
@@ -9316,15 +9324,15 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                     .div(10)
                     .sub(2), // loss of precision
                 },
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                     .add(EXPECTED_INTEREST_5_150)
@@ -9337,15 +9345,15 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
                     .div(10)
                     .sub(2), // loss of precision
                 },
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                     .add(EXPECTED_INTEREST_5_150)
@@ -9483,13 +9491,13 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                     .add(EXPECTED_PNL)
                     .div(10),
                 },
-                longValue: { _value: 0 },
-                shortValue: {
+                longPreValue: { _value: 0 },
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                     .add(EXPECTED_PNL)
                     .div(5)
@@ -9823,9 +9831,9 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: { _value: EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10) },
-              longValue: { _value: 0 },
-              shortValue: { _value: 0 },
+              makerPreValue: { _value: EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10) },
+              longPreValue: { _value: 0 },
+              shortPreValue: { _value: 0 },
               makerOffset: { _value: -EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(5) },
               makerFee: { _value: -EXPECTED_MAKER_FEE.div(5) },
               settlementFee: { _value: -EXPECTED_SETTLEMENT_FEE },
@@ -10379,19 +10387,19 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .div(10)
                     .mul(-1)
@@ -10517,19 +10525,19 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .div(10)
                     .mul(-1)
@@ -10689,19 +10697,19 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .div(10)
                     .mul(-1)
@@ -10828,19 +10836,19 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .div(10)
                     .mul(-1)
@@ -10960,19 +10968,19 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .div(10)
                     .mul(-1)
@@ -11098,19 +11106,19 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .div(10)
                     .mul(-1)
@@ -11230,19 +11238,19 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .div(10)
                     .sub(1), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .div(10)
                     .mul(-1)
@@ -11457,19 +11465,19 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                       .div(10)
                       .sub(1), // loss of precision
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                       .div(5)
                       .sub(1), // loss of precision
                   },
-                  shortValue: {
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                       .div(10)
                       .mul(-1)
@@ -11642,19 +11650,19 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                       .div(10)
                       .sub(1), // loss of precision
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                       .div(5)
                       .sub(1), // loss of precision
                   },
-                  shortValue: {
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                       .div(10)
                       .mul(-1)
@@ -11763,19 +11771,19 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                       .div(10)
                       .sub(1), // loss of precision
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                       .div(5)
                       .sub(1), // loss of precision
                   },
-                  shortValue: {
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                       .div(10)
                       .mul(-1)
@@ -11894,19 +11902,19 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                       .div(10)
                       .sub(1), // loss of precision
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                       .div(5)
                       .sub(1), // loss of precision
                   },
-                  shortValue: {
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                       .div(10)
                       .mul(-1)
@@ -11916,7 +11924,7 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_123_ALL.mul(3).div(4))
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
@@ -11924,7 +11932,7 @@ describe('Market', () => {
                       .div(10)
                       .sub(3), // loss of precision
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                       .div(5)
@@ -11936,7 +11944,7 @@ describe('Market', () => {
                       )
                       .sub(2), // loss of precision
                   },
-                  shortValue: {
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                       .div(10)
                       .add(
@@ -12015,19 +12023,19 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                       .div(10)
                       .sub(1), // loss of precision
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                       .div(5)
                       .sub(1), // loss of precision
                   },
-                  shortValue: {
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                       .div(10)
                       .mul(-1)
@@ -12126,20 +12134,20 @@ describe('Market', () => {
                 })
                 expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_VERSION,
-                  makerValue: {
+                  makerPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                       .add(TAKER_OFFSET_MAKER)
                       .div(10)
                       .sub(1), // loss of precision
                   },
-                  longValue: {
+                  longPreValue: {
                     _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                       .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                       .div(5)
                       .sub(1), // loss of precision
                   },
-                  shortValue: {
+                  shortPreValue: {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                       .div(10)
                       .mul(-1)
@@ -12411,7 +12419,7 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_PNL.div(2)
                   .mul(-1)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
@@ -12419,7 +12427,7 @@ describe('Market', () => {
                   .div(10)
                   .sub(2), // loss of precision
               },
-              longValue: {
+              longPreValue: {
                 _value: EXPECTED_PNL.div(2)
                   .mul(-1)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
@@ -12427,7 +12435,7 @@ describe('Market', () => {
                   .div(5)
                   .sub(1), // loss of precision
               },
-              shortValue: {
+              shortPreValue: {
                 _value: EXPECTED_PNL.sub(EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL)
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                   .div(10),
@@ -12577,7 +12585,7 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_PNL.div(2)
                   .mul(-1)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
@@ -12585,14 +12593,14 @@ describe('Market', () => {
                   .div(10)
                   .sub(1), // loss of precision
               },
-              longValue: {
+              longPreValue: {
                 _value: EXPECTED_PNL.div(2)
                   .mul(-1)
                   .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                   .div(5),
               },
-              shortValue: {
+              shortPreValue: {
                 _value: EXPECTED_PNL.sub(EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL)
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                   .div(10)
@@ -12803,21 +12811,21 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(EXPECTED_PNL)
                     .div(10)
                     .sub(2),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(EXPECTED_PNL)
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .sub(EXPECTED_PNL.mul(2))
                     .div(10)
@@ -12827,7 +12835,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
@@ -12835,7 +12843,7 @@ describe('Market', () => {
                     .div(10)
                     .sub(2), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
@@ -12843,7 +12851,7 @@ describe('Market', () => {
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .add(EXPECTED_FUNDING_WITH_FEE_2_10_45_ALL)
                     .add(EXPECTED_INTEREST_10_67_45_ALL.mul(2).div(3))
@@ -12856,7 +12864,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
@@ -12864,7 +12872,7 @@ describe('Market', () => {
                     .div(10)
                     .sub(2), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
@@ -12874,7 +12882,7 @@ describe('Market', () => {
                     .div(5)
                     .sub(2), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .add(EXPECTED_FUNDING_WITH_FEE_2_10_45_ALL)
                     .add(EXPECTED_INTEREST_10_67_45_ALL.mul(2).div(3))
@@ -13225,21 +13233,21 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .sub(EXPECTED_PNL)
                     .div(12)
                     .sub(1),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_1.div(3))
                     .sub(EXPECTED_PNL)
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_1.mul(2).div(3))
                     .sub(EXPECTED_PNL.mul(2))
                     .div(10)
@@ -13249,7 +13257,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
@@ -13257,7 +13265,7 @@ describe('Market', () => {
                     .div(12)
                     .sub(2), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_1.div(3))
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
@@ -13265,7 +13273,7 @@ describe('Market', () => {
                     .div(5)
                     .sub(2), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_1.mul(2).div(3))
                     .add(EXPECTED_FUNDING_WITH_FEE_2_10_45_ALL)
                     .add(EXPECTED_INTEREST_2.mul(2).div(3))
@@ -13279,7 +13287,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_1)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
@@ -13294,7 +13302,7 @@ describe('Market', () => {
                     )
                     .sub(6), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_1.div(3))
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_45_ALL.div(2))
@@ -13305,7 +13313,7 @@ describe('Market', () => {
                     .div(5)
                     .sub(2), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_1.mul(2).div(3))
                     .add(EXPECTED_FUNDING_WITH_FEE_2_10_45_ALL)
                     .add(EXPECTED_INTEREST_2.mul(2).div(3))
@@ -13444,21 +13452,21 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(EXPECTED_PNL)
                     .div(10)
                     .sub(2),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(EXPECTED_PNL)
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .sub(EXPECTED_PNL.mul(2))
                     .div(10)
@@ -13759,21 +13767,21 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(EXPECTED_PNL)
                     .div(10)
                     .sub(2),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(EXPECTED_PNL)
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .sub(EXPECTED_PNL.mul(2))
                     .mul(-1)
@@ -13783,7 +13791,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_96_ALL.div(2))
@@ -13791,7 +13799,7 @@ describe('Market', () => {
                     .div(10)
                     .sub(2),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_96_ALL.div(2))
@@ -13799,7 +13807,7 @@ describe('Market', () => {
                     .div(5)
                     .sub(2), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .add(EXPECTED_FUNDING_WITH_FEE_2_10_96_ALL)
                     .add(EXPECTED_INTEREST_10_67_96_ALL.mul(2).div(3))
@@ -13813,7 +13821,7 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_96_ALL.div(2))
@@ -13824,7 +13832,7 @@ describe('Market', () => {
                     .div(10)
                     .sub(5),
                 }, // loss of precision
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_96_ALL.div(2))
@@ -13832,7 +13840,7 @@ describe('Market', () => {
                     .div(5)
                     .sub(2), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .add(EXPECTED_FUNDING_WITH_FEE_2_10_96_ALL)
                     .add(EXPECTED_INTEREST_10_67_96_ALL.mul(2).div(3))
@@ -13990,21 +13998,21 @@ describe('Market', () => {
               })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
-                makerValue: {
+                makerPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .add(EXPECTED_INTEREST_WITHOUT_FEE_10_67_123_ALL)
                     .sub(EXPECTED_PNL)
                     .div(10)
                     .sub(2), // loss of precision
                 },
-                longValue: {
+                longPreValue: {
                   _value: EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(EXPECTED_PNL)
                     .div(5)
                     .sub(1), // loss of precision
                 },
-                shortValue: {
+                shortPreValue: {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                     .sub(EXPECTED_PNL.mul(2))
                     .div(10)
@@ -15540,15 +15548,15 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_PNL)
                 .div(10),
             },
-            longValue: {
+            longPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
             },
-            shortValue: { _value: 0 },
+            shortPreValue: { _value: 0 },
             price: oracleVersionLowerPrice.price,
           })
         })
@@ -15918,13 +15926,13 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_PNL)
                 .div(10),
             },
-            longValue: { _value: 0 },
-            shortValue: {
+            longPreValue: { _value: 0 },
+            shortPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
             },
             price: oracleVersionLowerPrice.price,
@@ -15932,7 +15940,7 @@ describe('Market', () => {
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
             valid: false,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
@@ -15940,8 +15948,8 @@ describe('Market', () => {
                 .div(10)
                 .sub(2), // loss of precision
             },
-            longValue: { _value: 0 },
-            shortValue: {
+            longPreValue: { _value: 0 },
+            shortPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                 .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                 .add(EXPECTED_INTEREST_5_150)
@@ -15954,7 +15962,7 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_150)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_150)
@@ -15963,8 +15971,8 @@ describe('Market', () => {
                 .sub(3)
                 .sub(1), // loss of precision / 1-sec invalid delay
             },
-            longValue: { _value: 0 },
-            shortValue: {
+            longPreValue: { _value: 0 },
+            shortPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                 .add(EXPECTED_FUNDING_WITH_FEE_2_5_150)
                 .add(EXPECTED_INTEREST_5_150)
@@ -16133,51 +16141,51 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_PNL)
                 .div(10),
             }, // loss of precision
-            longValue: {
+            longPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
             },
-            shortValue: { _value: 0 },
+            shortPreValue: { _value: 0 },
             price: oracleVersionLowerPrice.price,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                 .div(10)
                 .sub(2),
             }, // loss of precision
-            longValue: {
+            longPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                 .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                 .div(5)
                 .mul(-1),
             },
-            shortValue: { _value: 0 },
+            shortPreValue: { _value: 0 },
             price: PRICE,
             settlementFee: { _value: parse6decimal('-1') },
             liquidationFee: { _value: parse6decimal('-10') },
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_2_5_96.add(EXPECTED_INTEREST_WITHOUT_FEE_5_96))
                 .div(10)
                 .sub(2),
             }, // loss of precision
-            longValue: {
+            longPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123)
                 .add(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
                 .div(5)
                 .mul(-1),
             },
-            shortValue: { _value: 0 },
+            shortPreValue: { _value: 0 },
             price: oracleVersionLowerPrice2.price,
           })
         })
@@ -16688,7 +16696,7 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: { _value: TAKER_OFFSET_MAKER.div(10) },
+            makerPreValue: { _value: TAKER_OFFSET_MAKER.div(10) },
             takerPosOffset: {
               _value: -EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC).div(5),
             },
@@ -17301,7 +17309,7 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: { _value: TAKER_OFFSET_MAKER.div(10) },
+            makerPreValue: { _value: TAKER_OFFSET_MAKER.div(10) },
             takerPosOffset: {
               _value: -EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC).div(5),
             },
@@ -17424,11 +17432,11 @@ describe('Market', () => {
             ...DEFAULT_VERSION,
             valid: false,
             price: PRICE,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
-            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
-            shortValue: { _value: 0 },
+            longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            shortPreValue: { _value: 0 },
           })
         })
       })
@@ -17575,17 +17583,17 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .div(10)
                 .sub(1), // loss of precision
             },
-            longValue: {
+            longPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
             },
-            shortValue: {
+            shortPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.sub(EXPECTED_INTEREST_5_123).div(5),
             },
             price: PRICE,
@@ -17719,17 +17727,17 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
                 .div(10)
                 .sub(1), // loss of precision
             },
-            longValue: {
+            longPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
             },
-            shortValue: {
+            shortPreValue: {
               _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
             },
             price: PRICE,
@@ -18083,11 +18091,11 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
             },
-            longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
-            shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+            longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+            shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
@@ -19337,13 +19345,13 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10).sub(1), // loss of precision
               },
-              longValue: {
+              longPreValue: {
                 _value: EXPECTED_FUNDING_WITH_FEE_1_5_123_V.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
               },
-              shortValue: { _value: 0 },
+              shortPreValue: { _value: 0 },
               price: PRICE,
             })
           })
@@ -19475,11 +19483,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123_V.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10).sub(1), // loss of precision
               },
-              longValue: { _value: 0 },
-              shortValue: {
+              longPreValue: { _value: 0 },
+              shortPreValue: {
                 _value: EXPECTED_FUNDING_WITH_FEE_1_5_123_V.add(EXPECTED_INTEREST_5_123).div(5).mul(-1).add(1), // loss of precision (fundingFee)
               },
               price: PRICE,
@@ -20063,10 +20071,10 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
-            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
@@ -20225,10 +20233,10 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
-            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
@@ -20480,11 +20488,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
-              shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
@@ -20727,11 +20735,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
-              shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
@@ -20974,11 +20982,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
-              shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
@@ -21220,11 +21228,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
-              shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
@@ -21566,11 +21574,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF_2.div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_10_123_EFF_2.div(2).div(10).mul(-1) },
-              shortValue: { _value: EXPECTED_INTEREST_10_123_EFF_2.div(2).div(10).mul(-1).sub(1) },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF_2.div(2).div(10).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF_2.div(2).div(10).mul(-1).sub(1) },
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
@@ -21816,11 +21824,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
-              shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
@@ -22549,10 +22557,10 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
@@ -22811,10 +22819,10 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
-              shortValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
@@ -23074,10 +23082,10 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
-              shortValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
@@ -23337,10 +23345,10 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
@@ -23605,11 +23613,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
-              shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
@@ -23874,11 +23882,11 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerValue: {
+              makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
-              longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
-              shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
               settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
@@ -24433,10 +24441,10 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
-            makerValue: {
+            makerPreValue: {
               _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
             },
-            longValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })

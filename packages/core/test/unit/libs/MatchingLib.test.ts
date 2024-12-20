@@ -20,6 +20,53 @@ describe.only('MatchingLib', () => {
     matchingLib = await new MatchingLibTester__factory(owner).deploy()
   })
 
+  describe.only('#_fill()', () => {
+    it('fills the order (makerNeg)', async () => {
+      const [fillResult, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('12', 6),
+          short: utils.parseUnits('4', 6),
+        },
+        {
+          makerPos: utils.parseUnits('0', 6),
+          makerNeg: utils.parseUnits('2', 6),
+          longPos: utils.parseUnits('0', 6),
+          longNeg: utils.parseUnits('0', 6),
+          shortPos: utils.parseUnits('0', 6),
+          shortNeg: utils.parseUnits('0', 6),
+        },
+        {
+          d0: utils.parseUnits('0.001', 6),
+          d1: utils.parseUnits('0.002', 6),
+          d2: utils.parseUnits('0.004', 6),
+          d3: utils.parseUnits('0.008', 6),
+          scale: utils.parseUnits('100', 6),
+        },
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0.003335', 6)) // 2 -> 3.6 / 100
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.003335', 6)) // all to maker
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('8', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('3.6', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-3', 6))
+    })
+  })
+
   describe('#_skew(position)', () => {
     it('returns correct skew (zero)', async () => {
       const skew = await matchingLib['_skew((uint256,uint256,uint256))']({
