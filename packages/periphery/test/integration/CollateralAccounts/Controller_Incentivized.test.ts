@@ -143,7 +143,8 @@ export function RunIncentivizedTests(
       keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306').mul(priceCommitments))
 
       // cost of transaction
-      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(3413)
+      // TODO: Support different ETH price on different chains (currently 2620 on Base fork)
+      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
       // keeper should be compensated between 100-125% of actual gas cost
       expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
     }
@@ -587,7 +588,7 @@ export function RunIncentivizedTests(
         expect(canRebalance).to.be.false
 
         // confirm keeper earned their fee
-        await checkCompensation(2)
+        await checkCompensation(3)
       })
 
       it('honors max rebalance fee when rebalancing a group', async () => {

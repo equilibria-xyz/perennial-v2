@@ -1,5 +1,5 @@
 import { smock } from '@defi-wonderland/smock'
-import { CallOverrides } from 'ethers'
+import { CallOverrides, constants } from 'ethers'
 import HRE from 'hardhat'
 
 import {
@@ -72,21 +72,21 @@ async function deployController(
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 0, // buffer for handling the keeper fee
+    bufferBase: 175_000, // buffer for handling the keeper fee
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 2_000_000, // for price commitment
+    bufferBase: 1_500_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   const keepConfigWithdrawal = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 1_500_000,
+    bufferBase: 750_000,
     multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 0,
+    bufferCalldata: 2000,
   }
 
   const accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address, {
@@ -109,7 +109,7 @@ async function mockGasInfo() {
   const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
     address: '0x420000000000000000000000000000000000000F',
   })
-  gasInfo.getL1GasUsed.returns(2000)
+  gasInfo.getL1GasUsed.returns(500)
   gasInfo.l1BaseFee.returns(3000000000)
   gasInfo.baseFeeScalar.returns(5214379)
   gasInfo.decimals.returns(6)
