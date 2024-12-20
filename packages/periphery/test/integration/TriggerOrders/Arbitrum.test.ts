@@ -85,7 +85,7 @@ const fixture = async (): Promise<FixtureVars> => {
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 950_000, // buffer for withdrawing keeper fee from market
+    bufferBase: 1_250_000, // buffer for withdrawing keeper fee from margin contract
     multiplierCalldata: 0,
     bufferCalldata: 0,
   }
