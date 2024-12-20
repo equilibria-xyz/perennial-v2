@@ -151,14 +151,14 @@ contract MatchingLibTester {
     function _add(
         MatchingExposure memory exposureClose,
         MatchingExposure memory exposureOpen
-    ) internal pure returns (MatchingExposure memory) {
+    ) external pure returns (MatchingExposure memory) {
         return MatchingLib._add(exposureClose, exposureOpen);
     }
 
     function _div(
         MatchingExposure memory exposure,
         MatchingPosition memory position
-    ) internal pure returns (MatchingExposure memory) {
+    ) external pure returns (MatchingExposure memory) {
         return MatchingLib._div(exposure, position);
     }
 }

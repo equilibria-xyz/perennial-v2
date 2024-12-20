@@ -20,7 +20,7 @@ describe.only('MatchingLib', () => {
     matchingLib = await new MatchingLibTester__factory(owner).deploy()
   })
 
-  describe.only('#_fill()', () => {
+  describe('#_fill()', () => {
     it('fills the order (makerNeg)', async () => {
       const [fillResult, newOrderbook, newPosition] = await matchingLib._fill(
         {
@@ -378,6 +378,26 @@ describe.only('MatchingLib', () => {
     })
   })
 
+  describe('#_extractClose(order)', () => {
+    it('extracts correct order', async () => {
+      const order = await matchingLib._extractClose({
+        makerPos: utils.parseUnits('1', 6),
+        makerNeg: utils.parseUnits('2', 6),
+        longPos: utils.parseUnits('3', 6),
+        longNeg: utils.parseUnits('4', 6),
+        shortPos: utils.parseUnits('5', 6),
+        shortNeg: utils.parseUnits('6', 6),
+      })
+
+      expect(order.makerPos).to.equal(utils.parseUnits('0', 6))
+      expect(order.makerNeg).to.equal(utils.parseUnits('2', 6))
+      expect(order.longPos).to.equal(utils.parseUnits('0', 6))
+      expect(order.longNeg).to.equal(utils.parseUnits('4', 6))
+      expect(order.shortPos).to.equal(utils.parseUnits('0', 6))
+      expect(order.shortNeg).to.equal(utils.parseUnits('6', 6))
+    })
+  })
+
   describe('#_apply(position, order)', () => {
     it('correctly updates the position', async () => {
       const position = await matchingLib[
@@ -484,6 +504,48 @@ describe.only('MatchingLib', () => {
       expect(exposure.maker).to.equal(utils.parseUnits('3', 6))
       expect(exposure.long).to.equal(utils.parseUnits('6', 6))
       expect(exposure.short).to.equal(utils.parseUnits('-9', 6))
+    })
+  })
+
+  describe('#_add(exposure, exposure)', () => {
+    it('returns the correct change in expsoure', async () => {
+      const exposure = await matchingLib._add(
+        {
+          maker: utils.parseUnits('1', 6),
+          long: utils.parseUnits('-2', 6),
+          short: utils.parseUnits('3', 6),
+        },
+        {
+          maker: utils.parseUnits('4', 6),
+          long: utils.parseUnits('4', 6),
+          short: utils.parseUnits('-6', 6),
+        },
+      )
+
+      expect(exposure.maker).to.equal(utils.parseUnits('5', 6))
+      expect(exposure.long).to.equal(utils.parseUnits('2', 6))
+      expect(exposure.short).to.equal(utils.parseUnits('-3', 6))
+    })
+  })
+
+  describe('#_div(exposure, position)', () => {
+    it('returns the correct change in expsoure', async () => {
+      const exposure = await matchingLib._div(
+        {
+          maker: utils.parseUnits('1', 6),
+          long: utils.parseUnits('-2', 6),
+          short: utils.parseUnits('3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('5', 6),
+          short: utils.parseUnits('4', 6),
+        },
+      )
+
+      expect(exposure.maker).to.equal(utils.parseUnits('0.1', 6))
+      expect(exposure.long).to.equal(utils.parseUnits('-0.4', 6))
+      expect(exposure.short).to.equal(utils.parseUnits('0.75', 6))
     })
   })
 })
