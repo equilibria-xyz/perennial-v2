@@ -31,6 +31,8 @@ import {
   IInsuranceFund__factory,
   InsuranceFund__factory,
   InsuranceFund,
+  Margin__factory,
+  Margin,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -62,6 +64,7 @@ export interface InstanceVars {
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   marketFactory: MarketFactory
+  margin: Margin
   payoff: IPayoffProvider
   dsu: IERC20Metadata
   usdc: IERC20Metadata
@@ -109,14 +112,20 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     [],
   )
 
+  const margin = await new Margin__factory(
+    {
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+    },
+    owner,
+  ).deploy(dsu.address)
+
   const marketImpl = await new Market__factory(
     {
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
       'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
       'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
-      ).address,
       'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
       'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
         await new MarketParameterStorageLib__factory(owner).deploy()
@@ -134,7 +143,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
       'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
     },
     owner,
-  ).deploy(verifierProxy.address)
+  ).deploy(verifierProxy.address, margin.address)
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
@@ -155,6 +164,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
   await verifier.connect(owner).initialize(marketFactory.address)
+  await margin.connect(owner).initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
@@ -222,6 +232,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     marketImpl,
     verifier,
     insuranceFund,
+    margin,
   }
 }
 
@@ -244,10 +255,6 @@ export async function createMarket(
 ): Promise<Market> {
   const { owner, marketFactory, coordinator, beneficiaryB, oracle, dsu } = instanceVars
 
-  const definition = {
-    token: dsu.address,
-    oracle: (oracleOverride ?? oracle).address,
-  }
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
@@ -295,8 +302,8 @@ export async function createMarket(
     settle: false,
     ...marketParamOverrides,
   }
-  const marketAddress = await marketFactory.callStatic.create(definition)
-  await marketFactory.create(definition)
+  const marketAddress = await marketFactory.callStatic.create(oracle.address)
+  await marketFactory.create(oracle.address)
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateRiskParameter(riskParameter)

@@ -217,8 +217,8 @@ export function expectGlobalEq(a: Global, b: Global): void {
 export function expectLocalEq(a: Local, b: Local): void {
   expect(a.currentId).to.equal(b.currentId, 'Local:Currentid')
   expect(a.latestId).to.equal(b.latestId, 'Local:LatestId')
-  expect(a.collateral).to.equal(b.collateral, 'Local:Collateral')
   expect(a.claimable).to.equal(b.claimable, 'Local:Claimable')
+  expect(a.collateral).to.equal(constants.Zero)
 }
 
 export function expectVersionEq(a: Version, b: Version): void {

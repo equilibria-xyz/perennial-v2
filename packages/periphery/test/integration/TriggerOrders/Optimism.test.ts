@@ -75,7 +75,7 @@ async function setupUser(
 ) {
   // funds, approves, and deposits DSU into the market
   await fundWalletDSU(user, amount.mul(1e12))
-  await dsu.connect(user).approve(market.address, amount.mul(1e12))
+  await dsu.connect(user).approve(await market.margin(), amount.mul(1e12))
   await transferCollateral(user, market, amount)
 
   // allows manager to interact with markets on the user's behalf
@@ -104,8 +104,8 @@ const fixture = async (): Promise<FixtureVars> => {
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 750_000, // buffer for withdrawing keeper fee from market
-    multiplierCalldata: 0,
+    bufferBase: 700_000, // buffer for withdrawing keeper fee from margin contract
+    multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
