@@ -9,6 +9,15 @@ import { BigNumber, utils } from 'ethers'
 const { ethers } = HRE
 use(smock.matchers)
 
+const DEFAULT_MATCHING_ORDER = {
+  makerPos: utils.parseUnits('0', 6),
+  makerNeg: utils.parseUnits('0', 6),
+  longPos: utils.parseUnits('0', 6),
+  longNeg: utils.parseUnits('0', 6),
+  shortPos: utils.parseUnits('0', 6),
+  shortNeg: utils.parseUnits('0', 6),
+}
+
 describe.only('MatchingLib', () => {
   let owner: SignerWithAddress
 
@@ -486,24 +495,267 @@ describe.only('MatchingLib', () => {
     })
   })
 
-  describe('#_change(exposure, exposure)', () => {
-    it('returns the correct change in expsoure', async () => {
-      const exposure = await matchingLib._change(
-        {
-          maker: utils.parseUnits('1', 6),
-          long: utils.parseUnits('-2', 6),
-          short: utils.parseUnits('3', 6),
-        },
-        {
-          maker: utils.parseUnits('4', 6),
-          long: utils.parseUnits('4', 6),
-          short: utils.parseUnits('-6', 6),
-        },
-      )
+  describe.only('#_match(position, order)', () => {
+    context('maker close', () => {
+      it('returns the correct change in exposure (no positions)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('0', 6),
+            short: utils.parseUnits('0', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('2', 6),
+          },
+        )
 
-      expect(exposure.maker).to.equal(utils.parseUnits('3', 6))
-      expect(exposure.long).to.equal(utils.parseUnits('6', 6))
-      expect(exposure.short).to.equal(utils.parseUnits('-9', 6))
+        expect(exposureClose.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-0.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-0.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+
+      it('returns the correct change in exposure (zero skew)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('12', 6),
+            short: utils.parseUnits('12', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('2', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+
+      it('returns the correct change in exposure (long skew)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('12', 6),
+            short: utils.parseUnits('4', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('2', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('-0.8', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('-1.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('-1.6', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+
+      it('returns the correct change in exposure (short skew)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('4', 6),
+            short: utils.parseUnits('12', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('2', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('0.8', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('1.6', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+
+      it('returns the correct change in exposure (to long socialization)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('12', 6),
+            short: utils.parseUnits('4', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('4', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('-0.8', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('-1.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('0.833333', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('-1.2', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('-2.0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+
+      it('returns the correct change in exposure (to short socialization)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('4', 6),
+            short: utils.parseUnits('12', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('4', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('0.8', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-0.833333', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('1.2', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('2.0', 6))
+      })
+
+      it('returns the correct change in exposure (no positions full close)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('0', 6),
+            short: utils.parseUnits('0', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('10', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-0.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-0.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+
+      it('returns the correct change in exposure (zero skew full close)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('12', 6),
+            short: utils.parseUnits('12', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('10', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+
+      it('returns the correct change in exposure (long skew full close)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('12', 6),
+            short: utils.parseUnits('4', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('10', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('-0.8', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('0.333333', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('-8.0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+
+      it('returns the correct change in exposure (short skew full close)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('10', 6),
+            long: utils.parseUnits('4', 6),
+            short: utils.parseUnits('12', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+            makerNeg: utils.parseUnits('10', 6),
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('0.8', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-0.333333', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('8.0', 6))
+      })
     })
   })
 

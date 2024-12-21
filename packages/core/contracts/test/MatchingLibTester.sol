@@ -142,9 +142,10 @@ contract MatchingLibTester {
     function _match(MatchingPosition memory position, MatchingOrder memory order) external pure returns (
         MatchingExposure memory exposureClose,
         MatchingExposure memory exposureOpen,
+        MatchingExposure memory exposureFilled,
         MatchingPosition memory newPosition
     ) {
-        (exposureClose, exposureOpen) = MatchingLib._match(position, order);
+        (exposureClose, exposureOpen, exposureFilled) = MatchingLib._match(position, order);
         newPosition = position;
     }
 

@@ -175,10 +175,10 @@ library MatchingLib {
         MatchingExposure memory exposureClose,
         MatchingExposure memory exposureOpen
     ) {
+        MatchingExposure memory exposureFilled;
         // compute the change in exposure after applying the order to the position
-        (exposureClose, exposureOpen) = _match(position, order);
-        MatchingExposure memory change = _add(exposureOpen, exposureClose);
-        Fixed6 changeTotal = _skew(change);
+        (exposureClose, exposureOpen, exposureFilled) = _match(position, order);
+        Fixed6 filledTotal = _skew(exposureFilled);
 
         // console.log("-exposure.maker", uint256(-Fixed6.unwrap(exposure.maker)));
         // console.log("-_exposure(position).maker", uint256(-Fixed6.unwrap(_exposure(position).maker)));
@@ -187,15 +187,15 @@ library MatchingLib {
 
         // compute the synthetic spread taken from the positive and negative sides of the order
         MatchingOrderbook memory latestOrderbook = _orderbook(orderbook);
-        _apply(orderbook, _flip(change));
+        _apply(orderbook, _flip(exposureFilled));
         fillResult.spreadPos = synBook.compute(latestOrderbook.ask, orderbook.ask, price.abs());
         fillResult.spreadNeg = synBook.compute(latestOrderbook.bid, orderbook.bid, price.abs());
         Fixed6 spreadTotal = fillResult.spreadPos.add(fillResult.spreadNeg);
 
         // compute the portions of the spread that are received by the maker, long, and short sides
-        fillResult.spreadMaker = spreadTotal.muldiv(change.maker, changeTotal); // TODO: do the signs always line up here?
-        fillResult.spreadLong = spreadTotal.muldiv(change.long, changeTotal);
-        fillResult.spreadShort = spreadTotal.muldiv(change.short, changeTotal); // TODO: can have dust here
+        fillResult.spreadMaker = spreadTotal.muldiv(exposureFilled.maker, filledTotal); // TODO: do the signs always line up here?
+        fillResult.spreadLong = spreadTotal.muldiv(exposureFilled.long, filledTotal);
+        fillResult.spreadShort = spreadTotal.muldiv(exposureFilled.short, filledTotal); // TODO: can have dust here
     }
 
     function _skew(MatchingPosition memory position) internal pure returns (Fixed6) {
@@ -277,19 +277,29 @@ library MatchingLib {
         });
     }
 
+    /// @dev order must be a single uni-directional segment of an order.
     function _match(
         MatchingPosition memory position,
         MatchingOrder memory order
     ) internal pure returns (
         MatchingExposure memory exposureClose,
-        MatchingExposure memory exposureOpen
+        MatchingExposure memory exposureOpen,
+        MatchingExposure memory exposureFilled
     ) {
+        MatchingPosition memory latestPosition = _position(position);
         MatchingPosition memory closedPosition = _position(position);
         _apply(closedPosition, _extractClose(order));
         _apply(position, order);
 
-        exposureClose = _div(_exposure(closedPosition), closedPosition);
+        // calculate exposure per position unit on open and close
+        exposureClose = _div(_exposure(latestPosition), latestPosition);
         exposureOpen = _div(_exposure(position), position);
+
+        // calulate total exposure filled by side
+        exposureFilled = _sub(
+            _div(_mul(_exposure(position), closedPosition), position),
+            _div(_mul(_exposure(latestPosition), closedPosition), latestPosition)
+        );
     }
 
     function _add(
@@ -303,14 +313,36 @@ library MatchingLib {
         });
     }
 
+    function _sub(
+        MatchingExposure memory exposureClose,
+        MatchingExposure memory exposureOpen
+    ) internal pure returns (MatchingExposure memory) {
+        return MatchingExposure({
+            maker: exposureClose.maker.sub(exposureOpen.maker),
+            long: exposureClose.long.sub(exposureOpen.long),
+            short: exposureClose.short.sub(exposureOpen.short)
+        });
+    }
+
+    function _mul(
+        MatchingExposure memory exposure,
+        MatchingPosition memory position
+    ) internal pure returns (MatchingExposure memory) {
+        return MatchingExposure({
+            maker: exposure.maker.mul(Fixed6Lib.from(position.maker)),
+            long: exposure.long.mul(Fixed6Lib.from(position.long)),
+            short: exposure.short.mul(Fixed6Lib.from(position.short))
+        });
+    }
+
     function _div(
         MatchingExposure memory exposure,
         MatchingPosition memory position
     ) internal pure returns (MatchingExposure memory) {
         return MatchingExposure({
-            maker: exposure.maker.div(Fixed6Lib.from(position.maker)),
-            long: exposure.long.div(Fixed6Lib.from(position.long)),
-            short: exposure.short.div(Fixed6Lib.from(position.short))
+            maker: position.maker.isZero() ? Fixed6Lib.ZERO : exposure.maker.div(Fixed6Lib.from(position.maker)),
+            long: position.long.isZero() ? Fixed6Lib.ZERO : exposure.long.div(Fixed6Lib.from(position.long)),
+            short: position.short.isZero() ? Fixed6Lib.ZERO : exposure.short.div(Fixed6Lib.from(position.short))
         });
     }
 }
