@@ -182,20 +182,21 @@ library MatchingLib {
         (exposureClose, exposureOpen, exposureFilled) = _match(position, order);
         Fixed6 filledTotal = _skew(exposureFilled);
 
-        // console.log("-exposure.maker", uint256(-Fixed6.unwrap(exposure.maker)));
-        // console.log("-_exposure(position).maker", uint256(-Fixed6.unwrap(_exposure(position).maker)));
-        // console.log("change.maker", uint256(Fixed6.unwrap(change.maker)));
-        // console.log("changeTotal", uint256(Fixed6.unwrap(changeTotal)));
+        MatchingExposure memory exposureOrder = _flip(exposureFilled);
+        Fixed6 exposureTotal = _skew(exposureOrder);
 
         // compute the synthetic spread taken from the positive and negative sides of the order
         MatchingOrderbook memory latestOrderbook = _orderbook(orderbook);
-        _apply(orderbook, _flip(exposureFilled));
-        fillResult.spreadPos = synBook.compute(latestOrderbook.ask, orderbook.ask, price.abs());
-        fillResult.spreadNeg = synBook.compute(latestOrderbook.bid, orderbook.bid, price.abs());
+        _apply(orderbook, exposureOrder);
+
+        if (exposureTotal.gt(Fixed6Lib.ZERO))
+            fillResult.spreadPos = synBook.compute(latestOrderbook.ask, exposureTotal, price.abs());
+        else
+            fillResult.spreadNeg = synBook.compute(latestOrderbook.bid, exposureTotal, price.abs());
         Fixed6 spreadTotal = fillResult.spreadPos.add(fillResult.spreadNeg);
 
         // compute the portions of the spread that are received by the maker, long, and short sides
-        fillResult.spreadMaker = spreadTotal.muldiv(exposureFilled.maker, filledTotal); // TODO: do the signs always line up here?
+        fillResult.spreadMaker = spreadTotal.muldiv(exposureFilled.maker, filledTotal);
         fillResult.spreadLong = spreadTotal.muldiv(exposureFilled.long, filledTotal);
         fillResult.spreadShort = spreadTotal.muldiv(exposureFilled.short, filledTotal); // TODO: can have dust here
     }

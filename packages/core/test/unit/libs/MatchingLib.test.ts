@@ -18,7 +18,15 @@ const DEFAULT_MATCHING_ORDER = {
   shortNeg: utils.parseUnits('0', 6),
 }
 
-describe.only('MatchingLib', () => {
+const DEFAULT_SYNBOOK = {
+  d0: utils.parseUnits('0.001', 6),
+  d1: utils.parseUnits('0.002', 6),
+  d2: utils.parseUnits('0.004', 6),
+  d3: utils.parseUnits('0.008', 6),
+  scale: utils.parseUnits('10', 6),
+}
+
+describe('MatchingLib', () => {
   let owner: SignerWithAddress
 
   let matchingLib: MatchingLibTester
@@ -29,9 +37,9 @@ describe.only('MatchingLib', () => {
     matchingLib = await new MatchingLibTester__factory(owner).deploy()
   })
 
-  describe('#_fill()', () => {
-    it('fills the order (makerNeg)', async () => {
-      const [fillResult, newOrderbook, newPosition] = await matchingLib._fill(
+  describe.only('#_fill()', () => {
+    it('fills the order (maker ask)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -43,28 +51,26 @@ describe.only('MatchingLib', () => {
           short: utils.parseUnits('4', 6),
         },
         {
-          makerPos: utils.parseUnits('0', 6),
+          ...DEFAULT_MATCHING_ORDER,
           makerNeg: utils.parseUnits('2', 6),
-          longPos: utils.parseUnits('0', 6),
-          longNeg: utils.parseUnits('0', 6),
-          shortPos: utils.parseUnits('0', 6),
-          shortNeg: utils.parseUnits('0', 6),
         },
-        {
-          d0: utils.parseUnits('0.001', 6),
-          d1: utils.parseUnits('0.002', 6),
-          d2: utils.parseUnits('0.004', 6),
-          d3: utils.parseUnits('0.008', 6),
-          scale: utils.parseUnits('100', 6),
-        },
+        DEFAULT_SYNBOOK,
         utils.parseUnits('123', 6),
       )
 
-      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0.003335', 6)) // 2 -> 3.6 / 100
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0.065245', 6)) // 2 -> 3.6 / 10
       expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0', 6))
-      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.003335', 6)) // all to maker
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.065245', 6)) // all to maker
       expect(fillResult.spreadLong).to.equal(utils.parseUnits('0', 6))
       expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('-0.8', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('-1.0', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
       expect(newPosition.maker).to.equal(utils.parseUnits('8', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
@@ -73,6 +79,311 @@ describe.only('MatchingLib', () => {
       expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
       expect(newOrderbook.ask).to.equal(utils.parseUnits('3.6', 6))
       expect(newOrderbook.bid).to.equal(utils.parseUnits('-3', 6))
+    })
+
+    it('fills the order (maker ask socialized)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('12', 6),
+          short: utils.parseUnits('4', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          makerNeg: utils.parseUnits('4', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0.342528', 6)) // 2 -> 5.2 / 10
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.128448', 6)) // 1.2 exp
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0.21408', 6)) // 2 exp
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('-0.8', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('-1.0', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('0.833333', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('6', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('5.2', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-3', 6))
+    })
+
+    it('fills the order (taker ask)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('12', 6),
+          short: utils.parseUnits('4', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          longPos: utils.parseUnits('1', 6),
+          shortNeg: utils.parseUnits('1', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0.108896', 6)) // 2 -> 4 / 10
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.108896', 6)) // all to maker
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('-0.8', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('-1.0', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('13', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('3', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('4', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-3', 6))
+    })
+
+    it('fills the order (taker ask socialized)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('12', 6),
+          short: utils.parseUnits('4', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          longPos: utils.parseUnits('2', 6),
+          shortNeg: utils.parseUnits('2', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0.505337', 6)) // 2 -> 5.714286 / 10 (rounding error -1)
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.272104', 6)) // 2 exp
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0.233232', 6)) // 1.714285 exp
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('-0.8', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('-1.0', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('0.857142', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('14', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('2', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('5.714286', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-3', 6))
+    })
+
+    it('fills the order (maker bid)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('12', 6),
+          short: utils.parseUnits('4', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          makerPos: utils.parseUnits('2', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0.058698', 6)) // -3 -> -4.333334 / 10 (rounding error -2)
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.058698', 6)) // all to maker
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('-0.8', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('-0.666666', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('12', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('2', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-4.333334', 6))
+    })
+
+    it('fills the order (maker bid socialized)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('6', 6),
+          long: utils.parseUnits('12', 6),
+          short: utils.parseUnits('4', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          makerPos: utils.parseUnits('4', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0.462675', 6)) // -3 -> -6.2 / 10 (rounding error -1)
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.173503', 6)) // 2 exp
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0.289171', 6)) // 1.2 exp
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('-1.0', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('0.833333', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('-0.8', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('2', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-6.2', 6))
+    })
+
+    it('fills the order (taker bid)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('4', 6),
+          short: utils.parseUnits('12', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          shortPos: utils.parseUnits('1', 6),
+          longNeg: utils.parseUnits('1', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0.147469', 6)) // -3 -> -4 / 10
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.147469', 6)) // all to maker
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('0.8', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('3', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('13', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('2', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-5', 6))
+    })
+
+    it('fills the order (taker bid socialized)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('4', 6),
+          short: utils.parseUnits('12', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          shortPos: utils.parseUnits('2', 6),
+          longNeg: utils.parseUnits('2', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0.680762', 6)) // -3 -> -6.714286 / 10 (rounding error -1)
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.366564', 6)) // 2 exp
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0.314197', 6)) // 1.314197 exp
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('0.8', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('-1.0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('-0.857142', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('2', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('14', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('2', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-6.714286', 6))
     })
   })
 
