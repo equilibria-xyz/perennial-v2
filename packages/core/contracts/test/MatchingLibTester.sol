@@ -156,6 +156,20 @@ contract MatchingLibTester {
         return MatchingLib._add(exposureClose, exposureOpen);
     }
 
+    function _sub(
+        MatchingExposure memory exposureClose,
+        MatchingExposure memory exposureOpen
+    ) external pure returns (MatchingExposure memory) {
+        return MatchingLib._sub(exposureClose, exposureOpen);
+    }
+
+    function _mul(
+        MatchingExposure memory exposure,
+        MatchingPosition memory position
+    ) external pure returns (MatchingExposure memory) {
+        return MatchingLib._mul(exposure, position);
+    }
+
     function _div(
         MatchingExposure memory exposure,
         MatchingPosition memory position

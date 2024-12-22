@@ -2006,6 +2006,48 @@ describe.only('MatchingLib', () => {
     })
   })
 
+  describe('#_sub(exposure, exposure)', () => {
+    it('returns the correct change in expsoure', async () => {
+      const exposure = await matchingLib._sub(
+        {
+          maker: utils.parseUnits('1', 6),
+          long: utils.parseUnits('-2', 6),
+          short: utils.parseUnits('3', 6),
+        },
+        {
+          maker: utils.parseUnits('4', 6),
+          long: utils.parseUnits('4', 6),
+          short: utils.parseUnits('-6', 6),
+        },
+      )
+
+      expect(exposure.maker).to.equal(utils.parseUnits('-3', 6))
+      expect(exposure.long).to.equal(utils.parseUnits('-6', 6))
+      expect(exposure.short).to.equal(utils.parseUnits('9', 6))
+    })
+  })
+
+  describe('#_mul(exposure, position)', () => {
+    it('returns the correct change in expsoure', async () => {
+      const exposure = await matchingLib._mul(
+        {
+          maker: utils.parseUnits('1', 6),
+          long: utils.parseUnits('-2', 6),
+          short: utils.parseUnits('3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('5', 6),
+          short: utils.parseUnits('4', 6),
+        },
+      )
+
+      expect(exposure.maker).to.equal(utils.parseUnits('10', 6))
+      expect(exposure.long).to.equal(utils.parseUnits('-10', 6))
+      expect(exposure.short).to.equal(utils.parseUnits('12', 6))
+    })
+  })
+
   describe('#_div(exposure, position)', () => {
     it('returns the correct change in expsoure', async () => {
       const exposure = await matchingLib._div(
