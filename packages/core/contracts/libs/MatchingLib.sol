@@ -125,6 +125,8 @@ library MatchingLib {
         result.spreadCloseLong = fillResult.spreadLong;
         result.spreadCloseShort = fillResult.spreadShort;
 
+        // TODO: if one leg full closes we could end up with a non-zero spread going to a zero closed position
+
         // fill negative side of order
         (MatchingFillResult memory fillResult2, , ) =
             _fill(orderbook2, position2, _extractTakerNeg(order), synBook, price);
