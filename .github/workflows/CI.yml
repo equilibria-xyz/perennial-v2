@@ -379,8 +379,8 @@ jobs:
         run: yarn workspaces run compile # compile all packages
       - name: Run tests with coverage on Arbitrum
         env:
-          MOCHA_REPORTER: spec
-          MOCHA_RETRY_COUNT: 0
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
           ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
@@ -391,7 +391,7 @@ jobs:
           path: ./packages/periphery/coverage/lcov.info
       - name: Run tests on Base
         env:
-          MOCHA_REPORTER: dot
+          MOCHA_REPORTER: spec
           MOCHA_RETRY_COUNT: 0
           BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
         run: |
