@@ -38,6 +38,48 @@ describe('MatchingLib', () => {
   })
 
   describe('#_fill()', () => {
+    it('fills the order (empty)', async () => {
+      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+        {
+          midpoint: utils.parseUnits('0', 6),
+          ask: utils.parseUnits('0', 6),
+          bid: utils.parseUnits('0', 6),
+        },
+        {
+          maker: utils.parseUnits('0', 6),
+          long: utils.parseUnits('0', 6),
+          short: utils.parseUnits('0', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+      )
+
+      expect(fillResult.spreadPos).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadLong).to.equal(utils.parseUnits('0', 6))
+      expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureClose.maker).to.equal(utils.parseUnits('0', 6))
+      expect(exposureClose.long).to.equal(utils.parseUnits('0', 6))
+      expect(exposureClose.short).to.equal(utils.parseUnits('0', 6))
+
+      expect(exposureOpen.maker).to.equal(utils.parseUnits('0', 6))
+      expect(exposureOpen.long).to.equal(utils.parseUnits('0', 6))
+      expect(exposureOpen.short).to.equal(utils.parseUnits('0', 6))
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('0', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('0', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('0', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('0', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('0', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('0', 6))
+    })
+
     it('fills the order (maker ask)', async () => {
       const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
         {
@@ -895,6 +937,33 @@ describe('MatchingLib', () => {
   })
 
   describe('#_match(position, order)', () => {
+    context('empty', () => {
+      it('returns the correct change in exposure (no positions)', async () => {
+        const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(
+          {
+            maker: utils.parseUnits('0', 6),
+            long: utils.parseUnits('0', 6),
+            short: utils.parseUnits('0', 6),
+          },
+          {
+            ...DEFAULT_MATCHING_ORDER,
+          },
+        )
+
+        expect(exposureClose.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureClose.long).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureClose.short).to.equal(utils.parseUnits('-0.0', 6))
+
+        expect(exposureOpen.maker).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.long).to.equal(utils.parseUnits('0.0', 6))
+        expect(exposureOpen.short).to.equal(utils.parseUnits('-0.0', 6))
+
+        expect(exposureFilled.maker).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.long).to.equal(utils.parseUnits('0', 6))
+        expect(exposureFilled.short).to.equal(utils.parseUnits('0', 6))
+      })
+    })
+
     context('maker close', () => {
       it('returns the correct change in exposure (no positions)', async () => {
         const [exposureClose, exposureOpen, exposureFilled] = await matchingLib._match(

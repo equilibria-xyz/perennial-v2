@@ -172,7 +172,7 @@ library MatchingLib {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) internal view returns (
+    ) internal pure returns (
         MatchingFillResult memory fillResult,
         MatchingExposure memory exposureClose,
         MatchingExposure memory exposureOpen
@@ -184,6 +184,9 @@ library MatchingLib {
 
         MatchingExposure memory exposureOrder = _flip(exposureFilled);
         Fixed6 exposureTotal = _skew(exposureOrder);
+
+        // if order size is zero, return early to avoid division by zero
+        if (filledTotal.isZero()) return (fillResult, exposureClose, exposureOpen);
 
         // compute the synthetic spread taken from the positive and negative sides of the order
         MatchingOrderbook memory latestOrderbook = _orderbook(orderbook);
