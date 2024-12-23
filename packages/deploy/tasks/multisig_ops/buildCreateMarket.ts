@@ -8,6 +8,7 @@ import { NewMarketParameter, NewRiskParams } from './constants'
 export default task('multisig_ops:buildCreateMarket', 'Builds the create market transaction')
   .addParam('underlyingid', 'The oracle ID to use')
   .addParam('market', 'Market key for risk params. Refer to constants.ts')
+  .addParam('name', 'The name of the market oracle')
   .addOptionalParam('id', 'The oracle ID to use. Defaults to underlying-id')
   .addOptionalParam<typeof PAYOFFS>('payoff', 'The payoff contract to use')
   .addOptionalParam('decimals', 'The number of decimals to use')
@@ -67,7 +68,10 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
 
     const existingOracle = await oracleFactory.oracles(id)
     if (existingOracle === ethers.constants.AddressZero) {
-      await addPayload(() => oracleFactory.populateTransaction.create(id, keeperFactory.address), `Create Oracle ${id}`)
+      await addPayload(
+        () => oracleFactory.populateTransaction.create(id, keeperFactory.address, args.name),
+        `Create Oracle ${id}`,
+      )
     }
 
     // Create the market
@@ -86,6 +90,16 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
           })
         : existingKeeperOracle
 
+    const keeperOracleInterface = new ethers.utils.Interface((await get('KeeperOracleImpl')).abi)
+    await addPayload(
+      async () => ({
+        to: keeperOracleAddress,
+        value: 0,
+        data: keeperOracleInterface.encodeFunctionData('register', [oracleAddress]),
+      }),
+      'Register Keeper Oracle',
+    )
+
     await addPayload(
       () => marketFactory.populateTransaction.create({ token: DSU.address, oracle: oracleAddress }),
       'Create Market',
@@ -102,13 +116,17 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
       return {
         to: marketAddress,
         value: 0,
-        data: marketInterface.encodeFunctionData('updateParameter', [
-          ethers.constants.AddressZero,
-          coordinatorAddress,
-          NewMarketParameter,
-        ]),
+        data: marketInterface.encodeFunctionData('updateParameter', [NewMarketParameter]),
       }
     }, 'Update Market Parameter')
+
+    await addPayload(async () => {
+      return {
+        to: marketAddress,
+        value: 0,
+        data: marketInterface.encodeFunctionData('updateCoordinator', [coordinatorAddress]),
+      }
+    }, 'Update Market Coordinator')
 
     const riskParam = NewRiskParams[args.market]
     if (!riskParam) throw new Error('Invalid market key')
@@ -117,9 +135,18 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
       return {
         to: marketAddress,
         value: 0,
-        data: marketInterface.encodeFunctionData('updateRiskParameter', [riskParam, false]),
+        data: marketInterface.encodeFunctionData('updateRiskParameter', [riskParam]),
       }
     }, 'Update Market Risk Parameter')
+
+    const oracleInterface = new ethers.utils.Interface((await get('OracleImpl')).abi)
+    await addPayload(async () => {
+      return {
+        to: oracleAddress,
+        value: 0,
+        data: oracleInterface.encodeFunctionData('register', [marketAddress]),
+      }
+    }, 'Register Market')
 
     const timelockPayloads = {
       targets: txPayloads.map(tx => tx.to),

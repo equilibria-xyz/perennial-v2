@@ -16,7 +16,7 @@ import { IOracle } from "./interfaces/IOracle.sol";
 /// @dev Manages swapping between different underlying oracle provider interfaces over time.
 contract Oracle is IOracle, Instance {
     /// @notice A historical mapping of underlying oracle providers
-    mapping(uint256 => Epoch) public oracles;
+    mapping(uint256 => Epoch) private _oracles;
 
     /// @notice The global state of the oracle
     OracleGlobal private _global;
@@ -68,23 +68,16 @@ contract Oracle is IOracle, Instance {
         emit BeneficiaryUpdated(newBeneficiary);
     }
 
-    /// @notice Updates the name of the oracle
-    /// @dev Allows setting the name for previously deployed oracles (v2.3 migration)
-    /// @param newName The new oracle name
-    function updateName(string calldata newName) external onlyOwner {
-        name = newName;
-    }
-
     /// @notice Requests a new version at the current timestamp
     /// @param account Original sender to optionally use for callbacks
     function request(IMarket, address account) external onlyMarket {
-        (OracleVersion memory latestVersion, uint256 currentTimestamp) = oracles[_global.current].provider.status();
+        (OracleVersion memory latestVersion, uint256 currentTimestamp) = _oracles[_global.current].provider.status();
 
-        oracles[
-            (currentTimestamp > oracles[_global.latest].timestamp) ? _global.current : _global.latest
+        _oracles[
+            (currentTimestamp > _oracles[_global.latest].timestamp) ? _global.current : _global.latest
         ].provider.request(market, account);
 
-        oracles[_global.current].timestamp = uint96(currentTimestamp);
+        _oracles[_global.current].timestamp = uint96(currentTimestamp);
         _updateLatest(latestVersion);
     }
 
@@ -92,18 +85,18 @@ contract Oracle is IOracle, Instance {
     /// @return latestVersion The latest committed version
     /// @return currentTimestamp The current timestamp
     function status() external view returns (OracleVersion memory latestVersion, uint256 currentTimestamp) {
-        (latestVersion, currentTimestamp) = oracles[_global.current].provider.status();
+        (latestVersion, currentTimestamp) = _oracles[_global.current].provider.status();
         latestVersion = _handleLatest(latestVersion);
     }
 
     /// @notice Returns the latest committed version
     function latest() public view returns (OracleVersion memory) {
-        return _handleLatest(oracles[_global.current].provider.latest());
+        return _handleLatest(_oracles[_global.current].provider.latest());
     }
 
     /// @notice Returns the current value
     function current() public view returns (uint256) {
-        return oracles[_global.current].provider.current();
+        return _oracles[_global.current].provider.current();
     }
 
     /// @notice Returns the oracle version at a given timestamp
@@ -113,10 +106,10 @@ contract Oracle is IOracle, Instance {
     function at(uint256 timestamp) public view returns (OracleVersion memory atVersion, OracleReceipt memory atReceipt) {
         if (timestamp == 0) return (atVersion, atReceipt);
 
-        IOracleProvider provider = oracles[_global.current].provider;
+        IOracleProvider provider = _oracles[_global.current].provider;
         for (uint256 i = _global.current - 1; i > 0; i--) {
-            if (timestamp > uint256(oracles[i].timestamp)) break;
-            provider = oracles[i].provider;
+            if (timestamp > uint256(_oracles[i].timestamp)) break;
+            provider = _oracles[i].provider;
         }
 
         (atVersion, atReceipt) = provider.at(timestamp);
@@ -142,6 +135,13 @@ contract Oracle is IOracle, Instance {
         emit FeeReceived(settlementFeeRequested, feeReceived.sub(settlementFeeRequested));
     }
 
+    /// @notice Returns the oracle data for a given epoch
+    /// @param epoch The epoch to query
+    /// @return The oracle data for the given epoch
+    function oracles(uint256 epoch) external view returns (Epoch memory) {
+        return _oracles[epoch];
+    }
+
     /// @notice Handles update the oracle to the new provider
     /// @param newProvider The new oracle provider
     function _updateCurrent(IOracleProvider newProvider) private {
@@ -150,13 +150,13 @@ contract Oracle is IOracle, Instance {
 
         // if the latest version of the underlying oracle is further ahead than its latest request update its timestamp
         if (_global.current != 0) {
-            OracleVersion memory latestVersion = oracles[_global.current].provider.latest();
-            if (latestVersion.timestamp > oracles[_global.current].timestamp)
-                oracles[_global.current].timestamp = uint96(latestVersion.timestamp);
+            OracleVersion memory latestVersion = _oracles[_global.current].provider.latest();
+            if (latestVersion.timestamp > _oracles[_global.current].timestamp)
+                _oracles[_global.current].timestamp = uint96(latestVersion.timestamp);
         }
 
         // add the new oracle registration
-        oracles[++_global.current] = Epoch(newProvider, uint96(newProvider.current()));
+        _oracles[++_global.current] = Epoch(newProvider, uint96(newProvider.current()));
         emit OracleUpdated(newProvider);
     }
 
@@ -176,10 +176,10 @@ contract Oracle is IOracle, Instance {
         if (_global.current == _global.latest) return currentOracleLatestVersion;
 
         bool isLatestStale = _latestStale(currentOracleLatestVersion);
-        latestVersion = isLatestStale ? currentOracleLatestVersion : oracles[_global.latest].provider.latest();
+        latestVersion = isLatestStale ? currentOracleLatestVersion : _oracles[_global.latest].provider.latest();
 
         uint256 latestOracleTimestamp =
-            uint256(isLatestStale ? oracles[_global.current].timestamp : oracles[_global.latest].timestamp);
+            uint256(isLatestStale ? _oracles[_global.current].timestamp : _oracles[_global.latest].timestamp);
         if (!isLatestStale && latestVersion.timestamp > latestOracleTimestamp)
             (latestVersion, ) = at(latestOracleTimestamp);
     }
@@ -191,8 +191,8 @@ contract Oracle is IOracle, Instance {
         if (_global.current == _global.latest) return false;
         if (_global.latest == 0) return true;
 
-        if (uint256(oracles[_global.latest].timestamp) > oracles[_global.latest].provider.latest().timestamp) return false;
-        if (uint256(oracles[_global.latest].timestamp) >= currentOracleLatestVersion.timestamp) return false;
+        if (uint256(_oracles[_global.latest].timestamp) > _oracles[_global.latest].provider.latest().timestamp) return false;
+        if (uint256(_oracles[_global.latest].timestamp) >= currentOracleLatestVersion.timestamp) return false;
 
         return true;
     }
@@ -212,8 +212,8 @@ contract Oracle is IOracle, Instance {
     /// @dev Only if the caller is the registered sub oracle
     modifier onlySubOracle {
         if (
-            msg.sender != address(oracles[_global.current].provider) &&
-            msg.sender != address(oracles[_global.latest].provider)
+            msg.sender != address(_oracles[_global.current].provider) &&
+            msg.sender != address(_oracles[_global.latest].provider)
         ) revert OracleNotSubOracleError();
         _;
     }

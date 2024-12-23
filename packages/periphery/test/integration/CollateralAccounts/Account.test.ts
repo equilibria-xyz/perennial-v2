@@ -146,6 +146,18 @@ export function RunAccountTests(
         expect(await usdc.balanceOf(account.address)).to.equal(0)
       })
 
+      it('unwraps only what is necessary', async () => {
+        await dsu.connect(userA).transfer(account.address, utils.parseEther('0.3'))
+        await usdc.connect(userA).transfer(account.address, parse6decimal('0.9'))
+
+        // should only unwrap the 0.1 DSU needed to satisfy the withdrawal
+        await expect(account.withdraw(parse6decimal('1'), true))
+          .to.emit(usdc, 'Transfer')
+          .withArgs(account.address, userA.address, parse6decimal('1'))
+        expect(await dsu.balanceOf(account.address)).to.equal(utils.parseEther('0.2'))
+        expect(await usdc.balanceOf(account.address)).to.equal(0)
+      })
+
       it('burns dust amounts upon withdrawal', async () => {
         // deposit a dust amount into the account
         const dust = utils.parseEther('0.000000555')

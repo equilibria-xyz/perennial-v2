@@ -61,7 +61,7 @@ const ORACLES: { [key: string]: { [asset: string]: OracleDefinition } } = {
 }
 
 const DEFAULT_MAX_CLAIM_AMOUNT = utils.parseUnits('25', 6)
-export const DEFAULT_KEEPER_ORACLE_TIMEOUT = 60
+export const DEFAULT_KEEPER_ORACLE_TIMEOUT = 30
 export const L1_GAS_BUFFERS = {
   arbitrum: {
     commitCalldata: 31_000,

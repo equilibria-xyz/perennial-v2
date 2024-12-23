@@ -11,7 +11,8 @@ const { ethers } = HRE
 
 const DEFAULT_ORACLE_PARAMETER: OracleParameterStruct = {
   maxGranularity: 1,
-  maxSettlementFee: 0,
+  maxSyncFee: 0,
+  maxAsyncFee: 0,
   maxOracleFee: 0,
 }
 
@@ -65,22 +66,43 @@ describe('OracleParameter', () => {
       })
     })
 
-    context('.maxSettlementFee', async () => {
+    context('.maxSyncFee', async () => {
       const STORAGE_SIZE = 48
       it('saves if in range', async () => {
         await oracleParameter.store({
           ...DEFAULT_ORACLE_PARAMETER,
-          maxSettlementFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          maxSyncFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
         })
         const value = await oracleParameter.read()
-        expect(value.maxSettlementFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.maxSyncFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
       })
 
-      it('reverts if maxSettlementFee out of range', async () => {
+      it('reverts if maxSyncFee out of range', async () => {
         await expect(
           oracleParameter.store({
             ...DEFAULT_ORACLE_PARAMETER,
-            maxSettlementFee: BigNumber.from(2).pow(STORAGE_SIZE),
+            maxSyncFee: BigNumber.from(2).pow(STORAGE_SIZE),
+          }),
+        ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
+      })
+    })
+
+    context('.maxAsyncFee', async () => {
+      const STORAGE_SIZE = 48
+      it('saves if in range', async () => {
+        await oracleParameter.store({
+          ...DEFAULT_ORACLE_PARAMETER,
+          maxAsyncFee: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+        const value = await oracleParameter.read()
+        expect(value.maxAsyncFee).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if maxAsyncFee out of range', async () => {
+        await expect(
+          oracleParameter.store({
+            ...DEFAULT_ORACLE_PARAMETER,
+            maxAsyncFee: BigNumber.from(2).pow(STORAGE_SIZE),
           }),
         ).to.be.revertedWithCustomError(oracleParameter, 'OracleParameterStorageInvalidError')
       })

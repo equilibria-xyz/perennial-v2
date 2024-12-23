@@ -28,6 +28,9 @@ import {
   MagicValueLib__factory,
   Verifier,
   Verifier__factory,
+  IInsuranceFund__factory,
+  InsuranceFund__factory,
+  InsuranceFund,
 } from '../../../types/generated'
 import { ChainlinkContext } from './chainlinkHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
@@ -67,6 +70,7 @@ export interface InstanceVars {
   oracle: IOracleProvider
   marketImpl: Market
   verifier: Verifier
+  insuranceFund: InsuranceFund
 }
 
 export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promise<InstanceVars> {
@@ -163,12 +167,14 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     minEfficiency: parse6decimal('0.1'),
     referralFee: 0,
     minScale: parse6decimal('0.001'),
-    maxStaleAfter: 172800, // 2 days
+    maxStaleAfter: 64800, // 18 hours
+    minMinMaintenance: 0,
   })
   await oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   await oracleFactory.connect(owner).updateParameter({
     maxGranularity: 10000,
-    maxSettlementFee: parse6decimal('1000'),
+    maxAsyncFee: parse6decimal('500'),
+    maxSyncFee: parse6decimal('500'),
     maxOracleFee: parse6decimal('0.5'),
   })
   const oracle = IOracle__factory.connect(
@@ -176,6 +182,17 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     owner,
   )
   await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
+
+  const insuranceFundImpl = await new InsuranceFund__factory(owner).deploy(marketFactory.address, dsu.address)
+
+  const insuranceFundProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
+    insuranceFundImpl.address,
+    proxyAdmin.address,
+    [],
+  )
+
+  const insuranceFund = new InsuranceFund__factory(owner).attach(insuranceFundProxy.address)
+  await insuranceFund.connect(owner).initialize()
 
   // Set state
   await fundWallet(dsu, user)
@@ -204,6 +221,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
     oracle,
     marketImpl,
     verifier,
+    insuranceFund,
   }
 }
 

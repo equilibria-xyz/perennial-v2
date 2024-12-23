@@ -147,13 +147,11 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         emit OracleProviderVersionFulfilled(version);
 
-        try oracle.market() returns (IMarket market) { // v2.3 migration -- don't callback if Oracle is still on its v2.2 implementation
-            market.settle(address(0));
-            oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
-            market.token().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
-        } catch {
-            return;
-        }
+        IMarket market = oracle.market();
+
+        market.settle(address(0));
+        oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
+        market.token().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
     }
 
     /// @notice Performs an asynchronous local settlement callback
@@ -205,13 +203,13 @@ contract KeeperOracle is IKeeperOracle, Instance {
             priceResponse.valid = false;
         }
 
-        priceResponse.syncFee = UFixed6Lib.from(factory.commitmentGasOracle().cost(value), true);
-        priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true);
+        // Apply maximum fee limits
+        priceResponse.syncFee = UFixed6Lib.from(factory.commitmentGasOracle().cost(value), true)
+            .min(oracleParameter.maxSyncFee);
+        priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true)
+            .min(oracleParameter.maxAsyncFee);
+
         priceResponse.oracleFee = keeperOracleParameter.oracleFee;
-        priceResponse.applyFeeMaximum(
-            oracleParameter.maxSettlementFee,
-            _localCallbacks[oracleVersion.timestamp].length()
-        );
 
         _responses[oracleVersion.timestamp].store(priceResponse);
         _global.latestIndex++;
