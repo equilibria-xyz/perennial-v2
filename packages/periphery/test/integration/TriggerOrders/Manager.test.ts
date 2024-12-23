@@ -83,6 +83,14 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
       // keeper should be compensated between 100-200% of actual gas cost
+      console.log(
+        'keeperFeesPaid',
+        keeperFeesPaid.div(1e9).toNumber() / 1e9,
+        'keeperGasCostInUSD',
+        keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
+        'keeperGasUpperLimit',
+        keeperGasCostInUSD.mul(2).div(1e9).toNumber() / 1e9,
+      )
       expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(2))
     }
 
