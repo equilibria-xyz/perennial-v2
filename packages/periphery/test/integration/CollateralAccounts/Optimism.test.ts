@@ -109,8 +109,8 @@ async function mockGasInfo() {
   const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
     address: '0x420000000000000000000000000000000000000F',
   })
-  gasInfo.getL1GasUsed.returns(500)
-  gasInfo.l1BaseFee.returns(3000000000)
+  gasInfo.getL1GasUsed.returns(440)
+  gasInfo.l1BaseFee.returns(2640000000)
   gasInfo.baseFeeScalar.returns(5214379)
   gasInfo.decimals.returns(6)
 }
