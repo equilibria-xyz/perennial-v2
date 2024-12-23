@@ -95,7 +95,7 @@ library MatchingLib {
         MatchingResult memory result
     ) internal view {
         (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, ) =
-            _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
+            _fill(orderbook, position, _extractMakerClose(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
         result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
