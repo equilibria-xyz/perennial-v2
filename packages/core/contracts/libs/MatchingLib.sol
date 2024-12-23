@@ -93,7 +93,7 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal view {
+    ) internal pure {
         (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, ) =
             _fill(orderbook, position, _extractMakerClose(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
@@ -122,10 +122,8 @@ library MatchingLib {
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
         result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
-        result.spreadCloseLong = fillResult.spreadLong;
+        result.spreadPreLong = fillResult.spreadLong;
         result.spreadCloseShort = fillResult.spreadShort;
-
-        // TODO: if one leg full closes we could end up with a non-zero spread going to a zero closed position
 
         // fill negative side of order
         (MatchingFillResult memory fillResult2, , ) =
@@ -134,7 +132,7 @@ library MatchingLib {
         result.spreadNeg = result.spreadNeg.add(fillResult2.spreadNeg);
         result.spreadMaker = result.spreadMaker.add(fillResult2.spreadMaker);
         result.spreadCloseLong = fillResult2.spreadLong;
-        result.spreadCloseShort = fillResult2.spreadShort;
+        result.spreadPreShort = fillResult2.spreadShort;
 
         // true up underlying position and orderbook to contain both executed sides for next step
         ( , , MatchingExposure memory exposureOpen) =
@@ -154,7 +152,7 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal view {
+    ) internal pure {
         (MatchingFillResult memory fillResult, , MatchingExposure memory exposureOpen) =
             _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
