@@ -380,6 +380,214 @@ describe('Order', () => {
         })
       })
     })
+
+    describe('#from', () => {
+      it('opens a new maker order with no referral fee', async () => {
+        const makerAmount = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, makerAmount, 0, 0, false, 0)
+        const value = await orderLocal.read()
+        expect(value.makerPos).to.equal(parse6decimal('1'))
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+      })
+
+      it('opens a new maker order with referral fee', async () => {
+        const makerAmount = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, makerAmount, 0, 0, false, parse6decimal('0.02'))
+        const value = await orderLocal.read()
+        expect(value.makerReferral).to.equal(parse6decimal('0.02'))
+        expect(value.takerReferral).to.equal(0)
+        expect(value.makerPos).to.equal(parse6decimal('1'))
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+      })
+
+      it('opens a new long order without referral fee', async () => {
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, takerAmount, 0, false, 0)
+        const order = await orderLocal.read()
+        expect(order.takerReferral).to.equal(0)
+        expect(order.makerReferral).to.equal(0)
+        expect(order.makerPos).to.equal(0)
+        expect(order.makerNeg).to.equal(0)
+        expect(order.longPos).to.equal(parse6decimal('1'))
+        expect(order.longNeg).to.equal(0)
+        expect(order.shortPos).to.equal(0)
+        expect(order.shortNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+      })
+
+      it('opens a new long order with referral fee', async () => {
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, takerAmount, 0, false, parse6decimal('0.02'))
+        const order = await orderLocal.read()
+        expect(order.takerReferral).to.equal(parse6decimal('0.02'))
+        expect(order.makerReferral).to.equal(0)
+        expect(order.makerPos).to.equal(0)
+        expect(order.makerNeg).to.equal(0)
+        expect(order.longPos).to.equal(parse6decimal('1'))
+        expect(order.longNeg).to.equal(0)
+        expect(order.shortPos).to.equal(0)
+        expect(order.shortNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+      })
+
+      it('opens a new short order without referral fee', async () => {
+        const takerAmount = parse6decimal('-1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, takerAmount, 0, false, 0)
+        const order = await orderLocal.read()
+        expect(order.takerReferral).to.equal(0)
+        expect(order.makerReferral).to.equal(0)
+        expect(order.makerPos).to.equal(0)
+        expect(order.makerNeg).to.equal(0)
+        expect(order.longPos).to.equal(0)
+        expect(order.longNeg).to.equal(0)
+        expect(order.shortPos).to.equal(parse6decimal('1'))
+        expect(order.shortNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+      })
+
+      it('opens a new short order with referral fee', async () => {
+        const takerAmount = parse6decimal('-1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, takerAmount, 0, false, parse6decimal('0.02'))
+        const order = await orderLocal.read()
+        expect(order.takerReferral).to.equal(parse6decimal('0.02'))
+        expect(order.makerReferral).to.equal(0)
+        expect(order.makerPos).to.equal(0)
+        expect(order.makerNeg).to.equal(0)
+        expect(order.longPos).to.equal(0)
+        expect(order.longNeg).to.equal(0)
+        expect(order.shortPos).to.equal(parse6decimal('1'))
+        expect(order.shortNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+      })
+
+      it('opens a new order with protection', async () => {
+        await orderLocal.from(0, DEFAULT_POSITION, 0, 0, 0, true, 0)
+        const order = await orderLocal.read()
+        expect(order.protection).to.equal(1)
+        expect(order.makerPos).to.equal(0)
+        expect(order.makerNeg).to.equal(0)
+        expect(order.longPos).to.equal(0)
+        expect(order.longNeg).to.equal(0)
+        expect(order.shortPos).to.equal(0)
+        expect(order.shortNeg).to.equal(0)
+        expect(order.makerReferral).to.equal(0)
+        expect(order.takerReferral).to.equal(0)
+      })
+
+      it('opens a new maker order with existing maker position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          maker: parse6decimal('10'),
+        }
+        const makerAmount = parse6decimal('1')
+        await orderLocal.from(0, POSITION, makerAmount, 0, 0, false, 0)
+        const order = await orderLocal.read()
+        expect(order.makerPos).to.equal(parse6decimal('1'))
+        expect(order.makerNeg).to.equal(0)
+        expect(order.longPos).to.equal(0)
+        expect(order.longNeg).to.equal(0)
+        expect(order.shortPos).to.equal(0)
+        expect(order.shortNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+      })
+
+      it('closes a new maker order with existing maker position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          maker: parse6decimal('10'),
+        }
+        const makerAmount = parse6decimal('-1')
+        await orderLocal.from(0, POSITION, makerAmount, 0, 0, false, 0)
+        const order = await orderLocal.read()
+        expect(order.makerPos).to.equal(0)
+        expect(order.makerNeg).to.equal(parse6decimal('1'))
+        expect(order.longPos).to.equal(0)
+        expect(order.longNeg).to.equal(0)
+        expect(order.shortPos).to.equal(0)
+        expect(order.shortNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+        expect(order.makerReferral).to.equal(0)
+        expect(order.takerReferral).to.equal(0)
+      })
+
+      it('opens a new long order with existing long position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          long: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, 0)
+        const order = await orderLocal.read()
+        expect(order.longPos).to.equal(parse6decimal('1'))
+        expect(order.longNeg).to.equal(0)
+        expect(order.shortPos).to.equal(0)
+        expect(order.shortNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+        expect(order.makerReferral).to.equal(0)
+        expect(order.takerReferral).to.equal(0)
+      })
+
+      it('closes a new long order with existing long position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          long: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('-1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, 0)
+        const order = await orderLocal.read()
+        expect(order.longPos).to.equal(0)
+        expect(order.longNeg).to.equal(parse6decimal('1'))
+        expect(order.shortPos).to.equal(0)
+        expect(order.shortNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+        expect(order.makerReferral).to.equal(0)
+        expect(order.takerReferral).to.equal(0)
+      })
+
+      it('opens a new short order with existing short position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          short: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('-1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, 0)
+        const order = await orderLocal.read()
+        expect(order.shortPos).to.equal(parse6decimal('1'))
+        expect(order.shortNeg).to.equal(0)
+        expect(order.longPos).to.equal(0)
+        expect(order.longNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+        expect(order.makerReferral).to.equal(0)
+        expect(order.takerReferral).to.equal(0)
+      })
+
+      it('closes a new short order with existing short position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          short: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, 0)
+        const order = await orderLocal.read()
+        expect(order.shortPos).to.equal(0)
+        expect(order.shortNeg).to.equal(parse6decimal('1'))
+        expect(order.longPos).to.equal(0)
+        expect(order.longNeg).to.equal(0)
+        expect(order.protection).to.equal(0)
+        expect(order.makerReferral).to.equal(0)
+        expect(order.takerReferral).to.equal(0)
+      })
+    })
   })
 
   function shouldBehaveLike(
