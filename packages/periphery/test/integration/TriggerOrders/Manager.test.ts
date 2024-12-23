@@ -40,7 +40,7 @@ const NO_INTERFACE_FEE = {
 }
 
 // because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
-const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 150_000_000 }
+const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 110_000_000 }
 
 export function RunManagerTests(name: string, getFixture: (overrides?: CallOverrides) => Promise<FixtureVars>): void {
   describe(name, () => {
