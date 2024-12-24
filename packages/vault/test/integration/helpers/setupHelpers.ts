@@ -85,17 +85,13 @@ export async function deployProductOnFork({
     closed: false,
     settle: false,
   }
-  const marketDefinition: IMarket.MarketDefinitionStruct = {
-    token: token.address,
-    oracle: oracle ?? constants.AddressZero,
-  }
 
   const protocolParameter = { ...(await factory.parameter()) }
   protocolParameter.maxLiquidationFee = parse6decimal('25')
   await factory.connect(owner).updateParameter(protocolParameter)
 
-  const productAddress = await factory.connect(owner).callStatic.create(marketDefinition)
-  await factory.connect(owner).create(marketDefinition)
+  const productAddress = await factory.connect(owner).callStatic.create(oracle ?? constants.AddressZero)
+  await factory.connect(owner).create(oracle ?? constants.AddressZero)
 
   const market = IMarket__factory.connect(productAddress, owner)
   await market.connect(owner).updateRiskParameter(riskParameter)
