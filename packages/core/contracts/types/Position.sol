@@ -44,10 +44,40 @@ library PositionLib {
     function update(Position memory self, Order memory order) internal pure {
         self.timestamp = order.timestamp;
 
+        updatePos(self, order);
+        updateNeg(self, order);
+    }
+
+    /// @notice Updates the position with only the positive side of a new order
+    /// @param self The position object to update
+    /// @param order The new order
+    function updatePos(Position memory self, Order memory order) internal pure {
         (self.maker, self.long, self.short) = (
-            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker())),
-            UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long())),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short()))
+            self.long.gte(self.short) ? self.maker.sub(order.makerNeg) : self.maker.add(order.makerPos),
+            self.long.add(order.longPos),
+            self.short.sub(order.shortNeg)
+        );
+    } // TODO: not used anymore
+
+    /// @notice Updates the position with only the negative side of a new order
+    /// @param self The position object to update
+    /// @param order The new order
+    function updateNeg(Position memory self, Order memory order) internal pure {
+        (self.maker, self.long, self.short) = (
+            self.short.gt(self.long) ? self.maker.sub(order.makerNeg) : self.maker.add(order.makerPos),
+            self.long.sub(order.longNeg),
+            self.short.add(order.shortPos)
+        );
+    }
+
+    /// @notice Updates the position with only the closing sides of a new order
+    /// @param self The position object to update
+    /// @param order The new order
+    function updateClose(Position memory self, Order memory order) internal pure {
+        (self.maker, self.long, self.short) = (
+            self.maker.sub(order.makerNeg),
+            self.long.sub(order.longNeg),
+            self.short.sub(order.shortNeg)
         );
     }
 
@@ -85,6 +115,20 @@ library PositionLib {
     /// @return The skew of the position
     function skew(Position memory self) internal pure returns (Fixed6) {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short));
+    }
+
+    /// @notice Returns the exposure percentage of each side of the market
+    /// @dev long and short can have exposure < 100% during times of socialization
+    /// @param self The position object to check
+    /// @return The maker exposure percentage
+    /// @return The long exposure percentage
+    /// @return The short exposure percentage
+    function exposure(Position memory self) internal pure returns (Fixed6, UFixed6, UFixed6) {
+        return (
+            makerSocialized(self).unsafeDiv(Fixed6Lib.from(self.maker)),
+            longSocialized(self).unsafeDiv(self.long),
+            shortSocialized(self).unsafeDiv(self.short)
+        );
     }
 
     /// @notice Returns the utilization of the position
@@ -131,6 +175,14 @@ library PositionLib {
     /// @return The major position with socialization taken into account
     function takerSocialized(Position memory self) internal pure returns (UFixed6) {
         return major(self).min(minor(self).add(self.maker));
+    }
+
+    /// @notice Returns the major position with socialization taken into account
+    /// @param self The position object to check
+    /// @return The major position with socialization taken into account
+    function makerSocialized(Position memory self) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short))
+            .min(Fixed6Lib.from(1, self.maker)).max(Fixed6Lib.from(-1, self.maker));
     }
 
     /// @notice Returns the efficiency of the position

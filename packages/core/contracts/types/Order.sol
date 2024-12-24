@@ -5,6 +5,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { OracleVersion } from "./OracleVersion.sol";
 import { Position } from "./Position.sol";
+import { Guarantee } from "./Guarantee.sol";
 import { MarketParameter } from "./MarketParameter.sol";
 
 /// @dev Order type
@@ -214,6 +215,46 @@ library OrderLib {
         //  - taker is empty (not a taker order)
         //  - taker is increasing (position going more long or short)
             ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
+    }
+
+    /// @notice Returns the aggregate exposure for each component of the order
+    /// @dev Order is split into the takerPos and takerNeg components
+    /// @param self The order object to check
+    /// @param guarantee The guarantee object
+    /// @param makerPosExposure The exposure percentage of the makerPos leg of the order
+    /// @param makerNegExposure The exposure percentage of the makerNeg leg of the order
+    /// @param longPosExposure The exposure percentage of the longPos leg of the order
+    /// @param longNegExposure The exposure percentage of the longNeg leg of the order
+    /// @param shortPosExposure The exposure percentage of the shortPos leg of the order
+    /// @param shortNegExposure The exposure percentage of the shortNeg leg of the order
+    /// @return exposurePos The aggragate exposure of the positive component of the order
+    /// @return exposureNeg The aggragate exposure of the negative component of the order
+    function exposure(
+        Order memory self,
+        Guarantee memory guarantee,
+        Fixed6 makerPosExposure, // TODO: change to version since only used in checkpoint
+        Fixed6 makerNegExposure,
+        UFixed6 longPosExposure,
+        UFixed6 longNegExposure,
+        UFixed6 shortPosExposure,
+        UFixed6 shortNegExposure
+    ) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
+        (exposurePos, exposureNeg) = (
+            longPosExposure.mul(self.longPos.sub(guarantee.longPos))
+                .add(shortNegExposure.mul(self.shortNeg.sub(guarantee.shortNeg))),
+            longNegExposure.mul(self.longNeg.sub(guarantee.longNeg))
+                .add(shortPosExposure.mul(self.shortPos.sub(guarantee.shortPos)))
+        );
+
+        if (makerPosExposure.gt(Fixed6Lib.ZERO))
+            exposurePos = exposurePos.add(self.makerPos.mul(makerPosExposure.abs()));
+        else
+            exposureNeg = exposureNeg.add(self.makerNeg.mul(makerNegExposure.abs()));
+
+        if (makerNegExposure.gt(Fixed6Lib.ZERO))
+            exposurePos = exposurePos.add(self.makerNeg.mul(makerNegExposure.abs()));
+        else
+            exposureNeg = exposureNeg.add(self.makerPos.mul(makerPosExposure.abs()));
     }
 
     /// @notice Returns whether the order is protected
