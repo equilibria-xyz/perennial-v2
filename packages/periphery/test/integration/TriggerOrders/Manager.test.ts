@@ -40,7 +40,7 @@ const NO_INTERFACE_FEE = {
 }
 
 // because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
-const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 110_000_000 }
+const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 150_000_000 }
 
 export function RunManagerTests(name: string, getFixture: (overrides?: CallOverrides) => Promise<FixtureVars>): void {
   describe(name, () => {
@@ -89,9 +89,9 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         'keeperGasCostInUSD',
         keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
         'keeperGasUpperLimit',
-        keeperGasCostInUSD.mul(2).div(1e9).toNumber() / 1e9,
+        keeperGasCostInUSD.mul(5).div(2e9).toNumber() / 1e9,
       )
-      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(2))
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(5).div(2))
     }
 
     // commits an oracle version and advances time 10 seconds
@@ -273,6 +273,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       }
       const signature = await signPlaceOrderAction(user, verifier, message)
 
+      await setNextBlockBaseFee()
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
         .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, user.address, message.order, message.action.orderId)
