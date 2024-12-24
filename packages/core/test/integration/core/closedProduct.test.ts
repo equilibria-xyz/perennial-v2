@@ -21,10 +21,11 @@ describe('Closed Market', () => {
   it('closes the market', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, dsu, chainlink, beneficiaryB } = instanceVars
+    const { owner, user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -49,11 +50,13 @@ describe('Closed Market', () => {
     const COLLATERAL = parse6decimal('1000')
 
     beforeEach(async () => {
-      const { user, userB, dsu, beneficiaryB } = instanceVars
+      const { user, userB, dsu, margin } = instanceVars
 
       market = await createMarket(instanceVars)
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
       await market
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -93,11 +96,13 @@ describe('Closed Market', () => {
   it('zeroes PnL and fees', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, chainlink, dsu, beneficiaryB } = instanceVars
+    const { user, userB, chainlink, dsu, margin } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -122,7 +127,6 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
 
-    const LIQUIDATION_FEE = BigNumber.from('1000000000')
     await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true)
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
 
@@ -136,11 +140,13 @@ describe('Closed Market', () => {
   it('handles closing during liquidations', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, chainlink, dsu, beneficiaryB } = instanceVars
+    const { user, userB, chainlink, dsu, margin } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)

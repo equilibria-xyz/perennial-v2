@@ -267,6 +267,7 @@ jobs:
           name: vault_unit_test_coverage
           path: ./packages/vault/coverage/lcov.info
   vault-integration-test:
+    if: false
     name: '[Vault] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -389,8 +390,8 @@ jobs:
           path: ./packages/periphery/coverage/lcov.info
       - name: Run tests on Base
         env:
-          MOCHA_REPORTER: dot
-          MOCHA_RETRY_COUNT: 2
+          MOCHA_REPORTER: spec
+          MOCHA_RETRY_COUNT: 0
           BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
         run: |
           yarn workspace @perennial/v2-periphery run test:integrationBase

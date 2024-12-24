@@ -4,6 +4,7 @@ import HRE from 'hardhat'
 
 import {
   IERC20Metadata,
+  IMargin,
   IMarket,
   IMarketFactory,
   IOracleFactory,
@@ -895,7 +896,9 @@ describe('Oracle', () => {
 
     it('claims the assets', async () => {
       market.claimFee.returns(parse6decimal('15'))
-      market.token.returns(dsu.address)
+      const margin = await smock.fake<IMargin>('IMargin')
+      market.margin.returns(margin.address)
+      margin.DSU.returns(dsu.address)
 
       dsu.transfer.whenCalledWith(underlying0.address, parse6decimal('10').mul(1e12)).returns(true)
 

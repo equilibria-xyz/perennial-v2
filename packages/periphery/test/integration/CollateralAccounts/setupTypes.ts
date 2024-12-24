@@ -4,6 +4,7 @@ import {
   AggregatorV3Interface,
   IEmptySetReserve,
   IERC20Metadata,
+  IMargin,
   IMarketFactory,
   IOracleFactory,
   PythFactory,
@@ -15,6 +16,7 @@ export interface DeploymentVars {
   usdc: IERC20Metadata
   oracleFactory: IOracleFactory
   pythOracleFactory: PythFactory
+  margin: IMargin
   marketFactory: IMarketFactory
   ethMarket: MarketWithOracle | undefined
   btcMarket: MarketWithOracle | undefined

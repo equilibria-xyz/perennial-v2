@@ -34,7 +34,7 @@ export const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyper
 export async function createFactoriesForChain(
   owner: SignerWithAddress,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
-  return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
+  return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED, DSU_ADDRESS)
 }
 
 // connects to Arbitrum stablecoins and deploys a non-incentivized controller configured for them
