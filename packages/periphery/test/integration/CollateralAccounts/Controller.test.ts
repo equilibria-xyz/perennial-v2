@@ -112,17 +112,18 @@ export function RunControllerBaseTests(
     // updates the market and returns the version timestamp
     async function changePosition(
       user: SignerWithAddress,
-      newMaker = constants.MaxUint256,
-      newLong = constants.MaxUint256,
-      newShort = constants.MaxUint256,
+      newMaker?: BigNumber,
+      newLong?: BigNumber,
+      newShort?: BigNumber,
     ): Promise<BigNumber> {
+      const positions = await ethMarket.positions(user.address)
       const tx = await ethMarket
         .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
           user.address,
-          newMaker,
-          newLong,
-          newShort,
+          newMaker ?? positions.maker,
+          newLong ?? positions.long,
+          newShort ?? positions.short,
           0,
           false,
           TX_OVERRIDES,
@@ -142,6 +143,8 @@ export function RunControllerBaseTests(
         amount: amount,
         ...createAction(user.address, signer.address),
       }
+
+      // sign the message
       const signature = await signMarketTransfer(signer, verifier, marketTransferMessage)
 
       // determine expected event parameters
@@ -150,14 +153,12 @@ export function RunControllerBaseTests(
         // deposits transfer from collateral account into market
         expectedFrom = accountA.address
         expectedTo = market.address
-        if (amount === constants.MaxInt256) expectedAmount = await dsu.balanceOf(accountA.address)
-        else expectedAmount = amount.mul(1e12)
+        expectedAmount = amount.mul(1e12)
       } else {
         // withdrawals transfer from market into account
         expectedFrom = market.address
         expectedTo = accountA.address
-        if (amount === constants.MinInt256) expectedAmount = (await market.locals(user.address)).collateral.mul(1e12)
-        else expectedAmount = amount.mul(-1e12)
+        expectedAmount = amount.mul(-1e12)
       }
 
       // perform transfer
@@ -516,7 +517,7 @@ export function RunControllerBaseTests(
         await transfer(depositAmount, userA)
 
         // sign a message to fully withdraw from the market
-        await transfer(constants.MinInt256, userA)
+        await transfer(depositAmount.mul(-1), userA)
 
         // verify balances
         await expectMarketCollateralBalance(userA, constants.Zero)
@@ -537,7 +538,7 @@ export function RunControllerBaseTests(
         // sign a message to fully withdraw from the market
         const marketTransferMessage = {
           market: ethMarket.address,
-          amount: constants.MinInt256,
+          amount: (await ethMarket.locals(userA.address)).collateral.mul(-1),
           ...createAction(userA.address),
         }
         const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)

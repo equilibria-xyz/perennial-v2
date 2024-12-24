@@ -16,8 +16,6 @@ import { IMarket, Position } from "@perennial/v2-core/contracts/interfaces/IMark
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 contract Account is IAccount, Instance {
-    UFixed6 private constant UNCHANGED_POSITION = UFixed6Lib.MAX;
-
     /// @dev EOA of the user who owns this collateral account
     address public owner;
 
@@ -67,8 +65,8 @@ contract Account is IAccount, Instance {
          if (amount.gt(Fixed6Lib.ZERO))
             wrapIfNecessary(UFixed18Lib.from(amount.abs()), true);
 
-        // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
-        market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
+        // pass 0 to avoid changing position; market will pull/push collateral from/to this contract
+        market.update(owner, Fixed6Lib.ZERO, amount, address(0));
     }
 
     /// @inheritdoc IAccount
