@@ -2460,15 +2460,7 @@ describe('Fees', () => {
 
       await market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool,address)'](
-          user.address,
-          POSITION,
-          0,
-          0,
-          COLLATERAL,
-          false,
-          constants.AddressZero,
-        )
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
       expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,

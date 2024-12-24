@@ -139,24 +139,16 @@ describe('Liquidate', () => {
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
+      ['update(address,int256,int256,int256,address)'](
         user.address,
         POSITION,
         0,
-        0,
         parse6decimal('1000'),
-        false,
+        constants.AddressZero,
       )
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
-        userB.address,
-        0,
-        POSITION,
-        0,
-        parse6decimal('1000'),
-        false,
-      )
+      ['update(address,int256,int256,address)'](userB.address, POSITION, parse6decimal('1000'), constants.AddressZero)
 
     // Settle the market with a new oracle version
     await chainlink.next()
@@ -169,17 +161,15 @@ describe('Liquidate', () => {
     await expect(
       market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,address)'](
           userB.address,
-          0,
-          0,
-          0,
+          POSITION.mul(-1),
           userBCollateral.mul(-1).sub(1),
-          false,
+          constants.AddressZero,
         ),
     ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError') // underflow
 
-    await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true) // liquidate
+    await market.connect(userB).close(user.address, true, constants.AddressZero) // liquidate
 
     chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
     await chainlink.nextWithPriceModification(price => price.mul(2))
