@@ -15,6 +15,7 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
 import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 import { IPythFactory } from "@perennial/v2-oracle/contracts/interfaces/IPythFactory.sol";
 import { IVault } from "@perennial/v2-vault/contracts/interfaces/IVault.sol";
 import { Intent } from "@perennial/v2-core/contracts/types/Intent.sol";
@@ -31,7 +32,7 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @dev Protocol factory to validate market approvals
-    IFactory public immutable marketFactory;
+    IMarketFactory public immutable marketFactory;
 
     /// @dev Vault factory to validate vault approvals
     IFactory public immutable vaultFactory;
@@ -48,8 +49,8 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @notice  DEPRECATED SLOT -- previously UID to orders mapping
     bytes32 private __unused1__;
 
-    /// @dev Mapping of allowed operators for each account
-    mapping(address => mapping(address => bool)) public operators;
+    /// @notice  DEPRECATED SLOT -- previously operators mapping
+    bytes32 private __unused2__;
 
     /// @dev Mapping of claimable DSU for each account
     mapping(address => UFixed6) public claimable;
@@ -64,7 +65,7 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     constructor(
         Token6 usdc_,
         Token18 dsu_,
-        IFactory marketFactory_,
+        IMarketFactory marketFactory_,
         IFactory vaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_
@@ -87,14 +88,6 @@ contract MultiInvoker is IMultiInvoker, Initializable {
 
         DSU.approve(address(reserve));
         USDC.approve(address(reserve));
-    }
-
-    /// @notice Updates the status of an operator for the caller
-    /// @param operator The operator to update
-    /// @param newEnabled The new status of the operator
-    function updateOperator(address operator, bool newEnabled) external {
-        operators[msg.sender][operator] = newEnabled;
-        emit OperatorUpdated(msg.sender, operator, newEnabled);
     }
 
     /// @notice entry to perform invocations for msg.sender
@@ -387,7 +380,7 @@ contract MultiInvoker is IMultiInvoker, Initializable {
 
     /// @notice Only the account or an operator can call
     modifier onlyOperator(address account, address operator) {
-        if (account != operator && !operators[account][msg.sender]) revert MultiInvokerUnauthorizedError();
+        if (account != operator && !marketFactory.operators(account, operator)) revert MultiInvokerUnauthorizedError();
         _;
     }
 }

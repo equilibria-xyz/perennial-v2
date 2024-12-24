@@ -2,12 +2,14 @@ import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle, fundWallet } from '../helpers/setupHelpers'
 import { expectPositionEq, parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { impersonate } from '../../../../common/testutil/impersonate'
 
 export const TIMESTAMP_2 = 1631113819
 export const TIMESTAMP_3 = 1631114005
+export const TIMESTAMP_4 = 1631115371
 
 describe('Liquidate', () => {
   let instanceVars: InstanceVars
@@ -122,6 +124,86 @@ describe('Liquidate', () => {
         0,
         0,
         userCollateral.mul(-1),
+        constants.AddressZero,
+      )
+    expect((await market.locals(user.address)).collateral).to.equal(0)
+  })
+
+  it('creates and resolves a shortfall with insurance fund', async () => {
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('1000')
+    const { owner, user, userB, dsu, chainlink, insuranceFund, marketFactory } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](
+        user.address,
+        POSITION,
+        0,
+        0,
+        parse6decimal('1000'),
+        false,
+      )
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](
+        userB.address,
+        0,
+        POSITION,
+        0,
+        parse6decimal('1000'),
+        false,
+      )
+
+    // Settle the market with a new oracle version
+    await chainlink.next()
+    await settle(market, user)
+
+    await chainlink.nextWithPriceModification(price => price.mul(2))
+
+    await settle(market, userB)
+    const userBCollateral = (await market.locals(userB.address)).collateral
+    await expect(
+      market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](
+          userB.address,
+          0,
+          0,
+          0,
+          userBCollateral.mul(-1).sub(1),
+          false,
+        ),
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError') // underflow
+
+    await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true) // liquidate
+
+    chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
+    await chainlink.nextWithPriceModification(price => price.mul(2))
+    await settle(market, user)
+
+    const expectedCollateral = BigNumber.from('-2524654460')
+
+    expect((await market.locals(user.address)).collateral).to.equal(expectedCollateral)
+
+    await marketFactory.connect(owner).updateExtension(insuranceFund.address, true)
+
+    const insuranceFundSigner = await impersonate(insuranceFund.address)
+
+    await fundWallet(dsu, insuranceFundSigner)
+
+    // resolve the shortfall
+    await expect(insuranceFund.connect(owner).resolve(market.address, user.address))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_4, collateral: expectedCollateral.mul(-1) },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
         constants.AddressZero,
       )
     expect((await market.locals(user.address)).collateral).to.equal(0)
