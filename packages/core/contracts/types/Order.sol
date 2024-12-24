@@ -80,13 +80,13 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
-    /// @notice Creates a new order from the an intent and delta order request
+    /// @notice Creates a new order from an intent or delta order request
     /// @param timestamp The current timestamp
     /// @param position The current position
     /// @param makerAmount The magnitude and direction of maker position
     /// @param takerAmount The magnitude and direction of taker position
     /// @param collateral The change in the collateral
-    /// @param protect Whether the order is protected
+    /// @param protect True when liquidating the position
     /// @param referralFee The referral fee
     /// @return newOrder The resulting order
     function from(

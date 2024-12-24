@@ -760,16 +760,16 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         expect(canExecuteBefore).to.be.false
 
         // time passes, other users interact with market
-        let positionADelta
-        let positionCDelta
+        let positionDeltaA
+        let positionDeltaC
         let marketPrice = (await oracle.latest()).price
 
         while (marketPrice.gt(triggerPrice)) {
           // two users change their position
-          positionADelta = parse6decimal('0.05')
-          const timestampA = await updatePosition(userA, positionADelta, BigNumber.from(0), BigNumber.from(0))
-          positionCDelta = parse6decimal('0.04').mul(-1)
-          const timestampC = await updatePosition(userC, BigNumber.from(0), BigNumber.from(0), positionCDelta)
+          positionDeltaA = parse6decimal('0.05')
+          const timestampA = await updatePosition(userA, positionDeltaA, BigNumber.from(0), BigNumber.from(0))
+          positionDeltaC = parse6decimal('0.04').mul(-1)
+          const timestampC = await updatePosition(userC, BigNumber.from(0), BigNumber.from(0), positionDeltaC)
 
           // oracle versions fulfilled
           marketPrice = marketPrice.sub(parse6decimal('0.35'))
