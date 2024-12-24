@@ -659,21 +659,20 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
     // tests interaction with markets; again userA has a maker position, userB has a long position,
     // userC and userD interact only with trigger orders
     describe('funded market', () => {
-      async function changePosition(
+      async function updatePosition(
         user: SignerWithAddress,
-        newMaker: BigNumberish = constants.MaxUint256,
-        newLong: BigNumberish = constants.MaxUint256,
-        newShort: BigNumberish = constants.MaxUint256,
+        makerDelta: BigNumber,
+        longDelta: BigNumber,
+        shortDelta: BigNumber,
       ): Promise<BigNumber> {
         const tx = await market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
+          ['update(address,int256,int256,int256,address)'](
             user.address,
-            newMaker,
-            newLong,
-            newShort,
-            0,
-            false,
+            makerDelta,
+            longDelta.sub(shortDelta),
+            BigNumber.from(0),
+            constants.AddressZero,
             TX_OVERRIDES,
           )
         return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
@@ -684,7 +683,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         await ensureNoPosition(userA)
         await ensureNoPosition(userB)
 
-        await changePosition(userA, parse6decimal('10'), 0, 0)
+        await updatePosition(userA, parse6decimal('10'), BigNumber.from(0), BigNumber.from(0))
         await commitPrice(parse6decimal('2000'))
         await market.settle(userA.address, TX_OVERRIDES)
 
@@ -700,7 +699,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
 
       it('can execute an order with pending position before oracle request fulfilled', async () => {
         // userB has an unsettled long 1.2 position
-        await changePosition(userB, 0, parse6decimal('1.2'), 0)
+        await updatePosition(userB, BigNumber.from(0), parse6decimal('1.2'), BigNumber.from(0))
         expect((await market.positions(userB.address)).long).to.equal(0)
         expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('1.2'))
 
@@ -725,7 +724,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
 
       it('can execute an order with pending position after oracle request fulfilled', async () => {
         // userC has an unsettled short 0.3 position
-        await changePosition(userC, 0, 0, parse6decimal('1.3'))
+        await updatePosition(userC, BigNumber.from(0), BigNumber.from(0), parse6decimal('1.3'))
         expect((await market.positions(userC.address)).short).to.equal(0)
         expect(await getPendingPosition(userC, Side.SHORT)).to.equal(parse6decimal('1.3'))
 
@@ -761,16 +760,16 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         expect(canExecuteBefore).to.be.false
 
         // time passes, other users interact with market
-        let positionA = (await market.positions(userA.address)).maker
-        let positionC = (await market.positions(userC.address)).short
+        let positionDeltaA
+        let positionDeltaC
         let marketPrice = (await oracle.latest()).price
 
         while (marketPrice.gt(triggerPrice)) {
           // two users change their position
-          positionA = positionA.add(parse6decimal('0.05'))
-          const timestampA = await changePosition(userA, positionA, 0, 0)
-          positionC = positionC.sub(parse6decimal('0.04'))
-          const timestampC = await changePosition(userC, 0, 0, positionC)
+          positionDeltaA = parse6decimal('0.05')
+          const timestampA = await updatePosition(userA, positionDeltaA, BigNumber.from(0), BigNumber.from(0))
+          positionDeltaC = parse6decimal('0.04').mul(-1)
+          const timestampC = await updatePosition(userC, BigNumber.from(0), BigNumber.from(0), positionDeltaC)
 
           // oracle versions fulfilled
           marketPrice = marketPrice.sub(parse6decimal('0.35'))
@@ -871,7 +870,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
         // userD starts with a long 3 position
-        await changePosition(userD, 0, parse6decimal('3'), 0)
+        await updatePosition(userD, BigNumber.from(0), parse6decimal('3'), BigNumber.from(0))
         await commitPrice(parse6decimal('2000.4'))
         await market.settle(userD.address, TX_OVERRIDES)
         expect((await market.positions(userD.address)).long).to.equal(parse6decimal('3'))
@@ -916,13 +915,18 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
         // userD starts with a short 2 position
-        await changePosition(userD, 0, 0, parse6decimal('2'))
+        await updatePosition(userD, BigNumber.from(0), BigNumber.from(0), parse6decimal('2'))
         await commitPrice(parse6decimal('2000.5'))
         await market.settle(userD.address, TX_OVERRIDES)
         expect((await market.positions(userD.address)).short).to.equal(parse6decimal('2'))
 
         // userD reduces their position by 0.35 but does not settle
-        const negOrderTimestamp = await changePosition(userD, 0, 0, parse6decimal('1.65'))
+        const negOrderTimestamp = await updatePosition(
+          userD,
+          BigNumber.from(0),
+          BigNumber.from(0),
+          parse6decimal('0.35').mul(-1),
+        )
         expect(await getPendingPosition(userD, Side.SHORT)).to.equal(parse6decimal('1.65'))
 
         // userD closes their short position

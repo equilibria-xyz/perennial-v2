@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { BigNumber, utils } from 'ethers'
+import { BigNumber, utils, constants } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { time } from '../../../../common/testutil'
@@ -90,13 +90,12 @@ export function RunPythOracleTests(
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 1,
                 0,
-                0,
                 parse6decimal('1000'),
-                false,
+                constants.AddressZero,
               ),
           vaaVars.startingTime,
         )
