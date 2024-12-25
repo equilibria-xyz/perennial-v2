@@ -30,7 +30,7 @@ contract MatchingLibTester {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) external pure returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
+    ) external view returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
         MatchingLib._executeClose(orderbook, position, order, synBook, price, result);
         return (orderbook, position, result);
     }
@@ -54,7 +54,7 @@ contract MatchingLibTester {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) external pure returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
+    ) external view returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
         MatchingLib._executeOpen(orderbook, position, order, synBook, price, result);
         return (orderbook, position, result);
     }
@@ -65,14 +65,16 @@ contract MatchingLibTester {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) external pure returns (
+    ) external view returns (
         MatchingFillResult memory fillResult,
         MatchingExposure memory exposureClose,
         MatchingExposure memory exposureOpen,
+        Fixed6 exposure,
         MatchingOrderbook memory newOrderbook,
         MatchingPosition memory newPosition
     ) {
-        (fillResult, exposureClose, exposureOpen) = MatchingLib._fill(orderbook, position, order, synBook, price);
+        (fillResult, exposureClose, exposureOpen, exposure) =
+            MatchingLib._fill(orderbook, position, order, synBook, price);
         newOrderbook = orderbook;
         newPosition = position;
     }

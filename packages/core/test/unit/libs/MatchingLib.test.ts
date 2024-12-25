@@ -46,7 +46,7 @@ const DEFAULT_MATCHING_RESULT = {
   exposureShortNeg: utils.parseUnits('0', 6),
 }
 
-describe('MatchingLib', () => {
+describe.only('MatchingLib', () => {
   let owner: SignerWithAddress
 
   let matchingLib: MatchingLibTester
@@ -143,6 +143,53 @@ describe('MatchingLib', () => {
     })
   })
 
+  describe('#_executeTaker()', () => {
+    it('executes the order (pos)', async () => {
+      const [newOrderbook, newPosition, newResult] = await matchingLib._executeTaker(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('2', 6),
+          bid: utils.parseUnits('-3', 6),
+        },
+        {
+          maker: utils.parseUnits('10', 6),
+          long: utils.parseUnits('4', 6),
+          short: utils.parseUnits('16', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          longPos: utils.parseUnits('12', 6),
+          longNeg: utils.parseUnits('4', 6),
+          shortPos: utils.parseUnits('4', 6),
+          shortNeg: utils.parseUnits('12', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+        DEFAULT_MATCHING_RESULT,
+      )
+
+      const spreadMakerPos = utils.parseUnits('195.63642', 6) // 20 exp
+      const spreadMakerNeg = utils.parseUnits('0', 6) // 20 exp
+
+      expect(newResult.spreadPos).to.equal(utils.parseUnits('205.418241', 6)) // 2 -> 23 / 10
+      expect(newResult.spreadNeg).to.equal(utils.parseUnits('2.621376', 6)) // -3 -> -9
+      expect(newResult.spreadMaker).to.equal(spreadMakerPos.add(spreadMakerNeg))
+
+      expect(newResult.spreadPreLong).to.equal(utils.parseUnits('4.890910', 6)) // 0.5 exp
+      expect(newResult.spreadCloseShort).to.equal(utils.parseUnits('4.890910', 6)) // 0.5 exp
+      expect(newResult.spreadCloseLong).to.equal(utils.parseUnits('0', 6))
+      expect(newResult.spreadPreShort).to.equal(utils.parseUnits('2.621376', 6)) // 6 exp
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('8', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('23', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-9', 6))
+    })
+  })
+
   describe('#_executeOpen()', () => {
     it('executes the order (neg)', async () => {
       const [newOrderbook, newPosition, newResult] = await matchingLib._executeOpen(
@@ -223,7 +270,7 @@ describe('MatchingLib', () => {
 
   describe('#_fill()', () => {
     it('fills the order (empty)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('0', 6),
           ask: utils.parseUnits('0', 6),
@@ -255,6 +302,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('0', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('0', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('0', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('0', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('0', 6))
@@ -265,7 +314,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (maker ask)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -298,6 +347,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('1.6', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('8', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
@@ -308,7 +359,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (maker ask socialized)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -341,6 +392,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('0.833333', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('3.2', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('6', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
@@ -351,7 +404,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (taker ask)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -385,6 +438,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('2', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('13', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('3', 6))
@@ -395,7 +450,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (taker ask socialized)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -429,6 +484,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('0.857142', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('3.714286', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('14', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('2', 6))
@@ -439,7 +496,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (taker ask socialized both)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -473,6 +530,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('0.875', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('21', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('16', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
@@ -483,7 +542,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (maker bid)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -516,6 +575,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('-1.333334', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('12', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
@@ -526,7 +587,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (maker bid socialized)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -559,6 +620,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('-3.2', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('12', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('4', 6))
@@ -569,7 +632,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (taker bid)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -590,7 +653,7 @@ describe('MatchingLib', () => {
       )
 
       expect(fillResult.spreadPos).to.equal(utils.parseUnits('0', 6))
-      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0.147469', 6)) // -3 -> -4 / 10
+      expect(fillResult.spreadNeg).to.equal(utils.parseUnits('0.147469', 6)) // -3 -> -5 / 10
       expect(fillResult.spreadMaker).to.equal(utils.parseUnits('0.147469', 6)) // all to maker
       expect(fillResult.spreadLong).to.equal(utils.parseUnits('0', 6))
       expect(fillResult.spreadShort).to.equal(utils.parseUnits('0', 6))
@@ -603,6 +666,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-1.0', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('-2', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('3', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('13', 6))
@@ -613,7 +678,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (taker bid socialized)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -647,6 +712,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-0.857142', 6))
 
+      expect(exposure).to.equal(utils.parseUnits('-3.714286', 6))
+
       expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('2', 6))
       expect(newPosition.short).to.equal(utils.parseUnits('14', 6))
@@ -657,7 +724,7 @@ describe('MatchingLib', () => {
     })
 
     it('fills the order (taker bid socialized both)', async () => {
-      const [fillResult, exposureClose, exposureOpen, newOrderbook, newPosition] = await matchingLib._fill(
+      const [fillResult, exposureClose, exposureOpen, exposure, newOrderbook, newPosition] = await matchingLib._fill(
         {
           midpoint: utils.parseUnits('1', 6),
           ask: utils.parseUnits('2', 6),
@@ -690,6 +757,8 @@ describe('MatchingLib', () => {
       expect(exposureOpen.maker).to.equal(utils.parseUnits('1.0', 6))
       expect(exposureOpen.long).to.equal(utils.parseUnits('1.0', 6))
       expect(exposureOpen.short).to.equal(utils.parseUnits('-0.875', 6))
+
+      expect(exposure).to.equal(utils.parseUnits('-21', 6))
 
       expect(newPosition.maker).to.equal(utils.parseUnits('10', 6))
       expect(newPosition.long).to.equal(utils.parseUnits('4', 6))

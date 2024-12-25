@@ -93,8 +93,8 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal pure {
-        (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, ) =
+    ) internal view {
+        (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, , ) =
             _fill(orderbook, position, _extractMakerClose(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
@@ -117,7 +117,7 @@ library MatchingLib {
         MatchingOrderbook memory orderbook2 = _orderbook(orderbook);
 
         // fill positive side of order
-        (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, ) =
+        (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, , ) =
             _fill(orderbook, position, _extractTakerPos(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
@@ -126,7 +126,7 @@ library MatchingLib {
         result.spreadCloseShort = fillResult.spreadShort;
 
         // fill negative side of order
-        (MatchingFillResult memory fillResult2, , ) =
+        (MatchingFillResult memory fillResult2, , , Fixed6 exposure2) =
             _fill(orderbook2, position2, _extractTakerNeg(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult2.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult2.spreadNeg);
@@ -135,8 +135,9 @@ library MatchingLib {
         result.spreadPreShort = fillResult2.spreadShort;
 
         // true up underlying position and orderbook to contain both executed sides for next step
-        ( , , MatchingExposure memory exposureOpen) =
-            _fill(orderbook, position, _extractTakerNeg(order), synBook, price);
+        _apply(position, _extractTakerNeg(order));
+        MatchingExposure memory exposureOpen = _exposure(position);
+        _apply(orderbook, exposure2);
 
         // calculate exposure
         result.exposureLongNeg = exposureClose.long;
@@ -152,8 +153,8 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal pure {
-        (MatchingFillResult memory fillResult, , MatchingExposure memory exposureOpen) =
+    ) internal view {
+        (MatchingFillResult memory fillResult, , MatchingExposure memory exposureOpen, ) =
             _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
@@ -170,10 +171,11 @@ library MatchingLib {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) internal pure returns (
+    ) internal view returns (
         MatchingFillResult memory fillResult,
         MatchingExposure memory exposureClose,
-        MatchingExposure memory exposureOpen
+        MatchingExposure memory exposureOpen,
+        Fixed6 exposure
     ) {
         MatchingExposure memory exposureFilled;
         // compute the change in exposure after applying the order to the position
@@ -181,19 +183,19 @@ library MatchingLib {
         Fixed6 filledTotal = _skew(exposureFilled);
 
         MatchingExposure memory exposureOrder = _flip(exposureFilled);
-        Fixed6 exposureTotal = _skew(exposureOrder);
+        exposure = _skew(exposureOrder);
 
         // if order size is zero, return early to avoid division by zero
-        if (filledTotal.isZero()) return (fillResult, exposureClose, exposureOpen);
+        if (filledTotal.isZero()) return (fillResult, exposureClose, exposureOpen, exposure);
 
         // compute the synthetic spread taken from the positive and negative sides of the order
         MatchingOrderbook memory latestOrderbook = _orderbook(orderbook);
         _apply(orderbook, exposureOrder);
 
-        if (exposureTotal.gt(Fixed6Lib.ZERO))
-            fillResult.spreadPos = synBook.compute(latestOrderbook.ask, exposureTotal, price.abs());
+        if (exposure.gt(Fixed6Lib.ZERO))
+            fillResult.spreadPos = synBook.compute(latestOrderbook.ask, exposure, price.abs());
         else
-            fillResult.spreadNeg = synBook.compute(latestOrderbook.bid, exposureTotal, price.abs());
+            fillResult.spreadNeg = synBook.compute(latestOrderbook.bid, exposure, price.abs());
         Fixed6 spreadTotal = fillResult.spreadPos.add(fillResult.spreadNeg);
 
         // compute the portions of the spread that are received by the maker, long, and short sides
