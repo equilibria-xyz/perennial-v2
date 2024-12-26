@@ -136,8 +136,8 @@ library MatchingLib {
 
         // true up underlying position and orderbook to contain both executed sides for next step
         _apply(position, _extractTakerNeg(order));
-        MatchingExposure memory exposureOpen = _exposure(position);
         _apply(orderbook, exposure2);
+        MatchingExposure memory exposureOpen = _div(_exposure(position), position);
 
         // calculate exposure
         result.exposureLongNeg = exposureClose.long;
