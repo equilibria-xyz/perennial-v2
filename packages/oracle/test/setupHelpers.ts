@@ -17,7 +17,6 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
-  MagicValueLib__factory,
   IERC20Metadata__factory,
 } from '../types/generated'
 
@@ -66,9 +65,6 @@ export async function deployMarketFactory(
       ).address,
       '@perennial/v2-core/contracts/types/Version.sol:VersionStorageLib': (
         await new VersionStorageLib__factory(owner).deploy()
-      ).address,
-      '@perennial/v2-core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
-        await new MagicValueLib__factory(owner).deploy()
       ).address,
     },
     owner,

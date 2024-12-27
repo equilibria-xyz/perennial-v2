@@ -16,8 +16,6 @@ import { IMargin, IMarket, Position } from "@perennial/v2-core/contracts/interfa
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 contract Account is IAccount, Instance {
-    UFixed6 private constant UNCHANGED_POSITION = UFixed6Lib.MAX;
-
     /// @dev EOA of the user who owns this collateral account
     address public owner;
 
@@ -72,9 +70,9 @@ contract Account is IAccount, Instance {
         // deposit or withdraw DSU to/from the margin contract prior to isolation
         if (amount.sign() == 1) margin.deposit(owner, amount.abs());
 
-        // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
+        // pass 0 to avoid changing position; market will pull/push collateral from/to this contract
         // TODO: just use Margin.isolate here for gas efficiency
-        market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
+        market.update(owner, Fixed6Lib.ZERO, amount, address(0));
 
         // TODO: Add support for full withdrawals, which used to use UInt256.minValue.
         // Market is dropping support for that (PR#491) and Margin currently does not support it.

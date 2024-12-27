@@ -173,16 +173,7 @@ export async function deployProtocol(
 }
 
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  return market
-    .connect(account)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
-      account.address,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      0,
-      false,
-    )
+  return market.connect(account)['update(address,int256,int256,address)'](account.address, 0, 0, constants.AddressZero)
 }
 
 export async function createVault(

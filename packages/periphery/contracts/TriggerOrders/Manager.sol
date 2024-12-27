@@ -218,8 +218,8 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Transfers DSU from margin contract to manager contract to pay keeper or interface fee
     function _marketWithdraw(IMarket market, address account, UFixed6 amount) private {
-        // TODO: Update this to handle cross-margin use case, maybe just by removing the next line
-        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, amount), false);
+        // TODO: Update this to handle cross-margin use case
+        market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(-1, amount), address(0));
         market.margin().withdraw(account, amount);
     }
 

@@ -456,7 +456,7 @@ export function RunIncentivizedTests(
         // sign a message to withdraw everything from the market back into the collateral account
         const marketTransferMessage = {
           market: ethMarket.address,
-          amount: constants.MinInt256,
+          amount: (await ethMarket.locals(userA.address)).collateral.mul(-1),
           ...createAction(userA.address, userA.address),
         }
         const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
@@ -652,15 +652,9 @@ export function RunIncentivizedTests(
         // keeper dusts one of the markets
         await ethMarket
           .connect(keeper)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userA.address,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            dustAmount,
-            false,
-            { maxFeePerGas: 150000000 },
-          )
+          ['update(address,int256,int256,address)'](userA.address, 0, dustAmount, constants.AddressZero, {
+            maxFeePerGas: 150000000,
+          })
         await expectMarketIsolatedBalance(userA, ethMarket, dustAmount)
 
         // keeper cannot rebalance because dust did not exceed maxFee
@@ -673,15 +667,9 @@ export function RunIncentivizedTests(
         await dsu.connect(keeper).approve(btcMarket.address, dustAmount.mul(1e12), TX_OVERRIDES)
         await btcMarket
           .connect(keeper)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userA.address,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            dustAmount,
-            false,
-            { maxFeePerGas: 150000000 },
-          )
+          ['update(address,int256,int256,address)'](userA.address, 0, dustAmount, constants.AddressZero, {
+            maxFeePerGas: 150000000,
+          })
         await expectMarketIsolatedBalance(userA, btcMarket, dustAmount)
 
         // keeper still cannot rebalance because dust did not exceed maxFee

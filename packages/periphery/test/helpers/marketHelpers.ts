@@ -16,7 +16,6 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
-  MagicValueLib__factory,
   Margin__factory,
   Verifier__factory,
 } from '@perennial/v2-core/types/generated'
@@ -122,7 +121,6 @@ export async function deployMarketImplementation(
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
       'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
       'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
       'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
         await new MarketParameterStorageLib__factory(owner).deploy()
@@ -186,7 +184,6 @@ export async function mockMarket(): Promise<IMarket> {
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
     },
     owner,
   ).deploy(verifier.address, margin.address)
