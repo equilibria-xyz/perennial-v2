@@ -1937,6 +1937,27 @@ describe('Vault', () => {
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
+    it('market positions reduces significantly with lower leverage buffer', async () => {
+      await vault.connect(user).update(user.address, parse6decimal('10000'), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+      expect(await position()).to.be.equal(parse6decimal('12.212633'))
+      expect(await btcPosition()).to.be.equal(parse6decimal('0.205981'))
+
+      // set leverage buffer to 0.4
+      const leverageBuffer = parse6decimal('0.4')
+      await vault
+        .connect(owner)
+        .updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10'), leverageBuffer })
+      await vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      // expect position to be reduced
+      expect(await position()).to.be.equal(parse6decimal('4.889940'))
+      expect(await btcPosition()).to.be.equal(parse6decimal('0.082475'))
+    })
+
     it('reverts when below minDeposit', async () => {
       await vault
         .connect(owner)
