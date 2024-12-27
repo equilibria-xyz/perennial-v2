@@ -19,7 +19,7 @@ contract MatchingLibTester {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) external view returns (MatchingResult memory result) {
+    ) external pure returns (MatchingResult memory result) {
         return MatchingLib.execute(position, order, synBook, price);
     }
 
@@ -30,7 +30,7 @@ contract MatchingLibTester {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) external view returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
+    ) external pure returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
         MatchingLib._executeClose(orderbook, position, order, synBook, price, result);
         return (orderbook, position, result);
     }
@@ -42,7 +42,7 @@ contract MatchingLibTester {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) external view returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
+    ) external pure returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
         MatchingLib._executeTaker(orderbook, position, order, synBook, price, result);
         return (orderbook, position, result);
     }
@@ -54,7 +54,7 @@ contract MatchingLibTester {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) external view returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
+    ) external pure returns (MatchingOrderbook memory, MatchingPosition memory, MatchingResult memory) {
         MatchingLib._executeOpen(orderbook, position, order, synBook, price, result);
         return (orderbook, position, result);
     }
@@ -65,7 +65,7 @@ contract MatchingLibTester {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) external view returns (
+    ) external pure returns (
         MatchingFillResult memory fillResult,
         MatchingExposure memory exposureClose,
         MatchingExposure memory exposureOpen,

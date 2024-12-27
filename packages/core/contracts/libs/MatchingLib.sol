@@ -5,7 +5,6 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { SynBook6 } from "@equilibria/root/synbook/types/SynBook6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
-import "hardhat/console.sol";
 
 struct MatchingExposure {
     Fixed6 maker;
@@ -75,7 +74,7 @@ library MatchingLib {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) internal view returns (MatchingResult memory result) {
+    ) internal pure returns (MatchingResult memory result) {
         MatchingOrderbook memory orderbook = _orderbook(position);
 
         _executeClose(orderbook, position, order, synBook, price, result);
@@ -93,7 +92,7 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal view {
+    ) internal pure {
         (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, , ) =
             _fill(orderbook, position, _extractMakerClose(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
@@ -111,7 +110,7 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal view {
+    ) internal pure {
         // snapshot position and orderbook so both long and short start from the same skew
         MatchingPosition memory position2 = _position(position);
         MatchingOrderbook memory orderbook2 = _orderbook(orderbook);
@@ -153,7 +152,7 @@ library MatchingLib {
         SynBook6 memory synBook,
         Fixed6 price,
         MatchingResult memory result
-    ) internal view {
+    ) internal pure {
         (MatchingFillResult memory fillResult, , MatchingExposure memory exposureOpen, ) =
             _fill(orderbook, position, _extractMakerOpen(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
@@ -171,7 +170,7 @@ library MatchingLib {
         MatchingOrder memory order,
         SynBook6 memory synBook,
         Fixed6 price
-    ) internal view returns (
+    ) internal pure returns (
         MatchingFillResult memory fillResult,
         MatchingExposure memory exposureClose,
         MatchingExposure memory exposureOpen,

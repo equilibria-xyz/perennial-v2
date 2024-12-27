@@ -20,16 +20,16 @@ struct Version {
     Fixed6 makerNegExposure;
 
     /// @dev The exposure of open long orders at the version
-    UFixed6 longPosExposure;
+    Fixed6 longPosExposure;
 
     /// @dev The exposure of close long orders at the version
-    UFixed6 longNegExposure;
+    Fixed6 longNegExposure;
 
     /// @dev The exposure of open short orders at the version
-    UFixed6 shortPosExposure;
+    Fixed6 shortPosExposure;
 
     /// @dev The exposure of close short orders at the version
-    UFixed6 shortNegExposure;
+    Fixed6 shortNegExposure;
 
     /// @dev The maker accumulator value
     Accumulator6 makerPreValue;
@@ -124,10 +124,10 @@ library VersionStorageLib {
 
                        Fixed6.wrap(  int256(slot1 << (256 - 64 - 24)) >> (256 - 24)),                                   // makerPosExposure
                        Fixed6.wrap(  int256(slot1 << (256 - 64 - 24 - 24)) >> (256 - 24)),                              // makerNegExposure
-                       UFixed6.wrap(uint256(slot1 << (256 - 64 - 24 - 24 - 24)) >> (256 - 24)),                         // longPosExposure
-                       UFixed6.wrap(uint256(slot1 << (256 - 64 - 24 - 24 - 24 - 24)) >> (256 - 24)),                    // longNegExposure
-                       UFixed6.wrap(uint256(slot1 << (256 - 64 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),               // shortPosExposure
-                       UFixed6.wrap(uint256(slot1 << (256 - 64 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),          // shortNegExposure
+                       Fixed6.wrap(  int256(slot1 << (256 - 64 - 24 - 24 - 24)) >> (256 - 24)),                         // longPosExposure
+                       Fixed6.wrap(  int256(slot1 << (256 - 64 - 24 - 24 - 24 - 24)) >> (256 - 24)),                    // longNegExposure
+                       Fixed6.wrap(  int256(slot1 << (256 - 64 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),               // shortPosExposure
+                       Fixed6.wrap(  int256(slot1 << (256 - 64 - 24 - 24 - 24 - 24 - 24 - 24)) >> (256 - 24)),          // shortNegExposure
 
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64)) >> (256 - 64))),                                   // makerValue
             Accumulator6(Fixed6.wrap(int256(slot0 << (256 - 8 - 64 - 64)) >> (256 - 64))),                              // longValue
@@ -157,14 +157,14 @@ library VersionStorageLib {
         if (newValue.makerPosExposure.lt(Fixed6.wrap(type(int24).min))) revert VersionStorageInvalidError();
         if (newValue.makerNegExposure.gt(Fixed6.wrap(type(int24).max))) revert VersionStorageInvalidError();
         if (newValue.makerNegExposure.lt(Fixed6.wrap(type(int24).min))) revert VersionStorageInvalidError();
-        if (newValue.longPosExposure.gt(UFixed6.wrap(type(uint24).max))) revert VersionStorageInvalidError();
-        if (newValue.longPosExposure.lt(UFixed6.wrap(type(uint24).min))) revert VersionStorageInvalidError();
-        if (newValue.longNegExposure.gt(UFixed6.wrap(type(uint24).max))) revert VersionStorageInvalidError();
-        if (newValue.longNegExposure.lt(UFixed6.wrap(type(uint24).min))) revert VersionStorageInvalidError();
-        if (newValue.shortPosExposure.gt(UFixed6.wrap(type(uint24).max))) revert VersionStorageInvalidError();
-        if (newValue.shortPosExposure.lt(UFixed6.wrap(type(uint24).min))) revert VersionStorageInvalidError();
-        if (newValue.shortNegExposure.gt(UFixed6.wrap(type(uint24).max))) revert VersionStorageInvalidError();
-        if (newValue.shortNegExposure.lt(UFixed6.wrap(type(uint24).min))) revert VersionStorageInvalidError();
+        if (newValue.longPosExposure.gt(Fixed6.wrap(type(int24).max))) revert VersionStorageInvalidError();
+        if (newValue.longPosExposure.lt(Fixed6.wrap(type(int24).min))) revert VersionStorageInvalidError();
+        if (newValue.longNegExposure.gt(Fixed6.wrap(type(int24).max))) revert VersionStorageInvalidError();
+        if (newValue.longNegExposure.lt(Fixed6.wrap(type(int24).min))) revert VersionStorageInvalidError();
+        if (newValue.shortPosExposure.gt(Fixed6.wrap(type(int24).max))) revert VersionStorageInvalidError();
+        if (newValue.shortPosExposure.lt(Fixed6.wrap(type(int24).min))) revert VersionStorageInvalidError();
+        if (newValue.shortNegExposure.gt(Fixed6.wrap(type(int24).max))) revert VersionStorageInvalidError();
+        if (newValue.shortNegExposure.lt(Fixed6.wrap(type(int24).min))) revert VersionStorageInvalidError();
         if (newValue.makerPreValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
         if (newValue.makerPreValue._value.lt(Fixed6.wrap(type(int64).min))) revert VersionStorageInvalidError();
         if (newValue.longPreValue._value.gt(Fixed6.wrap(type(int64).max))) revert VersionStorageInvalidError();
@@ -204,10 +204,10 @@ library VersionStorageLib {
             uint256( Fixed6.unwrap(newValue.price)                              << (256 - 64)) >> (256 - 64) |
             uint256( Fixed6.unwrap(newValue.makerPosExposure)                   << (256 - 24)) >> (256 - 64 - 24) |
             uint256( Fixed6.unwrap(newValue.makerNegExposure)                   << (256 - 24)) >> (256 - 64 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.longPosExposure)                    << (256 - 24)) >> (256 - 64 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.longNegExposure)                    << (256 - 24)) >> (256 - 64 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.shortPosExposure)                   << (256 - 24)) >> (256 - 64 - 24 - 24 - 24 - 24 - 24) |
-            uint256(UFixed6.unwrap(newValue.shortNegExposure)                   << (256 - 24)) >> (256 - 64 - 24 - 24 - 24 - 24 - 24 - 24) |
+            uint256( Fixed6.unwrap(newValue.longPosExposure)                    << (256 - 24)) >> (256 - 64 - 24 - 24 - 24) |
+            uint256( Fixed6.unwrap(newValue.longNegExposure)                    << (256 - 24)) >> (256 - 64 - 24 - 24 - 24 - 24) |
+            uint256( Fixed6.unwrap(newValue.shortPosExposure)                   << (256 - 24)) >> (256 - 64 - 24 - 24 - 24 - 24 - 24) |
+            uint256( Fixed6.unwrap(newValue.shortNegExposure)                   << (256 - 24)) >> (256 - 64 - 24 - 24 - 24 - 24 - 24 - 24) |
             uint256( Fixed6.unwrap(newValue.settlementFee._value)               << (256 - 48)) >> (256 - 64 - 24 - 24 - 24 - 24 - 24 - 24 - 48);
         uint256 encoded2 =
             uint256( Fixed6.unwrap(newValue.makerFee._value)                    << (256 - 48)) >> (256 - 48) |

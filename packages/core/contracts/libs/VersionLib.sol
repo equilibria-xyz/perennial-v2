@@ -58,9 +58,6 @@ struct VersionAccumulationResult {
     /// @dev The total notional spread received by the shorts (taker, socialization)
     Fixed6 spreadCloseShort;
 
-    /// @dev The total notional spread received by the makers (maker open)
-    Fixed6 spreadPostMaker;
-
     /// @dev The total notional spread received by the longs (maker open, socialization)
     Fixed6 spreadPostLong;
 
@@ -348,6 +345,14 @@ library VersionLib {
         result.spreadPostLong = matchingResult.spreadPostLong;
         next.shortPostValue.increment(matchingResult.spreadPostShort, toPosition.short);
         result.spreadPostShort = matchingResult.spreadPostShort;
+
+        // accumulate exposure
+        next.makerPosExposure = matchingResult.exposureMakerPos;
+        next.makerNegExposure = matchingResult.exposureMakerNeg;
+        next.longPosExposure = matchingResult.exposureLongPos;
+        next.longNegExposure = matchingResult.exposureLongNeg;
+        next.shortPosExposure = matchingResult.exposureShortPos;
+        next.shortNegExposure = matchingResult.exposureShortNeg;
     }
 
     /// @notice Globally accumulates all long-short funding since last oracle update

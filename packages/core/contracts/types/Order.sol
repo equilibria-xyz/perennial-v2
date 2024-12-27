@@ -226,16 +226,16 @@ library OrderLib {
         Guarantee memory guarantee,
         Fixed6 makerPosExposure, // TODO: change to version since only used in checkpoint
         Fixed6 makerNegExposure,
-        UFixed6 longPosExposure,
-        UFixed6 longNegExposure,
-        UFixed6 shortPosExposure,
-        UFixed6 shortNegExposure
+        Fixed6 longPosExposure,
+        Fixed6 longNegExposure,
+        Fixed6 shortPosExposure,
+        Fixed6 shortNegExposure
     ) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
         (exposurePos, exposureNeg) = (
-            longPosExposure.mul(self.longPos.sub(guarantee.longPos))
-                .add(shortNegExposure.mul(self.shortNeg.sub(guarantee.shortNeg))),
-            longNegExposure.mul(self.longNeg.sub(guarantee.longNeg))
-                .add(shortPosExposure.mul(self.shortPos.sub(guarantee.shortPos)))
+            longPosExposure.abs().mul(self.longPos.sub(guarantee.longPos))
+                .add(shortNegExposure.abs().mul(self.shortNeg.sub(guarantee.shortNeg))),
+            longNegExposure.abs().mul(self.longNeg.sub(guarantee.longNeg))
+                .add(shortPosExposure.abs().mul(self.shortPos.sub(guarantee.shortPos)))
         );
 
         if (makerPosExposure.gt(Fixed6Lib.ZERO))
