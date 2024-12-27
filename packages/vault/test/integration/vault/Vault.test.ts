@@ -1016,13 +1016,15 @@ describe('Vault', () => {
       const reservedForVault = parse6decimal('5')
 
       // risk parameters limit maker position to 1000; let a non-vault user consume most of that
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const nonVaultDeposit = parse6decimal('662500')
+      await margin.connect(perennialUser).deposit(perennialUser.address, nonVaultDeposit)
       await market.connect(perennialUser)['update(address,uint256,uint256,uint256,int256,bool)'](
         perennialUser.address,
         makerAvailable.sub(reservedForVault), // 795
         0,
         0,
-        parse6decimal('662500'),
+        nonVaultDeposit,
         false,
       )
 
@@ -1204,7 +1206,9 @@ describe('Vault', () => {
       const currentNet = currentPosition.long.sub(currentPosition.short).abs()
 
       // Open taker position up to 100% utilization minus 1 ETH
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const takerDeposit = parse6decimal('1000000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await market
         .connect(perennialUser)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -1212,7 +1216,7 @@ describe('Vault', () => {
           0,
           currentPosition.maker.sub(currentNet).sub(parse6decimal('1')),
           0,
-          parse6decimal('1000000'),
+          takerDeposit,
           false,
         )
 
@@ -1244,7 +1248,9 @@ describe('Vault', () => {
       const currentNet = currentPosition.long.sub(currentPosition.short).abs()
 
       // Open taker position up to 100% utilization minus 0.1 BTC
-      await asset.connect(perennialUser).approve(btcMarket.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const takerDeposit = parse6decimal('1000000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await btcMarket
         .connect(perennialUser)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -1252,7 +1258,7 @@ describe('Vault', () => {
           0,
           currentPosition.maker.sub(currentNet).sub(parse6decimal('0.1')),
           0,
-          parse6decimal('1000000'),
+          takerDeposit,
           false,
         )
 
@@ -1359,7 +1365,9 @@ describe('Vault', () => {
 
     it('close to makerLimit', async () => {
       // Get maker product very close to the makerLimit
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const makerDeposit = parse6decimal('400000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, makerDeposit)
       await market
         .connect(perennialUser)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -1367,7 +1375,7 @@ describe('Vault', () => {
           parse6decimal('480'),
           0,
           0,
-          parse6decimal('400000'),
+          makerDeposit,
           false,
         )
       await updateOracle()
@@ -1387,8 +1395,10 @@ describe('Vault', () => {
 
     it('exactly at makerLimit', async () => {
       // Get maker product very close to the makerLimit
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
       const makerAvailable = (await market.riskParameter()).makerLimit.sub((await currentPositionGlobal(market)).maker)
+      const makerDeposit = parse6decimal('400000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, makerDeposit)
       await market
         .connect(perennialUser)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -1396,7 +1406,7 @@ describe('Vault', () => {
           makerAvailable,
           0,
           0,
-          parse6decimal('400000'),
+          makerDeposit,
           false,
         )
 
@@ -1423,7 +1433,9 @@ describe('Vault', () => {
       await vault.rebalance(user.address)
 
       // Get taker product very close to the maker
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const takerDeposit = parse6decimal('1000000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await market
         .connect(perennialUser)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -1431,7 +1443,7 @@ describe('Vault', () => {
           0,
           parse6decimal('110'),
           0,
-          parse6decimal('1000000'),
+          takerDeposit,
           false,
         )
 
@@ -2005,7 +2017,7 @@ describe('Vault', () => {
           await btcMarket.connect(user).settle(vault.address)
 
           // Ensure maintenance requirement is violated.
-          let collateral = (await btcMarket.locals(vault.address)).collateral
+          let collateral = await margin.isolatedBalances(vault.address, btcMarket.address)
           let position = (await btcMarket.positions(vault.address)).maker
           const maintenanceRatio = (await btcMarket.riskParameter()).maintenance
           let maintenanceRequired = position.mul(price).mul(maintenanceRatio).div(1e12)
@@ -2015,7 +2027,7 @@ describe('Vault', () => {
           await expect(smallRedeem(user)).to.not.be.reverted
 
           // Ensure maintenance requirement is no longer violated.
-          collateral = (await btcMarket.locals(vault.address)).collateral
+          collateral = await margin.isolatedBalances(vault.address, btcMarket.address)
           position = (await btcMarket.positions(vault.address)).maker
           maintenanceRequired = position.mul(price).mul(maintenanceRatio).div(1e12)
           expect(collateral).to.be.greaterThan(maintenanceRequired)
@@ -2057,7 +2069,7 @@ describe('Vault', () => {
           await btcMarket
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
-          expect((await btcMarket.locals(vault.address)).collateral).to.equal(
+          expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('4428767485').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
           expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
@@ -2093,7 +2105,7 @@ describe('Vault', () => {
           await btcMarket
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
-          expect((await btcMarket.locals(vault.address)).collateral).to.equal(
+          expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('-26673235277').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
           expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
@@ -2132,6 +2144,8 @@ describe('Vault', () => {
           await updateOracle()
 
           // get utilization closer to target in order to trigger pnl on price deviation
+          const deposit = parse6decimal('100000')
+          await margin.connect(user2).deposit(user2.address, deposit)
           await market
             .connect(user2)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -2139,9 +2153,10 @@ describe('Vault', () => {
               0,
               0,
               parse6decimal('100'),
-              parse6decimal('100000'),
+              deposit,
               false,
             )
+          await margin.connect(btcUser2).deposit(btcUser2.address, deposit)
           await btcMarket
             .connect(btcUser2)
             ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -2149,7 +2164,7 @@ describe('Vault', () => {
               0,
               0,
               parse6decimal('10'),
-              parse6decimal('100000'),
+              deposit,
               false,
             )
           await updateOracle()
@@ -2168,7 +2183,7 @@ describe('Vault', () => {
           await btcMarket
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
-          expect((await btcMarket.locals(vault.address)).collateral).to.equal(
+          expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('350411418').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
           expect((await btcMarket.pendingOrders(vault.address, 3)).protection).to.equal(1)
@@ -2204,7 +2219,7 @@ describe('Vault', () => {
           await btcMarket
             .connect(user)
             ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
-          expect((await btcMarket.locals(vault.address)).collateral).to.equal(
+          expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('-480340107').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
           expect((await btcMarket.pendingOrders(vault.address, 3)).protection).to.equal(1)

@@ -267,7 +267,6 @@ jobs:
           name: vault_unit_test_coverage
           path: ./packages/vault/coverage/lcov.info
   vault-integration-test:
-    if: false
     name: '[Vault] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
