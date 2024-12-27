@@ -69,6 +69,7 @@ contract Vault is IVault, Instance {
         Token18 asset_,
         IMarket initialMarket,
         UFixed6 initialDeposit,
+        UFixed6 leverageBuffer,
         string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
@@ -76,7 +77,7 @@ contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _register(initialMarket);
-        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, leverageBuffer));
 
         // permits the vault factory to make the initial deposit to prevent inflation attacks
         allowed[msg.sender] = true;
@@ -417,7 +418,8 @@ contract Vault is IVault, Instance {
             .allocate(
                 deposit,
                 withdrawal,
-                _ineligible(context, deposit, withdrawal)
+                _ineligible(context, deposit, withdrawal),
+                context.parameter.leverageBuffer
             );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
