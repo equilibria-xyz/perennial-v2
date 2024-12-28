@@ -1103,11 +1103,13 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await expect(
       market

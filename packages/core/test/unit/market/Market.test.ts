@@ -384,13 +384,6 @@ async function settle(market: Market, account: SignerWithAddress, sender?: Signe
   return await market.connect(sender || account).settle(account.address)
 }
 
-async function deposit(market: Market, amount: BigNumber, account: SignerWithAddress, sender?: SignerWithAddress) {
-  const accountPositions = await market.positions(account.address)
-  return await market
-    .connect(sender || account)
-    ['update(address,int256,int256,address)'](account.address, 0, amount, constants.AddressZero)
-}
-
 describe('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
@@ -423,14 +416,7 @@ describe('Market', () => {
     await margin.connect(sender).deposit(account.address, amount)
     return await market
       .connect(account)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
-        account.address,
-        ethers.constants.MaxUint256,
-        ethers.constants.MaxUint256,
-        ethers.constants.MaxUint256,
-        amount,
-        false,
-      )
+      ['update(address,int256,int256,address)'](account.address, 0, amount, constants.AddressZero)
   }
 
   const fixture = async () => {
@@ -11300,11 +11286,12 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 2,
                 latestId: 1,
-                collateral: COLLATERAL.add(COLLATERAL)
-                  .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
-                  .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
-                  .sub(2), // loss of precision
               })
+              const expectedCollateral = COLLATERAL.add(COLLATERAL)
+                .add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2)) // 50% to long, 50% to maker
+                .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3)) // 33% from long, 67% from short
+                .sub(2) // loss of precision
+              expect(await margin.isolatedBalances(user.address, market.address)).to.equal(expectedCollateral)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,

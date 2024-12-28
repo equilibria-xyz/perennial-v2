@@ -82,13 +82,14 @@ describe('Liquidate', () => {
   it('liquidates a user with close', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     // reset chainlink params
     chainlink.updateParams(BigNumber.from(0), BigNumber.from(0))
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
     await market
       .connect(user)
       ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
@@ -101,9 +102,7 @@ describe('Liquidate', () => {
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
-
-    expect((await market.locals(user.address)).collateral).to.equal(COLLATERAL)
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
 
     chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
     await chainlink.next()
@@ -111,9 +110,10 @@ describe('Liquidate', () => {
     expect((await market.locals(userB.address)).claimable).to.equal(parse6decimal('10'))
     await market.connect(userB).claimFee(userB.address) // liquidator withdrawal
 
-    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200010')) // Original 200000 + fee
-    expect((await market.locals(user.address)).collateral).to.equal(parse6decimal('1000').sub(parse6decimal('11')))
-    expect(await dsu.balanceOf(market.address)).to.equal(utils.parseEther('1000').sub(utils.parseEther('10')))
+    expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('10')) // claimed fee
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+      parse6decimal('1000').sub(parse6decimal('11')),
+    )
 
     await market
       .connect(user)
