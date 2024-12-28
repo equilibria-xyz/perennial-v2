@@ -1398,7 +1398,7 @@ describe('Version', () => {
     })
 
     describe('price impact accumulation', () => {
-      it('allocates when makers', async () => {
+      it('allocates', async () => {
         await version.store(VALID_VERSION)
 
         const { ret, value } = await accumulateWithReturn(
@@ -1417,6 +1417,111 @@ describe('Version', () => {
             takerReferral: 0,
           },
           { ...DEFAULT_GUARANTEE },
+          { ...ORACLE_VERSION_1, price: parse6decimal('123') },
+          { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.00'), takerFee: parse6decimal('0.00') },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+            synBook: {
+              d0: parse6decimal('0.001'),
+              d1: parse6decimal('0.002'),
+              d2: parse6decimal('0.004'),
+              d3: parse6decimal('0.008'),
+              scale: parse6decimal('10'),
+            },
+          },
+        )
+
+        // starting skew -4
+
+        // maker 10->8
+        const spreadClose = parse6decimal('0.006179') // -4 -> -4.4
+
+        // long 12 -> 15, short 16 -> 11
+        const spreadTakerPos = parse6decimal('0.955135') // -4 -> 4 (rounding error -1)
+
+        // short 16 -> 22, long 12 -> 8
+        const spreadTakerNeg = parse6decimal('18.785059') // -4.4 -> -14.4
+
+        // long 11, short 17, maker 18 -> 24
+        const spreadOpen = parse6decimal('0.10347') // 4 -> 5.5
+
+        const exposurePos = parse6decimal('9.5')
+        const exposureNeg = parse6decimal('10.4')
+
+        expect(value.makerPosExposure).to.equal(parse6decimal('0.25'))
+        expect(value.makerNegExposure).to.equal(parse6decimal('0.2'))
+        expect(value.longPosExposure).to.equal(parse6decimal('1'))
+        expect(value.longNegExposure).to.equal(parse6decimal('1'))
+        expect(value.shortPosExposure).to.equal(parse6decimal('-1'))
+        expect(value.shortNegExposure).to.equal(parse6decimal('-1'))
+
+        const spreadPos = spreadTakerPos.add(spreadOpen).mul(parse6decimal('1')).div(exposurePos)
+        const spreadNeg = spreadClose.add(spreadTakerNeg).mul(parse6decimal('1')).div(exposureNeg)
+
+        expect(value.spreadPos._value).to.equal(-spreadPos.add(1))
+        expect(value.spreadNeg._value).to.equal(-spreadNeg.add(1))
+
+        const makerCloseValue = spreadTakerPos
+          .add(spreadOpen)
+          .add(spreadClose)
+          .add(spreadTakerNeg)
+          .mul(parse6decimal('1'))
+          .div(parse6decimal('18'))
+
+        expect(value.makerPreValue._value).to.equal(1)
+        expect(value.longPreValue._value).to.equal(2)
+        expect(value.shortPreValue._value).to.equal(3)
+        expect(value.makerCloseValue._value).to.equal(makerCloseValue.add(8))
+        expect(value.longCloseValue._value).to.equal(9)
+        expect(value.shortCloseValue._value).to.equal(10)
+        expect(value.longPostValue._value).to.equal(11)
+        expect(value.shortPostValue._value).to.equal(12)
+
+        expect(ret.spreadPos).to.equal(spreadTakerPos.add(spreadOpen))
+        expect(ret.spreadNeg).to.equal(spreadClose.add(spreadTakerNeg))
+        expect(ret.spreadMaker).to.equal(spreadTakerPos.add(spreadOpen).add(spreadClose).add(spreadTakerNeg))
+        expect(ret.spreadPreLong).to.equal(0)
+        expect(ret.spreadPreShort).to.equal(0)
+        expect(ret.spreadCloseLong).to.equal(0)
+        expect(ret.spreadCloseShort).to.equal(0)
+        expect(ret.spreadPostLong).to.equal(0)
+        expect(ret.spreadPostShort).to.equal(0)
+      })
+
+      it('allocates when guarentees', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, long: parse6decimal('12'), short: parse6decimal('16'), maker: parse6decimal('20') },
+          ORDER_ID,
+          {
+            ...ORDER,
+            makerPos: parse6decimal('6'),
+            makerNeg: parse6decimal('2'),
+            longPos: parse6decimal('4'), // 3
+            longNeg: parse6decimal('6'), // 4
+            shortPos: parse6decimal('9'), // 6
+            shortNeg: parse6decimal('9'), // 5
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          {
+            ...DEFAULT_GUARANTEE,
+            longPos: parse6decimal('1'),
+            longNeg: parse6decimal('2'),
+            shortPos: parse6decimal('3'),
+            shortNeg: parse6decimal('4'),
+          },
           { ...ORACLE_VERSION_1, price: parse6decimal('123') },
           { ...ORACLE_VERSION_2 },
           DEFAULT_ORACLE_RECEIPT,
@@ -2005,17 +2110,6 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                makerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  scale: parse6decimal('100'),
-                },
-                takerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  adiabaticFee: 0,
-                  scale: parse6decimal('100'),
-                },
                 pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
@@ -2064,17 +2158,6 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                makerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  scale: parse6decimal('100'),
-                },
-                takerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  adiabaticFee: 0,
-                  scale: parse6decimal('100'),
-                },
                 pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
@@ -2123,17 +2206,6 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                makerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  scale: parse6decimal('100'),
-                },
-                takerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  adiabaticFee: 0,
-                  scale: parse6decimal('100'),
-                },
                 pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
@@ -2184,17 +2256,6 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                makerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  scale: parse6decimal('100'),
-                },
-                takerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  adiabaticFee: 0,
-                  scale: parse6decimal('100'),
-                },
                 pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
@@ -2243,17 +2304,6 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                makerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  scale: parse6decimal('100'),
-                },
-                takerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  adiabaticFee: 0,
-                  scale: parse6decimal('100'),
-                },
                 pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,
@@ -2302,17 +2352,6 @@ describe('Version', () => {
               },
               {
                 ...VALID_RISK_PARAMETER,
-                makerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  scale: parse6decimal('100'),
-                },
-                takerFee: {
-                  linearFee: 0,
-                  proportionalFee: 0,
-                  adiabaticFee: 0,
-                  scale: parse6decimal('100'),
-                },
                 pController: { min: 0, max: 0, k: parse6decimal('999999') },
                 utilizationCurve: {
                   minRate: 0,

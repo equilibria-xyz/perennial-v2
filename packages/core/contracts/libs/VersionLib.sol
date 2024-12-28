@@ -302,17 +302,17 @@ library VersionLib {
 
         MatchingResult memory matchingResult = MatchingLib.execute( // TODO: populate VersionAccumulationResult directly
             MatchingPosition({
-                long: context.fromPosition.long, // TODO: take into account guarantee?
+                long: context.fromPosition.long,
                 short: context.fromPosition.short,
                 maker: context.fromPosition.maker
             }),
             MatchingOrder({
                 makerPos: context.order.makerPos,
                 makerNeg: context.order.makerNeg,
-                longPos: context.order.longPos,
-                longNeg: context.order.longNeg,
-                shortPos: context.order.shortPos,
-                shortNeg: context.order.shortNeg
+                longPos: context.order.longPos.sub(context.guarantee.longPos),
+                longNeg: context.order.longNeg.sub(context.guarantee.longNeg),
+                shortPos: context.order.shortPos.sub(context.guarantee.shortPos),
+                shortNeg: context.order.shortNeg.sub(context.guarantee.shortNeg)
             }),
             context.riskParameter.synBook,
             context.toOracleVersion.price

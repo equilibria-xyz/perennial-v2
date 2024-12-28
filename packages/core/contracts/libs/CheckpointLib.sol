@@ -125,7 +125,7 @@ library CheckpointLib {
     ) private pure returns (Fixed6 collateral) {
         // calculate position after closes
         Position memory closedPosition = fromPosition.clone();
-        closedPosition.updateClose(order); // TODO: move these to MatchingLib
+        closedPosition.updateClose(order);
 
         // calculate position after order
         Position memory toPosition = fromPosition.clone();
@@ -137,7 +137,7 @@ library CheckpointLib {
             .add(toVersion.longPreValue.accumulated(fromVersion.longPreValue, fromPosition.long))
             .add(toVersion.shortPreValue.accumulated(fromVersion.shortPreValue, fromPosition.short));
 
-        // collateral change after applying closing portion of order ()
+        // collateral change after applying closing portion of order
         collateral = collateral
             .add(toVersion.makerCloseValue.accumulated(fromVersion.makerCloseValue, closedPosition.maker))
             .add(toVersion.longCloseValue.accumulated(fromVersion.longCloseValue, closedPosition.long))
