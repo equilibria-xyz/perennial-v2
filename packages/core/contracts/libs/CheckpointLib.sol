@@ -137,7 +137,7 @@ library CheckpointLib {
             .add(toVersion.longPreValue.accumulated(fromVersion.longPreValue, fromPosition.long))
             .add(toVersion.shortPreValue.accumulated(fromVersion.shortPreValue, fromPosition.short));
 
-        // collateral change after applying closing portion of order
+       // collateral change after applying closing portion of order
         collateral = collateral
             .add(toVersion.makerCloseValue.accumulated(fromVersion.makerCloseValue, closedPosition.maker))
             .add(toVersion.longCloseValue.accumulated(fromVersion.longCloseValue, closedPosition.long))

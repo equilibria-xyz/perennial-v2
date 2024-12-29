@@ -158,6 +158,7 @@ library MatchingLib {
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
         result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
+
         result.spreadPostLong = fillResult.spreadLong;
         result.spreadPostShort = fillResult.spreadShort;
         result.exposureMakerPos = exposureOpen.maker;

@@ -237,12 +237,6 @@ export function expectLocalEq(a: Local, b: Local): void {
 export function expectVersionEq(a: Version, b: Version): void {
   expect(a.valid).to.equal(b.valid, 'Version:Valid')
   expect(a.price).to.equal(b.price, 'Version:Price')
-  expect(a.makerPosExposure).to.equal(b.makerPosExposure, 'Version:MakerPosExposure')
-  expect(a.makerNegExposure).to.equal(b.makerNegExposure, 'Version:MakerNegExposure')
-  expect(a.longPosExposure).to.equal(b.longPosExposure, 'Version:LongPosExposure')
-  expect(a.longNegExposure).to.equal(b.longNegExposure, 'Version:LongNegExposure')
-  expect(a.shortPosExposure).to.equal(b.shortPosExposure, 'Version:ShortPosExposure')
-  expect(a.shortNegExposure).to.equal(b.shortNegExposure, 'Version:ShortNegExposure')
   expect(a.makerPreValue._value).to.equal(b.makerPreValue._value, 'Version:MakerPreValue')
   expect(a.longPreValue._value).to.equal(b.longPreValue._value, 'Version:LongPreValue')
   expect(a.shortPreValue._value).to.equal(b.shortPreValue._value, 'Version:ShortPreValue')

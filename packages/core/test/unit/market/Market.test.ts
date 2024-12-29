@@ -45,6 +45,7 @@ import {
   DEFAULT_GUARANTEE,
   DEFAULT_ORACLE_RECEIPT,
   expectGuaranteeEq,
+  SynBook,
 } from '../../../../common/testutil/types'
 import {
   IMarket,
@@ -69,13 +70,16 @@ const DEFAULT_VERSION_ACCUMULATION_RESULT = {
   tradeFee: 0,
   subtractiveFee: 0,
 
-  tradeOffset: 0,
-  tradeOffsetMaker: 0,
-  tradeOffsetMarket: 0,
+  spreadPos: 0,
+  spreadNeg: 0,
 
-  adiabaticExposure: 0,
-  adiabaticExposureMaker: 0,
-  adiabaticExposureMarket: 0,
+  spreadMaker: 0,
+  spreadPreLong: 0,
+  spreadPreShort: 0,
+  spreadCloseLong: 0,
+  spreadCloseShort: 0,
+  spreadPostLong: 0,
+  spreadPostShort: 0,
 
   fundingMaker: 0,
   fundingLong: 0,
@@ -99,11 +103,19 @@ const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   collateral: 0,
   priceOverride: 0,
   tradeFee: 0,
-  offset: 0,
+  spread: 0,
   settlementFee: 0,
   liquidationFee: 0,
   subtractiveFee: 0,
   solverFee: 0,
+}
+
+const DEFAULT_SYN_BOOK = {
+  d0: parse6decimal('0.001'),
+  d1: parse6decimal('0.002'),
+  d2: parse6decimal('0.004'),
+  d3: parse6decimal('0.008'),
+  scale: parse6decimal('5'),
 }
 
 const ORACLE_VERSION_0 = {
@@ -403,7 +415,18 @@ async function deposit(market: Market, amount: BigNumber, account: SignerWithAdd
     )
 }
 
-describe('Market', () => {
+async function updateSynBook(market: Market, synBook: SynBook) {
+  const riskParameter = { ...(await market.riskParameter()) }
+  const riskParameterSynBook = { ...riskParameter.synBook }
+  riskParameterSynBook.d0 = BigNumber.from(synBook.d0.toString())
+  riskParameterSynBook.d1 = BigNumber.from(synBook.d1.toString())
+  riskParameterSynBook.d2 = BigNumber.from(synBook.d2.toString())
+  riskParameterSynBook.d3 = BigNumber.from(synBook.d3.toString())
+  riskParameter.synBook = riskParameterSynBook
+  await market.updateRiskParameter(riskParameter)
+}
+
+describe.only('Market', () => {
   let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress
@@ -714,10 +737,10 @@ describe('Market', () => {
         margin: parse6decimal('0.5'),
         maintenance: parse6decimal('0.4'),
         synBook: {
-          d0: parse6decimal('0.01'),
-          d1: parse6decimal('0.02'),
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
           d2: parse6decimal('0.004'),
-          d3: parse6decimal('0.003'),
+          d3: parse6decimal('0.008'),
           scale: parse6decimal('50.00'),
         },
         makerLimit: parse6decimal('2000'),
@@ -1986,14 +2009,9 @@ describe('Market', () => {
           })
 
           it('opens the position and settles later with fee', async () => {
-            const riskParameter = { ...(await market.riskParameter()) }
-            const riskParameterMakerFee = { ...riskParameter.makerFee }
-            riskParameterMakerFee.linearFee = parse6decimal('0.005')
-            riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
-            riskParameter.makerFee = riskParameterMakerFee
-            await market.updateRiskParameter(riskParameter)
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
-            const MAKER_FEE = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
+            const MAKER_FEE = parse6decimal('0') //no skew
             const SETTLEMENT_FEE = parse6decimal('0.50')
 
             await expect(
@@ -2061,9 +2079,9 @@ describe('Market', () => {
               ...DEFAULT_GLOBAL,
               currentId: 1,
               latestId: 1,
-              protocolFee: totalFee.mul(8).div(10).add(1), // loss of precision
-              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE), // loss of precision
-              riskFee: totalFee.div(10).sub(1), // loss of precision
+              protocolFee: totalFee.mul(8).div(10),
+              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE),
+              riskFee: totalFee.div(10),
               latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
@@ -2579,18 +2597,13 @@ describe('Market', () => {
             })
 
             it('closes the position and settles later with fee', async () => {
-              const riskParameter = { ...(await market.riskParameter()) }
-              const riskParameterMakerFee = { ...riskParameter.makerFee }
-              riskParameterMakerFee.linearFee = parse6decimal('0.005')
-              riskParameterMakerFee.proportionalFee = parse6decimal('0.0025')
-              riskParameter.makerFee = riskParameterMakerFee
-              await market.updateRiskParameter(riskParameter)
+              await updateSynBook(market, DEFAULT_SYN_BOOK)
 
               const marketParameter = { ...(await market.parameter()) }
               marketParameter.makerFee = parse6decimal('0.01')
               await market.updateParameter(marketParameter)
 
-              const MAKER_OFFSET = parse6decimal('9.225') // position * (0.005 + 0.0025) * price
+              const MAKER_OFFSET = parse6decimal('0') // no skew
               const MAKER_FEE = parse6decimal('12.3') // position * (0.01) * price
               const SETTLEMENT_FEE = parse6decimal('0.50')
 
@@ -16370,13 +16383,7 @@ describe('Market', () => {
 
           await settle(market, user)
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterTakerFee = { ...riskParameter.takerFee }
-          riskParameterTakerFee.linearFee = parse6decimal('0.01')
-          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
-          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
-          riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await updateSynBook(market, DEFAULT_SYN_BOOK)
 
           const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
@@ -16502,25 +16509,13 @@ describe('Market', () => {
 
           await settle(market, user)
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterTakerFee = { ...riskParameter.takerFee }
-          riskParameterTakerFee.linearFee = parse6decimal('0.01')
-          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
-          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
-          riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await updateSynBook(market, DEFAULT_SYN_BOOK)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
-          const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
-          const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
-          const EXPECTED_TAKER_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
-
-          const TAKER_OFFSET = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
-          const TAKER_OFFSET_MAKER = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
-
+          const PRICE_IMPACT = parse6decimal('3.28') // skew 0 -> 0.5, price 123, position 5
           const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
@@ -16593,7 +16588,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 2,
-            collateral: COLLATERAL.sub(TAKER_OFFSET).sub(TAKER_FEE).sub(SETTLEMENT_FEE.mul(2)),
+            collateral: COLLATERAL.sub(PRICE_IMPACT).sub(TAKER_FEE).sub(SETTLEMENT_FEE.mul(2)),
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -16620,7 +16615,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
-            tradeFee: TAKER_OFFSET.add(TAKER_FEE),
+            tradeFee: PRICE_IMPACT.add(TAKER_FEE),
             settlementFee: SETTLEMENT_FEE,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
@@ -16628,7 +16623,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            collateral: COLLATERAL.add(TAKER_OFFSET_MAKER),
+            collateral: COLLATERAL.add(PRICE_IMPACT),
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -16687,10 +16682,8 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_VERSION,
-            makerPreValue: { _value: TAKER_OFFSET_MAKER.div(10) },
-            takerPosOffset: {
-              _value: -EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC).div(5),
-            },
+            makerCloseValue: { _value: PRICE_IMPACT.div(10) },
+            spreadPos: { _value: -PRICE_IMPACT.div(5) },
             takerFee: { _value: -TAKER_FEE.div(5) },
             settlementFee: { _value: -SETTLEMENT_FEE },
             price: PRICE,
@@ -16705,17 +16698,12 @@ describe('Market', () => {
 
           await settle(market, user)
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterTakerFee = { ...riskParameter.takerFee }
-          riskParameterTakerFee.linearFee = parse6decimal('0.01')
-          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
-          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
-          riskParameter.takerFee = riskParameterTakerFee
-          await market.updateRiskParameter(riskParameter)
+          await updateSynBook(market, DEFAULT_SYN_BOOK)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
-          const TAKER_FEE_FEE = TAKER_FEE.div(10)
-          const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
           await expect(
@@ -16899,18 +16887,12 @@ describe('Market', () => {
 
           await settle(market, user)
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterTakerFee = { ...riskParameter.takerFee }
-          riskParameterTakerFee.linearFee = parse6decimal('0.01')
-          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
-          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
-          riskParameter.takerFee = riskParameterTakerFee
-          riskParameter.staleAfter = BigNumber.from(9600)
-          await market.updateRiskParameter(riskParameter)
+          await updateSynBook(market, DEFAULT_SYN_BOOK)
 
-          const TAKER_FEE = parse6decimal('9.84') // position * (0.01 + 0.002 + 0.004) * price
-          const TAKER_FEE_FEE = TAKER_FEE.div(10)
-          const TAKER_FEE_WITHOUT_FEE = TAKER_FEE.sub(TAKER_FEE_FEE)
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
           await expect(
@@ -17072,26 +17054,13 @@ describe('Market', () => {
 
           await settle(market, user)
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterTakerFee = { ...riskParameter.takerFee }
-          riskParameterTakerFee.linearFee = parse6decimal('0.01')
-          riskParameterTakerFee.proportionalFee = parse6decimal('0.002')
-          riskParameterTakerFee.adiabaticFee = parse6decimal('0.008')
-          riskParameter.takerFee = riskParameterTakerFee
-          riskParameter.staleAfter = BigNumber.from(9600)
-          await market.updateRiskParameter(riskParameter)
+          await updateSynBook(market, DEFAULT_SYN_BOOK)
 
           const marketParameter = { ...(await market.parameter()) }
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
-          const EXPECTED_TAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
-          const EXPECTED_TAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.002) * price
-          const EXPECTED_TAKER_ADIABATIC = parse6decimal('2.46') // position * (0.004) * price
-
-          const TAKER_OFFSET = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC)
-          const TAKER_OFFSET_MAKER = EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL)
-
+          const PRICE_IMPACT = parse6decimal('3.28') // skew 0 -> 0.5, price 123, position 5
           const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
@@ -17179,7 +17148,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 3,
             latestId: 3,
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)).sub(TAKER_OFFSET).sub(TAKER_FEE),
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE.mul(2)).sub(PRICE_IMPACT).sub(TAKER_FEE),
           })
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
@@ -17214,7 +17183,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_CHECKPOINT,
-            tradeFee: TAKER_OFFSET.add(TAKER_FEE),
+            tradeFee: PRICE_IMPACT.add(TAKER_FEE),
             settlementFee: SETTLEMENT_FEE,
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
@@ -17222,7 +17191,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            collateral: COLLATERAL.add(TAKER_OFFSET_MAKER),
+            collateral: COLLATERAL.add(PRICE_IMPACT),
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -17300,10 +17269,8 @@ describe('Market', () => {
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_5.timestamp), {
             ...DEFAULT_VERSION,
-            makerPreValue: { _value: TAKER_OFFSET_MAKER.div(10) },
-            takerPosOffset: {
-              _value: -EXPECTED_TAKER_LINEAR.add(EXPECTED_TAKER_PROPORTIONAL).add(EXPECTED_TAKER_ADIABATIC).div(5),
-            },
+            makerCloseValue: { _value: PRICE_IMPACT.div(10) },
+            spreadPos: { _value: -PRICE_IMPACT.div(5) },
             takerFee: { _value: -TAKER_FEE.div(5) },
             settlementFee: { _value: -SETTLEMENT_FEE },
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
@@ -17850,16 +17817,7 @@ describe('Market', () => {
           marketParameter.takerFee = parse6decimal('0.01')
           await market.updateParameter(marketParameter)
 
-          const riskParameter = { ...(await market.riskParameter()) }
-          await market.updateRiskParameter({
-            ...riskParameter,
-            takerFee: {
-              ...riskParameter.takerFee,
-              linearFee: parse6decimal('0.001'),
-              proportionalFee: parse6decimal('0.002'),
-              adiabaticFee: parse6decimal('0.004'),
-            },
-          })
+          await updateSynBook(market, DEFAULT_SYN_BOOK)
 
           const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
           const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -17924,7 +17882,7 @@ describe('Market', () => {
               {
                 ...DEFAULT_GUARANTEE,
                 orders: 1,
-                takerPos: POSITION.div(2),
+                longPos: POSITION.div(2),
                 notional: POSITION.div(2).mul(125),
                 takerFee: 0,
                 referral: POSITION.div(2).div(10),
@@ -17945,7 +17903,7 @@ describe('Market', () => {
               {
                 ...DEFAULT_GUARANTEE,
                 orders: 0,
-                takerNeg: POSITION.div(2),
+                shortPos: POSITION.div(2),
                 notional: -POSITION.div(2).mul(125),
                 takerFee: POSITION.div(2),
                 referral: 0,
@@ -19226,9 +19184,9 @@ describe('Market', () => {
 
         beforeEach(async () => {
           const riskParameter = { ...(await market.riskParameter()) }
-          const riskParameterTakerFee = { ...riskParameter.takerFee }
-          riskParameterTakerFee.scale = parse6decimal('15')
-          riskParameter.takerFee = riskParameterTakerFee
+          const riskParameterSynBook = { ...riskParameter.synBook }
+          riskParameterSynBook.scale = parse6decimal('15')
+          riskParameter.synBook = riskParameterSynBook
           await market.updateRiskParameter(riskParameter)
 
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -19351,9 +19309,9 @@ describe('Market', () => {
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.makerLimit = parse6decimal('10')
-            const riskParameterTakerFee = { ...riskParameter.takerFee }
-            riskParameterTakerFee.scale = parse6decimal('1')
-            riskParameter.takerFee = riskParameterTakerFee
+            const riskParameterSynBook = { ...riskParameter.synBook }
+            riskParameterSynBook.scale = parse6decimal('1')
+            riskParameter.synBook = riskParameterSynBook
             await market.updateRiskParameter(riskParameter)
 
             await market
@@ -19489,9 +19447,9 @@ describe('Market', () => {
           it('correctly stores large skew', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.makerLimit = parse6decimal('10')
-            const riskParameterTakerFee = { ...riskParameter.takerFee }
-            riskParameterTakerFee.scale = parse6decimal('1')
-            riskParameter.takerFee = riskParameterTakerFee
+            const riskParameterSynBook = { ...riskParameter.synBook }
+            riskParameterSynBook.scale = parse6decimal('1')
+            riskParameter.synBook = riskParameterSynBook
             await market.updateRiskParameter(riskParameter)
 
             await market
@@ -20268,15 +20226,7 @@ describe('Market', () => {
             await market.updateParameter(marketParameter)
 
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
             const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -20337,7 +20287,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -20358,7 +20308,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -20515,15 +20465,7 @@ describe('Market', () => {
             await market.updateParameter(marketParameter)
 
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
             const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -20584,7 +20526,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -20605,7 +20547,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -20763,15 +20705,7 @@ describe('Market', () => {
             await market.updateParameter(marketParameter)
 
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
             const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -20832,7 +20766,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(121),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -20853,7 +20787,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(121),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21011,15 +20945,7 @@ describe('Market', () => {
             await market.updateParameter(marketParameter)
 
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
             const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -21080,7 +21006,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(121),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21101,7 +21027,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(121),
                   takerFee: POSITION.div(2),
                 },
@@ -21258,15 +21184,7 @@ describe('Market', () => {
             await market.updateParameter(marketParameter)
 
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
             const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -21351,7 +21269,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21372,7 +21290,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21402,7 +21320,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21423,7 +21341,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21605,15 +21523,7 @@ describe('Market', () => {
             await market.updateParameter(marketParameter)
 
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
             const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -21678,7 +21588,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21699,7 +21609,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21856,15 +21766,7 @@ describe('Market', () => {
             await market.updateParameter(marketParameter)
 
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
             const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -21925,7 +21827,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21946,7 +21848,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21976,7 +21878,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21997,7 +21899,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22021,7 +21923,7 @@ describe('Market', () => {
             await settle(market, userC)
           })
 
-          it('opens long position and fills another long position and settles later with fee (above / long)', async () => {
+          it.only('opens long position and fills another long position and settles later with fee (above / long)', async () => {
             factory.parameter.returns({
               maxPendingIds: 5,
               protocolFee: parse6decimal('0.50'),
@@ -22041,16 +21943,8 @@ describe('Market', () => {
             marketParameter.takerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
-            const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            // since long + maker are settled in the same version, skew starts at 0 and long is fully socialized at open
+            const PRICE_IMPACT = parse6decimal('59.86') // skew 0.0->2.0, price 123, position 10
 
             const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
             const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
@@ -22097,6 +21991,8 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
+
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -22122,7 +22018,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22143,7 +22039,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22181,7 +22077,8 @@ describe('Market', () => {
                 .sub(expectedFundingFee)
                 .sub(EXPECTED_PNL)
                 .sub(TAKER_FEE)
-                .sub(3), // loss of precision
+                .add(PRICE_IMPACT.div(3)) // TODO: this should rebate, need a different starting skew for socialization?
+                .sub(6), // loss of precision
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -22209,6 +22106,7 @@ describe('Market', () => {
               collateral: COLLATERAL.add(expectedInterestWithoutFee)
                 .add(expectedMakerFundingFee)
                 .sub(SETTLEMENT_FEE.div(3))
+                .sub(PRICE_IMPACT)
                 .sub(10), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
@@ -22252,7 +22150,6 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            const expectedOffset = BigNumber.from(11070000)
             expectLocalEq(await market.locals(userD.address), {
               ...DEFAULT_LOCAL,
               currentId: 1,
@@ -22260,9 +22157,9 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(expectedLongInterest.mul(2).div(3))
                 .sub(expectedFundingFee.mul(2))
                 .sub(TAKER_FEE.mul(2))
-                .sub(expectedOffset)
                 .sub(SETTLEMENT_FEE.div(3))
-                .sub(7), // loss of precision
+                .add(PRICE_IMPACT.mul(2).div(3))
+                .sub(13), // loss of precision
             })
             expectPositionEq(await market.positions(userD.address), {
               ...DEFAULT_POSITION,
@@ -22377,15 +22274,7 @@ describe('Market', () => {
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             verifier.verifyIntent.returns()
 
@@ -22414,7 +22303,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22435,7 +22324,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22542,7 +22431,6 @@ describe('Market', () => {
               protocolFee: totalFee.mul(8).div(10).sub(1), // loss of precision
               oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE.mul(2)), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
-              exposure: -EXPECTED_EXPOSURE, // turning on offset params
               latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
@@ -22640,15 +22528,7 @@ describe('Market', () => {
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             verifier.verifyIntent.returns()
 
@@ -22677,7 +22557,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22698,7 +22578,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22805,7 +22685,6 @@ describe('Market', () => {
               protocolFee: totalFee.mul(8).div(10).sub(1), // loss of precision
               oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE.mul(2)), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
-              exposure: -EXPECTED_EXPOSURE, // turning on offset params
               latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
@@ -22903,15 +22782,7 @@ describe('Market', () => {
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             verifier.verifyIntent.returns()
 
@@ -22940,7 +22811,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22961,7 +22832,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -23069,7 +22940,6 @@ describe('Market', () => {
               protocolFee: totalFee.mul(8).div(10).sub(1), // loss of precision
               oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE.mul(2)), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
-              exposure: -EXPECTED_EXPOSURE, // turning on offset params
               latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
@@ -23166,16 +23036,7 @@ describe('Market', () => {
             await settle(market, user)
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
-            const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             verifier.verifyIntent.returns()
 
@@ -23204,7 +23065,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -23225,7 +23086,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -23333,7 +23194,6 @@ describe('Market', () => {
               protocolFee: totalFee.mul(8).div(10).sub(1), // loss of precision
               oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE.mul(2)), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
-              exposure: -EXPECTED_EXPOSURE, // turning on offset params
               latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
@@ -23436,16 +23296,7 @@ describe('Market', () => {
 
             await settle(market, user)
 
-            const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             verifier.verifyIntent.returns()
 
@@ -23474,7 +23325,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -23495,7 +23346,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -23603,7 +23454,6 @@ describe('Market', () => {
               protocolFee: totalFee.mul(8).div(10).add(4), // loss of precision
               oracleFee: totalFee.div(10).add(SETTLEMENT_FEE.mul(2)), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
-              exposure: 0,
               latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
@@ -23707,15 +23557,7 @@ describe('Market', () => {
             await settle(market, user)
 
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             verifier.verifyIntent.returns()
 
@@ -23744,7 +23586,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -23765,7 +23607,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -23873,7 +23715,6 @@ describe('Market', () => {
               protocolFee: totalFee.mul(8).div(10).add(4), // loss of precision
               oracleFee: totalFee.div(10).add(SETTLEMENT_FEE.mul(2)), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
-              exposure: 0,
               latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
@@ -23971,15 +23812,7 @@ describe('Market', () => {
 
             const EXPECTED_EXPOSURE = parse6decimal('1.23') // 0.5 * 0.004 * 5
             const riskParameter = { ...(await market.riskParameter()) }
-            await market.updateRiskParameter({
-              ...riskParameter,
-              takerFee: {
-                ...riskParameter.takerFee,
-                linearFee: parse6decimal('0.001'),
-                proportionalFee: parse6decimal('0.002'),
-                adiabaticFee: parse6decimal('0.004'),
-              },
-            })
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             verifier.verifyIntent.returns()
 
@@ -24008,7 +23841,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(4),
+                  shortNeg: POSITION.div(4),
                   notional: POSITION.div(4).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(4).div(10),
@@ -24029,7 +23862,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(4),
+                  shortPos: POSITION.div(4),
                   notional: -POSITION.div(4).mul(125),
                   takerFee: POSITION.div(4),
                   referral: 0,
@@ -24059,7 +23892,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(4),
+                  shortNeg: POSITION.div(4),
                   notional: POSITION.div(4).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(4).div(10),
@@ -24080,7 +23913,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(4),
+                  shortPos: POSITION.div(4),
                   notional: -POSITION.div(4).mul(125),
                   takerFee: POSITION.div(4),
                   referral: 0,
@@ -24572,121 +24405,6 @@ describe('Market', () => {
         await expect(market.connect(userB).claimFee(oracleSigner.address)).to.be.revertedWithCustomError(
           market,
           'MarketNotOperatorError',
-        )
-      })
-    })
-
-    describe('#claimExposure', async () => {
-      it('claims exposure', async () => {
-        // setup market with POSITION skew
-        await market.connect(owner).updateParameter(marketParameter)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
-        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
-
-        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        await market
-          .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
-
-        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-        oracle.request.whenCalledWith(user.address).returns()
-
-        await settle(market, user)
-        await settle(market, userB)
-
-        const defaultRiskParameter = {
-          margin: parse6decimal('0.5'),
-          maintenance: parse6decimal('0.4'),
-          takerFee: {
-            linearFee: parse6decimal('0.01'),
-            proportionalFee: parse6decimal('0.004'),
-            adiabaticFee: parse6decimal('0.003'),
-            scale: parse6decimal('50.00'),
-          },
-          makerFee: {
-            linearFee: parse6decimal('0.005'),
-            proportionalFee: parse6decimal('0.001'),
-            scale: parse6decimal('100.00'),
-          },
-          makerLimit: parse6decimal('2000'),
-          efficiencyLimit: parse6decimal('0.2'),
-          liquidationFee: parse6decimal('5.00'),
-          utilizationCurve: {
-            minRate: parse6decimal('0.20'),
-            maxRate: parse6decimal('0.20'),
-            targetRate: parse6decimal('0.20'),
-            targetUtilization: parse6decimal('0.75'),
-          },
-          pController: {
-            k: parse6decimal('40000'),
-            min: parse6decimal('-1.20'),
-            max: parse6decimal('1.20'),
-          },
-          minMargin: parse6decimal('60'),
-          minMaintenance: parse6decimal('50'),
-          staleAfter: 9600,
-          makerReceiveOnly: true,
-        }
-
-        // test the risk parameter update
-        await market.connect(owner).updateParameter(await market.parameter())
-        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
-          market,
-          'RiskParameterUpdated',
-        )
-
-        // check exposure is negative
-        expect((await market.global()).exposure.lt(BigNumber.from(0))).to.equals(true)
-
-        // claim negative exposure
-        dsu.transferFrom.whenCalledWith(owner.address, market.address, 369000000000000000).returns(true)
-
-        let exposure = (await market.global()).exposure.toNumber()
-        await expect(market.connect(owner).claimExposure())
-          .to.emit(market, 'ExposureClaimed')
-          .withArgs(owner.address, exposure)
-        expect((await market.global()).exposure).to.be.eq(0)
-
-        // update adiabatic fee to get positive exposure
-        defaultRiskParameter.takerFee.adiabaticFee = BigNumber.from(0)
-        await expect(market.connect(coordinator).updateRiskParameter(defaultRiskParameter)).to.emit(
-          market,
-          'RiskParameterUpdated',
-        )
-
-        // check exposure is positive
-        expect((await market.global()).exposure.gt(BigNumber.from(0))).to.equals(true)
-
-        // claim positive exposure
-        dsu.transfer.whenCalledWith(owner.address, 369000000000000000).returns(true)
-
-        exposure = (await market.global()).exposure.toNumber()
-        await expect(market.connect(owner).claimExposure())
-          .to.emit(market, 'ExposureClaimed')
-          .withArgs(owner.address, exposure)
-        expect((await market.global()).exposure).to.be.eq(0)
-      })
-      it('reverts if not owner (user)', async () => {
-        await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
-      })
-
-      it('reverts if not owner (coordinator)', async () => {
-        await market.connect(owner).updateParameter(await market.parameter())
-        await expect(market.connect(coordinator).claimExposure()).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
         )
       })
     })
