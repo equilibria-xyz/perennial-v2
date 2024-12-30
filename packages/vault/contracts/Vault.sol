@@ -18,7 +18,6 @@ import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Registration, RegistrationStorage } from "./types/Registration.sol";
 import { VaultParameter, VaultParameterStorage } from "./types/VaultParameter.sol";
 import { StrategyLib } from "./libs/StrategyLib.sol";
-//import "hardhat/console.sol";
 
 /// @title Vault
 /// @notice Deploys underlying capital by weight in maker positions across registered markets

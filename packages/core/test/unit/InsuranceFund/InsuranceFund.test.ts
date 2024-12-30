@@ -23,6 +23,7 @@ describe('InsuranceFund', () => {
   let user: SignerWithAddress
   let factory: FakeContract<IMarketFactory>
   let factoryOwner: SignerWithAddress
+  let margin: FakeContract<IMargin>
   let market1: FakeContract<IMarket>
   let market2: FakeContract<IMarket>
   let oracle1: FakeContract<IOracleProvider>
@@ -35,12 +36,16 @@ describe('InsuranceFund', () => {
 
     market1 = await smock.fake<IMarket>('IMarket')
     market2 = await smock.fake<IMarket>('IMarket')
+    margin = await smock.fake<IMargin>('IMargin')
     oracle1 = await smock.fake<IOracleProvider>('IOracleProvider')
     oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
     factory = await smock.fake<IMarketFactory>('IMarketFactory')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     insuranceFund = await new InsuranceFund__factory(owner).deploy(factory.address, dsu.address)
+
     factory.owner.whenCalledWith().returns(factoryOwner.address)
+    market1.margin.returns(margin.address)
+    market2.margin.returns(margin.address)
   })
 
   it('initialize with the correct variables set', async () => {
@@ -88,7 +93,7 @@ describe('InsuranceFund', () => {
         dsu.approve.whenCalledWith(market1.address).returns(true)
         market1.settle.whenCalledWith(user.address).returns()
         const resolutionAmount = parse6decimal('-1000')
-        market1.locals.whenCalledWith(user.address).returns({ ...DEFAULT_LOCAL, collateral: resolutionAmount })
+        margin.crossMarginBalances.whenCalledWith(user.address).returns(resolutionAmount)
         market1['update(address,int256,int256,address)']
           .whenCalledWith(user.address, 0, resolutionAmount, constants.AddressZero)
           .returns()

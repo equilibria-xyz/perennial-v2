@@ -25,7 +25,6 @@ import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
-// import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -289,7 +288,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 takerAmount;
 
         UFixed6 closable = context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg());
-        
+
         if (updateContext.currentPositionLocal.maker.gt(UFixed6Lib.ZERO)) {
             makerAmount = Fixed6Lib.from(-1, closable);
         } else if (updateContext.currentPositionLocal.long.gt(UFixed6Lib.ZERO)) {

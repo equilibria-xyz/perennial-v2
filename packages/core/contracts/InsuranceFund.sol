@@ -39,9 +39,7 @@ contract InsuranceFund is IInsuranceFund, Ownable {
     function resolve(IMarket market, address account) external onlyOwner isMarketInstance(market) {
         token.approve(address(market));
         market.settle(account);
-        // FIXME: Local.collateral is deprecated.
-        // Need to check if the market is isolated, get correct collateral balance, and then resolve shortfall.
-        Fixed6 resolutionAmount = market.locals(account).collateral.mul(Fixed6Lib.NEG_ONE);
+        Fixed6 resolutionAmount = market.margin().crossMarginBalances(account).mul(Fixed6Lib.NEG_ONE);
         market.update(account, Fixed6Lib.ZERO, resolutionAmount, address(0));
     }
 
