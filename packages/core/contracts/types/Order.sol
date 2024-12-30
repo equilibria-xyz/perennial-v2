@@ -101,9 +101,9 @@ library OrderLib {
         newOrder.timestamp = timestamp;
         newOrder.collateral = collateral;
         newOrder.orders = makerAmount.isZero() && takerAmount.isZero() ? 0 : 1;
+        newOrder.protection = protect ? 1 : 0;
         newOrder.makerReferral = makerAmount.abs().mul(referralFee);
         newOrder.takerReferral = takerAmount.abs().mul(referralFee);
-        newOrder.protection = protect ? 1 : 0;
 
         // If the order is not counter to the current position, it is opening
         if (takerAmount.sign() == 0 || position.skew().sign() == 0 || position.skew().sign() == takerAmount.sign()) {

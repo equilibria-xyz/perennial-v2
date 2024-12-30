@@ -80,7 +80,7 @@ library StrategyLib {
         Fixed6 collateral;
 
         /// @dev The amount of change in position
-        Fixed6 position;
+        Fixed6 makerPositionDelta;
     }
 
     /// @notice Loads the strategy context of each of the underlying markets
@@ -161,7 +161,11 @@ library StrategyLib {
 
         if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
 
-        target.position = _getTargetPosition(marketContext, marketAssets);
+        UFixed6 newMaker = marketAssets.muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
+            .max(marketContext.minPosition)
+            .min(marketContext.maxPosition);
+
+        target.makerPositionDelta = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 
     /// @notice Load the context of a market
