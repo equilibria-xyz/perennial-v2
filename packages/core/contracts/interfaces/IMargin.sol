@@ -11,15 +11,20 @@ import { OracleVersion } from "../types/OracleVersion.sol";
 import { IMarket, IMarketFactory } from "./IMarketFactory.sol";
 
 interface IMargin is IInstance {
-    /// @notice Emitted when DSU is transferred into the margin contract
+    /// @notice Emitted when DSU is transferred into the margin contract, increasing the cross-margin balance
     /// @param account Account credited
     /// @param amount Quantity of DSU deposited
     event FundsDeposited(address indexed account, UFixed6 amount);
 
-    /// @notice Emitted when DSU is transferred out of the margin contract
+    /// @notice Emitted when DSU is transferred out of the margin contract, decreasing the cross-margin balance
     /// @param account Account debited
     /// @param amount Quantity of DSU withdrawn
     event FundsWithdrawn(address indexed account, UFixed6 amount);
+
+    /// @notice Emitted when cross-margin (non-isolated) balance has been adjusted
+    /// @param account Account whose cross-margin balance has changed
+    /// @param amount Quantity of DSU added (positive) or removed (negative)
+    event FundsChanged(address indexed account, Fixed6 amount);
 
     /// @notice Emitted when DSU funds are isolated to (positive) or deisolated from (negative) a market
     /// @param account Account from which DSU is isolated/deisolated

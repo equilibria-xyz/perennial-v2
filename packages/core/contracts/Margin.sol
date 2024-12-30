@@ -112,7 +112,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function updateBalance(address account, Fixed6 collateralDelta) external onlyMarket {
         _updateCollateralBalance(account, IMarket(msg.sender), collateralDelta);
-        // TODO: Emit an event
     }
 
     /// @inheritdoc IMargin
@@ -121,7 +120,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         _checkpoints[account][IMarket(msg.sender)][version].store(latest);
         // Adjust cross-margin or isolated collateral balance accordingly
         _updateCollateralBalance(account, IMarket(msg.sender), pnl);
-        // TODO: Should probably emit an event here which indexers could use to track PnL
     }
 
     /// @inheritdoc IMargin
@@ -213,8 +211,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 isolatedBalance = _balances[account][market];
         if (isolatedBalance.isZero()) {
             _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(collateralDelta);
+            emit FundsChanged(account, collateralDelta);
         } else {
             _balances[account][market] = isolatedBalance.add(collateralDelta);
+            emit IsolatedFundsChanged(account, market, collateralDelta);
         }
     }
 

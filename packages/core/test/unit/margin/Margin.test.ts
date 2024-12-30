@@ -159,11 +159,23 @@ describe('Margin', () => {
     it('market can adjust balances for fees and exposure', async () => {
       const balanceBefore = await margin.crossMarginBalances(user.address)
 
+      // cross-margin
       const feeEarned = parse6decimal('0.2')
-      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-      await expect(margin.connect(marketSigner).updateBalance(user.address, feeEarned)).to.not.be.reverted
-
+      let marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).updateBalance(user.address, feeEarned))
+        .to.emit(margin, 'FundsChanged')
+        .withArgs(user.address, feeEarned)
       expect(await margin.crossMarginBalances(user.address)).to.equal(balanceBefore.add(feeEarned))
+
+      // isolated
+      const depositAmount = parse6decimal('300')
+      await deposit(user, depositAmount)
+      await margin.connect(user).isolate(user.address, marketB.address, depositAmount)
+      marketSigner = await impersonate.impersonateWithBalance(marketB.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).updateBalance(user.address, feeEarned))
+        .to.emit(margin, 'IsolatedFundsChanged')
+        .withArgs(user.address, marketB.address, feeEarned)
+      expect(await margin.isolatedBalances(user.address, marketB.address)).to.equal(depositAmount.add(feeEarned))
     })
 
     it('stores and reads checkpoints', async () => {

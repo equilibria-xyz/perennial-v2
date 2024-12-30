@@ -24169,6 +24169,8 @@ describe('Market', () => {
         await expect(market.connect(owner).claimFee(owner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(owner.address, owner.address, PROTOCOL_FEE)
+          .to.emit(margin, 'FundsChanged')
+          .withArgs(owner.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
@@ -24179,6 +24181,8 @@ describe('Market', () => {
         await expect(market.connect(oracleSigner).claimFee(oracleSigner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(oracleSigner.address, oracleSigner.address, ORACLE_FEE)
+          .to.emit(margin, 'FundsChanged')
+          .withArgs(oracleSigner.address, ORACLE_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
         expect((await market.global()).oracleFee).to.equal(0)
@@ -24189,6 +24193,8 @@ describe('Market', () => {
         await expect(market.connect(coordinator).claimFee(coordinator.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(coordinator.address, coordinator.address, RISK_FEE)
+          .to.emit(margin, 'FundsChanged')
+          .withArgs(coordinator.address, RISK_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
         expect((await market.global()).oracleFee).to.equal(ORACLE_FEE)
@@ -24210,6 +24216,8 @@ describe('Market', () => {
         await expect(market.connect(userB).claimFee(owner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(owner.address, userB.address, PROTOCOL_FEE)
+          .to.emit(margin, 'IsolatedFundsChanged')
+          .withArgs(userB.address, market.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
       })
