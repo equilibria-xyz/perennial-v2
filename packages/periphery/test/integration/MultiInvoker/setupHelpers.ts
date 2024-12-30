@@ -40,7 +40,6 @@ import {
   AggregatorV3Interface,
   AggregatorV3Interface__factory,
   IVerifier,
-  Margin__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
@@ -189,6 +188,7 @@ export async function createVault(
   const [owner, , user, userB, userC, userD, liquidator, perennialUser, coordinator] = await ethers.getSigners()
   const marketFactory = instanceVars.marketFactory
   const oracleFactory = instanceVars.oracleFactory
+  const margin = instanceVars.margin
 
   const vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
   await oracleFactory.connect(owner).register(vaultOracleFactory.address)
@@ -306,12 +306,14 @@ export async function createVault(
   await asset.connect(userB).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(userC).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(userD).approve(vault.address, ethers.constants.MaxUint256)
-  await asset.connect(user).approve(ethMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(userB).approve(ethMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(userC).approve(btcMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(userD).approve(btcMarket.address, ethers.constants.MaxUint256)
+  await asset.connect(user).approve(margin.address, ethers.constants.MaxUint256)
+  await asset.connect(userB).approve(margin.address, ethers.constants.MaxUint256)
+  await asset.connect(userC).approve(margin.address, ethers.constants.MaxUint256)
+  await asset.connect(userD).approve(margin.address, ethers.constants.MaxUint256)
 
   // Seed markets with some activity
+  const depositAmount = parse6decimal('100000')
+  await margin.connect(user).deposit(user.address, depositAmount)
   await ethMarket
     .connect(user)
     ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -319,9 +321,10 @@ export async function createVault(
       parse6decimal('100'),
       0,
       0,
-      parse6decimal('100000'),
+      depositAmount,
       false,
     )
+  await margin.connect(userB).deposit(userB.address, depositAmount)
   await ethMarket
     .connect(userB)
     ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -329,9 +332,10 @@ export async function createVault(
       0,
       parse6decimal('50'),
       0,
-      parse6decimal('100000'),
+      depositAmount,
       false,
     )
+  await margin.connect(userC).deposit(userC.address, depositAmount)
   await btcMarket
     .connect(userC)
     ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -339,9 +343,10 @@ export async function createVault(
       parse6decimal('20'),
       0,
       0,
-      parse6decimal('100000'),
+      depositAmount,
       false,
     )
+  await margin.connect(userD).deposit(userD.address, depositAmount)
   await btcMarket
     .connect(userD)
     ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -349,7 +354,7 @@ export async function createVault(
       0,
       parse6decimal('10'),
       0,
-      parse6decimal('100000'),
+      depositAmount,
       false,
     )
 
