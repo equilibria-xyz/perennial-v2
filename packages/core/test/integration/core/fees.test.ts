@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, ContractTransaction, utils } from 'ethers'
-const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
@@ -153,8 +152,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedMakerFee).sub(expectedMakerLinear).sub(expectedMakerProportional),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedMakerFee).sub(expectedMakerLinear).sub(expectedMakerProportional),
+      )
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -264,8 +265,11 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedMakerFee).sub(10), // Maker gets part of their fee refunded since they were an exisiting maker
       })
+      // Maker gets part of their fee refunded since they were an exisiting maker
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedMakerFee).sub(10),
+      )
       expectOrderEq(await market.pendingOrders(user.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -419,11 +423,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedtakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -556,11 +562,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -592,8 +600,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedMakerFee),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -748,11 +756,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -782,8 +792,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedMakerFee),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -913,11 +923,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedtakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -1050,11 +1062,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -1084,8 +1098,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedMakerFee),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -1238,11 +1252,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -1272,8 +1288,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedMakerFee),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -2047,7 +2063,7 @@ describe('Fees', () => {
     })
 
     it('charges default referral fee for taker position', async () => {
-      const { user, userB, userC } = instanceVars
+      const { user, userB, userC, margin } = instanceVars
 
       // user creates a non-referred maker position to facilitate a taker order
       await market
@@ -2157,7 +2173,7 @@ describe('Fees', () => {
     })
 
     it('handles referral fee for multiple orders', async () => {
-      const { user, userB, userC, userD } = instanceVars
+      const { user, userB, userC, userD, margin } = instanceVars
 
       // user creates a maker position order referred by userB
       await market
@@ -2222,9 +2238,9 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: parse6decimal('1071.540000'),
         claimable: expectedClaimableTakerReferral,
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1071.540000'))
 
       // userD creates a short position referred by user
       await market
@@ -2262,7 +2278,7 @@ describe('Fees', () => {
     })
 
     it('allows for a new referrer on new orders', async () => {
-      const { user, userB, userC } = instanceVars
+      const { user, userB, userC, margin } = instanceVars
 
       // user creates a non-referred maker position to facilitate a taker order
       await market
@@ -2338,9 +2354,9 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: '1150119246',
         claimable: expectedCloseClaimable,
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1150.119246'))
       await expect(market.connect(user).claimFee(user.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(user.address, user.address, expectedCloseClaimable)
@@ -2593,8 +2609,11 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(EXPECTED_PNL).sub(TRADE_FEE_A).sub(3), // loss of precision
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+        COLLATERAL.sub(EXPECTED_PNL).sub(TRADE_FEE_A).sub(3),
+      ) // loss of precision
+
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_1,
@@ -2618,8 +2637,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(TRADE_FEE_B).sub(MAKER_LINEAR_FEE).sub(MAKER_PROPORTIONAL_FEE).sub(4), // loss of precision
       })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(TRADE_FEE_B).sub(MAKER_LINEAR_FEE).sub(MAKER_PROPORTIONAL_FEE).sub(4),
+      ) // loss of precision
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_1,
@@ -2641,9 +2662,9 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(EXPECTED_PNL),
         claimable: TRADE_FEE_A.div(10).add(1), // loss of precision
       })
+      expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.add(EXPECTED_PNL))
       expectPositionEq(await market.positions(userC.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_1,
@@ -2668,12 +2689,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(TRADE_FEE_D)
-          .sub(TAKER_LINEAR_FEE)
-          .sub(TAKER_PROPORITIONAL_FEE)
-          .sub(TAKER_ADIABATIC_FEE)
-          .sub(14), // loss of precision
       })
+      expect(await margin.isolatedBalances(userD.address, market.address)).to.equal(
+        COLLATERAL.sub(TRADE_FEE_D).sub(TAKER_LINEAR_FEE).sub(TAKER_PROPORITIONAL_FEE).sub(TAKER_ADIABATIC_FEE).sub(14),
+      ) // loss of precision
       expectPositionEq(await market.positions(userD.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_1,

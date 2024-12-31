@@ -368,8 +368,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -416,8 +416,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -494,8 +494,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -572,8 +572,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -662,8 +662,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -683,8 +683,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -756,8 +756,10 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249392')),
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+      COLLATERAL.add(parse6decimal('1.249392')),
+    )
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -823,8 +825,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -895,8 +897,10 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249392')),
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+      COLLATERAL.add(parse6decimal('1.249392')),
+    )
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -964,8 +968,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -1057,8 +1061,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -1147,8 +1151,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -1512,8 +1516,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
-      collateral: '871368068',
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('871.368068'))
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
@@ -2101,8 +2105,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2122,8 +2126,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2221,8 +2225,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2242,8 +2246,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2543,8 +2547,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2564,8 +2568,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2631,8 +2635,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2784,8 +2788,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: delay + 1,
       latestId: delay,
-      collateral: (await market.locals(user.address)).collateral,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, delay + 1), {
       ...DEFAULT_ORDER,
       orders: 1,
