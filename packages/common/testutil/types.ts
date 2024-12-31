@@ -218,7 +218,10 @@ export function expectLocalEq(a: Local, b: Local): void {
   expect(a.currentId).to.equal(b.currentId, 'Local:Currentid')
   expect(a.latestId).to.equal(b.latestId, 'Local:LatestId')
   expect(a.claimable).to.equal(b.claimable, 'Local:Claimable')
+  // ensure no nonzero values were written to storage
   expect(a.collateral).to.equal(constants.Zero)
+  // ensure no test expected a nonzero value
+  expect(b.collateral).to.equal(constants.Zero)
 }
 
 export function expectVersionEq(a: Version, b: Version): void {
