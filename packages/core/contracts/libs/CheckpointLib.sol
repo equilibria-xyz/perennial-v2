@@ -195,15 +195,7 @@ library CheckpointLib {
         Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (Fixed6) {
-        (UFixed6 exposurePos, UFixed6 exposureNeg) = order.exposure(
-            guarantee,
-            toVersion.makerPosExposure,
-            toVersion.makerNegExposure,
-            toVersion.longPosExposure,
-            toVersion.longNegExposure,
-            toVersion.shortPosExposure,
-            toVersion.shortNegExposure
-        );
+        (UFixed6 exposurePos, UFixed6 exposureNeg) = order.exposure(guarantee, toVersion);
 
         return Fixed6Lib.ZERO
             .sub(toVersion.spreadPos.accumulated(Accumulator6(Fixed6Lib.ZERO), exposurePos))

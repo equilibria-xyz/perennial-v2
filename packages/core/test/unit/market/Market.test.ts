@@ -1,5 +1,5 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
-import { BigNumber, constants, utils } from 'ethers'
+import { BigNumber, constants, ContractTransaction, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
@@ -48,9 +48,11 @@ import {
   SynBook,
 } from '../../../../common/testutil/types'
 import {
+  AccountPositionProcessedEventObject,
   IMarket,
   IntentStruct,
   MarketParameterStruct,
+  PositionProcessedEventObject,
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
 
@@ -424,6 +426,19 @@ async function updateSynBook(market: Market, synBook: SynBook) {
   riskParameterSynBook.d3 = BigNumber.from(synBook.d3.toString())
   riskParameter.synBook = riskParameterSynBook
   await market.updateRiskParameter(riskParameter)
+}
+
+async function getOrderProcessingEvents(
+  tx: ContractTransaction,
+): Promise<[Array<AccountPositionProcessedEventObject>, Array<PositionProcessedEventObject>]> {
+  const txEvents = (await tx.wait()).events!
+  const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
+    .filter(e => e.event === 'AccountPositionProcessed')
+    .map(e => e.args as unknown as AccountPositionProcessedEventObject)
+  const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
+    .filter(e => e.event === 'PositionProcessed')
+    .map(e => e.args as unknown as PositionProcessedEventObject)
+  return [accountProcessEvents, positionProcessEvents]
 }
 
 describe('Market', () => {
@@ -9646,26 +9661,15 @@ describe('Market', () => {
           })
 
           it('does not zero position and settlement fee upon closing', async () => {
-            const riskParameter = { ...(await market.riskParameter()) }
-            const riskParmeterTakerFee = { ...riskParameter.takerFee }
-            riskParmeterTakerFee.linearFee = parse6decimal('0.01')
-            riskParmeterTakerFee.proportionalFee = parse6decimal('0.002')
-            riskParmeterTakerFee.adiabaticFee = parse6decimal('0.008')
-            const riskParameterMakerFee = { ...riskParameter.makerFee }
-            riskParameterMakerFee.linearFee = parse6decimal('0.01')
-            riskParameterMakerFee.proportionalFee = parse6decimal('0.004')
-            riskParameter.takerFee = riskParmeterTakerFee
-            riskParameter.makerFee = riskParameterMakerFee
-            await market.updateRiskParameter(riskParameter)
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             const marketParameter = { ...(await market.parameter()) }
             marketParameter.makerFee = parse6decimal('0.01')
             await market.updateParameter(marketParameter)
 
+            const PRICE_IMPACT = parse6decimal('4.010310') // skew -1.0 -> -1.5, price 123, exposure -2.5
             const EXPECTED_MAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
             const EXPECTED_SETTLEMENT_FEE = parse6decimal('0.50')
-            const EXPECTED_MAKER_LINEAR = parse6decimal('6.15') // position * (0.01) * price
-            const EXPECTED_MAKER_PROPORTIONAL = parse6decimal('1.23') // position * (0.004 * 0.5) * price
 
             await expect(
               market
@@ -9692,14 +9696,14 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.returns()
 
-            await settle(market, user)
+            await await settle(market, user)
             await settle(market, userB)
 
             expectLocalEq(await market.locals(user.address), {
               ...DEFAULT_LOCAL,
               currentId: 2,
               latestId: 2,
-              collateral: COLLATERAL.sub(EXPECTED_SETTLEMENT_FEE).sub(EXPECTED_MAKER_FEE), // offset is returned to maker since it was previously in the pool
+              collateral: COLLATERAL.sub(EXPECTED_SETTLEMENT_FEE).sub(EXPECTED_MAKER_FEE).sub(3), // price impact is refunded back to existing maker minus rounding dust
             })
             expectPositionEq(await market.positions(user.address), {
               ...DEFAULT_POSITION,
@@ -9737,15 +9741,6 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            // empty position updates to maker 10 (user) and short 5 (userB)
-            // and then user reduces position to maker 5 before risk parameters updated
-            // before = [(skew/scale+0)/2 * takerFee.adiabaticFee * skew * price]
-            //        = [(0/5+0)/2 * 0.008 * 0 * 123]
-            //        = [(-5/5+0)/2 * 0.008 * -5 * 123]
-            //        = [-0.5 * -4.92] = 2.46
-            // after  = 0
-            const EXPOSURE_BEFORE = BigNumber.from(0)
-            const EXPOSURE_AFTER = BigNumber.from(0).sub(parse6decimal('2.46'))
             const totalFee = EXPECTED_MAKER_FEE
             expectGlobalEq(await market.global(), {
               ...DEFAULT_GLOBAL,
@@ -9754,7 +9749,6 @@ describe('Market', () => {
               protocolFee: totalFee.mul(8).div(10).add(1), // loss of precision
               oracleFee: totalFee.div(10).add(EXPECTED_SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(1), // loss of precision
-              exposure: EXPOSURE_BEFORE.add(EXPOSURE_AFTER),
               latestPrice: PRICE,
             })
             expectPositionEq(await market.position(), {
@@ -9771,12 +9765,10 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
-              makerPreValue: { _value: EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(10) },
-              longPreValue: { _value: 0 },
-              shortPreValue: { _value: 0 },
-              makerOffset: { _value: -EXPECTED_MAKER_LINEAR.add(EXPECTED_MAKER_PROPORTIONAL).div(5) },
+              makerCloseValue: { _value: PRICE_IMPACT.div(5) },
               makerFee: { _value: -EXPECTED_MAKER_FEE.div(5) },
               settlementFee: { _value: -EXPECTED_SETTLEMENT_FEE },
+              spreadNeg: { _value: -PRICE_IMPACT.mul(2).div(5).add(1) },
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee.mul(EXPECTED_SETTLEMENT_FEE).div(1e6) },
             })
