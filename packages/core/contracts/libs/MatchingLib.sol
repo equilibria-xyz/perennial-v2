@@ -5,6 +5,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { SynBook6 } from "@equilibria/root/synbook/types/SynBook6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
+import "hardhat/console.sol";
 
 struct MatchingExposure {
     Fixed6 maker;
@@ -115,34 +116,36 @@ library MatchingLib {
         MatchingPosition memory position2 = _position(position);
         MatchingOrderbook memory orderbook2 = _orderbook(orderbook);
 
+        MatchingFillResult memory fillResult;
+        MatchingExposure memory exposureClose;
+        MatchingExposure memory exposureOpen;
+        Fixed6 exposure;
+
         // fill positive side of order
-        (MatchingFillResult memory fillResult, MatchingExposure memory exposureClose, , ) =
+        (fillResult, exposureClose, exposureOpen, ) =
             _fill(orderbook, position, _extractTakerPos(order), synBook, price);
         result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
         result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
         result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
         result.spreadPreLong = fillResult.spreadLong;
         result.spreadCloseShort = fillResult.spreadShort;
+        result.exposureLongPos = exposureOpen.long;
+        result.exposureShortNeg = exposureClose.short;
 
         // fill negative side of order
-        (MatchingFillResult memory fillResult2, , , Fixed6 exposure2) =
+        (fillResult, exposureClose, exposureOpen, exposure) =
             _fill(orderbook2, position2, _extractTakerNeg(order), synBook, price);
-        result.spreadPos = result.spreadPos.add(fillResult2.spreadPos);
-        result.spreadNeg = result.spreadNeg.add(fillResult2.spreadNeg);
-        result.spreadMaker = result.spreadMaker.add(fillResult2.spreadMaker);
-        result.spreadCloseLong = fillResult2.spreadLong;
-        result.spreadPreShort = fillResult2.spreadShort;
+        result.spreadPos = result.spreadPos.add(fillResult.spreadPos);
+        result.spreadNeg = result.spreadNeg.add(fillResult.spreadNeg);
+        result.spreadMaker = result.spreadMaker.add(fillResult.spreadMaker);
+        result.spreadCloseLong = fillResult.spreadLong;
+        result.spreadPreShort = fillResult.spreadShort;
+        result.exposureLongNeg = exposureClose.long;
+        result.exposureShortPos = exposureOpen.short;
 
         // true up underlying position and orderbook to contain both executed sides for next step
         _apply(position, _extractTakerNeg(order));
-        _apply(orderbook, exposure2);
-        MatchingExposure memory exposureOpen = _div(_exposure(position), position);
-
-        // calculate exposure
-        result.exposureLongNeg = exposureClose.long;
-        result.exposureShortNeg = exposureClose.short;
-        result.exposureLongPos = exposureOpen.long;
-        result.exposureShortPos = exposureOpen.short;
+        _apply(orderbook, exposure);
     }
 
     function _executeOpen(

@@ -288,6 +288,51 @@ describe('MatchingLib', () => {
       expect(newOrderbook.ask).to.equal(utils.parseUnits('9', 6))
       expect(newOrderbook.bid).to.equal(utils.parseUnits('-23', 6))
     })
+
+    it('executes the order (socializated)', async () => {
+      const [newOrderbook, newPosition, newResult] = await matchingLib._executeTaker(
+        {
+          midpoint: utils.parseUnits('1', 6),
+          ask: utils.parseUnits('3', 6),
+          bid: utils.parseUnits('-2', 6),
+        },
+        {
+          maker: utils.parseUnits('0', 6),
+          long: utils.parseUnits('0', 6),
+          short: utils.parseUnits('0', 6),
+        },
+        {
+          ...DEFAULT_MATCHING_ORDER,
+          longPos: utils.parseUnits('10', 6),
+          longNeg: utils.parseUnits('0', 6),
+          shortPos: utils.parseUnits('5', 6),
+          shortNeg: utils.parseUnits('0', 6),
+        },
+        DEFAULT_SYNBOOK,
+        utils.parseUnits('123', 6),
+        DEFAULT_MATCHING_RESULT,
+      )
+
+      const spreadMakerPos = utils.parseUnits('0', 6)
+      const spreadMakerNeg = utils.parseUnits('0', 6) // 0 exp
+
+      expect(newResult.spreadPos).to.equal(utils.parseUnits('0', 6)) // 0 -> 0
+      expect(newResult.spreadNeg).to.equal(utils.parseUnits('0', 6)) // 0 -> 0
+      expect(newResult.spreadMaker).to.equal(spreadMakerPos.add(spreadMakerNeg))
+
+      expect(newResult.spreadPreLong).to.equal(utils.parseUnits('0', 6)) // 0 exp
+      expect(newResult.spreadCloseShort).to.equal(utils.parseUnits('0', 6))
+      expect(newResult.spreadCloseLong).to.equal(utils.parseUnits('0', 6)) // 0 exp
+      expect(newResult.spreadPreShort).to.equal(utils.parseUnits('0', 6)) // 0 exp
+
+      expect(newPosition.maker).to.equal(utils.parseUnits('0', 6))
+      expect(newPosition.long).to.equal(utils.parseUnits('10', 6))
+      expect(newPosition.short).to.equal(utils.parseUnits('5', 6))
+
+      expect(newOrderbook.midpoint).to.equal(utils.parseUnits('1', 6))
+      expect(newOrderbook.ask).to.equal(utils.parseUnits('3', 6))
+      expect(newOrderbook.bid).to.equal(utils.parseUnits('-2', 6))
+    })
   })
 
   describe('#_executeOpen()', () => {
