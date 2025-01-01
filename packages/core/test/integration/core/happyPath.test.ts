@@ -54,15 +54,11 @@ describe('Happy Path', () => {
     riskParameter = {
       margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
-      takerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        adiabaticFee: 0,
-        scale: parse6decimal('10000'),
-      },
-      makerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
+      synBook: {
+        d0: 0,
+        d1: 0,
+        d2: 0,
+        d3: 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('1'),
@@ -552,9 +548,9 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     riskParameter.makerLimit = parse6decimal('10')
-    const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('1')
-    riskParameter.takerFee = riskParameterTakerFee
+    const riskParameterSynBook = { ...riskParameter.synBook }
+    riskParameterSynBook.scale = parse6decimal('1')
+    riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -713,9 +709,9 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     riskParameter.makerLimit = parse6decimal('10')
-    const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('1')
-    riskParameter.takerFee = riskParameterTakerFee
+    const riskParameterSynBook = { ...riskParameter.synBook }
+    riskParameterSynBook.scale = parse6decimal('1')
+    riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -926,9 +922,9 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_1), {
       ...DEFAULT_VERSION,
       price: PRICE_1,
-      makerValue: { _value: 0 },
-      longValue: { _value: 0 },
-      shortValue: { _value: 0 },
+      makerPreValue: { _value: 0 },
+      longPreValue: { _value: 0 },
+      shortPreValue: { _value: 0 },
     })
   })
 
@@ -1118,8 +1114,6 @@ describe('Happy Path', () => {
       market,
       'MarketNotCoordinatorError',
     )
-
-    await expect(market.connect(user).claimExposure()).to.be.revertedWithCustomError(market, 'InstanceNotOwnerError')
   })
 
   it('disables update when settle only mode', async () => {
@@ -1148,9 +1142,9 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     riskParameter.makerLimit = parse6decimal('10')
-    const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('1')
-    riskParameter.takerFee = riskParameterTakerFee
+    const riskParameterSynBook = { ...riskParameter.synBook }
+    riskParameterSynBook.scale = parse6decimal('1')
+    riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -1197,9 +1191,9 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     riskParameter.makerLimit = parse6decimal('10')
-    const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('1')
-    riskParameter.takerFee = riskParameterTakerFee
+    const riskParameterSynBook = { ...riskParameter.synBook }
+    riskParameterSynBook.scale = parse6decimal('1')
+    riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -1246,16 +1240,11 @@ describe('Happy Path', () => {
     const riskParameter = {
       margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
-      takerFee: {
-        linearFee: positionFeesOn ? parse6decimal('0.001') : 0,
-        proportionalFee: positionFeesOn ? parse6decimal('0.0006') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0004') : 0,
-        scale: parse6decimal('10000'),
-      },
-      makerFee: {
-        linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
-        proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: 0,
+      synBook: {
+        d0: positionFeesOn ? parse6decimal('0.001') : 0,
+        d1: positionFeesOn ? parse6decimal('0.002') : 0,
+        d2: positionFeesOn ? parse6decimal('0.004') : 0,
+        d3: positionFeesOn ? parse6decimal('0.008') : 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),
@@ -1338,7 +1327,7 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
-      collateral: '871368068',
+      collateral: '871363774',
     })
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
@@ -1361,7 +1350,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 3,
       latestId: 2,
-      protocolFee: '172527179',
+      protocolFee: '171958098',
       latestPrice: PRICE_4,
     })
     expectOrderEq(await market.pendingOrder(3), {
@@ -1380,105 +1369,11 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       ...DEFAULT_VERSION,
       price: PRICE_4,
-      makerValue: { _value: '-3538257' },
-      longValue: { _value: '3620965' },
-      shortValue: { _value: 0 },
+      makerPreValue: { _value: '-3625477' },
+      longPreValue: { _value: '3620965' },
+      shortPreValue: { _value: 0 },
+      longPostValue: { _value: '43' },
     })
-  })
-
-  it('owner claims exposure', async () => {
-    const POSITION = parse6decimal('10')
-    const POSITION_B = parse6decimal('1')
-    const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, chainlink } = instanceVars
-
-    const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-
-    await market
-      .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
-    await market
-      .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false)
-
-    await chainlink.nextWithPriceModification(price => price.mul(10))
-
-    await settle(market, user)
-
-    const riskParameter = {
-      margin: parse6decimal('0.3'),
-      maintenance: parse6decimal('0.3'),
-      takerFee: {
-        linearFee: parse6decimal('0.001'),
-        proportionalFee: parse6decimal('0.0006'),
-        adiabaticFee: parse6decimal('0.0004'),
-        scale: parse6decimal('10000'),
-      },
-      makerFee: {
-        linearFee: parse6decimal('0.0005'),
-        proportionalFee: parse6decimal('0.0002'),
-        adiabaticFee: 0,
-        scale: parse6decimal('10000'),
-      },
-      makerLimit: parse6decimal('100000'),
-      efficiencyLimit: parse6decimal('0.2'),
-      liquidationFee: parse6decimal('10.00'),
-      utilizationCurve: {
-        minRate: 0,
-        maxRate: parse6decimal('5.00'),
-        targetRate: parse6decimal('0.80'),
-        targetUtilization: parse6decimal('0.80'),
-      },
-      pController: {
-        k: parse6decimal('40000'),
-        min: parse6decimal('-1.20'),
-        max: parse6decimal('1.20'),
-      },
-      minMargin: parse6decimal('500'),
-      minMaintenance: parse6decimal('500'),
-      staleAfter: 64800, // enable long delays for testing
-      makerReceiveOnly: false,
-    }
-    const parameter = {
-      fundingFee: parse6decimal('0.1'),
-      interestFee: parse6decimal('0.1'),
-      riskFee: 0,
-      maxPendingGlobal: 8,
-      maxPendingLocal: 8,
-      makerFee: parse6decimal('0.2'),
-      takerFee: parse6decimal('0.1'),
-      maxPriceDeviation: parse6decimal('0.1'),
-      closed: false,
-      settle: false,
-    }
-
-    await market.updateParameter(parameter)
-    await market.updateRiskParameter(riskParameter)
-
-    // ensure exposure is negative
-    expect((await market.global()).exposure).to.lt(0)
-
-    await fundWallet(dsu, owner)
-
-    await dsu.connect(owner).approve(market.address, (await market.global()).exposure.mul(-1e12))
-
-    await market.connect(owner).claimExposure()
-
-    expect((await market.global()).exposure).to.equals(0)
-
-    // Update adiabatic fee to 0 to get positive exposure
-    riskParameter.takerFee.adiabaticFee = BigNumber.from(0)
-
-    await market.updateRiskParameter(riskParameter)
-
-    // ensure exposure is positive
-    expect((await market.global()).exposure).to.gt(0)
-
-    await market.connect(owner).claimExposure()
-
-    expect((await market.global()).exposure).to.equals(0)
   })
 
   it('opens intent order w/ signer', async () => {
@@ -1571,15 +1466,15 @@ describe('Happy Path', () => {
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
-      takerPos: POSITION.div(2),
-      takerNeg: POSITION.div(2),
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
-      takerPos: POSITION.div(2),
+      longPos: POSITION.div(2),
       referral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
@@ -1703,15 +1598,15 @@ describe('Happy Path', () => {
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
-      takerPos: POSITION.div(2),
-      takerNeg: POSITION.div(2),
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
-      takerPos: POSITION.div(2),
+      longPos: POSITION.div(2),
       referral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
@@ -1809,15 +1704,15 @@ describe('Happy Path', () => {
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
-      takerPos: POSITION.div(2),
-      takerNeg: POSITION.div(2),
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
-      takerPos: POSITION.div(2),
+      longPos: POSITION.div(2),
       referral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
@@ -1848,9 +1743,9 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     riskParameter.makerLimit = parse6decimal('10')
-    const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('1')
-    riskParameter.takerFee = riskParameterTakerFee
+    const riskParameterSynBook = { ...riskParameter.synBook }
+    riskParameterSynBook.scale = parse6decimal('1')
+    riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12).mul(2))
@@ -1987,9 +1882,9 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     riskParameter.makerLimit = parse6decimal('10')
-    const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('1')
-    riskParameter.takerFee = riskParameterTakerFee
+    const riskParameterSynBook = { ...riskParameter.synBook }
+    riskParameterSynBook.scale = parse6decimal('1')
+    riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12).mul(2))
@@ -2156,15 +2051,15 @@ describe('Happy Path', () => {
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
-      takerPos: POSITION.div(2),
-      takerNeg: POSITION.div(2),
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
-      takerPos: POSITION.div(2),
+      longPos: POSITION.div(2),
       referral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
@@ -2269,15 +2164,15 @@ describe('Happy Path', () => {
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
-      takerPos: POSITION.div(2),
-      takerNeg: POSITION.div(2),
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
-      takerPos: POSITION.div(2),
+      longPos: POSITION.div(2),
       referral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
@@ -2308,9 +2203,9 @@ describe('Happy Path', () => {
 
     const riskParameter = { ...(await market.riskParameter()) }
     riskParameter.makerLimit = parse6decimal('10')
-    const riskParameterTakerFee = { ...riskParameter.takerFee }
-    riskParameterTakerFee.scale = parse6decimal('1')
-    riskParameter.takerFee = riskParameterTakerFee
+    const riskParameterSynBook = { ...riskParameter.synBook }
+    riskParameterSynBook.scale = parse6decimal('1')
+    riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -2473,16 +2368,11 @@ describe('Happy Path', () => {
     const riskParameter = {
       margin: parse6decimal('0.3'),
       maintenance: parse6decimal('0.3'),
-      takerFee: {
-        linearFee: positionFeesOn ? parse6decimal('0.001') : 0,
-        proportionalFee: positionFeesOn ? parse6decimal('0.0006') : 0,
-        adiabaticFee: positionFeesOn ? parse6decimal('0.0004') : 0,
-        scale: parse6decimal('10000'),
-      },
-      makerFee: {
-        linearFee: positionFeesOn ? parse6decimal('0.0005') : 0,
-        proportionalFee: positionFeesOn ? parse6decimal('0.0002') : 0,
-        adiabaticFee: 0,
+      synBook: {
+        d0: positionFeesOn ? parse6decimal('0.001') : 0,
+        d1: positionFeesOn ? parse6decimal('0.002') : 0,
+        d2: positionFeesOn ? parse6decimal('0.004') : 0,
+        d3: positionFeesOn ? parse6decimal('0.008') : 0,
         scale: parse6decimal('10000'),
       },
       makerLimit: parse6decimal('100000'),

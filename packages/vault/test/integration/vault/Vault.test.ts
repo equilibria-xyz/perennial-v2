@@ -236,15 +236,11 @@ describe('Vault', () => {
       makerLimit: parse6decimal('1000'),
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
-      takerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        adiabaticFee: 0,
-        scale: parse6decimal('100'),
-      },
-      makerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
+      synBook: {
+        d0: 0,
+        d1: 0,
+        d2: 0,
+        d3: 0,
         scale: parse6decimal('100'),
       },
     })
@@ -255,15 +251,11 @@ describe('Vault', () => {
       oracle: btcRootOracle.address,
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
-      takerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        adiabaticFee: 0,
-        scale: parse6decimal('10'),
-      },
-      makerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
+      synBook: {
+        d0: 0,
+        d1: 0,
+        d2: 0,
+        d3: 0,
         scale: parse6decimal('10'),
       },
     })
@@ -457,15 +449,11 @@ describe('Vault', () => {
         owner: owner,
         oracle: rootOracle3.address,
         makerLimit: parse6decimal('1000000'),
-        takerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
-          scale: parse6decimal('100000'),
-        },
-        makerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
+        synBook: {
+          d0: 0,
+          d1: 0,
+          d2: 0,
+          d3: 0,
           scale: parse6decimal('100000'),
         },
       })
@@ -528,15 +516,11 @@ describe('Vault', () => {
         owner: owner,
         oracle: rootOracle4.address,
         makerLimit: parse6decimal('1000000'),
-        takerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
-          scale: parse6decimal('100000'),
-        },
-        makerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
+        synBook: {
+          d0: 0,
+          d1: 0,
+          d2: 0,
+          d3: 0,
           scale: parse6decimal('100000'),
         },
       })
@@ -1562,21 +1546,15 @@ describe('Vault', () => {
     })
 
     it('multiple users w/ makerFee', async () => {
-      const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter({
-        ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+      const marketParameter = { ...(await market.parameter()) }
+      await market.updateParameter({
+        ...marketParameter,
+        makerFee: parse6decimal('0.001'),
       })
-      const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter({
+      const btcRiskParameters = { ...(await btcMarket.parameter()) }
+      await btcMarket.updateParameter({
         ...btcRiskParameters,
-        makerFee: {
-          ...btcRiskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+        makerFee: parse6decimal('0.001'),
       })
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1598,8 +1576,8 @@ describe('Vault', () => {
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('9997751413')
-      const totalAssets = BigNumber.from('10996225611')
+      const balanceOf2 = BigNumber.from('9999782696')
+      const totalAssets = BigNumber.from('10996023245')
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
@@ -1634,9 +1612,9 @@ describe('Vault', () => {
       const currentTradeFee = (await market.checkpoints(vault.address, marketPreviousCurrenTimestamp)).tradeFee
       const btcCurrentTradeFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp)).tradeFee
 
-      const unclaimed1 = BigNumber.from('992142730')
-      const unclaimed2 = BigNumber.from('9923301914')
-      const finalTotalAssets = BigNumber.from('39840084') // last trade fee
+      const unclaimed1 = BigNumber.from('991920553')
+      const unclaimed2 = BigNumber.from('9921195678')
+      const finalTotalAssets = BigNumber.from('39840089') // last trade fee
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
@@ -1678,21 +1656,15 @@ describe('Vault', () => {
     })
 
     it('multiple users w/ makerFee + settlement fee', async () => {
-      const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter({
-        ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+      const marketParameter = { ...(await market.parameter()) }
+      await market.updateParameter({
+        ...marketParameter,
+        makerFee: parse6decimal('0.001'),
       })
-      const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter({
+      const btcRiskParameters = { ...(await btcMarket.parameter()) }
+      await btcMarket.updateParameter({
         ...btcRiskParameters,
-        makerFee: {
-          ...btcRiskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+        makerFee: parse6decimal('0.001'),
       })
 
       const oracleRecteipt = { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('1.00') }
@@ -1723,8 +1695,8 @@ describe('Vault', () => {
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('10015653937')
-      const totalAssets = BigNumber.from('10994246014')
+      const balanceOf2 = BigNumber.from('10017692486')
+      const totalAssets = BigNumber.from('10994043690')
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
@@ -1764,9 +1736,9 @@ describe('Vault', () => {
       const btcCurrentSettlementFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp))
         .settlementFee
 
-      const unclaimed1 = BigNumber.from('988182487')
-      const unclaimed2 = BigNumber.from('9919706416')
-      const finalTotalAssets = BigNumber.from('41832125') // last trade fee + settlement fee
+      const unclaimed1 = BigNumber.from('987960350')
+      const unclaimed2 = BigNumber.from('9917600959')
+      const finalTotalAssets = BigNumber.from('41832096') // last trade fee + settlement fee
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
@@ -1843,13 +1815,10 @@ describe('Vault', () => {
     })
 
     it('simple deposits and redemptions w/ factory initial amount (with fees)', async () => {
-      const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter({
-        ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+      const marketParameter = { ...(await market.parameter()) }
+      await market.updateParameter({
+        ...marketParameter,
+        makerFee: parse6decimal('0.001'),
       })
 
       const oracleRecteipt = { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('1.00') }
@@ -1891,17 +1860,23 @@ describe('Vault', () => {
       const riskParameters = { ...(await market.riskParameter()) }
       await market.updateRiskParameter({
         ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
+        synBook: {
+          ...riskParameters.synBook,
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.008'),
         },
       })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
       await btcMarket.updateRiskParameter({
         ...btcRiskParameters,
-        makerFee: {
-          ...btcRiskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
+        synBook: {
+          ...riskParameters.synBook,
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.008'),
         },
       })
 
@@ -1927,7 +1902,7 @@ describe('Vault', () => {
       await vault.rebalance(user.address)
       await vault.rebalance(user2.address)
 
-      const totalAssets = BigNumber.from('10910767469')
+      const totalAssets = BigNumber.from('10984291835')
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 

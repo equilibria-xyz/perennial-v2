@@ -28,8 +28,7 @@ export async function deployProductOnFork({
   fundingFee,
   interestFee,
   makerLimit,
-  makerFee,
-  takerFee,
+  synBook,
   marketMakerFee,
   marketTakerFee,
   efficiencyLimit,
@@ -41,15 +40,11 @@ export async function deployProductOnFork({
   const riskParameter: RiskParameterStruct = {
     margin: margin ?? parse6decimal('0.10'),
     maintenance: maintenance ?? parse6decimal('0.10'),
-    takerFee: takerFee ?? {
-      linearFee: parse6decimal('0.0'),
-      proportionalFee: parse6decimal('0.0'),
-      adiabaticFee: parse6decimal('0.0'),
-      scale: parse6decimal('0.0'),
-    },
-    makerFee: makerFee ?? {
-      linearFee: parse6decimal('0.0'),
-      proportionalFee: parse6decimal('0.0'),
+    synBook: synBook ?? {
+      d0: 0,
+      d1: 0,
+      d2: 0,
+      d3: 0,
       scale: parse6decimal('0.0'),
     },
     makerLimit: makerLimit ?? parse6decimal('100'),

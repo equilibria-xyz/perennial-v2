@@ -42,14 +42,10 @@ export const TIMESTAMP_5 = 1631118731
 
 const RISK_PARAMS = {
   takerFee: {
-    linearFee: parse6decimal('0.05'),
-    proportionalFee: parse6decimal('0.06'),
-    adiabaticFee: parse6decimal('0.14'),
-    scale: parse6decimal('1'),
-  },
-  makerFee: {
-    linearFee: parse6decimal('0.09'),
-    proportionalFee: parse6decimal('0.08'),
+    d0: parse6decimal('0.001'),
+    d1: parse6decimal('0.002'),
+    d2: parse6decimal('0.004'),
+    d3: parse6decimal('0.008'),
     scale: parse6decimal('10'),
   },
   makerLimit: parse6decimal('20'),
