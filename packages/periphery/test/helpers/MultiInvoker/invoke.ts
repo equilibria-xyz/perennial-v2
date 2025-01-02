@@ -16,14 +16,6 @@ export const MAX_UINT64 = BigNumber.from('18446744073709551615')
 export const MAX_INT64 = BigNumber.from('9223372036854775807')
 export const MIN_INT64 = BigNumber.from('-9223372036854775808')
 
-export type OrderStruct = {
-  side?: number
-  comparisson?: number
-  fee: BigNumberish
-  price?: BigNumberish
-  delta?: BigNumberish
-}
-
 export type Actions = IMultiInvoker.InvocationStruct[]
 
 export const buildUpdateMarket = ({
@@ -120,50 +112,6 @@ export const buildUpdateIntent = async ({
   ]
 }
 
-export const buildPlaceOrder = ({
-  market,
-  maker,
-  long,
-  short,
-  collateral,
-  handleWrap,
-}: {
-  market: string
-  maker?: BigNumberish
-  long?: BigNumberish
-  short?: BigNumberish
-  collateral: BigNumberish
-  handleWrap?: boolean
-}): Actions => {
-  return [
-    {
-      action: 1,
-      args: utils.defaultAbiCoder.encode(
-        [
-          'address',
-          'uint256',
-          'uint256',
-          'uint256',
-          'int256',
-          'bool',
-          'tuple(uint256,address)',
-          'tuple(uint256,address)',
-        ],
-        [
-          market,
-          maker ?? MAX_UINT,
-          long ?? MAX_UINT,
-          short ?? MAX_UINT,
-          collateral ?? MIN_INT,
-          handleWrap ?? false,
-          [0, constants.AddressZero],
-          [0, constants.AddressZero],
-        ],
-      ),
-    },
-  ]
-}
-
 export type VaultUpdate = {
   vault: string
   depositAssets?: BigNumberish
@@ -216,37 +164,6 @@ export const buildApproveTarget = (target: string): Actions => {
   ]
 }
 
-export const buildCancelOrder = ({ market, orderId }: { market: string; orderId: BigNumberish }): Actions => {
-  return [
-    {
-      action: 4,
-      args: utils.defaultAbiCoder.encode(['address', 'uint256'], [market, orderId]),
-    },
-  ]
-}
-
-export const buildExecOrder = ({
-  user,
-  market,
-  orderId,
-  revertOnFailure,
-}: {
-  user: string
-  market: string
-  orderId: BigNumberish
-  revertOnFailure?: boolean
-}): Actions => {
-  return [
-    {
-      action: 5,
-      args: utils.defaultAbiCoder.encode(
-        ['address', 'address', 'uint256', 'bool'],
-        [user, market, orderId, revertOnFailure ?? true],
-      ),
-    },
-  ]
-}
-
 export const buildClaimFee = ({ market, unwrap }: { market: string; unwrap: boolean }): Actions => {
   return [
     {
@@ -257,15 +174,7 @@ export const buildClaimFee = ({ market, unwrap }: { market: string; unwrap: bool
 }
 
 module.exports = {
-  MAX_INT,
   MAX_UINT,
-  MAX_UINT48,
-  MAX_UINT64,
-  MAX_INT64,
-  MIN_INT64,
-  buildCancelOrder,
-  buildExecOrder,
-  buildPlaceOrder,
   buildUpdateMarket,
   buildUpdateIntent,
   buildLiquidateUser,
