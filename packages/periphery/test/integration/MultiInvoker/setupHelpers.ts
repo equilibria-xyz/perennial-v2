@@ -299,6 +299,7 @@ export async function createVault(
   await vault.connect(coordinator).updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
 
   await vault.connect(owner).updateParameter({
+    ...(await vault.parameter()),
     maxDeposit: maxCollateral ?? parse6decimal('500000'),
     minDeposit: 0,
   })

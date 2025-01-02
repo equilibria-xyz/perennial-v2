@@ -296,9 +296,9 @@ describe('Vault', () => {
     await vault.connect(coordinator).updateLeverage(1, leverage)
     await vault.connect(coordinator).updateWeights([0.8e6, 0.2e6])
     await vault.connect(owner).updateParameter({
+      ...(await vault.parameter()),
       maxDeposit: maxCollateral,
       minDeposit: 0,
-      leverageBuffer: parse6decimal('1.2'),
     })
 
     await Promise.all([
@@ -1959,13 +1959,11 @@ describe('Vault', () => {
     })
 
     it('reverts when below minDeposit', async () => {
-      await vault
-        .connect(owner)
-        .updateParameter({
-          maxDeposit: maxCollateral,
-          minDeposit: parse6decimal('10'),
-          leverageBuffer: parse6decimal('1.2'),
-        })
+      await vault.connect(owner).updateParameter({
+        ...(await vault.parameter()),
+        maxDeposit: maxCollateral,
+        minDeposit: parse6decimal('10'),
+      })
       await expect(vault.connect(user).update(user.address, parse6decimal('0.50'), 0, 0)).to.revertedWithCustomError(
         vault,
         'VaultInsufficientMinimumError',
