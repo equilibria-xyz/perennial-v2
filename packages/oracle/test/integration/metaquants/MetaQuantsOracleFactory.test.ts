@@ -308,16 +308,11 @@ testOracles.forEach(testOracle => {
       const riskParameter = {
         margin: parse6decimal('0.3'),
         maintenance: parse6decimal('0.3'),
-        takerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
-          scale: parse6decimal('100'),
-        },
-        makerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
+        synBook: {
+          d0: 0,
+          d1: 1,
+          d2: 2,
+          d3: 3,
           scale: parse6decimal('100'),
         },
         makerLimit: parse6decimal('1000'),
