@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber, constants } from 'ethers'
-const { AddressZero } = constants
+import { BigNumber } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'
@@ -118,8 +117,8 @@ describe('Closed Market', () => {
     await settle(market, user)
     await settle(market, userB)
 
-    const userCollateralBefore = (await market.locals(user.address)).collateral
-    const userBCollateralBefore = (await market.locals(userB.address)).collateral
+    const userCollateralBefore = await margin.isolatedBalances(user.address, market.address)
+    const userBCollateralBefore = await margin.isolatedBalances(userB.address, market.address)
     const feesABefore = (await market.global()).protocolFee
     const feesBBefore = (await market.global()).oracleFee
     const feesCBefore = (await market.global()).riskFee
@@ -130,8 +129,8 @@ describe('Closed Market', () => {
     await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true)
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
 
-    expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)
-    expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore)
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(userCollateralBefore)
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(userBCollateralBefore)
     expect((await market.global()).protocolFee).to.equal(feesABefore)
     expect((await market.global()).oracleFee).to.equal(feesBBefore)
     expect((await market.global()).riskFee).to.equal(feesCBefore)
@@ -170,8 +169,8 @@ describe('Closed Market', () => {
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_3)
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
-    const userCollateralBefore = (await market.locals(user.address)).collateral
-    const userBCollateralBefore = (await market.locals(userB.address)).collateral
+    const userCollateralBefore = await margin.isolatedBalances(user.address, market.address)
+    const userBCollateralBefore = await margin.isolatedBalances(userB.address, market.address)
     const feesABefore = (await market.global()).protocolFee
     const feesBBefore = (await market.global()).oracleFee
     const feesCBefore = (await market.global()).riskFee
@@ -179,12 +178,11 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
 
-    const LIQUIDATION_FEE = BigNumber.from('1000000000')
     await settle(market, user)
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
 
-    expect((await market.locals(user.address)).collateral).to.equal(userCollateralBefore)
-    expect((await market.locals(userB.address)).collateral).to.equal(userBCollateralBefore)
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(userCollateralBefore)
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(userBCollateralBefore)
     expect((await market.global()).protocolFee).to.equal(feesABefore)
     expect((await market.global()).oracleFee).to.equal(feesBBefore)
     expect((await market.global()).riskFee).to.equal(feesCBefore)

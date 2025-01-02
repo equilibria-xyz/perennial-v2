@@ -92,7 +92,7 @@ describe('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, marketFactory, payoff, oracle, dsu } = instanceVars
+    const { owner, marketFactory, oracle, dsu } = instanceVars
 
     const parameter = {
       fundingFee: parse6decimal('0.1'),
@@ -1250,7 +1250,7 @@ describe('Happy Path', () => {
   })
 
   it('disables actions when unauthorized access', async () => {
-    const { marketFactory, user, oracle, dsu, payoff } = instanceVars
+    const { marketFactory, user, oracle } = instanceVars
 
     await expect(marketFactory.connect(user).create(oracle.address)).to.be.revertedWithCustomError(
       marketFactory,
@@ -2663,7 +2663,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
 
-    const { user, userB, dsu, beneficiaryB, payoff, chainlink, margin } = instanceVars
+    const { user, userB, dsu, chainlink, margin } = instanceVars
 
     // set delay
     chainlink.delay = delay
@@ -2758,6 +2758,7 @@ describe('Happy Path', () => {
     // ensure all pending can settle
     for (let i = 0; i < delay - 1; i++) await nextWithConstantPrice()
     if (sync) await nextWithConstantPrice()
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.mul(2))
 
     // const currentVersion = delay + delay + delay - (sync ? 0 : 1)
     // const latestVersion = delay + delay - (sync ? 0 : 1)
@@ -2789,7 +2790,6 @@ describe('Happy Path', () => {
       currentId: delay + 1,
       latestId: delay,
     })
-    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, delay + 1), {
       ...DEFAULT_ORDER,
       orders: 1,

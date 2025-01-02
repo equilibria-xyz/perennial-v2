@@ -389,8 +389,8 @@ jobs:
           path: ./packages/periphery/coverage/lcov.info
       - name: Run tests on Base
         env:
-          MOCHA_REPORTER: spec
-          MOCHA_RETRY_COUNT: 0
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
           BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
         run: |
           yarn workspace @perennial/v2-periphery run test:integrationBase

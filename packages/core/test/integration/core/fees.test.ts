@@ -91,14 +91,18 @@ describe('Fees', () => {
   async function getOrderProcessingEvents(
     tx: ContractTransaction,
   ): Promise<[Array<AccountPositionProcessedEventObject>, Array<PositionProcessedEventObject>]> {
-    const txEvents = (await tx.wait()).events!
-    const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
-      .filter(e => e.event === 'AccountPositionProcessed')
-      .map(e => e.args as unknown as AccountPositionProcessedEventObject)
-    const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
-      .filter(e => e.event === 'PositionProcessed')
-      .map(e => e.args as unknown as PositionProcessedEventObject)
-    return [accountProcessEvents, positionProcessEvents]
+    const txEvents = (await tx.wait()).events
+    if (txEvents) {
+      const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
+        .filter(e => e.event === 'AccountPositionProcessed')
+        .map(e => e.args as unknown as AccountPositionProcessedEventObject)
+      const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
+        .filter(e => e.event === 'PositionProcessed')
+        .map(e => e.args as unknown as PositionProcessedEventObject)
+      return [accountProcessEvents, positionProcessEvents]
+    } else {
+      throw new Error('Transaction had no events to process')
+    }
   }
 
   beforeEach(async () => {
@@ -1491,6 +1495,7 @@ describe('Fees', () => {
 
         const expectedShortAdiabaticFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
         expect(accountProcessEvent.accumulationResult.offset).to.equal(expectedShortAdiabaticFee)
+        expect(positionProcessEvent.accumulationResult.tradeOffset).to.equal(expectedShortAdiabaticFee)
       })
 
       it('charges taker impact fee for changing skew (long)', async () => {
@@ -1512,6 +1517,7 @@ describe('Fees', () => {
 
         const expectedShortAdiabaticFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
         expect(accountProcessEventShort.accumulationResult.offset).to.equal(expectedShortAdiabaticFee)
+        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(expectedShortAdiabaticFee)
       })
 
       it('refunds taker position fee for negative impact', async () => {
@@ -1561,6 +1567,9 @@ describe('Fees', () => {
         expect(accountProcessEventShort.accumulationResult.offset).to.equal(
           expectedShortLinearFee.add(expectedShortAdiabaticFee),
         )
+        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(
+          expectedShortLinearFee.add(expectedShortAdiabaticFee),
+        )
       })
 
       it('refunds taker position fee for negative impact (negative fees)', async () => {
@@ -1608,6 +1617,9 @@ describe('Fees', () => {
         const expectedShortLinearFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
         const expectedShortAdiabaticFee = BigNumber.from('-2277659') // = 3374.655169**2 *-0.00001 * 100% * 0.02
         expect(accountProcessEventShort.accumulationResult.offset).to.equal(
+          expectedShortLinearFee.add(expectedShortAdiabaticFee),
+        )
+        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(
           expectedShortLinearFee.add(expectedShortAdiabaticFee),
         )
       })
@@ -2063,7 +2075,7 @@ describe('Fees', () => {
     })
 
     it('charges default referral fee for taker position', async () => {
-      const { user, userB, userC, margin } = instanceVars
+      const { user, userB, userC } = instanceVars
 
       // user creates a non-referred maker position to facilitate a taker order
       await market

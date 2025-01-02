@@ -48,7 +48,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function deposit(address account, UFixed6 amount) external nonReentrant {
-        // console.log("  Margin deposit %s for %s", UFixed6.unwrap(amount), account);
         DSU.pull(msg.sender, UFixed18Lib.from(amount));
         _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(Fixed6Lib.from(amount));
         emit FundsDeposited(account, amount);
@@ -58,8 +57,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function withdraw(address account, UFixed6 amount) external nonReentrant onlyOperator(account) {
         Fixed6 balance = _balances[account][CROSS_MARGIN];
-        // console.log("  Margin withdraw %s for %s, CM balance is", UFixed6.unwrap(amount), account);
-        // console.logInt(Fixed6.unwrap(balance));
         if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalance();
         _balances[account][CROSS_MARGIN] = balance.sub(Fixed6Lib.from(amount));
         // withdrawal goes to sender, not account, consistent with legacy Market behavior
@@ -149,8 +146,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
             UFixed6 requirement = market.marginRequired(account, minCollateralization);
-            // console.log("margined with requirement %s and collateral", UFixed6.unwrap(requirement));
-            // console.logInt(Fixed6.unwrap(collateral));
             return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check
@@ -190,7 +185,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             _checkpoints[account][market][latestTimestamp].store(checkpoint);
         }
 
-        // TODO: not sure how I feel about Margin contract reverting with Market errors here
         if (amount.sign() == -1) {
             if (!_margined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
                 revert IMarket.MarketInsufficientMarginError();

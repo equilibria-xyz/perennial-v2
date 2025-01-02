@@ -689,10 +689,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert IMarket.MarketStalePriceError();
 
         // check margin
-        // console.log("context positon is %s, pending local pos %s",
-        //     UFixed6.unwrap(context.latestPositionLocal.magnitude()),
-        //     UFixed6.unwrap(context.pendingLocal.pos())
-        // );
         if (!newOrder.protected() && (
             !margin.margined(
                 context.account,
