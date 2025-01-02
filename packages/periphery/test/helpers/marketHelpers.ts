@@ -31,7 +31,6 @@ import { IMargin__factory } from '@perennial/v2-vault/types/generated'
 export async function createMarket(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
-  dsu: IERC20Metadata, // TODO: eliminate param
   oracle: IOracle,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,

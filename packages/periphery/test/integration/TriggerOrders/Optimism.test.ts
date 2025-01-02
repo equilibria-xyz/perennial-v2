@@ -89,7 +89,7 @@ const fixture = async (): Promise<FixtureVars> => {
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
   const reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, owner)
   const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
-  const marketWithOracle = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+  const marketWithOracle = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory)
   const market = marketWithOracle.market
 
   // deploy the order manager

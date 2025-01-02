@@ -64,7 +64,7 @@ export function RunPythOracleTests(
       await dsu.connect(owner).transfer(oracleFactory.address, utils.parseEther('100000'))
 
       multiInvoker = await createInvoker(instanceVars)
-      market = await createMarket(owner, instanceVars.marketFactory, dsu, oracle, undefined, undefined, {
+      market = await createMarket(owner, instanceVars.marketFactory, oracle, undefined, undefined, {
         maxFeePerGas: 100000000,
       })
 

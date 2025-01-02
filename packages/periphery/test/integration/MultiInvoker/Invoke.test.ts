@@ -108,7 +108,7 @@ export function RunInvokerTests(
         initialOracleVersionEth,
         initialOracleVersionBtc,
       )
-      market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.dsu, instanceVars.oracle)
+      market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.oracle)
       await instanceVars.oracle.register(market.address)
     }
 

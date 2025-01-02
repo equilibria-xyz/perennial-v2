@@ -69,7 +69,6 @@ export async function createMarketETH(
   oracleFactory: IOracleFactory,
   pythOracleFactory: PythFactory,
   marketFactory: IMarketFactory,
-  dsu: IERC20Metadata,
   overrides?: CallOverrides,
 ): Promise<MarketWithOracle> {
   // Create oracles needed to support the market
@@ -82,7 +81,7 @@ export async function createMarketETH(
     overrides,
   )
   // Create the market in which user or collateral account may interact
-  const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  const market = await createMarket(owner, marketFactory, oracle, undefined, undefined, overrides ?? {})
   await keeperOracle.register(oracle.address)
   await oracle.register(market.address)
   return { market, oracle, keeperOracle }
@@ -94,7 +93,6 @@ export async function createMarketBTC(
   oracleFactory: IOracleFactory,
   pythOracleFactory: PythFactory,
   marketFactory: IMarketFactory,
-  dsu: IERC20Metadata,
   overrides?: CallOverrides,
 ): Promise<MarketWithOracle> {
   // Create oracles needed to support the market
@@ -107,7 +105,7 @@ export async function createMarketBTC(
     overrides,
   )
   // Create the market in which user or collateral account may interact
-  const market = await createMarket(owner, marketFactory, dsu, oracle, undefined, undefined, overrides ?? {})
+  const market = await createMarket(owner, marketFactory, oracle, undefined, undefined, overrides ?? {})
   await keeperOracle.register(oracle.address)
   await oracle.register(market.address)
   return { market, oracle, keeperOracle }

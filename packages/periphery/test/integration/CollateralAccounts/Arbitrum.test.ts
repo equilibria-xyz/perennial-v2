@@ -48,10 +48,10 @@ async function deployProtocol(
     margin,
     marketFactory,
     ethMarket: createMarketETH
-      ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
+      ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, overrides)
       : undefined,
     btcMarket: createMarketBTC
-      ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
+      ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, overrides)
       : undefined,
     chainlinkKeptFeed,
     dsuReserve: getDSUReserve(owner),
