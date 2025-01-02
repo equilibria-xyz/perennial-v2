@@ -185,8 +185,7 @@ library CheckpointLib {
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
     }
 
-    /// @notice Accumulate spread for the next position
-    /// @dev This includes adjustment for linear, proportional, and adiabatic order fees
+    /// @notice Accumulate spread charged for the next position
     /// @param order The next order
     /// @param guarantee The next guarantee
     /// @param toVersion The next version
@@ -197,6 +196,7 @@ library CheckpointLib {
     ) private pure returns (Fixed6) {
         (UFixed6 exposurePos, UFixed6 exposureNeg) = order.exposure(guarantee, toVersion);
 
+        // flip sign because we want the accumulator to round up correctly, but need charged spread to be positive
         return Fixed6Lib.ZERO
             .sub(toVersion.spreadPos.accumulated(Accumulator6(Fixed6Lib.ZERO), exposurePos))
             .sub(toVersion.spreadNeg.accumulated(Accumulator6(Fixed6Lib.ZERO), exposureNeg));

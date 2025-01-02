@@ -417,6 +417,16 @@ async function deposit(market: Market, amount: BigNumber, account: SignerWithAdd
     )
 }
 
+/*
+wolfram example formulas for price impact
+
+positive exposure
+- integral(0.001 + 0.002 * x + 0.004 * x^2 + 0.008 * x^3, 0.5, 1.0) * 123 * 10
+
+negtive exposure
+- integral(0.001 - 0.002 * x + 0.004 * x^2 - 0.008 * x^3, -1.0, -0.5) * 123 * 10
+*/
+
 async function updateSynBook(market: Market, synBook: SynBook) {
   const riskParameter = { ...(await market.riskParameter()) }
   const riskParameterSynBook = { ...riskParameter.synBook }

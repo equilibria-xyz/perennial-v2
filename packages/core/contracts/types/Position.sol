@@ -43,31 +43,9 @@ library PositionLib {
     /// @param order The new order
     function update(Position memory self, Order memory order) internal pure {
         self.timestamp = order.timestamp;
-
-        updatePos(self, order);
-        updateNeg(self, order);
-    }
-
-    /// @notice Updates the position with only the positive side of a new order
-    /// @param self The position object to update
-    /// @param order The new order
-    function updatePos(Position memory self, Order memory order) internal pure {
-        (self.maker, self.long, self.short) = (
-            self.long.gte(self.short) ? self.maker.sub(order.makerNeg) : self.maker.add(order.makerPos),
-            self.long.add(order.longPos),
-            self.short.sub(order.shortNeg)
-        );
-    } // TODO: not used anymore
-
-    /// @notice Updates the position with only the negative side of a new order
-    /// @param self The position object to update
-    /// @param order The new order
-    function updateNeg(Position memory self, Order memory order) internal pure {
-        (self.maker, self.long, self.short) = (
-            self.short.gt(self.long) ? self.maker.sub(order.makerNeg) : self.maker.add(order.makerPos),
-            self.long.sub(order.longNeg),
-            self.short.add(order.shortPos)
-        );
+        self.maker = self.maker.add(order.makerPos).sub(order.makerNeg);
+        self.long = self.long.add(order.longPos).sub(order.longNeg);
+        self.short = self.short.add(order.shortPos).sub(order.shortNeg);
     }
 
     /// @notice Updates the position with only the closing sides of a new order

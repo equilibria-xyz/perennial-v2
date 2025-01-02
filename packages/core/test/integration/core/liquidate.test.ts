@@ -409,20 +409,9 @@ describe('Liquidate', () => {
       maxFee: parse6decimal('0.9'),
       referralFee: parse6decimal('0.12'),
     })
-    const market = await createMarket(
-      instanceVars,
-      undefined,
-      {
-        makerFee: {
-          linearFee: parse6decimal('0.05'),
-          proportionalFee: 0,
-          scale: parse6decimal('10000'),
-        },
-      },
-      {
-        makerFee: parse6decimal('0.05'),
-      },
-    )
+    const market = await createMarket(instanceVars, undefined, undefined, {
+      makerFee: parse6decimal('0.05'),
+    })
 
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
     await market
