@@ -282,10 +282,15 @@ export async function createVault(
   const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
   await vaultFactory.initialize()
   const vault = IVault__factory.connect(
-    await vaultFactory.callStatic.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip'),
+    await vaultFactory.callStatic.create(
+      instanceVars.dsu.address,
+      ethMarket.address,
+      parse6decimal('1.2'),
+      'Blue Chip',
+    ),
     owner,
   )
-  await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip')
+  await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, parse6decimal('1.2'), 'Blue Chip')
 
   await vault.register(btcMarket.address)
   await vault.connect(owner).updateCoordinator(coordinator.address)
