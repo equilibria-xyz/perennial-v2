@@ -889,14 +889,6 @@ describe('Fees', () => {
     const COLLATERAL = parse6decimal('1000')
 
     beforeEach(async () => {
-      const marketParams = await market.parameter()
-      await market.updateParameter({
-        // TODO: remove as well
-        ...marketParams,
-        makerFee: 0,
-        takerFee: 0,
-      })
-
       const { user, userB, userC, dsu } = instanceVars
 
       await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
@@ -909,11 +901,6 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await settle(market, user)
 
-      await market.updateParameter({
-        ...marketParams,
-        makerFee: 0,
-        takerFee: 0,
-      })
       instanceVars.chainlink.updateParams(parse6decimal('1.23'), instanceVars.chainlink.oracleFee)
     })
 

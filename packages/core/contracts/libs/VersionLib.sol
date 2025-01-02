@@ -294,13 +294,13 @@ library VersionLib {
     ) private pure {
         // calculate position after closes
         Position memory closedPosition = context.fromPosition.clone();
-        closedPosition.updateClose(context.order); // TODO: move these to MatchingLib
+        closedPosition.updateClose(context.order);
 
         // calculate position after order
         Position memory toPosition = context.fromPosition.clone();
         toPosition.update(context.order);
 
-        MatchingResult memory matchingResult = MatchingLib.execute( // TODO: populate VersionAccumulationResult directly
+        MatchingResult memory matchingResult = MatchingLib.execute(
             MatchingPosition({
                 long: context.fromPosition.long,
                 short: context.fromPosition.short,

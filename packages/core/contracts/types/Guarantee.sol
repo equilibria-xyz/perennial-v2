@@ -80,12 +80,16 @@ library GuaranteeLib {
         newGuarantee.referral = order.takerReferral.mul(referralFee);
     }
 
-    // TODO
+    /// @notice Returns the positive side of the taker position of the guarantee
+    /// @param self The guarantee object to check
+    /// @return The positive side of the taker position of the guarantee
     function takerPos(Guarantee memory self) internal pure returns (UFixed6) {
         return self.longPos.add(self.shortNeg);
     }
 
-    // TODO
+    /// @notice Returns the negative side of the taker position of the guarantee
+    /// @param self The guarantee object to check
+    /// @return The negative side of the taker position of the guarantee
     function takerNeg(Guarantee memory self) internal pure returns (UFixed6) {
         return self.longNeg.add(self.shortPos);
     }

@@ -203,7 +203,7 @@ library MatchingLib {
         // compute the portions of the spread that are received by the maker, long, and short sides
         fillResult.spreadMaker = spreadTotal.muldiv(exposureFilled.maker, filledTotal);
         fillResult.spreadLong = spreadTotal.muldiv(exposureFilled.long, filledTotal);
-        fillResult.spreadShort = spreadTotal.muldiv(exposureFilled.short, filledTotal); // TODO: can have dust here
+        fillResult.spreadShort = spreadTotal.muldiv(exposureFilled.short, filledTotal);
     }
 
     function _skew(MatchingPosition memory position) internal pure returns (Fixed6) {
