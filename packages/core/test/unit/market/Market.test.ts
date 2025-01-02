@@ -24,7 +24,6 @@ import {
   VersionLib__factory,
   VersionStorageLib__factory,
   IVerifier,
-  MagicValueLib__factory,
   MockToken,
   MockToken__factory,
 } from '../../../types/generated'
@@ -404,17 +403,10 @@ async function settle(market: Market, account: SignerWithAddress, sender?: Signe
 }
 
 async function deposit(market: Market, amount: BigNumber, account: SignerWithAddress, sender?: SignerWithAddress) {
-  const local = await market.locals(account.address)
+  const accountPositions = await market.positions(account.address)
   return await market
     .connect(sender || account)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
-      account.address,
-      ethers.constants.MaxUint256,
-      ethers.constants.MaxUint256,
-      ethers.constants.MaxUint256,
-      amount,
-      false,
-    )
+    ['update(address,int256,int256,address)'](account.address, 0, amount, constants.AddressZero)
 }
 
 /*
@@ -580,7 +572,6 @@ describe('Market', () => {
           await new RiskParameterStorageLib__factory(owner).deploy()
         ).address,
         'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-        'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       },
       owner,
     ).deploy(verifier.address)
@@ -17891,1077 +17882,6 @@ describe('Market', () => {
         })
       })
 
-      context('magic values', async () => {
-        beforeEach(async () => {
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        })
-
-        it('withdraws all collateral on MIN', async () => {
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-            )
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false)
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 2,
-            latestId: 2,
-            collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
-          })
-          expectLocalEq(await market.locals(userB.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 2,
-            latestId: 2,
-            collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-              .sub(8), // loss of precision
-          })
-
-          dsu.transfer
-            .whenCalledWith(
-              user.address,
-              COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123).mul(1e12),
-            )
-            .returns(true)
-          dsu.transfer
-            .whenCalledWith(
-              userB.address,
-              COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
-                .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
-                .sub(8)
-                .mul(1e12),
-            )
-            .returns(true)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              0,
-              0,
-              ethers.constants.MinInt256,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              0,
-              0,
-              0,
-              ethers.constants.MinInt256,
-              false,
-            )
-
-          expectLocalEq(await market.locals(user.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 3,
-            latestId: 2,
-            collateral: 0,
-          })
-          expectLocalEq(await market.locals(userB.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 3,
-            latestId: 2,
-            collateral: 0,
-          })
-        })
-
-        it('keeps same position on MAX', async () => {
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              POSITION.div(2),
-              COLLATERAL,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              ethers.constants.MaxUint256,
-              0,
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256,
-              0,
-              0,
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              ethers.constants.MaxUint256,
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              ethers.constants.MaxUint256,
-              ethers.constants.MaxUint256,
-              ethers.constants.MaxUint256,
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256,
-              ethers.constants.MaxUint256,
-              ethers.constants.MaxUint256,
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              ethers.constants.MaxUint256,
-              ethers.constants.MaxUint256,
-              ethers.constants.MaxUint256,
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-        })
-
-        it('closes full position on MAX - 1 (unsettled)', async () => {
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              POSITION.div(2),
-              COLLATERAL,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              0,
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, 0, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false)
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION.div(2), 0, false)
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-        })
-
-        it('closes full position on MAX - 1 (settled)', async () => {
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              POSITION.div(2),
-              COLLATERAL,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              0,
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-            orders: 1,
-            longNeg: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-            orders: 1,
-            makerNeg: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-            orders: 1,
-            shortNeg: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, 0, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false)
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION.div(2), 0, false)
-
-          expectOrderEq(await market.pendingOrders(user.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 4), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            orders: 1,
-            longNeg: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_5.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 4), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            orders: 1,
-            makerNeg: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_5.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 4), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            orders: 1,
-            shortNeg: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_5.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-        })
-
-        it('closes full position on MAX - 1 (pending)', async () => {
-          const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
-
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              POSITION.div(2),
-              COLLATERAL,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            longPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            makerPos: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 1), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_2.timestamp,
-            orders: 1,
-            collateral: COLLATERAL,
-            shortPos: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_2.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              0,
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 2), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_3.timestamp,
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_3.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-        })
-
-        it('closes partial position on MAX - 1', async () => {
-          const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
-
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              POSITION.div(2),
-              COLLATERAL,
-              false,
-            )
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION.mul(2), 0, 0, 0, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false)
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, 0, false)
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              0,
-              0,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              0,
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            longNeg: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            makerNeg: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            shortNeg: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userC.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              ethers.constants.MaxUint256.sub(1),
-              0,
-              false,
-            )
-
-          expectOrderEq(await market.pendingOrders(user.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            longNeg: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userB.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            makerNeg: POSITION,
-          })
-          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-          expectOrderEq(await market.pendingOrders(userC.address, 3), {
-            ...DEFAULT_ORDER,
-            timestamp: ORACLE_VERSION_4.timestamp,
-            orders: 1,
-            shortNeg: POSITION.div(2),
-          })
-          expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
-            ...DEFAULT_CHECKPOINT,
-          })
-        })
-      })
-
       context('funding skew', async () => {
         // rate_0 = 0
         // rate_1 = rate_0 + (elapsed * skew / k)
@@ -24079,6 +22999,382 @@ describe('Market', () => {
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
+        })
+      })
+    })
+
+    describe('#close', async () => {
+      beforeEach(async () => {
+        await market.connect(owner).updateCoordinator(coordinator.address)
+        await market.connect(owner).updateBeneficiary(beneficiary.address)
+        await market.connect(owner).updateParameter(marketParameter)
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
+        oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
+
+        oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+      })
+
+      it('closes a maker position', async () => {
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await expect(market.connect(user).close(user.address, false, constants.AddressZero))
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            user.address,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
+            { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 2,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          orders: 1,
+          makerNeg: POSITION,
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
+          ...DEFAULT_GLOBAL,
+          currentId: 2,
+          latestId: 1,
+          latestPrice: PRICE,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          orders: 1,
+          makerNeg: POSITION,
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          ...DEFAULT_VERSION,
+          price: PRICE,
+        })
+      })
+
+      it('closes a long position', async () => {
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            user.address,
+            0,
+            POSITION.div(2),
+            0,
+            COLLATERAL,
+            false,
+          )
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+
+        await expect(market.connect(user).close(user.address, false, constants.AddressZero))
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            user.address,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+            { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 2,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          long: POSITION.div(2),
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          orders: 1,
+          longNeg: POSITION.div(2),
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
+          currentId: 2,
+          latestId: 1,
+          latestPrice: PRICE,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+          long: POSITION.div(2),
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          orders: 1,
+          longNeg: POSITION.div(2),
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          ...DEFAULT_VERSION,
+          price: PRICE,
+        })
+      })
+
+      it('closes a short position', async () => {
+        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            user.address,
+            0,
+            0,
+            POSITION.div(2),
+            COLLATERAL,
+            false,
+          )
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+
+        await expect(market.connect(user).close(user.address, false, constants.AddressZero))
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            user.address,
+            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
+            { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 2,
+          latestId: 1,
+          collateral: COLLATERAL,
+        })
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          short: POSITION.div(2),
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          orders: 1,
+          shortNeg: POSITION.div(2),
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
+          ...DEFAULT_GLOBAL,
+          currentId: 2,
+          latestId: 1,
+          latestPrice: PRICE,
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          maker: POSITION,
+          short: POSITION.div(2),
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          orders: 1,
+          shortNeg: POSITION.div(2),
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+          ...DEFAULT_VERSION,
+          price: PRICE,
+        })
+      })
+
+      it('liquidates a user', async () => {
+        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+        await market
+          .connect(userB)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+        dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+        await market
+          .connect(user)
+          ['update(address,uint256,uint256,uint256,int256,bool)'](
+            user.address,
+            0,
+            POSITION.div(2),
+            0,
+            parse6decimal('216'),
+            false,
+          )
+
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await settle(market, userB)
+
+        const EXPECTED_PNL = parse6decimal('80').mul(5)
+        const EXPECTED_LIQUIDATION_FEE = parse6decimal('50')
+
+        const oracleVersionLowerPrice = {
+          price: parse6decimal('43'),
+          timestamp: TIMESTAMP + 7200,
+          valid: true,
+        }
+        oracle.at
+          .whenCalledWith(oracleVersionLowerPrice.timestamp)
+          .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, userB)
+        dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+        dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
+
+        await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
+          .to.emit(market, 'OrderCreated')
+          .withArgs(
+            user.address,
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              orders: 1,
+              longNeg: POSITION.div(2),
+              protection: 1,
+            },
+            { ...DEFAULT_GUARANTEE },
+            liquidator.address,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 2,
+          latestId: 1,
+          collateral: parse6decimal('216')
+            .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
+            .sub(EXPECTED_PNL),
+        })
+        expect(await market.liquidators(user.address, 2)).to.equal(liquidator.address)
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          long: POSITION.div(2),
+        })
+        expectOrderEq(await market.pendingOrders(user.address, 2), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_4.timestamp,
+          orders: 1,
+          longNeg: POSITION.div(2),
+          protection: 1,
+        })
+        expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        expectLocalEq(await market.locals(userB.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 1,
+          latestId: 1,
+          collateral: COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123))
+            .add(EXPECTED_PNL)
+            .sub(8), // loss of precision
+        })
+        expectPositionEq(await market.positions(userB.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          maker: POSITION,
+        })
+        expectOrderEq(await market.pendingOrders(userB.address, 1), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_2.timestamp,
+          orders: 1,
+          makerPos: POSITION,
+          collateral: COLLATERAL,
+        })
+        expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+          ...DEFAULT_CHECKPOINT,
+        })
+        const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+        expectGlobalEq(await market.global(), {
+          ...DEFAULT_GLOBAL,
+          currentId: 2,
+          latestId: 1,
+          protocolFee: totalFee.mul(8).div(10).sub(2), // loss of precision
+          oracleFee: totalFee.div(10).sub(1), // loss of precision
+          riskFee: totalFee.div(10).sub(1), // loss of precision
+          latestPrice: parse6decimal('43'),
+        })
+        expectPositionEq(await market.position(), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_3.timestamp,
+          maker: POSITION,
+          long: POSITION.div(2),
+        })
+        expectOrderEq(await market.pendingOrder(2), {
+          ...DEFAULT_ORDER,
+          timestamp: ORACLE_VERSION_4.timestamp,
+          orders: 1,
+          longNeg: POSITION.div(2),
+        })
+        expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+          ...DEFAULT_VERSION,
+          makerValue: {
+            _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .add(EXPECTED_PNL)
+              .div(10),
+          },
+          longValue: {
+            _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
+          },
+          shortValue: { _value: 0 },
+          price: oracleVersionLowerPrice.price,
         })
       })
     })
