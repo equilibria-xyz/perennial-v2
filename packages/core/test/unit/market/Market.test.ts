@@ -23365,15 +23365,15 @@ describe('Market', () => {
         })
         expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
           ...DEFAULT_VERSION,
-          makerValue: {
+          makerPreValue: {
             _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
               .add(EXPECTED_PNL)
               .div(10),
           },
-          longValue: {
+          longPreValue: {
             _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).add(EXPECTED_PNL).div(5).mul(-1),
           },
-          shortValue: { _value: 0 },
+          shortPreValue: { _value: 0 },
           price: oracleVersionLowerPrice.price,
         })
       })
