@@ -109,7 +109,7 @@ describe('Fees', () => {
     instanceVars = await loadFixture(fixture)
     instanceVars.chainlink.updateParams(BigNumber.from(0), parse6decimal('0.3'))
     await instanceVars.chainlink.reset()
-    market = await createMarket(instanceVars, undefined, RISK_PARAMS, MARKET_PARAMS)
+    market = await createMarket(instanceVars, RISK_PARAMS, MARKET_PARAMS)
   })
 
   describe('position fees', () => {

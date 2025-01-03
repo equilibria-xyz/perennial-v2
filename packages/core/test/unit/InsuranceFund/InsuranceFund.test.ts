@@ -1,19 +1,20 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
-import { constants, BigNumber } from 'ethers'
+import { constants } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import {
+  IERC20Metadata,
+  IMargin,
+  IMarket,
+  IMarketFactory,
   InsuranceFund,
   InsuranceFund__factory,
-  IMarketFactory,
-  IMarket,
-  IERC20Metadata,
 } from '../../../types/generated'
 import { IOracleProvider } from '@perennial/v2-oracle/types/generated'
-import { DEFAULT_LOCAL, parse6decimal } from '../../../../common/testutil/types'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -26,8 +27,6 @@ describe('InsuranceFund', () => {
   let margin: FakeContract<IMargin>
   let market1: FakeContract<IMarket>
   let market2: FakeContract<IMarket>
-  let oracle1: FakeContract<IOracleProvider>
-  let oracle2: FakeContract<IOracleProvider>
   let insuranceFund: InsuranceFund
   let dsu: FakeContract<IERC20Metadata>
 
@@ -37,8 +36,6 @@ describe('InsuranceFund', () => {
     market1 = await smock.fake<IMarket>('IMarket')
     market2 = await smock.fake<IMarket>('IMarket')
     margin = await smock.fake<IMargin>('IMargin')
-    oracle1 = await smock.fake<IOracleProvider>('IOracleProvider')
-    oracle2 = await smock.fake<IOracleProvider>('IOracleProvider')
     factory = await smock.fake<IMarketFactory>('IMarketFactory')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     insuranceFund = await new InsuranceFund__factory(owner).deploy(factory.address, dsu.address)

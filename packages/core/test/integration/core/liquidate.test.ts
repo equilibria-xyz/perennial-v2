@@ -469,7 +469,6 @@ describe('Liquidate', () => {
     })
     const market = await createMarket(
       instanceVars,
-      undefined,
       {
         makerFee: {
           linearFee: parse6decimal('0.05'),

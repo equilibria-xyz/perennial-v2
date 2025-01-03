@@ -247,11 +247,10 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
 
 export async function createMarket(
   instanceVars: InstanceVars,
-  oracleOverride?: IOracleProvider,
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
-  const { owner, marketFactory, coordinator, beneficiaryB, oracle, dsu } = instanceVars
+  const { owner, marketFactory, coordinator, beneficiaryB, oracle } = instanceVars
 
   const riskParameter = {
     margin: parse6decimal('0.3'),
