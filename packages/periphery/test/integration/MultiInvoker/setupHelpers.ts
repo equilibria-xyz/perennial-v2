@@ -233,7 +233,6 @@ export async function createVault(
 
   const ethMarket = await deployProductOnFork({
     factory: marketFactory,
-    token: instanceVars.dsu,
     owner: owner,
     oracle: ethOracle.address,
     makerLimit: parse6decimal('1000'),
@@ -252,7 +251,6 @@ export async function createVault(
   })
   const btcMarket = await deployProductOnFork({
     factory: marketFactory,
-    token: instanceVars.dsu,
     owner: owner,
     oracle: btcOracle.address,
     makerLimit: parse6decimal('100'),

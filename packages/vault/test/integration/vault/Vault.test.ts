@@ -235,7 +235,6 @@ describe('Vault', () => {
 
     market = await deployProductOnFork({
       factory: instanceVars.marketFactory,
-      token: instanceVars.dsu,
       owner: owner,
       oracle: rootOracle.address,
       makerLimit: parse6decimal('1000'),
@@ -255,7 +254,6 @@ describe('Vault', () => {
     })
     btcMarket = await deployProductOnFork({
       factory: instanceVars.marketFactory,
-      token: instanceVars.dsu,
       owner: owner,
       oracle: btcRootOracle.address,
       minMargin: parse6decimal('50'),
@@ -449,7 +447,6 @@ describe('Vault', () => {
 
       market3 = await deployProductOnFork({
         factory: factory,
-        token: asset,
         owner: owner,
         oracle: rootOracle3.address,
         makerLimit: parse6decimal('1000000'),

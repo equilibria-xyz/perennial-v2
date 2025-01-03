@@ -11,7 +11,6 @@ export interface DeployProductParams
   marketMakerFee?: BigNumberish
   marketTakerFee?: BigNumberish
   factory: IMarketFactory
-  token: IERC20Metadata
   oracle: string
   owner: SignerWithAddress
 }
@@ -19,7 +18,6 @@ export interface DeployProductParams
 // Deploys a product that uses an oracle based on an oracle in the Chainlink feed registry.
 // Returns the address of the deployed product.
 export async function deployProductOnFork({
-  token,
   factory,
   oracle,
   owner,
