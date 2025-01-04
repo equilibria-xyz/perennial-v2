@@ -125,7 +125,7 @@ library StrategyLib {
             UFixed6 marketCollateral;
             (targets[marketId], marketCollateral) = _allocateMarket(
                 strategy.marketContexts[marketId],
-                strategy.totalMargin,
+                UFixed6Lib.unsafeFrom(strategy.totalCollateral),
                 collateral,
                 assets
             );
@@ -138,32 +138,25 @@ library StrategyLib {
 
     /// @notice Compute the target allocation for a market
     /// @param marketContext The context of the market
-    /// @param totalMargin The total margin requirement of the vault
-    /// @param collateral The total amount of collateral of the vault
-    /// @param assets The total amount of collateral available for allocation
+    /// @param latestCollateral The latest collateral of the vault
+    /// @param targetCollateral The target collateral of the vault
+    /// @param targetAssets The amount assets available to the vault for allocation
     function _allocateMarket(
         MarketStrategyContext memory marketContext,
-        UFixed6 totalMargin,
-        UFixed6 collateral,
-        UFixed6 assets
+        UFixed6 latestCollateral,
+        UFixed6 targetCollateral,
+        UFixed6 targetAssets
     ) private pure returns (MarketTarget memory target, UFixed6 marketCollateral) {
-        marketCollateral = marketContext.margin
-            .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
-
-        UFixed6 marketAssets = assets
-            .mul(marketContext.registration.weight)
-            .min(marketCollateral.mul(LEVERAGE_BUFFER));
+        marketCollateral = targetCollateral.muldiv(marketContext.local.collateral, latestCollateral); // TODO: could have shortfall in a market
+        UFixed6 marketAssets = targetAssets.muldiv(marketContext.local.collateral, latestCollateral);
 
         target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
 
-        UFixed6 minAssets = marketContext.riskParameter.minMargin
-            .unsafeDiv(marketContext.registration.leverage.mul(marketContext.riskParameter.maintenance));
-
-        if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
+        if (marketContext.marketParameter.closed || marketAssets.lt(marketContext.riskParameter.minMargin))
+            marketAssets = UFixed6Lib.ZERO;
 
         target.position = marketAssets
-            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
-            .max(marketContext.minPosition)
+            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs()) // TODO: get current position / leverage
             .min(marketContext.maxPosition);
     }
 
