@@ -24769,9 +24769,13 @@ describe('Market', () => {
           const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
           const SETTLEMENT_FEE = parse6decimal('0.50')
 
+          factory.authorization
+            .whenCalledWith(userB.address, userB.address, constants.AddressZero, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, liquidator.address)
 
           factory.authorization
             .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
@@ -24868,6 +24872,7 @@ describe('Market', () => {
             orders: 1,
             makerPos: POSITION,
             collateral: COLLATERAL,
+            makerReferral: POSITION.div(5),
           })
           expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
@@ -24902,6 +24907,7 @@ describe('Market', () => {
             longPos: POSITION.div(2),
             collateral: COLLATERAL.mul(2),
             takerReferral: POSITION.div(10),
+            makerReferral: POSITION.div(5),
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
             ...DEFAULT_VERSION,
