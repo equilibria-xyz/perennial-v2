@@ -77,14 +77,6 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
         _parameter.store(providerParameter);
     }
 
-    /// @notice Retroactively sets the mapping of the oracle id to the oracle instance
-    /// @dev Part of the v2.3 migration
-    /// @param oracleProvider The oracle instance
-    /// @param oracleId The id of the oracle
-    function updateId(IOracleProvider oracleProvider, bytes32 oracleId) external onlyOwner {
-        ids[oracleProvider] = oracleId;
-    }
-
     /// @notice Authorizes a factory's instances to request from this factory's instances
     /// @param payoff The payoff provider to register
     function register(IPayoffProvider payoff) external onlyOwner {
