@@ -11,9 +11,21 @@ import { Position, PositionLib } from "@perennial/core/contracts/types/Position.
 import { Order } from "@perennial/core/contracts/types/Order.sol";
 import { OracleVersion } from "@perennial/core/contracts/types/OracleVersion.sol";
 import { Registration } from "../types/Registration.sol";
+import { Target } from "../types/Target.sol";
+
+/// @dev The context of overall strategy
+struct MakerStrategyContext {
+    UFixed6 totalMargin;
+
+    Fixed6 totalCollateral;
+
+    UFixed6 minAssets;
+
+    MarketMakerStrategyContext[] markets;
+}
 
 /// @dev The context of an underlying market
-struct MarketStrategyContext {
+struct MarketMakerStrategyContext {
     /// @dev Registration of the market
     Registration registration;
 
@@ -51,88 +63,51 @@ struct MarketStrategyContext {
     UFixed6 maxPosition;
 }
 
-struct Strategy {
-    UFixed6 totalMargin;
-
-    Fixed6 totalCollateral;
-
-    UFixed6 minAssets;
-
-    MarketStrategyContext[] marketContexts;
-}
-using StrategyLib for Strategy global;
-
 /// @title Strategy
 /// @notice Logic for vault capital allocation
 /// @dev (external-safe): this library is safe to externalize
 ///      - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
-library StrategyLib {
+library MakerStrategyLib {
     error StrategyLibInsufficientCollateralError();
     error StrategyLibInsufficientAssetsError();
 
     /// @dev The maximum multiplier that is allowed for leverage
     UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
 
-    /// @dev The target allocation for a market
-    struct MarketTarget {
-        /// @dev The amount of change in collateral
-        Fixed6 collateral;
-
-        /// @dev The new position
-        UFixed6 position;
-    }
-
-    /// @notice Loads the strategy context of each of the underlying markets
-    /// @param registrations The registrations of the underlying markets
-    /// @return strategy The strategy contexts of the vault
-    function load(Registration[] memory registrations) internal view returns (Strategy memory strategy) {
-        strategy.marketContexts = new MarketStrategyContext[](registrations.length);
-        for (uint256 marketId; marketId < registrations.length; marketId++) {
-            strategy.marketContexts[marketId] = _loadContext(registrations[marketId]);
-            strategy.totalMargin = strategy.totalMargin.add(strategy.marketContexts[marketId].margin);
-            strategy.totalCollateral = strategy.totalCollateral.add(strategy.marketContexts[marketId].local.collateral);
-            strategy.minAssets = strategy.minAssets.max(
-                (registrations[marketId].leverage.isZero() || registrations[marketId].weight.isZero()) ?
-                    UFixed6Lib.ZERO : // skip if no leverage or weight
-                    strategy.marketContexts[marketId].minPosition
-                        .muldiv(strategy.marketContexts[marketId].latestPrice.abs(), registrations[marketId].leverage)
-                        .div(registrations[marketId].weight)
-            );
-        }
-    }
-
     /// @notice Compute the target allocation for each market
-    /// @param strategy The strategy of the vault
+    /// @param registrations The registrations of the underlying markets
     /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets to make available for withdrawal
     /// @param ineligible The amount of assets that are inapplicable for allocation
     function allocate(
-        Strategy memory strategy,
+        Registration[] memory registrations,
         UFixed6 deposit,
         UFixed6 withdrawal,
         UFixed6 ineligible
-    ) internal pure returns (MarketTarget[] memory targets) {
-        UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
+    ) internal view returns (Target[] memory targets) {
+        MakerStrategyContext memory context = _load(registrations);
+
+        UFixed6 collateral = UFixed6Lib.unsafeFrom(context.totalCollateral).add(deposit).unsafeSub(withdrawal);
         UFixed6 assets = collateral.unsafeSub(ineligible);
 
-        if (collateral.lt(strategy.totalMargin)) revert StrategyLibInsufficientCollateralError();
-        if (assets.lt(strategy.minAssets)) revert StrategyLibInsufficientAssetsError();
+        if (collateral.lt(context.totalMargin)) revert StrategyLibInsufficientCollateralError();
+        if (assets.lt(context.minAssets)) revert StrategyLibInsufficientAssetsError();
 
-        targets = new MarketTarget[](strategy.marketContexts.length);
+        targets = new Target[](context.markets.length);
         UFixed6 totalMarketCollateral;
-        for (uint256 marketId; marketId < strategy.marketContexts.length; marketId++) {
+        for (uint256 marketId; marketId < context.markets.length; marketId++) {
             UFixed6 marketCollateral;
             (targets[marketId], marketCollateral) = _allocateMarket(
-                strategy.marketContexts[marketId],
-                strategy.totalMargin,
+                context.markets[marketId],
+                context.totalMargin,
                 collateral,
                 assets
             );
             totalMarketCollateral = totalMarketCollateral.add(marketCollateral);
         }
 
-        if (strategy.marketContexts.length != 0)
+        if (context.markets.length != 0)
             targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(collateral.sub(totalMarketCollateral)));
     }
 
@@ -142,11 +117,11 @@ library StrategyLib {
     /// @param collateral The total amount of collateral of the vault
     /// @param assets The total amount of collateral available for allocation
     function _allocateMarket(
-        MarketStrategyContext memory marketContext,
+        MarketMakerStrategyContext memory marketContext,
         UFixed6 totalMargin,
         UFixed6 collateral,
         UFixed6 assets
-    ) private pure returns (MarketTarget memory target, UFixed6 marketCollateral) {
+    ) private pure returns (Target memory target, UFixed6 marketCollateral) {
         marketCollateral = marketContext.margin
             .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
 
@@ -161,10 +136,31 @@ library StrategyLib {
 
         if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
 
-        target.position = marketAssets
+        UFixed6 newMaker = marketAssets
             .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
             .max(marketContext.minPosition)
             .min(marketContext.maxPosition);
+
+        target.position = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
+    }
+
+    /// @notice Loads the strategy context of each of the underlying markets
+    /// @param registrations The registrations of the underlying markets
+    /// @return context The strategy context of the vault
+    function _load(Registration[] memory registrations) internal view returns (MakerStrategyContext memory context) {
+        context.markets = new MarketMakerStrategyContext[](registrations.length);
+        for (uint256 marketId; marketId < registrations.length; marketId++) {
+            context.markets[marketId] = _loadContext(registrations[marketId]);
+            context.totalMargin = context.totalMargin.add(context.markets[marketId].margin);
+            context.totalCollateral = context.totalCollateral.add(context.markets[marketId].local.collateral);
+            context.minAssets = context.minAssets.max(
+                (registrations[marketId].leverage.isZero() || registrations[marketId].weight.isZero()) ?
+                    UFixed6Lib.ZERO : // skip if no leverage or weight
+                    context.markets[marketId].minPosition
+                        .muldiv(context.markets[marketId].latestPrice.abs(), registrations[marketId].leverage)
+                        .div(registrations[marketId].weight)
+            );
+        }
     }
 
     /// @notice Load the context of a market
@@ -172,7 +168,7 @@ library StrategyLib {
     /// @return marketContext The context of the market
     function _loadContext(
         Registration memory registration
-    ) private view returns (MarketStrategyContext memory marketContext) {
+    ) private view returns (MarketMakerStrategyContext memory marketContext) {
         marketContext.registration = registration;
         marketContext.marketParameter = registration.market.parameter();
         marketContext.riskParameter = registration.market.riskParameter();

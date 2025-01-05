@@ -17,19 +17,18 @@ import { Account, AccountStorage } from "./types/Account.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Registration, RegistrationStorage } from "./types/Registration.sol";
 import { VaultParameter, VaultParameterStorage } from "./types/VaultParameter.sol";
-import { StrategyLib } from "./libs/StrategyLib.sol";
+import { Target } from "./types/Target.sol";
+import { MakerStrategyLib } from "./libs/MakerStrategyLib.sol";
 
 /// @title Vault
-/// @notice Deploys underlying capital by weight in maker positions across registered markets
-/// @dev Vault deploys and rebalances collateral between the registered markets, while attempting to
-///      maintain `targetLeverage` with its open maker positions at any given time. Deposits are only gated in so much
-///      as to cap the maximum amount of assets in the vault.
+/// @notice Deploys underlying capital in a specified strategy, managing the risk and return of the capital
+/// @dev Vault deploys and rebalances collateral between the registered markets per the strategy specified by the
 ///
 ///      All registered markets are expected to be on the same "clock", i.e. their oracle.current() is always equal.
 ///
 ///      The vault has a "delayed settlement" mechanism. After depositing to or redeeming from the vault, a user must
 ///      wait until the next settlement of all underlying markets in order for vault settlement to be available.
-contract Vault is IVault, Instance {
+abstract contract Vault is IVault, Instance {
     /// @dev The vault's name
     string private _name;
 
@@ -390,13 +389,7 @@ contract Vault is IVault, Instance {
     function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool shouldRebalance) private {
         if (context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
-        StrategyLib.MarketTarget[] memory targets = StrategyLib
-            .load(context.registrations)
-            .allocate(
-                deposit,
-                withdrawal,
-                _ineligible(context, deposit, withdrawal)
-            );
+        Target[] memory targets = _strategy(context, deposit, withdrawal, _ineligible(context, deposit, withdrawal));
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
@@ -405,6 +398,13 @@ contract Vault is IVault, Instance {
             if (targets[marketId].collateral.gte(Fixed6Lib.ZERO))
                 _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
     }
+
+    function _strategy(
+        Context memory context,
+        UFixed6 deposit,
+        UFixed6 withdrawal,
+        UFixed6 ineligible
+    ) internal virtual view returns (Target[] memory targets);
 
     /// @notice Returns the amount of collateral is ineligible for allocation
     /// @param context The context to use
@@ -433,16 +433,15 @@ contract Vault is IVault, Instance {
     /// @param shouldRebalance Whether to rebalance the vault's position
     function _retarget(
         Registration memory registration,
-        StrategyLib.MarketTarget memory target,
+        Target memory target,
         bool shouldRebalance
     ) private {
         registration.market.update(
             address(this),
-            shouldRebalance ? target.position : UFixed6Lib.MAX,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
+            shouldRebalance ? target.position : Fixed6Lib.ZERO,
+            Fixed6Lib.ZERO,
             target.collateral,
-            false
+            address(0)
         );
     }
 

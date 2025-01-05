@@ -30,11 +30,6 @@ interface IVault is IInstance {
         Account local;
     }
 
-    struct Target {
-        Fixed6 collateral;
-        UFixed6 position;
-    }
-
     event MarketRegistered(uint256 indexed marketId, IMarket market);
     event MarketUpdated(uint256 indexed marketId, UFixed6 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
