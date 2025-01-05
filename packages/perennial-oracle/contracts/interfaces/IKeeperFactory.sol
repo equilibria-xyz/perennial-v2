@@ -50,7 +50,6 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory {
     function factoryType() external view returns (string memory);
     function commitmentGasOracle() external view returns (IGasOracle);
     function settlementGasOracle() external view returns (IGasOracle);
-    function updateId(IOracleProvider oracleProvider, bytes32 oracleId) external;
     function register(IPayoffProvider payoff) external;
     function toUnderlyingId(bytes32 oracleId) external view returns (bytes32);
     function toUnderlyingPayoff(bytes32 oracleId) external view returns (PayoffDefinition memory payoff);
