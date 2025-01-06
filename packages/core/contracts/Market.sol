@@ -489,9 +489,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMarket
     function hasPosition(address account) external view returns (bool) {
-        Position memory position_ = _positions[account].read();
-        Order memory pending_ = _pendings[account].read();
-        return !(position_.magnitude().isZero() && pending_.isEmpty());
+        return !(_positions[account].read().empty() && _pendings[account].read().isEmpty());
     }
 
     /// @inheritdoc IMarket
@@ -516,7 +514,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMarket
     function stale() external view returns (bool isStale) {
-        isStale = _stale();
+        (OracleVersion memory latest, uint256 currentTimestamp) = oracle.status();
+        isStale = _stale(latest, currentTimestamp, _riskParameter.read().staleAfter);
     }
 
     /// @notice Loads the transaction context
@@ -686,7 +685,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (
             !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) && // sender has no position
             !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                               // sender is isolating collateral into account, without position change
-            _stale()                                                                                                          // price is not stale
+            _stale(context.latestOracleVersion, context.currentTimestamp, context.riskParameter.staleAfter)                                                                                                          // price is not stale
         ) revert IMarket.MarketStalePriceError();
 
         // check margin
@@ -1003,9 +1002,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @dev Returns true if the oracle price is stale, which should prevent position change and deisolation of collateral
-    function _stale() private view returns (bool) {
-        (OracleVersion memory latest, uint256 currentTimestamp) = oracle.status();
-        return !latest.valid || currentTimestamp - latest.timestamp >= _riskParameter.read().staleAfter;
+    function _stale(OracleVersion memory latest, uint256 currentTimestamp, uint256 staleAfter) private view returns (bool) {
+        return !latest.valid || currentTimestamp - latest.timestamp >= staleAfter;
     }
 
     /// @notice Only the coordinator or the owner can call
