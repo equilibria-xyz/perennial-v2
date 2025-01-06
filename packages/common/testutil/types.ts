@@ -51,7 +51,8 @@ export interface Guarantee {
   shortNeg: BigNumberish
   notional: BigNumberish
   takerFee: BigNumberish
-  referral: BigNumberish
+  orderReferral: BigNumberish
+  solverReferral: BigNumberish
 }
 
 export interface Position {
@@ -196,7 +197,8 @@ export function expectGuaranteeEq(a: Guarantee, b: Guarantee): void {
   expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
   expect(a.notional).to.equal(b.notional, 'Order:Notional')
   expect(a.takerFee).to.equal(b.takerFee, 'Order:TakerFee')
-  expect(a.referral).to.equal(b.referral, 'Order:Referral')
+  expect(a.orderReferral).to.equal(b.orderReferral, 'Order:OrderReferral')
+  expect(a.solverReferral).to.equal(b.solverReferral, 'Order:SolverReferral')
 }
 
 export function expectPositionEq(a: Position, b: Position): void {
@@ -324,7 +326,8 @@ export const DEFAULT_GUARANTEE: Guarantee = {
   shortNeg: 0,
   notional: 0,
   takerFee: 0,
-  referral: 0,
+  orderReferral: 0,
+  solverReferral: 0,
 }
 
 export const DEFAULT_VERSION: Version = {

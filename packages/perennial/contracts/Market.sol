@@ -707,7 +707,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             if (updateContext.orderReferrer == address(0)) updateContext.orderReferrer = orderReferrer;
             if (updateContext.orderReferrer != orderReferrer) revert MarketInvalidReferrerError();
         }
-        if (!newGuarantee.referral.isZero()) {
+        if (!newGuarantee.solverReferral.isZero()) {
             if (updateContext.guaranteeReferrer == address(0)) updateContext.guaranteeReferrer = guaranteeReferrer;
             if (updateContext.guaranteeReferrer != guaranteeReferrer) revert MarketInvalidReferrerError();
         }

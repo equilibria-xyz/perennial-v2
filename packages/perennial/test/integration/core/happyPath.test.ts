@@ -1578,13 +1578,15 @@ describe('Happy Path', () => {
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -1710,13 +1712,15 @@ describe('Happy Path', () => {
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -1816,13 +1820,15 @@ describe('Happy Path', () => {
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -2163,13 +2169,15 @@ describe('Happy Path', () => {
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -2276,13 +2284,15 @@ describe('Happy Path', () => {
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,

@@ -157,11 +157,10 @@ library CheckpointLib {
         // compute portion of subtractive fees that are solver fees
         solverFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            takerFee.muldiv(guarantee.referral, takerTotal); // guarantee.referral is instantiated as a subset of order.takerReferral
+            takerFee.muldiv(guarantee.solverReferral, takerTotal); // guarantee.solverReferral is instantiated as a subset of order.takerReferral
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
-
     }
 
     /// @notice Accumulate price offset for the next position
