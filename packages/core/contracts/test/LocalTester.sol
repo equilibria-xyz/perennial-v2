@@ -25,10 +25,4 @@ contract LocalTester {
         pnl = newLocal.update(newId, accumulation);
         local.store(newLocal);
     }
-
-    function credit(UFixed6 amount) external {
-        Local memory newLocal = local.read();
-        newLocal.credit(amount);
-        local.store(newLocal);
-    }
 }

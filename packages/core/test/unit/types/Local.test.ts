@@ -27,7 +27,7 @@ describe('Local', () => {
       currentId: 1,
       latestId: 5,
       collateral: 0,
-      claimable: 3,
+      claimable: 0,
     }
     it('stores a new value', async () => {
       await local.store(VALID_STORED_VALUE)
@@ -36,7 +36,7 @@ describe('Local', () => {
       expect(value.currentId).to.equal(1)
       expect(value.latestId).to.equal(5)
       expect(value.collateral).to.equal(0)
-      expect(value.claimable).to.equal(3)
+      expect(value.claimable).to.equal(0)
     })
 
     context('.currentId', async () => {
@@ -103,20 +103,20 @@ describe('Local', () => {
 
     context('.claimable', async () => {
       const STORAGE_SIZE = 64
-      it('saves if in range', async () => {
+      it('saves if zero', async () => {
         await local.store({
           ...VALID_STORED_VALUE,
-          claimable: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          claimable: 0,
         })
         const value = await local.read()
-        expect(value.claimable).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        expect(value.claimable).to.equal(BigNumber.from(0))
       })
 
-      it('reverts if claimable out of range', async () => {
+      it('reverts if nonzero', async () => {
         await expect(
           local.store({
             ...VALID_STORED_VALUE,
-            claimable: BigNumber.from(2).pow(STORAGE_SIZE),
+            claimable: 2,
           }),
         ).to.be.revertedWithCustomError(local, 'LocalStorageInvalidError')
       })
@@ -140,16 +140,6 @@ describe('Local', () => {
       const storedLocal = await local.read()
       expect(await storedLocal.collateral).to.equal(0)
       expect(await storedLocal.latestId).to.equal(11)
-    })
-  })
-
-  describe('#credit', () => {
-    it('credits the account', async () => {
-      await local.store({ ...DEFAULT_LOCAL, collateral: 0 })
-      await local.credit(2)
-      await local.credit(3)
-      const storedLocal = await local.read()
-      expect(await storedLocal.claimable).to.equal(5)
     })
   })
 })

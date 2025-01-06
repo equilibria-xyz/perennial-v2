@@ -99,6 +99,9 @@ interface IMargin is IInstance {
     /// @param market Identifies where isolated balance should be adjusted
     function isolate(address account, IMarket market, Fixed6 amount) external;
 
+    /// @notice Moves claimable fees to the user's cross-margin balance
+    function claimFee(address account) external;
+
     /// @dev Called by market to check maintenance requirements upon market update
     /// @param account User whose maintenance requirement will be checked
     /// @return isMaintained True if margin requirement met, otherwise false
@@ -122,8 +125,9 @@ interface IMargin is IInstance {
     /// @param collateralDelta Change in collateral requested by order prepared by market
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external;
 
-    /// @dev Called by market when fees are claimed or exposure settled
-    function updateBalance(address account, Fixed6 collateralDelta) external;
+    // TODO: Once Market.claimExposure has been eliminated, make collateralDelta a UFixed6
+    /// @dev Called by market to adjust claimable balance when fees are claimed or exposure settled
+    function updateClaimable(address account, Fixed6 collateralDelta) external;
 
     /// @dev Called by market upon settlement, updates the account’s balance by a collateral delta,
     /// and credits claimable accounts for fees
@@ -132,6 +136,9 @@ interface IMargin is IInstance {
     /// @param latest Checkpoint prepared by the market
     /// @param pnl Collateral delta for the account prepared by the Local
     function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external;
+
+    /// @notice Retrieves the claimable balance for a user
+    function claimables(address) external view returns (Fixed6);
 
     /// @notice Retrieves the cross-margin balance for a user
     function crossMarginBalances(address) external view returns (Fixed6);

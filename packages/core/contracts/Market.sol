@@ -354,12 +354,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         emit RiskParameterUpdated(newRiskParameter);
     }
 
-    /// @notice Claims any available fee that the sender has accrued
-    /// @dev Applicable fees include: protocol, oracle, risk, donation, and claimable
+    /// @notice Transfers a fee that the sender has accrued to the Margin contract
+    /// @dev Applicable fees include: protocol, oracle, and risk
     /// @return feeReceived The amount of the fee claimed
     function claimFee(address account) external onlyOperator(account) returns (UFixed6 feeReceived) {
         Global memory newGlobal = _global.read();
-        Local memory newLocal = _locals[account].read();
 
         // protocol fee
         if (account == factory().owner()) {
@@ -379,15 +378,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGlobal.riskFee = UFixed6Lib.ZERO;
         }
 
-        // claimable
-        feeReceived = feeReceived.add(newLocal.claimable);
-        newLocal.claimable = UFixed6Lib.ZERO;
-
         _global.store(newGlobal);
-        _locals[account].store(newLocal);
 
         if (!feeReceived.isZero()) {
-            margin.updateBalance(msg.sender, Fixed6Lib.from(feeReceived));
+            margin.updateClaimable(msg.sender, Fixed6Lib.from(feeReceived));
             emit FeeClaimed(account, msg.sender, feeReceived);
         }
     }
@@ -397,7 +391,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     function claimExposure() external onlyOwner {
         Global memory newGlobal = _global.read();
 
-        margin.updateBalance(msg.sender, newGlobal.exposure);
+        margin.updateClaimable(msg.sender, newGlobal.exposure);
         emit ExposureClaimed(msg.sender, newGlobal.exposure);
 
         newGlobal.exposure = Fixed6Lib.ZERO;
@@ -979,26 +973,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 pnl = context.local.update(newOrderId, accumulationResponse);
         margin.updateCheckpoint(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
 
-        _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
-        _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
-        _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
+        _credit(liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
+        _credit(orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
+        _credit(guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
     }
 
-    /// @notice Credits an account's claimable
+    /// @notice Credits an account's claimable balance in the margin contract
     /// @dev The amount must have already come from a corresponding debit in the settlement flow.
-    ///      If the receiver is the context's account, the amount is instead credited in-memory.
-    /// @param context The context to use
     /// @param receiver The account to credit
     /// @param amount The amount to credit
-    function _credit(Context memory context, address receiver, UFixed6 amount) private {
+    function _credit(address receiver, UFixed6 amount) private {
         if (amount.isZero()) return;
-
-        if (receiver == context.account) context.local.credit(amount);
-        else {
-            Local memory receiverLocal = _locals[receiver].read();
-            receiverLocal.credit(amount);
-            _locals[receiver].store(receiverLocal);
-        }
+        margin.updateClaimable(receiver, Fixed6Lib.from(amount));
     }
 
     /// @dev Returns true if the oracle price is stale, which should prevent position change and deisolation of collateral
