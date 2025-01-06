@@ -79,7 +79,7 @@ library OrderLib {
     /// @param self The order object to update
     function invalidate(Order memory self, Guarantee memory guarentee) internal pure {
         (self.makerReferral, self.takerReferral) =
-            (UFixed6Lib.ZERO, guarentee.referral);
+            (UFixed6Lib.ZERO, guarentee.orderReferral);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, guarentee.longPos, guarentee.longNeg, guarentee.shortPos, guarentee.shortNeg);
     }

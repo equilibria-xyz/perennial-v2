@@ -16827,7 +16827,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('invalid oracle version', async () => {
+      context('invalid oracle version', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -17904,7 +17904,7 @@ describe('Market', () => {
           })
         })
 
-        it.only('settles invalid version with both amm and intent orders', async () => {
+        it('settles invalid version with both amm and intent orders', async () => {
           factory.parameter.returns({
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
@@ -17998,7 +17998,8 @@ describe('Market', () => {
                 longPos: POSITION.div(2),
                 notional: POSITION.div(2).mul(125),
                 takerFee: 0,
-                referral: POSITION.div(2).div(10),
+                orderReferral: POSITION.div(10),
+                solverReferral: POSITION.div(2).div(10),
               },
               constants.AddressZero,
               liquidator.address, // originator
@@ -18019,7 +18020,6 @@ describe('Market', () => {
                 shortPos: POSITION.div(2),
                 notional: -POSITION.div(2).mul(125),
                 takerFee: POSITION.div(2),
-                referral: 0,
               },
               constants.AddressZero,
               constants.AddressZero,
@@ -18040,10 +18040,6 @@ describe('Market', () => {
           await settle(market, userB)
           await settle(market, userC)
           await settle(market, userD)
-
-          console.log(await market.checkpoints(user.address, ORACLE_VERSION_1.timestamp))
-          console.log(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp))
-          console.log(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp))
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -18132,7 +18128,7 @@ describe('Market', () => {
 
           expectLocalEq(await market.locals(liquidator.address), {
             ...DEFAULT_LOCAL,
-            //claimable: TAKER_FEE.mul(2).div(10).div(2),
+            claimable: TAKER_FEE.mul(2).div(10).div(2),
           })
           expectLocalEq(await market.locals(owner.address), {
             ...DEFAULT_LOCAL,

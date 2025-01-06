@@ -1078,34 +1078,5 @@ describe('Guarantee', () => {
         expect(result.solverReferral).to.equal(0)
       })
     })
-
-    describe('#invalidate', () => {
-      it('calculates taker', async () => {
-        await guarantee.store({
-          orders: 1,
-          longPos: 2,
-          longNeg: 3,
-          shortPos: 4,
-          shortNeg: 5,
-          notional: 6,
-          takerFee: 7,
-          orderReferral: 8,
-          solverReferral: 9,
-        })
-
-        await guarantee.invalidate()
-        const result = await guarantee.read()
-
-        expect(result.orders).to.equal(1)
-        expect(result.longPos).to.equal(0)
-        expect(result.longNeg).to.equal(0)
-        expect(result.shortPos).to.equal(0)
-        expect(result.shortNeg).to.equal(0)
-        expect(result.notional).to.equal(0)
-        expect(result.takerFee).to.equal(0)
-        expect(result.orderReferral).to.equal(0)
-        expect(result.solverReferral).to.equal(0)
-      })
-    })
   }
 })

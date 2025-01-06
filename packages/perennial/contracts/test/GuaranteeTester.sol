@@ -11,12 +11,6 @@ abstract contract GuaranteeTester {
 
     function store(Guarantee memory newGuarantee) public virtual;
 
-    function next() external {
-        Guarantee memory newGuarantee = read();
-        newGuarantee.next();
-        store(newGuarantee);
-    }
-
     function from(Order memory order, Fixed6 price, UFixed6 referralFee, bool chargeSettlementFee, bool chargeTradeFee) external {
         Guarantee memory newGuarantee = GuaranteeLib.from(order, price, referralFee, chargeSettlementFee, chargeTradeFee);
         store(newGuarantee);
@@ -25,12 +19,6 @@ abstract contract GuaranteeTester {
     function next() public {
         Guarantee memory newGuarantee = read();
         newGuarantee.next();
-        store(newGuarantee);
-    }
-
-    function invalidate() public {
-        Guarantee memory newGuarantee = read();
-        newGuarantee.invalidate();
         store(newGuarantee);
     }
 
