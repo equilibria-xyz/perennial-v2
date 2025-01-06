@@ -108,6 +108,13 @@ library GuaranteeLib {
         return takerPos(self).add(takerNeg(self));
     }
 
+    /// @notice Returns whether the guarantee is empty
+    /// @param self The guarantee object to check
+    /// @return Whether the guarantee is empty
+    function isEmpty(Guarantee memory self) internal pure returns (bool) {
+        return takerTotal(self).isZero();
+    }
+
     /// @notice Returns the collateral adjusted due to the price override
     /// @param self The guarantee object to check
     /// @param price The oracle price to compare to the price override

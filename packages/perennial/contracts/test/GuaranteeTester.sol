@@ -38,6 +38,10 @@ abstract contract GuaranteeTester {
         return GuaranteeLib.takerTotal(guarantee);
     }
 
+    function isEmpty(Guarantee memory guarantee) public pure returns (bool) {
+        return GuaranteeLib.isEmpty(guarantee);
+    }
+
     function priceAdjustment(Guarantee memory guarantee, Fixed6 price) public pure returns (Fixed6) {
         return GuaranteeLib.priceAdjustment(guarantee, price);
     }

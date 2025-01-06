@@ -594,6 +594,52 @@ describe('Guarantee', () => {
       })
     })
 
+    describe('#isEmpty', () => {
+      it('calculates empty', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+          }),
+        ).to.equal(true)
+      })
+
+      it('calculates not empty longPos', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+            longPos: 1,
+          }),
+        ).to.equal(false)
+      })
+
+      it('calculates not empty longNeg', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+            longNeg: 1,
+          }),
+        ).to.equal(false)
+      })
+
+      it('calculates not empty shortPos', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+            shortPos: 1,
+          }),
+        ).to.equal(false)
+      })
+
+      it('calculates not empty shortNeg', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+            shortNeg: 1,
+          }),
+        ).to.equal(false)
+      })
+    })
+
     describe('#priceAdjustment', () => {
       it('long open / higher price', async () => {
         await expect(
