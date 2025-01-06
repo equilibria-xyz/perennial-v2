@@ -678,7 +678,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // when liquidating, ensure maintenance requirements are not met
         if (newOrder.protected() && (
             !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) || // total pending close is not equal to latest position
-            margin.maintained(context.account)                                    // latest position is properly maintained
+            margin.maintained(context.account) ||                                      // latest position is properly maintained
+            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                    // collateral is not being isolated
         )) revert IMarket.MarketInvalidProtectionError();
 
         // TODO: This doesn't need to be done post-save; keeping adjacent to maintenance/margin checks for future refactoring.
@@ -1002,9 +1003,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @dev Returns true if the oracle price is stale, which should prevent position change and deisolation of collateral
-    function _stale() private view returns (bool isStale) {
+    function _stale() private view returns (bool) {
         (OracleVersion memory latest, uint256 currentTimestamp) = oracle.status();
-        isStale = !latest.valid || currentTimestamp - latest.timestamp >= _riskParameter.read().staleAfter;
+        return !latest.valid || currentTimestamp - latest.timestamp >= _riskParameter.read().staleAfter;
     }
 
     /// @notice Only the coordinator or the owner can call

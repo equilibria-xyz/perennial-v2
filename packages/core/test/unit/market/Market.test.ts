@@ -15667,6 +15667,14 @@ describe('Market', () => {
             ).to.be.revertedWithCustomError(market, 'MarketProtectedError')
           })
 
+          it('it reverts if modifying collateral while self-liquidating', async () => {
+            await expect(
+              market
+                .connect(userB)
+                ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 1, true),
+            ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
+          })
+
           it('it reverts if withdrawing collateral', async () => {
             await expect(
               market
