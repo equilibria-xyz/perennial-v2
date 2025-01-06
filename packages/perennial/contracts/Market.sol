@@ -182,7 +182,23 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 amount,
         Fixed6 collateral,
         address referrer
-    ) external nonReentrant whenNotPaused {
+    ) external {
+        update(account, Fixed6Lib.ZERO, amount, collateral, referrer);
+    }
+
+    /// @notice Updates the account's position and collateral
+    /// @param account The account to operate on
+    /// @param makerAmount The maker of the order
+    /// @param takerAmount The taker of the order (positive for long, negative for short)
+    /// @param collateral The collateral delta of the order (positive for deposit, negative for withdrawal)
+    /// @param referrer The referrer of the order
+    function update(
+        address account,
+        Fixed6 makerAmount,
+        Fixed6 takerAmount,
+        Fixed6 collateral,
+        address referrer
+    ) public nonReentrant whenNotPaused {
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
@@ -190,8 +206,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
-            amount,
+            makerAmount,
+            takerAmount,
             collateral,
+            false,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order
@@ -608,8 +626,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
+            Fixed6Lib.ZERO,
             amount,
             Fixed6Lib.ZERO,
+            false,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee = GuaranteeLib.from(
