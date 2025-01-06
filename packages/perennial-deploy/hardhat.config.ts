@@ -22,7 +22,6 @@ const config = defaultConfig({
     '@perennial/oracle/contracts/OracleFactory.sol',
     '@perennial/oracle/contracts/keeper/KeeperFactory.sol',
     '@perennial/oracle/contracts/keeper/KeeperOracle.sol',
-    '@perennial/oracle/contracts/keeper/KeeperOracle_Migration.sol',
     '@perennial/oracle/contracts/pyth/PythFactory.sol',
     '@perennial/oracle/contracts/metaquants/MetaQuantsFactory.sol',
     '@perennial/core/contracts/Market.sol',

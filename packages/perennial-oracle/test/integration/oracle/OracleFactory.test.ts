@@ -90,20 +90,6 @@ describe('OracleFactory', () => {
     await loadFixture(fixture)
   })
 
-  describe('#withdraw', async () => {
-    it('can withdraw balance', async () => {
-      await oracleFactory.withdraw(DSU_ADDRESS)
-      expect(await dsu.balanceOf(owner.address)).to.eq(utils.parseEther('10000'))
-    })
-
-    it('reverts if not owner', async () => {
-      await expect(oracleFactory.connect(user).withdraw(dsu.address)).to.be.revertedWithCustomError(
-        oracleFactory,
-        'OwnableNotOwnerError',
-      )
-    })
-  })
-
   describe('#update', async () => {
     it('can update the price id', async () => {
       const keeperOracleImpl2 = await new KeeperOracle__factory(owner).deploy(60)
