@@ -110,7 +110,7 @@ describe('Manager_Arbitrum', () => {
 
     const keepConfig = {
       multiplierBase: ethers.utils.parseEther('1'),
-      bufferBase: 1_000_000, // buffer for withdrawing keeper fee from market
+      bufferBase: 1_125_000, // buffer for withdrawing keeper fee from market
       multiplierCalldata: 0,
       bufferCalldata: 0,
     }
