@@ -794,10 +794,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.pendingGlobal.sub(newOrder);
 
         // if version is not valid, invalidate order data
-        if (!oracleVersion.valid) {
-            newOrder.invalidate();
-            newGuarantee.invalidate();
-        }
+        if (!oracleVersion.valid) newOrder.invalidate(newGuarantee);
 
         VersionAccumulationResponse memory accumulationResponse;
         (settlementContext.latestVersion, context.global, accumulationResponse) = VersionLib.accumulate(
@@ -842,10 +839,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.pendingLocal.sub(newOrder);
 
         // if version is not valid, invalidate order data
-        if (!versionTo.valid) {
-            newOrder.invalidate();
-            newGuarantee.invalidate();
-        }
+        if (!versionTo.valid) newOrder.invalidate(newGuarantee);
 
         CheckpointAccumulationResponse memory accumulationResponse;
         (settlementContext.latestCheckpoint, accumulationResponse) = CheckpointLib.accumulate(

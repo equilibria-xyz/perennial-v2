@@ -5,6 +5,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { OracleVersion } from "./OracleVersion.sol";
 import { Position } from "./Position.sol";
+import { Guarantee } from "./Guarantee.sol";
 import { MarketParameter } from "./MarketParameter.sol";
 
 /// @dev Order type
@@ -67,17 +68,20 @@ library OrderLib {
     /// @param self The order object to update
     /// @param timestamp The current timestamp
     function next(Order memory self, uint256 timestamp) internal pure  {
-        invalidate(self);
+        (self.makerReferral, self.takerReferral) =
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
         (self.timestamp, self.orders, self.collateral, self.protection) = (timestamp, 0, Fixed6Lib.ZERO, 0);
     }
 
     /// @notice Invalidates the order
     /// @param self The order object to update
-    function invalidate(Order memory self) internal pure {
+    function invalidate(Order memory self, Guarantee memory guarentee) internal pure {
         (self.makerReferral, self.takerReferral) =
-            (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            (UFixed6Lib.ZERO, guarentee.referral);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
-            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, guarentee.longPos, guarentee.longNeg, guarentee.shortPos, guarentee.shortNeg);
     }
 
     /// @notice Creates a new order from the an intent order request

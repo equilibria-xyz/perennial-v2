@@ -5,12 +5,25 @@ import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Order, OrderStorageGlobal, OrderStorageLocal } from "../types/Order.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { Position } from "../types/Position.sol";
+import { Guarantee } from "../types/Guarantee.sol";
 import { MarketParameter } from "../types/MarketParameter.sol";
 
 abstract contract OrderTester {
     function read() public virtual view returns (Order memory);
 
     function store(Order memory newOrder) public virtual;
+
+    function next(uint256 timestamp) external {
+        Order memory newOrder = read();
+        newOrder.next(timestamp);
+        store(newOrder);
+    }
+
+    function invalidate(Guarantee memory guarantee) external {
+        Order memory newOrder = read();
+        newOrder.invalidate(guarantee);
+        store(newOrder);
+    }
 
     function ready(OracleVersion memory latestVersion) external view returns (bool result) {
         return read().ready(latestVersion);
