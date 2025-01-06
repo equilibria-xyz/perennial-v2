@@ -53,6 +53,8 @@ abstract contract Vault is IVault, Instance {
     /// @dev DEPRECATED SLOT -- previously the mappings
     bytes32 private __unused0__;
 
+    address public coordinator;
+
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
@@ -139,6 +141,13 @@ abstract contract Vault is IVault, Instance {
         (UFixed6 _totalAssets, UFixed6 _totalShares) =
             (UFixed6Lib.unsafeFrom(totalAssets()), totalShares());
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
+    }
+
+    /// @notice Updates the Vault's coordinator address
+    /// @param newCoordinator The new coordinator address
+    function updateCoordinator(address newCoordinator) external onlyOwner {
+        coordinator = newCoordinator;
+        emit CoordinatorUpdated(newCoordinator);
     }
 
     /// @notice Registers a new market

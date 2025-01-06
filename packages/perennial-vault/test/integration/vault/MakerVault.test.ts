@@ -48,6 +48,7 @@ describe('Vault', () => {
   let perennialUser: SignerWithAddress
   let liquidator: SignerWithAddress
   let other: SignerWithAddress
+  let coordinator: SignerWithAddress
   let leverage: BigNumber
   let maxCollateral: BigNumber
   let originalOraclePrice: BigNumber
@@ -154,7 +155,8 @@ describe('Vault', () => {
     const instanceVars = await deployProtocol()
 
     let pauser
-    ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser, other] = await ethers.getSigners()
+    ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser, other, coordinator] =
+      await ethers.getSigners()
     factory = instanceVars.marketFactory
     oracleFactory = instanceVars.oracleFactory
     marketFactory = instanceVars.marketFactory
@@ -418,6 +420,23 @@ describe('Vault', () => {
   describe('#name', () => {
     it('is correct', async () => {
       expect(await vault.name()).to.equal('Perennial V2 Vault: Blue Chip')
+    })
+  })
+
+  describe('#updateCoordinator', () => {
+    it('updates coordinator', async () => {
+      await expect(vault.connect(owner).updateCoordinator(coordinator.address))
+        .to.emit(vault, 'CoordinatorUpdated')
+        .withArgs(coordinator.address)
+
+      expect(await vault.coordinator()).to.deep.contain(coordinator.address)
+    })
+
+    it('reverts when not owner', async () => {
+      await expect(vault.connect(user).updateCoordinator(coordinator.address)).to.be.revertedWithCustomError(
+        vault,
+        'InstanceNotOwnerError',
+      )
     })
   })
 

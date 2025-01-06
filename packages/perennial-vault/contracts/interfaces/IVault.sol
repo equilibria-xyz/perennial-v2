@@ -33,6 +33,7 @@ interface IVault is IInstance {
     event MarketRegistered(uint256 indexed marketId, IMarket market);
     event MarketUpdated(uint256 indexed marketId, UFixed6 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
+    event CoordinatorUpdated(address indexed newCoordinator);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
 
     // sig: 0xa9785d3d
@@ -80,6 +81,7 @@ interface IVault is IInstance {
     function settle(address account) external;
     function rebalance(address account) external;
     function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;
+    function coordinator() external view returns (address);
     function asset() external view returns (Token18);
     function totalAssets() external view returns (Fixed6);
     function totalShares() external view returns (UFixed6);
@@ -90,6 +92,7 @@ interface IVault is IInstance {
     function registrations(uint256 marketId) external view returns (Registration memory);
     function accounts(address account) external view returns (Account memory);
     function checkpoints(uint256 id) external view returns (Checkpoint memory);
+    function updateCoordinator(address newCoordinator) external;
     function register(IMarket market) external;
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;
     function updateWeights(UFixed6[] calldata newWeights) external;
