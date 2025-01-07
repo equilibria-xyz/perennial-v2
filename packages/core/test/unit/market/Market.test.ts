@@ -493,6 +493,7 @@ describe('Market', () => {
       minMaintenance: parse6decimal('100'),
       staleAfter: 7200,
       makerReceiveOnly: false,
+      maxLiquidationFee: parse6decimal('1000'),
     }
     marketParameter = {
       fundingFee: parse6decimal('0.1'),
@@ -582,6 +583,7 @@ describe('Market', () => {
       expect(riskParameterResult.minMaintenance).to.equal(0)
       expect(riskParameterResult.staleAfter).to.equal(0)
       expect(riskParameterResult.makerReceiveOnly).to.equal(false)
+      expect(riskParameterResult.maxLiquidationFee).to.equal(0)
 
       const marketParameterResult = await market.parameter()
       expect(marketParameterResult.fundingFee).to.equal(0)
@@ -739,6 +741,7 @@ describe('Market', () => {
         minMaintenance: parse6decimal('50'),
         staleAfter: 9600,
         makerReceiveOnly: true,
+        maxLiquidationFee: parse6decimal('1000'),
       }
 
       it('updates the parameters (owner)', async () => {
