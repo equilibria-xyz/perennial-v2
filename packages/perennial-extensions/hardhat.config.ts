@@ -30,7 +30,7 @@ const config = defaultConfig({
   dependencyPaths: [
     '@perennial/core/contracts/MarketFactory.sol',
     '@perennial/core/contracts/Market.sol',
-    '@perennial/vault/contracts/Vault.sol',
+    '@perennial/vault/contracts/MakerVault.sol',
     '@perennial/vault/contracts/VaultFactory.sol',
     '@perennial/oracle/contracts/interfaces/IKeeperOracle.sol',
     '@perennial/oracle/contracts/keeper/KeeperOracle.sol',
