@@ -49,7 +49,7 @@ export const VALID_RISK_PARAMETER: RiskParameterStruct = {
   minMaintenance: 12,
   staleAfter: 13,
   makerReceiveOnly: false,
-  maxLiquidationFee: 14,
+  maxLiquidationFee: parse6decimal('1000'),
 }
 
 const PROTOCOL_PARAMETER: ProtocolParameterStruct = {

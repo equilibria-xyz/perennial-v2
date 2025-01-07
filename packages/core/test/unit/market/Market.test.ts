@@ -24411,6 +24411,7 @@ describe('Market', () => {
           minMaintenance: parse6decimal('50'),
           staleAfter: 9600,
           makerReceiveOnly: true,
+          maxLiquidationFee: parse6decimal('1000'),
         }
 
         // test the risk parameter update
