@@ -86,25 +86,40 @@ describe('InsuranceFund', () => {
     })
 
     context('#resolve', async () => {
-      it('resolves shortfall for a market', async () => {
+      it('resolves cross-margin shortfall', async () => {
         dsu.approve.whenCalledWith(market1.address).returns(true)
         market1.settle.whenCalledWith(user.address).returns()
         const resolutionAmount = parse6decimal('-1000')
+        margin.isolatedBalances.whenCalledWith(user.address, market1.address).returns(constants.Zero)
         margin.crossMarginBalances.whenCalledWith(user.address).returns(resolutionAmount)
-        market1['update(address,int256,int256,address)']
-          .whenCalledWith(user.address, 0, resolutionAmount, constants.AddressZero)
-          .returns()
 
         await insuranceFund.connect(owner).resolve(market1.address, user.address)
         expect(dsu.approve).to.have.been.calledWith(market1.address, constants.MaxUint256)
         expect(market1.settle).to.have.been.calledWith(user.address)
-        expect(market1['update(address,int256,int256,address)']).to.have.been.calledWith(
+        expect(margin.deposit).to.have.been.calledWith(user.address, resolutionAmount.mul(-1))
+      })
+
+      it('resolves shortfall for an isolated market', async () => {
+        dsu.approve.whenCalledWith(market2.address).returns(true)
+        market2.settle.whenCalledWith(user.address).returns()
+        const resolutionAmount = parse6decimal('-1200')
+        margin.isolatedBalances.whenCalledWith(user.address, market2.address).returns(resolutionAmount)
+        market2['update(address,int256,int256,address)']
+          .whenCalledWith(user.address, 0, resolutionAmount, constants.AddressZero)
+          .returns()
+
+        await insuranceFund.connect(owner).resolve(market2.address, user.address)
+        expect(dsu.approve).to.have.been.calledWith(market2.address, constants.MaxUint256)
+        expect(market2.settle).to.have.been.calledWith(user.address)
+        expect(market2['update(address,int256,int256,address)']).to.have.been.calledWith(
           user.address,
           0,
           resolutionAmount.mul(-1),
           constants.AddressZero,
         )
       })
+
+      // TODO: reverts if no shortfall
 
       it('reverts if not owner', async () => {
         await expect(insuranceFund.connect(user).resolve(market1.address, user.address)).to.be.revertedWithCustomError(

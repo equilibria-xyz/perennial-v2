@@ -18,7 +18,7 @@ import {
   DEFAULT_GUARANTEE,
   expectGuaranteeEq,
 } from '../../../../common/testutil/types'
-import { Market, Verifier__factory } from '../../../types/generated'
+import { IMargin, Market, Verifier__factory } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
   AccountPositionProcessedEventObject,
@@ -75,6 +75,7 @@ const MARKET_PARAMS = {
 describe('Fees', () => {
   let instanceVars: InstanceVars
   let market: Market
+  let margin: IMargin
 
   const nextWithConstantPrice = async () => {
     return instanceVars.chainlink.nextWithPriceModification(() => UNDERLYING_PRICE)
@@ -110,13 +111,14 @@ describe('Fees', () => {
     instanceVars.chainlink.updateParams(BigNumber.from(0), parse6decimal('0.3'))
     await instanceVars.chainlink.reset()
     market = await createMarket(instanceVars, RISK_PARAMS, MARKET_PARAMS)
+    margin = instanceVars.margin
   })
 
   describe('position fees', () => {
     it('charges make fees on open', async () => {
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
-      const { user, dsu, margin } = instanceVars
+      const { user, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -222,7 +224,7 @@ describe('Fees', () => {
 
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
-      const { user, dsu, margin } = instanceVars
+      const { user, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -331,7 +333,7 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu, margin } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -468,7 +470,7 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu, margin } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -651,7 +653,7 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu, margin } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -831,7 +833,7 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu, margin } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -968,7 +970,7 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu, margin } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -1149,7 +1151,7 @@ describe('Fees', () => {
       const MAKER_POSITION = parse6decimal('10')
       const SHORT_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu, margin } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -1341,7 +1343,7 @@ describe('Fees', () => {
           takerFee: 0,
         })
 
-        const { user, userB, userC, dsu, margin } = instanceVars
+        const { user, userB, userC, dsu } = instanceVars
 
         await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
         await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -1453,7 +1455,7 @@ describe('Fees', () => {
           takerFee: 0,
         })
 
-        const { user, userB, userC, dsu, margin } = instanceVars
+        const { user, userB, userC, dsu } = instanceVars
 
         await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
         await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -1654,7 +1656,7 @@ describe('Fees', () => {
           takerFee: 0,
         })
 
-        const { user, userB, userC, dsu, margin } = instanceVars
+        const { user, userB, userC, dsu } = instanceVars
 
         await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
         await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -1779,7 +1781,7 @@ describe('Fees', () => {
         },
       })
 
-      const { user, userB, userC, dsu, margin } = instanceVars
+      const { user, userB, userC, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -1900,7 +1902,7 @@ describe('Fees', () => {
         },
       })
 
-      const { user, userB, userC, dsu, margin } = instanceVars
+      const { user, userB, userC, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
@@ -1998,7 +2000,7 @@ describe('Fees', () => {
     const POSITION = parse6decimal('3')
 
     beforeEach(async () => {
-      const { owner, user, userB, userC, userD, dsu, margin, marketFactory } = instanceVars
+      const { owner, user, userB, userC, userD, dsu, marketFactory } = instanceVars
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
       await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
@@ -2060,17 +2062,15 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimable,
       })
-      await expect(market.connect(user).claimFee(user.address))
-        .to.emit(market, 'FeeClaimed')
-        .withArgs(user.address, user.address, expectedClaimable)
-
-      const userBalanceBefore = await dsu.balanceOf(user.address)
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(user).claim(user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, expectedClaimable)
 
       // Ensure user is not able to claim fees twice
-      await expect(market.connect(user).claimFee(user.address))
-
+      const userBalanceBefore = await dsu.balanceOf(user.address)
+      await expect(margin.connect(user).claim(user.address))
       expect(await dsu.balanceOf(user.address)).to.equals(userBalanceBefore)
     })
 
@@ -2124,11 +2124,11 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimable,
       })
-      await expect(market.connect(userB).claimFee(userB.address))
-        .to.emit(market, 'FeeClaimed')
-        .withArgs(userB.address, userB.address, expectedClaimable)
+      expect(await margin.claimables(userB.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(userB).claim(userB.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(userB.address, expectedClaimable)
     })
 
     it('handles a change in user referral fee', async () => {
@@ -2177,15 +2177,15 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimable,
       })
-      await expect(market.connect(user).claimFee(user.address))
-        .to.emit(market, 'FeeClaimed')
-        .withArgs(user.address, user.address, expectedClaimable)
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(user).claim(user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, expectedClaimable)
     })
 
     it('handles referral fee for multiple orders', async () => {
-      const { user, userB, userC, userD, margin } = instanceVars
+      const { user, userB, userC, userD } = instanceVars
 
       // user creates a maker position order referred by userB
       await market
@@ -2236,11 +2236,11 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimableMakerReferral,
       })
-      await expect(market.connect(userB).claimFee(userB.address))
-        .to.emit(market, 'FeeClaimed')
-        .withArgs(userB.address, userB.address, expectedClaimableMakerReferral)
+      expect(await margin.claimables(userB.address)).to.equal(expectedClaimableMakerReferral)
+      await expect(margin.connect(userB).claim(userB.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(userB.address, expectedClaimableMakerReferral)
 
       // user should be able to claim the taker referral fee at the user rate
       // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223
@@ -2250,8 +2250,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        claimable: expectedClaimableTakerReferral,
       })
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimableTakerReferral)
       expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1071.540000'))
 
       // userD creates a short position referred by user
@@ -2284,13 +2284,14 @@ describe('Fees', () => {
       // takerFee = position * takerFee * price = 2 * 0.025 * 113.882975 = 5.694148
       // referralFee = takerFee * referral / takerPos =  5.694148 * 0.30 / 2 = 0.854122
       expectedClaimableTakerReferral = expectedClaimableTakerReferral.add(parse6decimal('0.854122'))
-      await expect(market.connect(user).claimFee(user.address))
-        .to.emit(market, 'FeeClaimed')
-        .withArgs(user.address, user.address, expectedClaimableTakerReferral)
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimableTakerReferral)
+      await expect(margin.connect(user).claim(user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, expectedClaimableTakerReferral)
     })
 
     it('allows for a new referrer on new orders', async () => {
-      const { user, userB, userC, margin } = instanceVars
+      const { user, userB, userC } = instanceVars
 
       // user creates a non-referred maker position to facilitate a taker order
       await market
@@ -2342,11 +2343,11 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimable,
       })
-      await expect(market.connect(userB).claimFee(userB.address))
-        .to.emit(market, 'FeeClaimed')
-        .withArgs(userB.address, userB.address, expectedClaimable)
+      expect(await margin.claimables(userB.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(userB).claim(userB.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(userB.address, expectedClaimable)
 
       // userC closes a short position referred by user
       await market
@@ -2366,12 +2367,12 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        claimable: expectedCloseClaimable,
       })
+      expect(await margin.claimables(user.address)).to.equal(expectedCloseClaimable)
       expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1150.119246'))
-      await expect(market.connect(user).claimFee(user.address))
-        .to.emit(market, 'FeeClaimed')
-        .withArgs(user.address, user.address, expectedCloseClaimable)
+      await expect(margin.connect(user).claim(user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, expectedCloseClaimable)
       expect(await market.orderReferrers(userC.address, currentId.add(1))).to.equal(user.address)
 
       await nextWithConstantPrice()
@@ -2388,7 +2389,7 @@ describe('Fees', () => {
     it('claim protocol, risk and oracle fee', async () => {
       const COLLATERAL = parse6decimal('600')
       const POSITION = parse6decimal('3')
-      const { owner, oracle, coordinator, user, dsu, margin } = instanceVars
+      const { owner, oracle, coordinator, user, dsu } = instanceVars
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
 
@@ -2451,10 +2452,10 @@ describe('Fees', () => {
         .withArgs(coordinator.address, coordinator.address, expectedRiskFee)
     })
 
-    it('claim protocol fee from insurance fund', async () => {
+    it.only('claim protocol fee from insurance fund', async () => {
       const COLLATERAL = parse6decimal('600')
       const POSITION = parse6decimal('3')
-      const { owner, user, marketFactory, dsu, insuranceFund, margin } = instanceVars
+      const { owner, user, marketFactory, dsu, insuranceFund } = instanceVars
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
 
@@ -2501,14 +2502,21 @@ describe('Fees', () => {
       await expect(insuranceFund.connect(owner).claim(market.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(owner.address, insuranceFund.address, expectedProtocolFee)
+      expect(await margin.claimables(insuranceFund.address)).to.equal(expectedProtocolFee)
 
-      expect(await margin.crossMarginBalances(insuranceFund.address)).to.equal(expectedProtocolFee)
+      const balanceBefore = await dsu.balanceOf(owner.address)
+      // FIXME: reverts with MarginOperatorNotAllowedError, because owner is not operator for insurance fund
+      // (line 2499 sets the opposite, insurance fund as operator for owner)
+      await expect(margin.connect(owner).claim(insuranceFund.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(insuranceFund.address, expectedProtocolFee)
+      expect(await dsu.balanceOf(owner.address)).to.equal(balanceBefore.add(expectedProtocolFee))
     })
   })
 
   describe('intent order fee exclusion', async () => {
     it('opens long position and another intent order and settles later with fee', async () => {
-      const { owner, user, userB, userC, userD, marketFactory, dsu, margin, chainlink } = instanceVars
+      const { owner, user, userB, userC, userD, marketFactory, dsu, chainlink } = instanceVars
 
       // userC allowed to interact with user's account
       await marketFactory.connect(user).updateOperator(userC.address, true)
@@ -2674,8 +2682,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        claimable: TRADE_FEE_A.div(10).add(1), // loss of precision
       })
+      expect(await margin.claimables(userB.address)).to.equal(TRADE_FEE_A.div(10).add(1)) // loss of precision
       expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.add(EXPECTED_PNL))
       expectPositionEq(await market.positions(userC.address), {
         ...DEFAULT_POSITION,

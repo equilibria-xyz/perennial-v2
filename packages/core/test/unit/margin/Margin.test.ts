@@ -156,13 +156,29 @@ describe('Margin', () => {
       expect(dsu.transfer).to.have.been.calledWith(userB.address, amount.mul(1e12))
     })
 
-    it('market can adjust balances for fees and exposure', async () => {
-      const balanceBefore = await margin.crossMarginBalances(user.address)
-
+    it('user can withdraw claimable funds', async () => {
       const feeEarned = parse6decimal('0.2')
       const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
       await expect(margin.connect(marketSigner).updateClaimable(user.address, feeEarned)).to.not.be.reverted
-      expect(await margin.claimables(user.address)).to.equal(balanceBefore.add(feeEarned))
+      expect(await margin.claimables(user.address)).to.equal(feeEarned)
+
+      dsu.transfer.whenCalledWith(user.address, feeEarned.mul(1e12)).returns(true)
+      await expect(margin.connect(user).claim(user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, feeEarned)
+      expect(dsu.transfer).to.have.been.calledWith(user.address, feeEarned.mul(1e12))
+    })
+
+    it('user cannot withdraw negative claimable balance from exposure', async () => {
+      const deficit = parse6decimal('-0.3')
+      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).updateClaimable(user.address, deficit)).to.not.be.reverted
+      expect(await margin.claimables(user.address)).to.equal(deficit)
+
+      await expect(margin.connect(user).claim(user.address)).to.be.revertedWithCustomError(
+        margin,
+        'UFixed6UnderflowError',
+      )
     })
 
     it('stores and reads checkpoints', async () => {
@@ -566,5 +582,7 @@ describe('Margin', () => {
         'ReentrancyGuardReentrantCallError',
       )
     })
+
+    // TODO: test coverage for Margin.claim
   })
 })

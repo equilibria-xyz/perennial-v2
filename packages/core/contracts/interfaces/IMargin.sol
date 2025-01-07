@@ -11,6 +11,16 @@ import { OracleVersion } from "../types/OracleVersion.sol";
 import { IMarket, IMarketFactory } from "./IMarketFactory.sol";
 
 interface IMargin is IInstance {
+    /// @notice Emitted when claimable balance is updated by Market
+    /// @param account Account whose claimable balance has changed
+    /// @param amount Quantity of DSU credited (positive) or debited (negative, for exposure only)
+    event ClaimableChanged(address indexed account, Fixed6 amount);
+
+    /// @notice Emitted when user withdraws claimable balance
+    /// @param account Account from which claimable balance is withdrawn
+    /// @param amount Quantity of DSU withdrawn
+    event ClaimableWithdrawn(address indexed account, UFixed6 amount);
+
     /// @notice Emitted when DSU is transferred into the margin contract, increasing the cross-margin balance
     /// @param account Account credited
     /// @param amount Quantity of DSU deposited
@@ -99,8 +109,9 @@ interface IMargin is IInstance {
     /// @param market Identifies where isolated balance should be adjusted
     function isolate(address account, IMarket market, Fixed6 amount) external;
 
-    /// @notice Moves claimable fees to the user's cross-margin balance
-    function claimFee(address account) external;
+    /// @notice Withdraws claimable balance
+    /// @param account User whose claimable balance will be withdrawn
+    function claim(address account) external;
 
     /// @dev Called by market to check maintenance requirements upon market update
     /// @param account User whose maintenance requirement will be checked

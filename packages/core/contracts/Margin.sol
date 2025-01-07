@@ -24,6 +24,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     // TODO: Introduce an iterable collection of cross-margained markets for a user.
 
+    // TODO: Once exposure is eliminated, make this unsigned
     /// @notice Storage for claimable balances: user -> market -> balance
     mapping(address => Fixed6) public claimables;
 
@@ -78,11 +79,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function claimFee(address account) external nonReentrant onlyOperator(account) {
-        Fixed6 claimable = claimables[account];
+    function claim(address account) external nonReentrant onlyOperator(account) {
+        UFixed6 claimable = UFixed6Lib.from(claimables[account]);
         claimables[account] = Fixed6Lib.ZERO;
-        _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(claimable);
-        // TODO: emit appropriate event(s)
+        DSU.push(msg.sender, UFixed18Lib.from(claimable));
+        emit ClaimableWithdrawn(account, claimable);
     }
 
     /// @inheritdoc IMargin
@@ -120,7 +121,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function updateClaimable(address account, Fixed6 collateralDelta) external onlyMarket {
         claimables[account] = claimables[account].add(collateralDelta);
-        // TODO: Should we emit ClaimableBalanceChanged event here?  Market emits FeeClaimed/ExposureClaimed.
+        emit ClaimableChanged(account, collateralDelta);
     }
 
     /// @inheritdoc IMargin
