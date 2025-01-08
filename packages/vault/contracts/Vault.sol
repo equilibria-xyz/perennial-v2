@@ -53,6 +53,7 @@ abstract contract Vault is IVault, Instance {
     /// @dev DEPRECATED SLOT -- previously the mappings
     bytes32 private __unused0__;
 
+    /// @dev The vault's coordinator address (privileged role that can operate the vault's strategy)
     address public coordinator;
 
     /// @notice Initializes the vault
@@ -104,8 +105,10 @@ abstract contract Vault is IVault, Instance {
     /// @notice Returns the name of the vault
     /// @return The name of the vault
     function name() external view returns (string memory) {
-        return string(abi.encodePacked("Perennial V2 Vault: ", _name));
+        return string(abi.encodePacked(_vaultName(), ": ", _name));
     }
+
+    function _vaultName() internal pure virtual returns (string memory);
 
     /// @notice Returns the total number of underlying assets at the last checkpoint
     /// @return The total number of underlying assets at the last checkpoint

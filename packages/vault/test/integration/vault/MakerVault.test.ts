@@ -33,7 +33,7 @@ const LEGACY_ORACLE_DELAY = 3600
 const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
-describe('Vault', () => {
+describe('MakerVault', () => {
   let vault: IVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
@@ -417,7 +417,7 @@ describe('Vault', () => {
 
   describe('#name', () => {
     it('is correct', async () => {
-      expect(await vault.name()).to.equal('Perennial V2 Vault: Blue Chip')
+      expect(await vault.name()).to.equal('Perennial Maker Vault: Blue Chip')
     })
   })
 
