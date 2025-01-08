@@ -130,7 +130,7 @@ export default function defaultConfig({
           : undefined,
         chainId: getChainId('hardhat'),
         allowUnlimitedContractSize: true,
-        blockGasLimit: 32000000,
+        blockGasLimit: 32_000_000,
         mining: NODE_INTERVAL_MINING
           ? {
               interval: NODE_INTERVAL_MINING,
@@ -210,6 +210,7 @@ export default function defaultConfig({
       currency: 'USD',
       gasPrice: 100,
       enabled: process.env.REPORT_GAS ? true : false,
+      trackGasDeltas: true,
     },
     typechain: {
       outDir: 'types/generated',
