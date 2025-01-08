@@ -50,8 +50,10 @@ import {
   IMarket,
   IntentStruct,
   MarketParameterStruct,
+  MarketUpdateTakerStruct,
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
+import { signMarketUpdateTaker } from '../../helpers/erc712'
 
 const { ethers } = HRE
 
@@ -24918,6 +24920,62 @@ describe('Market', () => {
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
+        })
+
+        // TODO: move toward top of file and maybe proliferate COMMON_PROTOTYPE for maintainability
+        const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
+        const MARKET_UPDATE_TAKER_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+
+        it('opens long position with signature', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('20'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          // user deposits some collateral with no position
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+
+          // userB adds maker liquidity to market
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+          // user signs message to open a long position
+          const message: MarketUpdateTakerStruct = {
+            amount: POSITION.div(2),
+            referrer: owner.address,
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: constants.MaxUint256,
+            },
+          }
+          const signature = await signMarketUpdateTaker(user, verifier, message)
+
+          // userC executes the update on behalf of user
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, owner.address)
+            .returns([false, true, parse6decimal('0.20')])
+          await expect(market.connect(userC)[MARKET_UPDATE_TAKER_PROTOTYPE](message, signature)).to.emit(
+            market,
+            'OrderCreated',
+          )
+
+          // TODO: compare market state with 'opens the position when signer' test
         })
       })
     })

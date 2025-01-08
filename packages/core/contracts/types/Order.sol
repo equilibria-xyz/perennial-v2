@@ -80,7 +80,7 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
     }
 
-    /// @notice Creates a new order from the an intent order request
+    /// @notice Creates a new order from an intent order request or market update message
     /// @param timestamp The current timestamp
     /// @param position The current position
     /// @param makerAmount The magnitude and direction of maker position

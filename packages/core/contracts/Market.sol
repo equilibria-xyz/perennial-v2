@@ -28,6 +28,7 @@ import { InvariantLib } from "./libs/InvariantLib.sol";
 import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
+import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -174,17 +175,29 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @notice Updates the account's taker position without collateral change
-    /// @param account Identifies the user
-    /// @param update Message requesting to change taker position
+    /// @param update_ Message requesting change in user's taker position
     /// @param signature Taker's signature
-    function update(
-        address account,
-        MarketUpdateTaker calldata update,
-        bytes memory signature
-    ) external {
-        verifier.verifyMarketUpdateTaker(update, signature);
-        // FIXME: public method generates "not callable" compile-time error
-        // update(account, Fixed6Lib.ZERO, update.amount, Fixed6Lib.ZERO, update.referrer);
+    function update(MarketUpdateTaker calldata update_, bytes memory signature) external {
+        verifier.verifyMarketUpdateTaker(update_, signature);
+        // TODO: Cannot call update(address,uint256,uint256,uint256,address) because it zeros out the signer (second
+        // param to _loadForUpdate). See if there's a smaller way to do this without impacting other update functions.
+        (Context memory context, UpdateContext memory updateContext) =
+            _loadForUpdate(update_.common.account, update_.common.account, update_.referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+
+        // create new order & guarantee
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            Fixed6Lib.ZERO,
+            update_.amount,
+            Fixed6Lib.ZERO,
+            false,
+            updateContext.orderReferralFee
+        );
+        Guarantee memory newGuarantee; // no guarantee is created for a market order
+
+        // process update
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, update_.referrer, address(0));
     }
 
     /// @notice Updates the account's position and collateral
