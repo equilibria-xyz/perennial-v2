@@ -47,11 +47,12 @@ contract VaultFactory is IVaultFactory, Factory {
     function create(
         Token18 asset,
         IMarket initialMarket,
+        UFixed6 leverageBuffer,
         string calldata name
     ) external onlyOwner returns (IVault newVault) {
         // create vault
         newVault = IVault(address(
-            _create(abi.encodeCall(IVault.initialize, (asset, initialMarket, initialAmount, name)))));
+            _create(abi.encodeCall(IVault.initialize, (asset, initialMarket, initialAmount, leverageBuffer, name)))));
 
         // deposit and lock initial amount of the underlying asset to prevent inflation attacks
         asset.pull(msg.sender, UFixed18Lib.from(initialAmount));

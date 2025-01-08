@@ -71,9 +71,6 @@ library StrategyLib {
     error StrategyLibInsufficientCollateralError();
     error StrategyLibInsufficientAssetsError();
 
-    /// @dev The maximum multiplier that is allowed for leverage
-    UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
-
     /// @dev The target allocation for a market
     struct MarketTarget {
         /// @dev The amount of change in collateral
@@ -111,7 +108,8 @@ library StrategyLib {
         Strategy memory strategy,
         UFixed6 deposit,
         UFixed6 withdrawal,
-        UFixed6 ineligible
+        UFixed6 ineligible,
+        UFixed6 leverageBuffer
     ) internal pure returns (MarketTarget[] memory targets) {
         UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
         UFixed6 assets = collateral.unsafeSub(ineligible);
@@ -127,7 +125,8 @@ library StrategyLib {
                 strategy.marketContexts[marketId],
                 strategy.totalMargin,
                 collateral,
-                assets
+                assets,
+                leverageBuffer
             );
             totalMarketCollateral = totalMarketCollateral.add(marketCollateral);
         }
@@ -145,14 +144,15 @@ library StrategyLib {
         MarketStrategyContext memory marketContext,
         UFixed6 totalMargin,
         UFixed6 collateral,
-        UFixed6 assets
+        UFixed6 assets,
+        UFixed6 leverageBuffer
     ) private pure returns (MarketTarget memory target, UFixed6 marketCollateral) {
         marketCollateral = marketContext.margin
             .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
 
         UFixed6 marketAssets = assets
             .mul(marketContext.registration.weight)
-            .min(marketCollateral.mul(LEVERAGE_BUFFER));
+            .min(marketCollateral.mul(leverageBuffer));
 
         target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
 

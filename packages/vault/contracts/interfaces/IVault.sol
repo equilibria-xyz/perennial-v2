@@ -86,7 +86,7 @@ interface IVault is IInstance {
     // sig: 0xfd9cbca5
     error StrategyLibInsufficientAssetsError();
 
-    function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, string calldata name_) external;
+    function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, UFixed6 leverageBuffer, string calldata name_) external;
     function name() external view returns (string memory);
     function settle(address account) external;
     function rebalance(address account) external;
