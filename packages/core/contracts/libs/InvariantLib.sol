@@ -36,8 +36,9 @@ library InvariantLib {
             revert IMarket.MarketOverCloseError();
 
         if (newOrder.protected() && (
-            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
-            context.latestPositionLocal.maintained(                                     // latest position is properly maintained
+            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) ||    // total pending close is not equal to latest position
+            !PositionLib.maintained(                                                      // latest position is properly maintained
+                context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()),
                 context.latestOracleVersion,
                 context.riskParameter,
                 context.local.collateral
