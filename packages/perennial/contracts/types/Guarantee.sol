@@ -58,18 +58,15 @@ library GuaranteeLib {
     /// @param order The order to create the guarantee from
     /// @param priceOverride The price override
     /// @param solverReferralFee The the percentage of the subtractive fee to take as a solver referral fee
-    /// @param chargeSettlementFee Whether the order will still be charged the settlement fee
     /// @param chargeTradeFee Whether the order will still be charged the trade fee
     /// @return newGuarantee The resulting guarantee
     function from(
         Order memory order,
         Fixed6 priceOverride,
         UFixed6 solverReferralFee,
-        bool chargeSettlementFee,
         bool chargeTradeFee
     ) internal pure returns (Guarantee memory newGuarantee) {
-        // maker orders and one intent order per fill will be required to pay the settlement fee
-        if (!order.takerTotal().isZero() && !chargeSettlementFee) newGuarantee.orders = order.orders;
+        newGuarantee.orders = order.orders;
 
         (newGuarantee.longPos, newGuarantee.longNeg, newGuarantee.shortPos, newGuarantee.shortNeg) =
             (order.longPos, order.longNeg, order.shortPos, order.shortNeg);

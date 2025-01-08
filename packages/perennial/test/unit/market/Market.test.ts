@@ -18016,7 +18016,7 @@ describe('Market', () => {
               },
               {
                 ...DEFAULT_GUARANTEE,
-                orders: 0,
+                orders: 1,
                 shortPos: POSITION.div(2),
                 notional: -POSITION.div(2).mul(125),
                 takerFee: POSITION.div(2),
@@ -18665,7 +18665,7 @@ describe('Market', () => {
               },
               {
                 ...DEFAULT_GUARANTEE,
-                orders: 0,
+                orders: 1,
                 shortPos: POSITION.div(2),
                 notional: -POSITION.div(2).mul(125),
                 takerFee: POSITION.div(2),
@@ -18726,7 +18726,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4), // loss of precision
+            collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4), // loss of precision
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -18747,9 +18747,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
-              .add(EXPECTED_PNL)
-              .sub(SETTLEMENT_FEE.div(2)),
+            collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
           })
           expectPositionEq(await market.positions(userC.address), {
             ...DEFAULT_POSITION,
@@ -21074,7 +21072,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -21123,7 +21121,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4), // loss of precision
+              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -21144,9 +21142,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
-                .add(EXPECTED_PNL)
-                .sub(SETTLEMENT_FEE.div(2)),
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -21320,7 +21316,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -21370,7 +21366,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4), // loss of precision
+              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -21391,9 +21387,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
-                .sub(EXPECTED_PNL)
-                .sub(SETTLEMENT_FEE.div(2)),
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL),
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -21567,7 +21561,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(121),
                   takerFee: POSITION.div(2),
@@ -21617,7 +21611,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4), // loss of precision
+              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -21638,9 +21632,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
-                .sub(EXPECTED_PNL)
-                .sub(SETTLEMENT_FEE.div(2)),
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL),
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -21814,7 +21806,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(121),
                   takerFee: POSITION.div(2),
@@ -21864,7 +21856,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4), // loss of precision
+              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -21885,9 +21877,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
-                .add(EXPECTED_PNL)
-                .sub(SETTLEMENT_FEE.div(2)),
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -22085,7 +22075,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -22136,7 +22126,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -22209,7 +22199,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF_2).sub(SETTLEMENT_FEE.div(3)).sub(7), // loss of precision
+              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF_2).sub(SETTLEMENT_FEE).sub(7), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -22230,10 +22220,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF_2.div(2))
-                .add(EXPECTED_PNL.mul(2))
-                .sub(SETTLEMENT_FEE.mul(2).div(3))
-                .sub(11), // loss of precision
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF_2.div(2)).add(EXPECTED_PNL.mul(2)).sub(11), // loss of precision
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -22411,7 +22398,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -22460,7 +22447,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4), // loss of precision
+              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -22481,9 +22468,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
-                .add(EXPECTED_PNL)
-                .sub(SETTLEMENT_FEE.div(2)),
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -22657,7 +22642,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -22708,7 +22693,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -22853,7 +22838,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -22918,8 +22903,8 @@ describe('Market', () => {
               latestId: 1,
               collateral: COLLATERAL.add(expectedInterestWithoutFee)
                 .add(expectedMakerFundingFee)
-                .sub(SETTLEMENT_FEE.div(3))
-                .sub(10), // loss of precision
+                .sub(SETTLEMENT_FEE.div(2))
+                .sub(9), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -22941,11 +22926,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(expectedInterest.div(4))
-                .add(expectedShortFundingFee)
-                .add(EXPECTED_PNL)
-                .sub(SETTLEMENT_FEE.div(3))
-                .sub(6),
+              collateral: COLLATERAL.sub(expectedInterest.div(4)).add(expectedShortFundingFee).add(EXPECTED_PNL).sub(5),
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -22971,8 +22952,8 @@ describe('Market', () => {
                 .sub(expectedFundingFee.mul(2))
                 .sub(TAKER_FEE.mul(2))
                 .sub(expectedOffset)
-                .sub(SETTLEMENT_FEE.div(3))
-                .sub(7), // loss of precision
+                .sub(SETTLEMENT_FEE.div(2))
+                .sub(6), // loss of precision
             })
             expectPositionEq(await market.positions(userD.address), {
               ...DEFAULT_POSITION,
@@ -23133,7 +23114,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -23208,7 +23189,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL).sub(SETTLEMENT_FEE),
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -23224,7 +23205,7 @@ describe('Market', () => {
             })
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL).sub(SETTLEMENT_FEE),
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
@@ -23240,7 +23221,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               protocolFee: totalFee.mul(8).div(10).add(3), // loss of precision
-              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE.mul(2)), // loss of precision
+              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(1), // loss of precision
               latestPrice: PRICE,
             })
@@ -23406,7 +23387,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -23418,7 +23399,7 @@ describe('Market', () => {
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_3.timestamp)
-              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+              .returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, { ...INITIALIZED_ORACLE_RECEIPT }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -23479,7 +23460,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 2,
               latestId: 2,
-              collateral: COLLATERAL.sub(SETTLEMENT_FEE).sub(EXPECTED_PNL), // open
+              collateral: COLLATERAL.sub(EXPECTED_PNL), // open
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -23511,7 +23492,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               protocolFee: totalFee.mul(8).div(10).sub(1), // loss of precision
-              oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE.mul(2)), // loss of precision
+              oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
               exposure: -EXPECTED_EXPOSURE, // turning on offset params
               latestPrice: PRICE,
@@ -23532,14 +23513,13 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
+              valid: false,
               makerValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
               longValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
-              settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
-              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -23668,7 +23648,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -23680,7 +23660,7 @@ describe('Market', () => {
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_3.timestamp)
-              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+              .returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, { ...INITIALIZED_ORACLE_RECEIPT }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -23741,7 +23721,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 2,
               latestId: 2,
-              collateral: COLLATERAL.sub(SETTLEMENT_FEE).add(EXPECTED_PNL), // open
+              collateral: COLLATERAL.add(EXPECTED_PNL), // open
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -23773,7 +23753,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               protocolFee: totalFee.mul(8).div(10).sub(1), // loss of precision
-              oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE.mul(2)), // loss of precision
+              oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
               exposure: -EXPECTED_EXPOSURE, // turning on offset params
               latestPrice: PRICE,
@@ -23794,14 +23774,13 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
+              valid: false,
               makerValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
               shortValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
-              settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
-              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -23930,7 +23909,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -23942,7 +23921,7 @@ describe('Market', () => {
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_3.timestamp)
-              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+              .returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, { ...INITIALIZED_ORACLE_RECEIPT }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -24004,7 +23983,6 @@ describe('Market', () => {
                 .sub(SETTLEMENT_FEE.div(2)) // open
                 .sub(EXPECTED_INTEREST_5_123)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123) // while open
-                .sub(SETTLEMENT_FEE)
                 .sub(EXPECTED_PNL), // close
             })
             expectPositionEq(await market.positions(userC.address), {
@@ -24036,7 +24014,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               protocolFee: totalFee.mul(8).div(10).sub(1), // loss of precision
-              oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE.mul(2)), // loss of precision
+              oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
               exposure: -EXPECTED_EXPOSURE, // turning on offset params
               latestPrice: PRICE,
@@ -24057,14 +24035,13 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
+              valid: false,
               makerValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
               shortValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
-              settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
-              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -24193,7 +24170,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -24205,7 +24182,7 @@ describe('Market', () => {
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_3.timestamp)
-              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+              .returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, { ...INITIALIZED_ORACLE_RECEIPT }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -24267,7 +24244,6 @@ describe('Market', () => {
                 .sub(SETTLEMENT_FEE.div(2)) // open
                 .sub(EXPECTED_INTEREST_5_123)
                 .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123) // while open
-                .sub(SETTLEMENT_FEE)
                 .add(EXPECTED_PNL), // close
             })
             expectPositionEq(await market.positions(userC.address), {
@@ -24299,7 +24275,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               protocolFee: totalFee.mul(8).div(10).sub(1), // loss of precision
-              oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE.mul(2)), // loss of precision
+              oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
               exposure: -EXPECTED_EXPOSURE, // turning on offset params
               latestPrice: PRICE,
@@ -24320,14 +24296,13 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
+              valid: false,
               makerValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
               longValue: { _value: EXPECTED_INTEREST_5_123.add(EXPECTED_FUNDING_WITH_FEE_1_5_123).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
-              settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
-              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -24462,7 +24437,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -24536,7 +24511,6 @@ describe('Market', () => {
               collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(3).add(1))
                 .sub(TAKER_FEE) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open
-                .sub(SETTLEMENT_FEE)
                 .sub(EXPECTED_PNL), // close
             })
             expectPositionEq(await market.positions(userC.address), {
@@ -24568,7 +24542,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               protocolFee: totalFee.mul(8).div(10).add(4), // loss of precision
-              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE.mul(2)), // loss of precision
+              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
               exposure: 0,
               latestPrice: PRICE,
@@ -24588,15 +24562,14 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
+              valid: false,
               makerValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
               longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
-              settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
-              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -24731,7 +24704,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
@@ -24756,7 +24729,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               collateral: COLLATERAL.sub(TAKER_FEE)
-                .sub(SETTLEMENT_FEE.div(3).add(1)) // open
+                .sub(SETTLEMENT_FEE.div(2)) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open
                 .sub(EXPECTED_PNL)
                 .sub(TAKER_FEE), // close
@@ -24779,7 +24752,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(3).add(1)) // open
+              collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(2)) // open
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF) // while open
                 .sub(4), // loss of precision
             })
@@ -24802,8 +24775,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 2,
               latestId: 2,
-              collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(3).add(1))
-                .sub(TAKER_FEE) // open
+              collateral: COLLATERAL.sub(TAKER_FEE) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open
                 .sub(SETTLEMENT_FEE)
                 .add(EXPECTED_PNL), // close
@@ -24857,15 +24829,14 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
+              valid: false,
               makerValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
               },
               longValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               shortValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
               takerFee: { _value: -TAKER_FEE.div(5) },
-              settlementFee: { _value: -SETTLEMENT_FEE },
               price: PRICE,
-              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
           })
 
@@ -24994,7 +24965,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(4),
                   notional: -POSITION.div(4).mul(125),
                   takerFee: POSITION.div(4),
@@ -25045,7 +25016,7 @@ describe('Market', () => {
                 },
                 {
                   ...DEFAULT_GUARANTEE,
-                  orders: 0,
+                  orders: 1,
                   shortPos: POSITION.div(4),
                   notional: -POSITION.div(4).mul(125),
                   takerFee: POSITION.div(4),

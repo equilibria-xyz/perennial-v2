@@ -155,7 +155,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             address(0),
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
-            true,
             false
         ); // account
         _updateIntent(
@@ -167,7 +166,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             intent.solver,
             intent.fee,
             intent.collateralization,
-            false,
             true
         ); // signer
     }
@@ -587,7 +585,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param guaranteeReferrer The referrer of the guarantee
     /// @param guaranteeReferralFee The referral fee for the guarantee
     /// @param collateralization The minimum collateralization ratio that must be maintained after the order is executed
-    /// @param chargeSettlementFee Whether to charge the settlement fee
     /// @param chargeTradeFee Whether to charge the trade fee
     function _updateIntent(
         address account,
@@ -598,7 +595,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address guaranteeReferrer,
         UFixed6 guaranteeReferralFee,
         UFixed6 collateralization,
-        bool chargeSettlementFee,
         bool chargeTradeFee
     ) private {
         (Context memory context, UpdateContext memory updateContext) =
@@ -616,7 +612,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newOrder,
             price,
             updateContext.guaranteeReferralFee,
-            chargeSettlementFee,
             chargeTradeFee
         );
 
