@@ -9,7 +9,7 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
-  Vault__factory,
+  MakerVault__factory,
   IOracleProvider,
   VaultFactory__factory,
   IVaultFactory,
@@ -269,7 +269,7 @@ describe('Vault', () => {
     await rootOracle.register(market.address)
     await btcRootOracle.register(btcMarket.address)
 
-    const vaultImpl = await new Vault__factory(owner).deploy()
+    const vaultImpl = await new MakerVault__factory(owner).deploy()
     const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
       instanceVars.marketFactory.address,
       vaultImpl.address,
@@ -1728,7 +1728,7 @@ describe('Vault', () => {
         proxyAdmin.address,
         [],
       )
-      const vaultImpl = await new Vault__factory(owner).deploy()
+      const vaultImpl = await new MakerVault__factory(owner).deploy()
       const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
         marketFactory.address,
         vaultImpl.address,
@@ -1773,7 +1773,7 @@ describe('Vault', () => {
         proxyAdmin.address,
         [],
       )
-      const vaultImpl = await new Vault__factory(owner).deploy()
+      const vaultImpl = await new MakerVault__factory(owner).deploy()
       const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
         marketFactory.address,
         vaultImpl.address,
