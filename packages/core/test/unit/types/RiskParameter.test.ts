@@ -111,7 +111,7 @@ describe('RiskParameter', () => {
       expect(value.minMaintenance).to.equal(12)
       expect(value.staleAfter).to.equal(13)
       expect(value.makerReceiveOnly).to.equal(false)
-      expect(value.maxLiquidationFee).to.equal(14)
+      expect(value.maxLiquidationFee).to.equal(parse6decimal('1000'))
     })
 
     describe('.makerLimit', () => {
