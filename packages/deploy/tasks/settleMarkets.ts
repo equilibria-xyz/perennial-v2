@@ -134,34 +134,38 @@ export async function getAllMarketUsers(
 ): Promise<{ result: { [key: string]: Set<string> }; numQueries: number }> {
   const query = gql`
     query getAllUsers($first: Int!, $skip: Int!) {
-      marketAccountPositions(first: $first, skip: $skip) {
-        market
-        account
+      marketAccounts(first: $first, skip: $skip) {
+        market {
+          id
+        }
+        account {
+          id
+        }
       }
     }
   `
 
   let numQueries = 0
   let page = 0
-  let res: { marketAccountPositions: { market: string; account: string }[] } = await request(graphURL, query, {
+  let res: { marketAccounts: { market: { id: string }; account: { id: string } }[] } = await request(graphURL, query, {
     first: GRAPHQL_QUERY_PAGE_SIZE,
     skip: page * GRAPHQL_QUERY_PAGE_SIZE,
   })
   const rawData = res
-  while (res.marketAccountPositions.length === GRAPHQL_QUERY_PAGE_SIZE) {
+  while (res.marketAccounts.length === GRAPHQL_QUERY_PAGE_SIZE) {
     page += 1
     res = await request(graphURL, query, {
       first: GRAPHQL_QUERY_PAGE_SIZE,
       skip: page * GRAPHQL_QUERY_PAGE_SIZE,
     })
-    rawData.marketAccountPositions = [...rawData.marketAccountPositions, ...res.marketAccountPositions]
+    rawData.marketAccounts = [...rawData.marketAccounts, ...res.marketAccounts]
     numQueries += 1
   }
 
   const result: { [key: string]: Set<string> } = {}
-  for (const raw of rawData.marketAccountPositions) {
-    if (raw.market in result) result[raw.market].add(raw.account)
-    else result[raw.market] = new Set([raw.account, constants.AddressZero])
+  for (const raw of rawData.marketAccounts) {
+    if (raw.market.id in result) result[raw.market.id].add(raw.account.id)
+    else result[raw.market.id] = new Set([raw.account.id, constants.AddressZero])
   }
 
   return { result, numQueries }
