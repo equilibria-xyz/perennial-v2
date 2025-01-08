@@ -5,6 +5,8 @@ import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Checkpoint as PerennialCheckpoint } from "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { Checkpoint, CheckpointStorage } from "../types/Checkpoint.sol";
 import { Account } from "../types/Account.sol";
+import { Mark } from "../types/Mark.sol";
+import { VaultParameter } from "../types/VaultParameter.sol";
 
 contract CheckpointTester {
     CheckpointStorage public checkpoint;
@@ -36,10 +38,15 @@ contract CheckpointTester {
         checkpoint.store(newCheckpoint);
     }
 
-    function complete(PerennialCheckpoint memory marketCheckpoint) external {
+    function complete(
+        Mark memory mark,
+        VaultParameter memory parameter,
+        PerennialCheckpoint memory marketCheckpoint
+    ) external returns (bool updated, UFixed6 profitShare, Mark memory newMark) {
         Checkpoint memory newCheckpoint = checkpoint.read();
 
-        newCheckpoint.complete(marketCheckpoint);
+        (updated, profitShare) = newCheckpoint.complete(mark, parameter, marketCheckpoint);
+        newMark = mark;
 
         checkpoint.store(newCheckpoint);
     }

@@ -338,15 +338,54 @@ describe('Checkpoint', () => {
   })
 
   describe('#complete', () => {
-    it('completes the checkpoint', async () => {
+    it('completes the checkpoint (above hwm)', async () => {
       await checkpoint.store(VALID_CHECKPOINT)
 
       const marketCheckpoint = { collateral: 123, tradeFee: 456, settlementFee: 78, transfer: 0 }
-      await checkpoint.complete(marketCheckpoint)
+      const mark = { mark: ethers.utils.parseEther('20'), claimable: 10 }
+      const vaultParameter = { maxDeposit: 123, minDeposit: 456, profitShare: parse6decimal('0.2') }
+
+      const [updated, profitShare, newMark] = await checkpoint.callStatic.complete(
+        mark,
+        vaultParameter,
+        marketCheckpoint,
+      )
+      await checkpoint.complete(mark, vaultParameter, marketCheckpoint)
 
       const value = await checkpoint.read()
 
-      expect(value.assets).to.equal(127)
+      expect(updated).to.equal(true)
+      expect(profitShare).to.equal(13)
+      expect(newMark.mark).to.equal(ethers.utils.parseEther('42.333333333333333333'))
+      expect(newMark.claimable).to.equal(23) // 10 + 13
+      expect(value.assets).to.equal(114) // 127 - 13
+      expect(value.shares).to.equal(3)
+      expect(value.tradeFee).to.equal(456)
+      expect(value.settlementFee).to.equal(78)
+    })
+
+    it('completes the checkpoint (below hwm)', async () => {
+      await checkpoint.store(VALID_CHECKPOINT)
+
+      const marketCheckpoint = { collateral: 123, tradeFee: 456, settlementFee: 78, transfer: 0 }
+      const mark = { mark: ethers.utils.parseEther('50'), claimable: 10 }
+      const vaultParameter = { maxDeposit: 123, minDeposit: 456, profitShare: parse6decimal('0.2') }
+
+      const [updated, profitShare, newMark] = await checkpoint.callStatic.complete(
+        mark,
+        vaultParameter,
+        marketCheckpoint,
+      )
+      await checkpoint.complete(mark, vaultParameter, marketCheckpoint)
+
+      const value = await checkpoint.read()
+
+      expect(updated).to.equal(false)
+      expect(profitShare).to.equal(0)
+      expect(newMark.mark).to.equal(ethers.utils.parseEther('50'))
+      expect(newMark.claimable).to.equal(10) // 10
+      expect(value.assets).to.equal(127) // 127
+      expect(value.shares).to.equal(3)
       expect(value.tradeFee).to.equal(456)
       expect(value.settlementFee).to.equal(78)
     })

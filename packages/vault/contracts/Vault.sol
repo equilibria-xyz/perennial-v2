@@ -17,6 +17,7 @@ import { Account, AccountStorage } from "./types/Account.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Registration, RegistrationStorage } from "./types/Registration.sol";
 import { VaultParameter, VaultParameterStorage } from "./types/VaultParameter.sol";
+import { Mark, MarkStorage } from "./types/Mark.sol";
 import { Target } from "./types/Target.sol";
 import { MakerStrategyLib } from "./libs/MakerStrategyLib.sol";
 
@@ -56,6 +57,12 @@ abstract contract Vault is IVault, Instance {
     /// @dev The vault's coordinator address (privileged role that can operate the vault's strategy)
     address public coordinator;
 
+    /// @dev High-water mark for the vault's assets vs shares ratio
+    MarkStorage private _mark;
+
+    /// @dev Leave gap for future upgrades since this contract is abstract
+    bytes32[54] private __unallocated__;
+
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
@@ -72,7 +79,7 @@ abstract contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _register(initialMarket);
-        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
     }
 
     /// @notice Returns the vault parameter set
@@ -100,6 +107,12 @@ abstract contract Vault is IVault, Instance {
     /// @return The checkpoint for the given id
     function checkpoints(uint256 id) external view returns (Checkpoint memory) {
         return _checkpoints[id].read();
+    }
+
+    /// @notice Returns the vault's high-water mark data
+    /// @return The vault's high-water mark data
+    function mark() external view returns (Mark memory) {
+        return _mark.read();
     }
 
     /// @notice Returns the name of the vault
@@ -368,7 +381,12 @@ abstract contract Vault is IVault, Instance {
             context.global.current > context.global.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.global.latest + 1].read()).timestamp
         ) {
-            nextCheckpoint.complete(_checkpointAtId(context, nextCheckpoint.timestamp));
+            (bool updated, UFixed6 profitShare) = nextCheckpoint.complete(
+                context.latestMark,
+                context.parameter,
+                _checkpointAtId(context, nextCheckpoint.timestamp)
+            );
+            if (updated) emit MarkUpdated(context.latestMark.mark, profitShare);
             context.global.processGlobal(
                 context.global.latest + 1,
                 nextCheckpoint,
@@ -488,6 +506,7 @@ abstract contract Vault is IVault, Instance {
         if (account != address(0)) context.local = _accounts[account].read();
         context.global = _accounts[address(0)].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
+        context.latestMark = _mark.read();
     }
 
     /// @notice Saves the context into storage
@@ -497,6 +516,7 @@ abstract contract Vault is IVault, Instance {
         if (account != address(0)) _accounts[account].store(context.local);
         _accounts[address(0)].store(context.global);
         _checkpoints[context.currentId].store(context.currentCheckpoint);
+        _mark.store(context.latestMark);
     }
 
     /// @notice The maximum available deposit amount

@@ -5,12 +5,14 @@ import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { Checkpoint as PerennialCheckpoint } from "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18 } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Account } from "../types/Account.sol";
 import { Checkpoint } from "../types/Checkpoint.sol";
 import { VaultParameter } from "../types/VaultParameter.sol";
 import { Registration } from "../types/Registration.sol";
+import { Mark } from "../types/Mark.sol";
 
 interface IVault is IInstance {
     struct Context {
@@ -26,6 +28,7 @@ interface IVault is IInstance {
         VaultParameter parameter;
         Checkpoint currentCheckpoint;
         Checkpoint latestCheckpoint;
+        Mark latestMark;
         Account global;
         Account local;
     }
@@ -35,6 +38,7 @@ interface IVault is IInstance {
     event ParameterUpdated(VaultParameter newParameter);
     event CoordinatorUpdated(address indexed newCoordinator);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
+    event MarkUpdated(UFixed18 newMark, UFixed6 profitShare);
 
     // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();
@@ -92,6 +96,7 @@ interface IVault is IInstance {
     function registrations(uint256 marketId) external view returns (Registration memory);
     function accounts(address account) external view returns (Account memory);
     function checkpoints(uint256 id) external view returns (Checkpoint memory);
+    function mark() external view returns (Mark memory);
     function updateCoordinator(address newCoordinator) external;
     function register(IMarket market) external;
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;

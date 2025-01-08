@@ -2,9 +2,12 @@
 pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Checkpoint as PerennialCheckpoint } from "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { Account } from "./Account.sol";
+import { Mark } from "./Mark.sol";
+import { VaultParameter } from "./VaultParameter.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
@@ -84,9 +87,34 @@ library CheckpointLib {
     /// @notice Completes the checkpoint
     /// @dev Increments the assets by the snapshotted amount of collateral in the underlying markets
     /// @param self The checkpoint to complete
+    /// @param latestMark The latest mark for the vault
+    /// @param parameter The vault parameter
     /// @param marketCheckpoint The checkpoint to complete with
-    function complete(Checkpoint memory self, PerennialCheckpoint memory marketCheckpoint) internal pure {
+    function complete(
+        Checkpoint memory self,
+        Mark memory latestMark,
+        VaultParameter memory parameter,
+        PerennialCheckpoint memory marketCheckpoint
+    ) internal pure returns (bool updated, UFixed6 profitShare) {
+        // finalize vault collateral
         self.assets = self.assets.add(marketCheckpoint.collateral);
+
+        // apply profit share
+        UFixed18 newMark = UFixed18Lib.from(UFixed6Lib.unsafeFrom(self.assets)).div(UFixed18Lib.from(self.shares));
+        if (!latestMark.mark.isZero()) newMark = newMark.max(latestMark.mark);
+
+        updated = !newMark.eq(latestMark.mark);
+        profitShare = UFixed6Lib.from(
+            newMark.sub(latestMark.mark)
+                .mul(UFixed18Lib.from(self.shares))
+                .mul(UFixed18Lib.from(parameter.profitShare))
+        );
+
+        latestMark.mark = newMark;
+        self.assets = self.assets.sub(Fixed6Lib.from(profitShare)); // TODO: make sure this works with the overall assets flow
+        latestMark.claimable = latestMark.claimable.add(profitShare);
+
+        // apply fees
         self.tradeFee = marketCheckpoint.tradeFee;
         self.settlementFee = marketCheckpoint.settlementFee;
     }
