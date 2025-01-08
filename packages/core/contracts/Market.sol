@@ -21,6 +21,7 @@ import { Order, OrderLib, OrderStorageGlobal, OrderStorageLocal } from "./types/
 import { Guarantee, GuaranteeLib, GuaranteeStorageGlobal, GuaranteeStorageLocal } from "./types/Guarantee.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Intent } from "./types/Intent.sol";
+import { MarketUpdateTaker } from "./types/MarketUpdateTaker.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
 import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
@@ -170,6 +171,20 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             false,
             true
         ); // signer
+    }
+
+    /// @notice Updates the account's taker position without collateral change
+    /// @param account Identifies the user
+    /// @param update Message requesting to change taker position
+    /// @param signature Taker's signature
+    function update(
+        address account,
+        MarketUpdateTaker calldata update,
+        bytes memory signature
+    ) external {
+        verifier.verifyMarketUpdateTaker(update, signature);
+        // FIXME: public method generates "not callable" compile-time error
+        // update(account, Fixed6Lib.ZERO, update.amount, Fixed6Lib.ZERO, update.referrer);
     }
 
     /// @notice Updates the account's position and collateral

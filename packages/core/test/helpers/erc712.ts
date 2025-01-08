@@ -4,6 +4,7 @@ import {
   CommonStruct,
   GroupCancellationStruct,
   IntentStruct,
+  MarketUpdateTakerStruct,
   OperatorUpdateStruct,
   SignerUpdateStruct,
 } from '../../types/generated/contracts/Verifier'
@@ -19,20 +20,24 @@ export function erc721Domain(verifier: IVerifier | Verifier | FakeContract<IVeri
   }
 }
 
+const commonType = {
+  Common: [
+    { name: 'account', type: 'address' },
+    { name: 'signer', type: 'address' },
+    { name: 'domain', type: 'address' },
+    { name: 'nonce', type: 'uint256' },
+    { name: 'group', type: 'uint256' },
+    { name: 'expiry', type: 'uint256' },
+  ],
+}
+
 export async function signCommon(
   signer: SignerWithAddress,
   verifier: IVerifier | Verifier | FakeContract<IVerifier>,
   common: CommonStruct,
 ): Promise<string> {
   const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'signer', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
+    ...commonType,
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, common)
@@ -44,14 +49,7 @@ export async function signIntent(
   intent: IntentStruct,
 ): Promise<string> {
   const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'signer', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
+    ...commonType,
     Intent: [
       { name: 'amount', type: 'int256' },
       { name: 'price', type: 'int256' },
@@ -66,20 +64,30 @@ export async function signIntent(
   return await signer._signTypedData(erc721Domain(verifier), types, intent)
 }
 
+export async function signMarketUpdateTaker(
+  signer: SignerWithAddress,
+  verifier: IVerifier | Verifier | FakeContract<IVerifier>,
+  marketUpdate: MarketUpdateTakerStruct,
+): Promise<string> {
+  const types = {
+    ...commonType,
+    MarketUpdateTaker: [
+      { name: 'amount', type: 'int256' },
+      { name: 'referrer', type: 'address' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, marketUpdate)
+}
+
 export async function signGroupCancellation(
   signer: SignerWithAddress,
   verifier: Verifier | FakeContract<IVerifier>,
   groupCancellation: GroupCancellationStruct,
 ): Promise<string> {
   const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'signer', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
+    ...commonType,
     GroupCancellation: [
       { name: 'group', type: 'uint256' },
       { name: 'common', type: 'Common' },
@@ -95,14 +103,7 @@ export async function signOperatorUpdate(
   operatorUpdate: OperatorUpdateStruct,
 ): Promise<string> {
   const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'signer', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
+    ...commonType,
     AccessUpdate: [
       { name: 'accessor', type: 'address' },
       { name: 'approved', type: 'bool' },
@@ -122,14 +123,7 @@ export async function signSignerUpdate(
   signerUpdate: SignerUpdateStruct,
 ): Promise<string> {
   const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'signer', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
+    ...commonType,
     AccessUpdate: [
       { name: 'accessor', type: 'address' },
       { name: 'approved', type: 'bool' },
@@ -149,14 +143,7 @@ export async function signAccessUpdateBatch(
   accessUpdateBatch: AccessUpdateBatchStruct,
 ): Promise<string> {
   const types = {
-    Common: [
-      { name: 'account', type: 'address' },
-      { name: 'signer', type: 'address' },
-      { name: 'domain', type: 'address' },
-      { name: 'nonce', type: 'uint256' },
-      { name: 'group', type: 'uint256' },
-      { name: 'expiry', type: 'uint256' },
-    ],
+    ...commonType,
     AccessUpdate: [
       { name: 'accessor', type: 'address' },
       { name: 'approved', type: 'bool' },
