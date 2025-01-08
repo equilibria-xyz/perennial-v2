@@ -1,0 +1,38 @@
+{
+  "name": "@perennial/v2-core",
+  "version": "1.3.0",
+  "description": "Perennial V2 Core",
+  "files": [
+    "contracts/interfaces",
+    "contracts/libs",
+    "contracts/types",
+    "artifacts/contracts/interfaces",
+    "deployments/!(localhost)"
+  ],
+  "scripts": {
+    "build": "yarn compile",
+    "compile": "OPTIMIZER_ENABLED=true hardhat compile",
+    "deploy": "OPTIMIZER_ENABLED=true hardhat deploy",
+    "verify": "hardhat etherscan-verify --sleep --solc-input",
+    "gasReport": "REPORT_GAS=true OPTIMIZER_ENABLED=true yarn test:integration",
+    "test": "hardhat test test/unit/**/*",
+    "test:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=14325080 hardhat test test/integration/**/*",
+    "coverage": "hardhat coverage --testfiles 'test/unit/**/*'",
+    "coverage:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=14325080 hardhat coverage --testfiles 'test/integration/**/*'",
+    "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
+    "format": "prettier -w .",
+    "clean": "rm -rf cache artifacts types/generated deployments/localhost",
+    "node:fork:arbitrumGoerli": "FORK_ENABLED=true FORK_NETWORK=arbitrumGoerli NODE_INTERVAL_MINING=500 hardhat node",
+    "prepack": "yarn clean && yarn build && find artifacts/contracts -name '*.dbg.json' -type f -delete"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@chainlink/contracts": "0.3.1"
+  },
+  "devDependencies": {
+    "@ethersproject/abstract-provider": "^5",
+    "@ethersproject/abstract-signer": "^5",
+    "lodash": "^4.17.15"
+  }
+}
