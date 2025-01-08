@@ -45,8 +45,10 @@ export interface Order {
 
 export interface Guarantee {
   orders: BigNumberish
-  takerPos: BigNumberish
-  takerNeg: BigNumberish
+  longPos: BigNumberish
+  longNeg: BigNumberish
+  shortPos: BigNumberish
+  shortNeg: BigNumberish
   notional: BigNumberish
   takerFee: BigNumberish
   referral: BigNumberish
@@ -190,8 +192,8 @@ export function expectOrderEq(a: Order, b: Order): void {
 
 export function expectGuaranteeEq(a: Guarantee, b: Guarantee): void {
   expect(a.orders).to.equal(b.orders, 'Order:Orders')
-  expect(a.takerPos).to.equal(b.takerPos, 'Order:TakerPos')
-  expect(a.takerNeg).to.equal(b.takerNeg, 'Order:TakerNeg')
+  expect(a.longPos).to.equal(b.longPos, 'Order:LongPos')
+  expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
   expect(a.notional).to.equal(b.notional, 'Order:Notional')
   expect(a.takerFee).to.equal(b.takerFee, 'Order:TakerFee')
   expect(a.referral).to.equal(b.referral, 'Order:Referral')
@@ -316,8 +318,10 @@ export const DEFAULT_ORDER: Order = {
 
 export const DEFAULT_GUARANTEE: Guarantee = {
   orders: 0,
-  takerPos: 0,
-  takerNeg: 0,
+  longPos: 0,
+  longNeg: 0,
+  shortPos: 0,
+  shortNeg: 0,
   notional: 0,
   takerFee: 0,
   referral: 0,

@@ -16,6 +16,18 @@ abstract contract GuaranteeTester {
         store(newGuarantee);
     }
 
+    function takerPos(Guarantee memory guarantee) public pure returns (UFixed6) {
+        return GuaranteeLib.takerPos(guarantee);
+    }
+
+    function takerNeg(Guarantee memory guarantee) public pure returns (UFixed6) {
+        return GuaranteeLib.takerNeg(guarantee);
+    }
+
+    function taker(Guarantee memory guarantee) public pure returns (Fixed6) {
+        return GuaranteeLib.taker(guarantee);
+    }
+
     function takerTotal(Guarantee memory guarantee) public pure returns (UFixed6) {
         return GuaranteeLib.takerTotal(guarantee);
     }

@@ -2459,15 +2459,15 @@ describe('Fees', () => {
       expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
         ...DEFAULT_GUARANTEE,
         orders: 1,
-        takerPos: POSITION.div(2),
-        takerNeg: POSITION.div(2),
+        longPos: POSITION.div(2),
+        shortPos: POSITION.div(2),
         takerFee: POSITION.div(2),
       })
       expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
         ...DEFAULT_GUARANTEE,
         orders: 1,
         notional: POSITION.div(2).mul(PRICE.add(2)).div(1e6), // loss of precision
-        takerPos: POSITION.div(2),
+        longPos: POSITION.div(2),
         referral: parse6decimal('0.5'),
       })
       expectOrderEq(await market.pending(), {

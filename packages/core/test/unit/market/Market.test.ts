@@ -18396,7 +18396,7 @@ describe('Market', () => {
               {
                 ...DEFAULT_GUARANTEE,
                 orders: 1,
-                takerPos: POSITION.div(2),
+                longPos: POSITION.div(2),
                 notional: POSITION.div(2).mul(125),
                 takerFee: 0,
                 referral: POSITION.div(2).div(10),
@@ -18417,7 +18417,7 @@ describe('Market', () => {
               {
                 ...DEFAULT_GUARANTEE,
                 orders: 0,
-                takerNeg: POSITION.div(2),
+                shortPos: POSITION.div(2),
                 notional: -POSITION.div(2).mul(125),
                 takerFee: POSITION.div(2),
                 referral: 0,
@@ -20805,7 +20805,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -20826,7 +20826,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21051,7 +21051,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21072,7 +21072,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21298,7 +21298,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(121),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21319,7 +21319,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(121),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21545,7 +21545,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(121),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21566,7 +21566,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(121),
                   takerFee: POSITION.div(2),
                 },
@@ -21815,7 +21815,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21836,7 +21836,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -21866,7 +21866,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -21887,7 +21887,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22141,7 +22141,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22162,7 +22162,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22387,7 +22387,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22408,7 +22408,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22438,7 +22438,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22459,7 +22459,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22583,7 +22583,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22604,7 +22604,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -22874,7 +22874,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -22895,7 +22895,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -23136,7 +23136,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -23157,7 +23157,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -23398,7 +23398,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  shortPos: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -23419,7 +23419,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -23661,7 +23661,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  longPos: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -23682,7 +23682,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -23930,7 +23930,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerNeg: POSITION.div(2),
+                  longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -23951,7 +23951,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerPos: POSITION.div(2),
+                  shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -24199,7 +24199,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(2),
+                  shortNeg: POSITION.div(2),
                   notional: POSITION.div(2).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(2).div(10),
@@ -24220,7 +24220,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(2),
+                  longNeg: POSITION.div(2),
                   notional: -POSITION.div(2).mul(125),
                   takerFee: POSITION.div(2),
                   referral: 0,
@@ -24462,7 +24462,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(4),
+                  shortNeg: POSITION.div(4),
                   notional: POSITION.div(4).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(4).div(10),
@@ -24483,7 +24483,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(4),
+                  shortPos: POSITION.div(4),
                   notional: -POSITION.div(4).mul(125),
                   takerFee: POSITION.div(4),
                   referral: 0,
@@ -24513,7 +24513,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 1,
-                  takerPos: POSITION.div(4),
+                  shortNeg: POSITION.div(4),
                   notional: POSITION.div(4).mul(125),
                   takerFee: 0,
                   referral: POSITION.div(4).div(10),
@@ -24534,7 +24534,7 @@ describe('Market', () => {
                 {
                   ...DEFAULT_GUARANTEE,
                   orders: 0,
-                  takerNeg: POSITION.div(4),
+                  shortPos: POSITION.div(4),
                   notional: -POSITION.div(4).mul(125),
                   takerFee: POSITION.div(4),
                   referral: 0,
