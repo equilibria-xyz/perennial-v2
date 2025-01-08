@@ -80,7 +80,7 @@ library StrategyLib {
         Fixed6 collateral;
 
         /// @dev The amount of change in position
-        Fixed6 makerPositionDelta;
+        Fixed6 position;
     }
 
     /// @notice Loads the strategy context of each of the underlying markets
@@ -165,7 +165,7 @@ library StrategyLib {
             .max(marketContext.minPosition)
             .min(marketContext.maxPosition);
 
-        target.makerPositionDelta = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
+        target.position = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 
     /// @notice Load the context of a market
