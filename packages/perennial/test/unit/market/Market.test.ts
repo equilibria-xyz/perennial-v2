@@ -24449,7 +24449,7 @@ describe('Market', () => {
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_3.timestamp)
-              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+              .returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, { ...INITIALIZED_ORACLE_RECEIPT }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -24716,7 +24716,7 @@ describe('Market', () => {
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_3.timestamp)
-              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+              .returns([{ ...ORACLE_VERSION_3, price: 0, valid: false }, { ...INITIALIZED_ORACLE_RECEIPT }])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
@@ -24729,7 +24729,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               collateral: COLLATERAL.sub(TAKER_FEE)
-                .sub(SETTLEMENT_FEE.div(2)) // open
+                .sub(SETTLEMENT_FEE.div(3).add(1)) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open
                 .sub(EXPECTED_PNL)
                 .sub(TAKER_FEE), // close
@@ -24752,7 +24752,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(2)) // open
+              collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(3).add(1)) // open
                 .add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF) // while open
                 .sub(4), // loss of precision
             })
@@ -24777,7 +24777,7 @@ describe('Market', () => {
               latestId: 2,
               collateral: COLLATERAL.sub(TAKER_FEE) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open
-                .sub(SETTLEMENT_FEE)
+                .sub(SETTLEMENT_FEE.div(3).add(1))
                 .add(EXPECTED_PNL), // close
             })
             expectPositionEq(await market.positions(userC.address), {
@@ -24809,7 +24809,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
               protocolFee: totalFee.mul(8).div(10).add(4), // loss of precision
-              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE.mul(2)), // loss of precision
+              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE), // loss of precision
               riskFee: totalFee.div(10).sub(2), // loss of precision
               exposure: 0,
               latestPrice: PRICE,

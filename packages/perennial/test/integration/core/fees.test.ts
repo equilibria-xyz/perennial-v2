@@ -2391,7 +2391,7 @@ describe('Fees', () => {
     })
   })
 
-  describe.only('intent order fee exclusion', async () => {
+  describe('intent order fee exclusion', async () => {
     it('opens long position and another intent order and settles later with fee', async () => {
       const { owner, user, userB, userC, userD, marketFactory, dsu, chainlink } = instanceVars
 
