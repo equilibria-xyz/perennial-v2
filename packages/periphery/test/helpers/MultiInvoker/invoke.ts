@@ -20,19 +20,19 @@ export type Actions = IMultiInvoker.InvocationStruct[]
 
 export const buildUpdateMarket = ({
   market,
-  maker,
-  long,
-  short,
-  collateral,
-  handleWrap,
+  makerDelta = BigNumber.from(0),
+  longDelta = BigNumber.from(0),
+  shortDelta = BigNumber.from(0),
+  collateral = BigNumber.from(0),
+  handleWrap = false,
   interfaceFee1,
   interfaceFee2,
 }: {
   market: string
-  maker?: BigNumberish
-  long?: BigNumberish
-  short?: BigNumberish
-  collateral?: BigNumberish
+  longDelta?: BigNumber
+  makerDelta?: BigNumber
+  shortDelta?: BigNumber
+  collateral?: BigNumber
   handleWrap?: boolean
   interfaceFee1?: InterfaceFeeStruct
   interfaceFee2?: InterfaceFeeStruct
@@ -41,23 +41,13 @@ export const buildUpdateMarket = ({
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        [
-          'address',
-          'uint256',
-          'uint256',
-          'uint256',
-          'int256',
-          'bool',
-          'tuple(uint256,address)',
-          'tuple(uint256,address)',
-        ],
+        ['address', 'int256', 'int256', 'int256', 'bool', 'tuple(uint256,address)', 'tuple(uint256,address)'],
         [
           market,
-          maker ?? MAX_UINT,
-          long ?? MAX_UINT,
-          short ?? MAX_UINT,
-          collateral ?? MIN_INT,
-          handleWrap ?? false,
+          makerDelta,
+          longDelta.sub(shortDelta),
+          collateral,
+          handleWrap,
           [interfaceFee1 ? interfaceFee1.amount : 0, interfaceFee1 ? interfaceFee1.receiver : constants.AddressZero],
           [interfaceFee2 ? interfaceFee2.amount : 0, interfaceFee2 ? interfaceFee2.receiver : constants.AddressZero],
         ],

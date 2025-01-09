@@ -76,8 +76,8 @@ library StrategyLib {
         /// @dev The amount of change in collateral
         Fixed6 collateral;
 
-        /// @dev The new position
-        UFixed6 position;
+        /// @dev The amount of change in position
+        Fixed6 position;
     }
 
     /// @notice Loads the strategy context of each of the underlying markets
@@ -161,10 +161,7 @@ library StrategyLib {
 
         if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
 
-        target.position = marketAssets
-            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
-            .max(marketContext.minPosition)
-            .min(marketContext.maxPosition);
+        target.position = _getTargetPosition(marketContext, marketAssets);
     }
 
     /// @notice Load the context of a market
@@ -204,5 +201,14 @@ library StrategyLib {
                 .unsafeSub(marketContext.currentPosition.skew().abs()).min(marketContext.closable));
         marketContext.maxPosition = marketContext.currentAccountPosition.maker
             .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
+    }
+
+    function _getTargetPosition(MarketStrategyContext memory marketContext, UFixed6 marketAssets) private pure returns (Fixed6) {
+        UFixed6 newMaker = marketAssets
+            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
+            .max(marketContext.minPosition)
+            .min(marketContext.maxPosition);
+
+        return Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 }

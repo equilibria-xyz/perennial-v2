@@ -150,7 +150,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             usdc.transfer.whenCalledWith(user.address, collateral).returns(true)
 
             vault.update.returns(true)
-            market['update(address,uint256,uint256,uint256,int256,bool,address)'].returns(true)
+            market['update(address,int256,int256,int256,address)'].returns(true)
           }
 
           beforeEach(async () => {
@@ -162,13 +162,11 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               .reverted
 
             expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, collateral.mul(1e12))
-            expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
+            expect(market['update(address,int256,int256,int256,address)']).to.have.been.calledWith(
               user.address,
-              MAX_UINT,
-              MAX_UINT,
-              MAX_UINT,
+              0,
+              0,
               collateral,
-              false,
               constants.AddressZero,
             )
           })
@@ -206,13 +204,11 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               .be.reverted
 
             expect(dsu.transfer).to.have.been.calledWith(user.address, dsuCollateral)
-            expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
+            expect(market['update(address,int256,int256,int256,address)']).to.have.been.calledWith(
               user.address,
-              MAX_UINT,
-              MAX_UINT,
-              MAX_UINT,
+              0,
+              0,
               collateral.mul(-1),
-              false,
               constants.AddressZero,
             )
           })
@@ -581,13 +577,11 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             await expect(multiInvoker.connect(owner).claim(owner.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(owner.address, feeAmt)
-            expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
+            expect(market['update(address,int256,int256,int256,address)']).to.have.been.calledWith(
               user.address,
-              MAX_UINT,
-              MAX_UINT,
-              MAX_UINT,
+              0,
+              0,
               collateral.sub(feeAmt).mul(-1),
-              false,
               owner.address,
             )
           })
@@ -627,13 +621,11 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             await expect(multiInvoker.connect(user2).claim(user2.address, true)).to.not.be.reverted
             expect(usdc.transfer).to.have.been.calledWith(user2.address, feeAmt)
-            expect(market['update(address,uint256,uint256,uint256,int256,bool,address)']).to.have.been.calledWith(
+            expect(market['update(address,int256,int256,int256,address)']).to.have.been.calledWith(
               user.address,
-              MAX_UINT,
-              MAX_UINT,
-              MAX_UINT,
+              0,
+              0,
               collateral.sub(feeAmt).mul(-1),
-              false,
               user2.address,
             )
           })
