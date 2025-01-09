@@ -286,16 +286,17 @@ describe('Vault', () => {
     await fundWallet(asset, owner)
     await asset.approve(vaultFactory.address, ethers.constants.MaxUint256)
     vault = IVault__factory.connect(
-      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
+      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, parse6decimal('1.2'), 'Blue Chip'),
       owner,
     )
-    await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
+    await vaultFactory.create(instanceVars.dsu.address, market.address, parse6decimal('1.2'), 'Blue Chip')
     await vault.register(btcMarket.address)
     await vault.connect(owner).updateCoordinator(coordinator.address)
     await vault.connect(coordinator).updateLeverage(0, leverage)
     await vault.connect(coordinator).updateLeverage(1, leverage)
     await vault.connect(coordinator).updateWeights([0.8e6, 0.2e6])
     await vault.connect(owner).updateParameter({
+      ...(await vault.parameter()),
       maxDeposit: maxCollateral,
       minDeposit: 0,
     })
@@ -409,7 +410,9 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address, parse6decimal('5'), 'Blue Chip'))
+      await expect(
+        vault.initialize(asset.address, market.address, parse6decimal('5'), parse6decimal('1.2'), 'Blue Chip'),
+      )
         .to.revertedWithCustomError(vault, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -549,6 +552,7 @@ describe('Vault', () => {
       const newParameter = {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
+        leverageBuffer: parse6decimal('10'),
       }
       await expect(vault.connect(owner).updateParameter(newParameter))
         .to.emit(vault, 'ParameterUpdated')
@@ -557,12 +561,14 @@ describe('Vault', () => {
       const parameter = await vault.parameter()
       expect(parameter.maxDeposit).to.deep.contain(newParameter.maxDeposit)
       expect(parameter.minDeposit).to.deep.contain(newParameter.minDeposit)
+      expect(parameter.leverageBuffer).to.deep.contain(newParameter.leverageBuffer)
     })
 
     it('reverts when not owner', async () => {
       const newParameter = {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
+        leverageBuffer: parse6decimal('1000000'),
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
@@ -1819,10 +1825,10 @@ describe('Vault', () => {
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
       const vault2 = IVault__factory.connect(
-        await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
+        await vaultFactory2.callStatic.create(asset.address, market.address, parse6decimal('1.2'), 'Blue Chip'),
         owner,
       )
-      await vaultFactory2.create(asset.address, market.address, 'Blue Chip')
+      await vaultFactory2.create(asset.address, market.address, parse6decimal('1.2'), 'Blue Chip')
 
       await updateOracle()
 
@@ -1864,10 +1870,10 @@ describe('Vault', () => {
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
       const vault2 = IVault__factory.connect(
-        await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
+        await vaultFactory2.callStatic.create(asset.address, market.address, parse6decimal('1.2'), 'Blue Chip'),
         owner,
       )
-      await vaultFactory2.create(asset.address, market.address, 'Blue Chip')
+      await vaultFactory2.create(asset.address, market.address, parse6decimal('1.2'), 'Blue Chip')
 
       await updateOracle()
 
@@ -1921,8 +1927,33 @@ describe('Vault', () => {
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
+    it('market positions reduces significantly with lower leverage buffer', async () => {
+      await vault.connect(user).update(user.address, parse6decimal('10000'), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+      expect(await position()).to.be.equal(parse6decimal('12.212633'))
+      expect(await btcPosition()).to.be.equal(parse6decimal('0.205981'))
+
+      // set leverage buffer to 0.4
+      const leverageBuffer = parse6decimal('0.4')
+      await vault
+        .connect(owner)
+        .updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10'), leverageBuffer })
+      await vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      // expect position to be reduced
+      expect(await position()).to.be.equal(parse6decimal('4.889940'))
+      expect(await btcPosition()).to.be.equal(parse6decimal('0.082475'))
+    })
+
     it('reverts when below minDeposit', async () => {
-      await vault.connect(owner).updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10') })
+      await vault.connect(owner).updateParameter({
+        ...(await vault.parameter()),
+        maxDeposit: maxCollateral,
+        minDeposit: parse6decimal('10'),
+      })
       await expect(vault.connect(user).update(user.address, parse6decimal('0.50'), 0, 0)).to.revertedWithCustomError(
         vault,
         'VaultInsufficientMinimumError',
@@ -1962,6 +1993,7 @@ describe('Vault', () => {
       await vault.connect(owner).updateParameter({
         maxDeposit: parse6decimal('100'),
         minDeposit: 0,
+        leverageBuffer: parse6decimal('1.2'),
       })
 
       await updateOracle()
