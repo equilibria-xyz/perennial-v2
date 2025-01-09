@@ -86,9 +86,11 @@ library CheckpointLib {
     /// @notice Completes the checkpoint
     /// @dev Increments the assets by the snapshotted amount of collateral in the underlying markets
     /// @param self The checkpoint to complete
-    /// @param mark The latest mark for the vault
+    /// @param mark The high-water mark of the vault prior to this completion
     /// @param parameter The vault parameter
     /// @param marketCheckpoint The checkpoint to complete with
+    /// @return newMark The new high-water mark for the vault
+    /// @return profitShares The newly minted profit shares for the checkpoint
     function complete(
         Checkpoint memory self,
         UFixed18 mark,
@@ -108,11 +110,12 @@ library CheckpointLib {
     }
 
     /// @notice Calculates the profit share for the checkpoint
+    /// @dev The coordinator accrues a percentage of the Vault's profit over the high-water mark in the form of shares
     /// @param self The checkpoint to calculate the profit share for
-    /// @param mark The latest mark for the vault
+    /// @param mark The The high-water mark of the vault prior to this completion
     /// @param parameter The vault parameter
-    /// @return newMark The new mark for the vault
-    /// @return profitShares The new profit shares for the checkpoint
+    /// @return newMark The new high-water mark for the vault
+    /// @return profitShares The newly minted profit shares for the checkpoint
     function _calculateProfitShare(
         Checkpoint memory self,
         UFixed18 mark,
