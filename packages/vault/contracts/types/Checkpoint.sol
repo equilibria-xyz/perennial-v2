@@ -6,7 +6,6 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Checkpoint as PerennialCheckpoint } from "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { Account } from "./Account.sol";
-import { Mark } from "./Mark.sol";
 import { VaultParameter } from "./VaultParameter.sol";
 
 /// @dev Checkpoint type
@@ -87,36 +86,51 @@ library CheckpointLib {
     /// @notice Completes the checkpoint
     /// @dev Increments the assets by the snapshotted amount of collateral in the underlying markets
     /// @param self The checkpoint to complete
-    /// @param latestMark The latest mark for the vault
+    /// @param mark The latest mark for the vault
     /// @param parameter The vault parameter
     /// @param marketCheckpoint The checkpoint to complete with
     function complete(
         Checkpoint memory self,
-        Mark memory latestMark,
+        UFixed18 mark,
         VaultParameter memory parameter,
         PerennialCheckpoint memory marketCheckpoint
-    ) internal pure returns (bool updated, UFixed6 profitShare) {
+    ) internal pure returns (UFixed18 newMark, UFixed6 profitShares) {
         // finalize vault collateral
         self.assets = self.assets.add(marketCheckpoint.collateral);
 
         // apply profit share
-        UFixed18 newMark = UFixed18Lib.from(UFixed6Lib.unsafeFrom(self.assets)).div(UFixed18Lib.from(self.shares));
-        if (!latestMark.mark.isZero()) newMark = newMark.max(latestMark.mark);
-
-        updated = !newMark.eq(latestMark.mark);
-        profitShare = UFixed6Lib.from(
-            newMark.sub(latestMark.mark)
-                .mul(UFixed18Lib.from(self.shares))
-                .mul(UFixed18Lib.from(parameter.profitShare))
-        );
-
-        latestMark.mark = newMark;
-        self.assets = self.assets.sub(Fixed6Lib.from(profitShare)); // TODO: make sure this works with the overall assets flow
-        latestMark.claimable = latestMark.claimable.add(profitShare);
+        (newMark, profitShares) = _calculateProfitShare(self, mark, parameter);
+        self.shares = self.shares.add(profitShares);
 
         // apply fees
         self.tradeFee = marketCheckpoint.tradeFee;
         self.settlementFee = marketCheckpoint.settlementFee;
+    }
+
+    /// @notice Calculates the profit share for the checkpoint
+    /// @param self The checkpoint to calculate the profit share for
+    /// @param mark The latest mark for the vault
+    /// @param parameter The vault parameter
+    /// @return newMark The new mark for the vault
+    /// @return profitShares The new profit shares for the checkpoint
+    function _calculateProfitShare(
+        Checkpoint memory self,
+        UFixed18 mark,
+        VaultParameter memory parameter
+    ) private pure returns (UFixed18 newMark, UFixed6 profitShares) {
+        // vault is fresh, use par value
+        if (self.shares.isZero()) return (UFixed18Lib.ONE, UFixed6Lib.ZERO);
+
+        // calculate new mark
+        newMark = mark.max(UFixed18Lib.from(UFixed6Lib.unsafeFrom(self.assets)).div(UFixed18Lib.from(self.shares)));
+
+        // vault did not previously have a mark (migration)
+        if (mark.isZero()) return (newMark, UFixed6Lib.ZERO);
+
+        // calculate new profit shares
+        UFixed6 profitAssets = parameter.profitShare
+            .mul(UFixed6Lib.from(newMark.sub(mark).mul(UFixed18Lib.from(self.shares))));
+        profitShares = profitAssets.mul(self.shares).div(UFixed6Lib.unsafeFrom(self.assets).sub(profitAssets));
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint in the global context

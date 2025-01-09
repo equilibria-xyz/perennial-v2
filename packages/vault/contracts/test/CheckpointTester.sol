@@ -2,10 +2,10 @@
 pragma solidity ^0.8.13;
 
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18 } from "@equilibria/root/number/types/UFixed18.sol";
 import { Checkpoint as PerennialCheckpoint } from "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { Checkpoint, CheckpointStorage } from "../types/Checkpoint.sol";
 import { Account } from "../types/Account.sol";
-import { Mark } from "../types/Mark.sol";
 import { VaultParameter } from "../types/VaultParameter.sol";
 
 contract CheckpointTester {
@@ -39,14 +39,13 @@ contract CheckpointTester {
     }
 
     function complete(
-        Mark memory mark,
+        UFixed18 mark,
         VaultParameter memory parameter,
         PerennialCheckpoint memory marketCheckpoint
-    ) external returns (bool updated, UFixed6 profitShare, Mark memory newMark) {
+    ) external returns (UFixed18 newMark, UFixed6 profitShare) {
         Checkpoint memory newCheckpoint = checkpoint.read();
 
-        (updated, profitShare) = newCheckpoint.complete(mark, parameter, marketCheckpoint);
-        newMark = mark;
+        (newMark, profitShare) = newCheckpoint.complete(mark, parameter, marketCheckpoint);
 
         checkpoint.store(newCheckpoint);
     }

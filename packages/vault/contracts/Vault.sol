@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
@@ -17,7 +17,6 @@ import { Account, AccountStorage } from "./types/Account.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Registration, RegistrationStorage } from "./types/Registration.sol";
 import { VaultParameter, VaultParameterStorage } from "./types/VaultParameter.sol";
-import { Mark, MarkStorage } from "./types/Mark.sol";
 import { Target } from "./types/Target.sol";
 import { MakerStrategyLib } from "./libs/MakerStrategyLib.sol";
 
@@ -58,7 +57,7 @@ abstract contract Vault is IVault, Instance {
     address public coordinator;
 
     /// @dev High-water mark for the vault's assets vs shares ratio
-    MarkStorage private _mark;
+    UFixed18 public mark;
 
     /// @dev Leave gap for future upgrades since this contract is abstract
     bytes32[54] private __unallocated__;
@@ -107,12 +106,6 @@ abstract contract Vault is IVault, Instance {
     /// @return The checkpoint for the given id
     function checkpoints(uint256 id) external view returns (Checkpoint memory) {
         return _checkpoints[id].read();
-    }
-
-    /// @notice Returns the vault's high-water mark data
-    /// @return The vault's high-water mark data
-    function mark() external view returns (Mark memory) {
-        return _mark.read();
     }
 
     /// @notice Returns the name of the vault
@@ -381,12 +374,18 @@ abstract contract Vault is IVault, Instance {
             context.global.current > context.global.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.global.latest + 1].read()).timestamp
         ) {
-            (bool updated, UFixed6 profitShare) = nextCheckpoint.complete(
-                context.latestMark,
+            // process checkpoint
+            UFixed6 profitShares;
+            (context.mark, profitShares) = nextCheckpoint.complete(
+                context.mark,
                 context.parameter,
                 _checkpointAtId(context, nextCheckpoint.timestamp)
             );
-            if (updated) emit MarkUpdated(context.latestMark.mark, profitShare);
+            context.global.shares = context.global.shares.add(profitShares);
+            _credit(coordinator, profitShares);
+            emit MarkUpdated(context.mark, profitShares);
+
+            // process position
             context.global.processGlobal(
                 context.global.latest + 1,
                 nextCheckpoint,
@@ -404,12 +403,23 @@ abstract contract Vault is IVault, Instance {
             context.local.current > context.local.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.local.current].read()).timestamp
         )
+            // process position
             context.local.processLocal(
                 context.local.current,
                 nextCheckpoint,
                 context.local.deposit,
                 context.local.redemption
             );
+    }
+
+    /// @notice Processes an out-of-context credit to an account
+    /// @dev Used to credit shares accrued through fee mechanics
+    /// @param account The account to credit
+    /// @param shares The amount of shares to credit
+    function _credit(address account, UFixed6 shares) internal virtual {
+        Account memory local = _accounts[account].read();
+        local.shares = local.shares.add(shares);
+        _accounts[account].store(local);
     }
 
     /// @notice Manages the internal collateral and position strategy of the vault
@@ -506,7 +516,7 @@ abstract contract Vault is IVault, Instance {
         if (account != address(0)) context.local = _accounts[account].read();
         context.global = _accounts[address(0)].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
-        context.latestMark = _mark.read();
+        context.mark = mark;
     }
 
     /// @notice Saves the context into storage
@@ -516,7 +526,7 @@ abstract contract Vault is IVault, Instance {
         if (account != address(0)) _accounts[account].store(context.local);
         _accounts[address(0)].store(context.global);
         _checkpoints[context.currentId].store(context.currentCheckpoint);
-        _mark.store(context.latestMark);
+        mark = context.mark;
     }
 
     /// @notice The maximum available deposit amount

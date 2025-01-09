@@ -12,7 +12,6 @@ import { Account } from "../types/Account.sol";
 import { Checkpoint } from "../types/Checkpoint.sol";
 import { VaultParameter } from "../types/VaultParameter.sol";
 import { Registration } from "../types/Registration.sol";
-import { Mark } from "../types/Mark.sol";
 
 interface IVault is IInstance {
     struct Context {
@@ -28,7 +27,7 @@ interface IVault is IInstance {
         VaultParameter parameter;
         Checkpoint currentCheckpoint;
         Checkpoint latestCheckpoint;
-        Mark latestMark;
+        UFixed18 mark;
         Account global;
         Account local;
     }
@@ -38,7 +37,7 @@ interface IVault is IInstance {
     event ParameterUpdated(VaultParameter newParameter);
     event CoordinatorUpdated(address indexed newCoordinator);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
-    event MarkUpdated(UFixed18 newMark, UFixed6 profitShare);
+    event MarkUpdated(UFixed18 newMark, UFixed6 profitShares);
 
     // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();
@@ -96,7 +95,7 @@ interface IVault is IInstance {
     function registrations(uint256 marketId) external view returns (Registration memory);
     function accounts(address account) external view returns (Account memory);
     function checkpoints(uint256 id) external view returns (Checkpoint memory);
-    function mark() external view returns (Mark memory);
+    function mark() external view returns (UFixed18);
     function updateCoordinator(address newCoordinator) external;
     function register(IMarket market) external;
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;
