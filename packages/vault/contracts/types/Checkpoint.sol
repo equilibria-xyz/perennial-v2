@@ -127,9 +127,14 @@ library CheckpointLib {
         // vault did not previously have a mark (migration)
         if (mark.isZero()) return (newMark, UFixed6Lib.ZERO);
 
-        // calculate new profit shares
+        // calculate new profit assets
         UFixed6 profitAssets = parameter.profitShare
             .mul(UFixed6Lib.from(newMark.sub(mark).mul(UFixed18Lib.from(self.shares))));
+
+        // no assets in vault
+        if (UFixed6Lib.unsafeFrom(self.assets).sub(profitAssets).isZero()) return (newMark, UFixed6Lib.ZERO);
+
+        // calculate new profit shares
         profitShares = profitAssets.mul(self.shares).div(UFixed6Lib.unsafeFrom(self.assets).sub(profitAssets));
     }
 
