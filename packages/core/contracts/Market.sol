@@ -28,7 +28,6 @@ import { InvariantLib } from "./libs/InvariantLib.sol";
 import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
-import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
