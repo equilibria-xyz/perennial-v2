@@ -75,13 +75,14 @@ library OrderLib {
         (self.timestamp, self.orders, self.collateral, self.protection) = (timestamp, 0, Fixed6Lib.ZERO, 0);
     }
 
-    /// @notice Invalidates the order
+    /// @notice Invalidates the non-guarantee portion of the order
     /// @param self The order object to update
-    function invalidate(Order memory self, Guarantee memory guarentee) internal pure {
+    /// @param guarantee The guarantee to keep from invalidating
+    function invalidate(Order memory self, Guarantee memory guarantee) internal pure {
         (self.makerReferral, self.takerReferral) =
-            (UFixed6Lib.ZERO, guarentee.orderReferral);
+            (UFixed6Lib.ZERO, guarantee.orderReferral);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
-            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, guarentee.longPos, guarentee.longNeg, guarentee.shortPos, guarentee.shortNeg);
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, guarantee.longPos, guarantee.longNeg, guarantee.shortPos, guarantee.shortNeg);
     }
 
     /// @notice Creates a new order from the an intent order request
