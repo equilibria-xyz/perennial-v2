@@ -305,6 +305,7 @@ export async function createVault(
   await vault.updateParameter({
     maxDeposit: maxCollateral ?? parse6decimal('500000'),
     minDeposit: 0,
+    profitShare: 0,
   })
   const asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
 

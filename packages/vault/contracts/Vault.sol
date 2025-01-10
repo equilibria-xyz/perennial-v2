@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
@@ -53,6 +53,15 @@ abstract contract Vault is IVault, Instance {
     /// @dev DEPRECATED SLOT -- previously the mappings
     bytes32 private __unused0__;
 
+    /// @dev The vault's coordinator address (privileged role that can operate the vault's strategy)
+    address public coordinator;
+
+    /// @dev High-water mark for the vault's assets vs shares ratio
+    UFixed18 public mark;
+
+    /// @dev Leave gap for future upgrades since this contract is abstract
+    bytes32[54] private __unallocated__;
+
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
@@ -69,7 +78,7 @@ abstract contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _register(initialMarket);
-        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
     }
 
     /// @notice Returns the vault parameter set
@@ -102,8 +111,10 @@ abstract contract Vault is IVault, Instance {
     /// @notice Returns the name of the vault
     /// @return The name of the vault
     function name() external view returns (string memory) {
-        return string(abi.encodePacked("Perennial V2 Vault: ", _name));
+        return string(abi.encodePacked(_vaultName(), ": ", _name));
     }
+
+    function _vaultName() internal pure virtual returns (string memory);
 
     /// @notice Returns the total number of underlying assets at the last checkpoint
     /// @return The total number of underlying assets at the last checkpoint
@@ -139,6 +150,13 @@ abstract contract Vault is IVault, Instance {
         (UFixed6 _totalAssets, UFixed6 _totalShares) =
             (UFixed6Lib.unsafeFrom(totalAssets()), totalShares());
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
+    }
+
+    /// @notice Updates the Vault's coordinator address
+    /// @param newCoordinator The new coordinator address
+    function updateCoordinator(address newCoordinator) external onlyOwner {
+        coordinator = newCoordinator;
+        emit CoordinatorUpdated(newCoordinator);
     }
 
     /// @notice Registers a new market
@@ -356,7 +374,18 @@ abstract contract Vault is IVault, Instance {
             context.global.current > context.global.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.global.latest + 1].read()).timestamp
         ) {
-            nextCheckpoint.complete(_checkpointAtId(context, nextCheckpoint.timestamp));
+            // process checkpoint
+            UFixed6 profitShares;
+            (context.mark, profitShares) = nextCheckpoint.complete(
+                context.mark,
+                context.parameter,
+                _checkpointAtId(context, nextCheckpoint.timestamp)
+            );
+            context.global.shares = context.global.shares.add(profitShares);
+            _credit(coordinator, profitShares);
+            emit MarkUpdated(context.mark, profitShares);
+
+            // process position
             context.global.processGlobal(
                 context.global.latest + 1,
                 nextCheckpoint,
@@ -374,12 +403,23 @@ abstract contract Vault is IVault, Instance {
             context.local.current > context.local.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.local.current].read()).timestamp
         )
+            // process position
             context.local.processLocal(
                 context.local.current,
                 nextCheckpoint,
                 context.local.deposit,
                 context.local.redemption
             );
+    }
+
+    /// @notice Processes an out-of-context credit to an account
+    /// @dev Used to credit shares accrued through fee mechanics
+    /// @param account The account to credit
+    /// @param shares The amount of shares to credit
+    function _credit(address account, UFixed6 shares) internal virtual {
+        Account memory local = _accounts[account].read();
+        local.shares = local.shares.add(shares);
+        _accounts[account].store(local);
     }
 
     /// @notice Manages the internal collateral and position strategy of the vault
@@ -476,6 +516,7 @@ abstract contract Vault is IVault, Instance {
         if (account != address(0)) context.local = _accounts[account].read();
         context.global = _accounts[address(0)].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
+        context.mark = mark;
     }
 
     /// @notice Saves the context into storage
@@ -485,6 +526,7 @@ abstract contract Vault is IVault, Instance {
         if (account != address(0)) _accounts[account].store(context.local);
         _accounts[address(0)].store(context.global);
         _checkpoints[context.currentId].store(context.currentCheckpoint);
+        mark = context.mark;
     }
 
     /// @notice The maximum available deposit amount

@@ -12,6 +12,10 @@ import { MakerStrategyLib } from "./libs/MakerStrategyLib.sol";
 ///      maintain `targetLeverage` with its open maker positions at any given time. Deposits are only gated in so much
 ///      as to cap the maximum amount of assets in the vault.
 contract MakerVault is Vault {
+    function _vaultName() internal pure override returns (string memory) {
+        return "Perennial Maker Vault";
+    }
+
     function _strategy(
         Context memory context,
         UFixed6 deposit,
