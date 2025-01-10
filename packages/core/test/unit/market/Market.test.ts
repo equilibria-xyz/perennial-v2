@@ -24986,8 +24986,6 @@ describe('Market', () => {
           await settle(market, user)
           await settle(market, userB)
 
-          await debugDumpActorState()
-
           // check user state
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
