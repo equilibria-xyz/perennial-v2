@@ -18060,6 +18060,14 @@ describe('Market', () => {
             takerReferral: POSITION.div(2).mul(2).div(10),
             collateral: COLLATERAL,
           })
+          expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+            ...DEFAULT_GUARANTEE,
+            orders: 1,
+            longPos: POSITION.div(2),
+            notional: POSITION.div(2).mul(125), // longPos * price
+            orderReferral: POSITION.div(2).mul(2).div(10),
+            solverReferral: POSITION.div(2).div(10),
+          })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
           })
