@@ -53,7 +53,6 @@ import {
   MarketUpdateTakerStruct,
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
-import { signMarketUpdateTaker } from '../../helpers/erc712'
 
 const { ethers } = HRE
 
@@ -24949,13 +24948,12 @@ describe('Market', () => {
               expiry: constants.MaxUint256,
             },
           }
-          const signature = await signMarketUpdateTaker(user, verifier, message)
 
           // userC executes the update on behalf of user
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, owner.address)
             .returns([false, true, parse6decimal('0.20')])
-          await expect(market.connect(userC)[MARKET_UPDATE_TAKER_PROTOTYPE](message, signature))
+          await expect(market.connect(userC)[MARKET_UPDATE_TAKER_PROTOTYPE](message, DEFAULT_SIGNATURE))
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
