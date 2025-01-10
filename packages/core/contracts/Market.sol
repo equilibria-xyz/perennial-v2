@@ -178,8 +178,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param signature Taker's signature
     function update(MarketUpdateTaker calldata update_, bytes memory signature) external {
         verifier.verifyMarketUpdateTaker(update_, signature);
-        // TODO: Cannot call update(address,uint256,uint256,uint256,address) because it zeros out the signer (second
-        // param to _loadForUpdate). See if there's a smaller way to do this without impacting other update functions.
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(update_.common.account, update_.common.account, update_.referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
