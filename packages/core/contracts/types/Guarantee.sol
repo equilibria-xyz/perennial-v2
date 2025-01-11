@@ -47,13 +47,7 @@ library GuaranteeLib {
     /// @notice Prepares the next guarantee from the current guarantee
     /// @param self The guarantee object to update
     function next(Guarantee memory self) internal pure  {
-        invalidate(self);
         self.orders = 0;
-    }
-
-    /// @notice Invalidates the guarantee
-    /// @param self The guarantee object to update
-    function invalidate(Guarantee memory self) internal pure {
         (self.notional, self.takerFee, self.orderReferral, self.solverReferral) =
             (Fixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
         (self.longPos, self.longNeg, self.shortPos, self.shortNeg) =

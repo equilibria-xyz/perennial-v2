@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Guarantee, GuaranteeLib, GuaranteeStorageGlobal, GuaranteeStorageLocal } from "../types/Guarantee.sol";
-import { Order } from "../types/Order.sol";
+import { Order, OrderLib } from "../types/Order.sol";
 
 abstract contract GuaranteeTester {
     function read() public virtual view returns (Guarantee memory);
@@ -19,12 +19,6 @@ abstract contract GuaranteeTester {
     function next() public {
         Guarantee memory newGuarantee = read();
         newGuarantee.next();
-        store(newGuarantee);
-    }
-
-    function invalidate() public {
-        Guarantee memory newGuarantee = read();
-        newGuarantee.invalidate();
         store(newGuarantee);
     }
 
