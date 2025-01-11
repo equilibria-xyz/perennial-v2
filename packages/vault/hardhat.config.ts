@@ -1,12 +1,12 @@
 import defaultConfig, { SOLIDITY_VERSION, OPTIMIZER_ENABLED } from '../common/hardhat.default.config'
 
 export const solidityOverrides = {
-  'contracts/Vault.sol': {
+  'contracts/MakerVault.sol': {
     version: SOLIDITY_VERSION,
     settings: {
       optimizer: {
         enabled: OPTIMIZER_ENABLED,
-        runs: 1,
+        runs: 1000000,
         details: OPTIMIZER_ENABLED
           ? {
               yulDetails: {
