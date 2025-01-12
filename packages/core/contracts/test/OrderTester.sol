@@ -61,9 +61,10 @@ abstract contract OrderTester {
         Fixed6 takerAmount,
         Fixed6 collateral,
         bool protect,
+        bool invalidatable,
         UFixed6 referralFee
     ) external {
-        Order memory newOrder = OrderLib.from(timestamp, position, makerAmount, takerAmount, collateral, protect, referralFee);
+        Order memory newOrder = OrderLib.from(timestamp, position, makerAmount, takerAmount, collateral, protect, invalidatable, referralFee);
         store(newOrder);
     }
 }

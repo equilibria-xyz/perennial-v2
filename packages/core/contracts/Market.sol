@@ -208,6 +208,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             takerAmount,
             collateral,
             false,
+            true,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order
@@ -625,6 +626,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             Fixed6Lib.ZERO,
             amount,
             Fixed6Lib.ZERO,
+            false,
             false,
             updateContext.orderReferralFee
         );

@@ -39,6 +39,7 @@ export interface Order {
   shortPos: BigNumberish
   shortNeg: BigNumberish
   protection: BigNumberish
+  invalidation: BigNumberish
   makerReferral: BigNumberish
   takerReferral: BigNumberish
 }
@@ -314,6 +315,7 @@ export const DEFAULT_ORDER: Order = {
   shortNeg: 0,
   collateral: 0,
   protection: 0,
+  invalidation: 0,
   makerReferral: 0,
   takerReferral: 0,
 }

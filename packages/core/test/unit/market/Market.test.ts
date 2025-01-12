@@ -1334,6 +1334,7 @@ describe('Market', () => {
               orders: 1,
               makerPos: POSITION,
               collateral: COLLATERAL,
+              invalidation: 1,
             },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
@@ -1368,6 +1369,7 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               collateral: COLLATERAL,
               makerPos: POSITION,
+              invalidation: 1,
             },
             DEFAULT_LOCAL_ACCUMULATION_RESULT,
           )
@@ -18036,10 +18038,24 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
+          expect((await market.pendingOrders(user.address, 1)).invalidation).to.be.equal(0)
+          expect((await market.pendingOrders(userB.address, 1)).invalidation).to.be.equal(1)
+          expect((await market.pendingOrders(userC.address, 1)).invalidation).to.be.equal(0)
+          expect((await market.pendingOrders(userD.address, 1)).invalidation).to.be.equal(1)
+          expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userB.address)).invalidation).to.be.equal(1)
+          expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userD.address)).invalidation).to.be.equal(1)
+
           await settle(market, user)
           await settle(market, userB)
           await settle(market, userC)
           await settle(market, userD)
+
+          expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userB.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userD.address)).invalidation).to.be.equal(0)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
