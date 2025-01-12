@@ -525,7 +525,7 @@ describe('Order', () => {
         expect(value.shortPos).to.equal(0)
         expect(value.shortNeg).to.equal(0)
         expect(value.protection).to.equal(1)
-        expect(value.invalidation).to.equal(1)
+        expect(value.invalidation).to.equal(0) // empty
         expect(value.makerReferral).to.equal(0)
         expect(value.takerReferral).to.equal(0)
         expect(value.collateral).to.equal(0)
@@ -675,7 +675,7 @@ describe('Order', () => {
         expect(value.shortPos).to.equal(0)
         expect(value.shortNeg).to.equal(0)
         expect(value.protection).to.equal(0)
-        expect(value.invalidation).to.equal(1)
+        expect(value.invalidation).to.equal(0) // empty
         expect(value.makerReferral).to.equal(0)
         expect(value.takerReferral).to.equal(0)
         expect(value.collateral).to.equal(collateral)
@@ -693,7 +693,7 @@ describe('Order', () => {
         expect(value.shortPos).to.equal(0)
         expect(value.shortNeg).to.equal(0)
         expect(value.protection).to.equal(0)
-        expect(value.invalidation).to.equal(1)
+        expect(value.invalidation).to.equal(0) // empty
         expect(value.makerReferral).to.equal(0)
         expect(value.takerReferral).to.equal(0)
         expect(value.collateral).to.equal(collateral)
