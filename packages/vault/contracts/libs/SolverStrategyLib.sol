@@ -67,13 +67,22 @@ library SolverStrategyLib {
         UFixed6 newAssets = newCollateral.unsafeSub(ineligible);
 
         targets = new Target[](context.markets.length);
-        for (uint256 marketId; marketId < context.markets.length; marketId++)
-            targets[marketId] = _allocateMarket(
+        UFixed6 allocatedCollateral;
+        for (uint256 marketId; marketId < context.markets.length; marketId++) {
+            UFixed6 newMarketCollateral;
+            (targets[marketId], newMarketCollateral) = _allocateMarket(
                 context.markets[marketId],
+                context.markets.length,
                 context.totalCollateral, // TODO: first deposit / zero collateral
                 newCollateral,
                 newAssets
             );
+            allocatedCollateral = allocatedCollateral.add(newMarketCollateral);
+        }
+
+        // allocate remaining collateral dust
+        if (context.markets.length != 0)
+            targets[0].collateral = targets[0].collateral.add(Fixed6Lib.from(newCollateral.sub(allocatedCollateral)));
     }
 
     /// @notice Compute the target allocation for a market
@@ -85,12 +94,13 @@ library SolverStrategyLib {
     /// @param newAssets The new total amount of collateral available for allocation
     function _allocateMarket(
         MarketSolverStrategyContext memory marketContext,
+        uint256 markets,
         UFixed6 latestCollateral,
         UFixed6 newCollateral,
         UFixed6 newAssets
-    ) private pure returns (Target memory target) {
-        UFixed6 newMarketCollateral = newCollateral.muldiv(marketContext.collateral, latestCollateral);
-        UFixed6 newMarketAssets = newAssets.muldiv(marketContext.collateral, latestCollateral);
+    ) private pure returns (Target memory target, UFixed6 newMarketCollateral) {
+        newMarketCollateral = _allocateValue(marketContext, markets, latestCollateral, newCollateral);
+        UFixed6 newMarketAssets = _allocateValue(marketContext, markets, latestCollateral, newAssets);
 
         target.collateral = Fixed6Lib.from(newMarketCollateral).sub(Fixed6Lib.from(marketContext.collateral));
 
@@ -105,6 +115,17 @@ library SolverStrategyLib {
         Fixed6 newTaker = Fixed6Lib.from(marketContext.currentTaker.sign(), newMagnitude);
 
         target.position = newTaker.sub(marketContext.currentTaker);
+    }
+
+    function _allocateValue(
+        MarketSolverStrategyContext memory marketContext,
+        uint256 markets,
+        UFixed6 latestCollateral,
+        UFixed6 amount
+    ) private pure returns (UFixed6) {
+        return latestCollateral.isZero()
+            ? amount.div(UFixed6Lib.from(markets)) // first deposit, allocate evenly
+            : amount.muldiv(marketContext.collateral, latestCollateral); // follow on, allocate by current collateral distribution
     }
 
     /// @notice Loads the strategy context of each of the underlying markets

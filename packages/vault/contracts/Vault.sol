@@ -154,7 +154,7 @@ abstract contract Vault is IVault, Instance {
 
     /// @notice Updates the Vault's coordinator address
     /// @param newCoordinator The new coordinator address
-    function updateCoordinator(address newCoordinator) external onlyOwner {
+    function updateCoordinator(address newCoordinator) public virtual onlyOwner {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
     }
