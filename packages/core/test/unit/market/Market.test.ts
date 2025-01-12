@@ -18076,7 +18076,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(3).add(1)),
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(2)),
           })
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -18096,7 +18096,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            collateral: COLLATERAL.add(EXPECTED_PNL).sub(SETTLEMENT_FEE.div(3).add(1)),
+            collateral: COLLATERAL.add(EXPECTED_PNL),
           })
           expectPositionEq(await market.positions(userC.address), {
             ...DEFAULT_POSITION,
@@ -18117,7 +18117,7 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(3).add(1)),
+            collateral: COLLATERAL.sub(SETTLEMENT_FEE.div(2)),
           })
           expectPositionEq(await market.positions(userD.address), {
             ...DEFAULT_POSITION,
@@ -22207,7 +22207,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF_2).sub(SETTLEMENT_FEE).sub(7), // loss of precision
+              collateral: COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF_2).sub(SETTLEMENT_FEE).sub(6), // loss of precision
             })
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -22228,7 +22228,7 @@ describe('Market', () => {
               ...DEFAULT_LOCAL,
               currentId: 1,
               latestId: 1,
-              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF_2.div(2)).add(EXPECTED_PNL.mul(2)).sub(11), // loss of precision
+              collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF_2.div(2)).add(EXPECTED_PNL.mul(2)).sub(10), // loss of precision
             })
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
