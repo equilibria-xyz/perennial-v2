@@ -50,10 +50,6 @@ abstract contract OrderTester {
         return read().isEmpty();
     }
 
-    function magnitude() external view returns (Fixed6) {
-        return read().magnitude();
-    }
-
     function from(
         uint256 timestamp,
         Position memory position,
