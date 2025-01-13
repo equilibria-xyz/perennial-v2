@@ -50,7 +50,7 @@ import {
   IMarket,
   IntentStruct,
   MarketParameterStruct,
-  MarketUpdateTakerStruct,
+  TakeStruct,
   RiskParameterStruct,
 } from '../../../types/generated/contracts/Market'
 
@@ -24936,7 +24936,7 @@ describe('Market', () => {
             ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
 
           // user signs message to open a long position
-          const message: MarketUpdateTakerStruct = {
+          const message: TakeStruct = {
             amount: POSITION.div(2),
             referrer: owner.address,
             common: {

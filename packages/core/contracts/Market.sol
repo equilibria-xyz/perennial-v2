@@ -21,7 +21,7 @@ import { Order, OrderLib, OrderStorageGlobal, OrderStorageLocal } from "./types/
 import { Guarantee, GuaranteeLib, GuaranteeStorageGlobal, GuaranteeStorageLocal } from "./types/Guarantee.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Intent } from "./types/Intent.sol";
-import { MarketUpdateTaker } from "./types/MarketUpdateTaker.sol";
+import { Take } from "./types/Take.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
 import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
@@ -176,8 +176,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the account's taker position without collateral change
     /// @param update_ Message requesting change in user's taker position
     /// @param signature Taker's signature
-    function update(MarketUpdateTaker calldata update_, bytes memory signature) external {
-        verifier.verifyMarketUpdateTaker(update_, signature);
+    function update(Take calldata update_, bytes memory signature) external {
+        verifier.verifyTake(update_, signature);
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(update_.common.account, update_.common.account, update_.referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 

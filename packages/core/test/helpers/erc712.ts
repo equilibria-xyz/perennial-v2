@@ -4,7 +4,7 @@ import {
   CommonStruct,
   GroupCancellationStruct,
   IntentStruct,
-  MarketUpdateTakerStruct,
+  TakeStruct,
   OperatorUpdateStruct,
   SignerUpdateStruct,
 } from '../../types/generated/contracts/Verifier'
@@ -64,14 +64,14 @@ export async function signIntent(
   return await signer._signTypedData(erc721Domain(verifier), types, intent)
 }
 
-export async function signMarketUpdateTaker(
+export async function signTake(
   signer: SignerWithAddress,
   verifier: IVerifier | Verifier | FakeContract<IVerifier>,
-  marketUpdate: MarketUpdateTakerStruct,
+  marketUpdate: TakeStruct,
 ): Promise<string> {
   const types = {
     ...commonType,
-    MarketUpdateTaker: [
+    Take: [
       { name: 'amount', type: 'int256' },
       { name: 'referrer', type: 'address' },
       { name: 'common', type: 'Common' },

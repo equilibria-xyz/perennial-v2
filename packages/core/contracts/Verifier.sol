@@ -10,7 +10,7 @@ import { Initializable } from "@equilibria/root/attribute/Initializable.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { IMarketFactorySigners } from "./interfaces/IMarketFactorySigners.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
-import { MarketUpdateTaker, MarketUpdateTakerLib } from "./types/MarketUpdateTaker.sol";
+import { Take, TakeLib } from "./types/Take.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
 import { SignerUpdate, SignerUpdateLib } from "./types/SignerUpdate.sol";
 import { AccessUpdateBatch, AccessUpdateBatchLib } from "./types/AccessUpdateBatch.sol";
@@ -58,13 +58,13 @@ contract Verifier is VerifierBase, IVerifier, Initializable {
     ///      Reverts if the signature does not match the signer
     /// @param marketUpdateTaker Message to verify
     /// @param signature Taker's signtaure
-    function verifyMarketUpdateTaker(MarketUpdateTaker calldata marketUpdateTaker, bytes calldata signature)
+    function verifyTake(Take calldata marketUpdateTaker, bytes calldata signature)
         external
         validateAndCancel(marketUpdateTaker.common, signature)
     {
         if (!SignatureChecker.isValidSignatureNow(
             marketUpdateTaker.common.signer,
-            _hashTypedDataV4(MarketUpdateTakerLib.hash(marketUpdateTaker)),
+            _hashTypedDataV4(TakeLib.hash(marketUpdateTaker)),
             signature
         )) revert VerifierInvalidSignerError();
     }

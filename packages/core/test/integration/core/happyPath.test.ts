@@ -26,14 +26,8 @@ import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
-import { IntentStruct, MarketUpdateTakerStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import {
-  signAccessUpdateBatch,
-  signIntent,
-  signMarketUpdateTaker,
-  signOperatorUpdate,
-  signSignerUpdate,
-} from '../../helpers/erc712'
+import { IntentStruct, TakeStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
+import { signAccessUpdateBatch, signIntent, signTake, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -2129,7 +2123,7 @@ describe('Happy Path', () => {
 
     // userB signs message to open a long position
     const initialPosition = POSITION.mul(2).div(3) // 6.666666
-    let message: MarketUpdateTakerStruct = {
+    let message: TakeStruct = {
       amount: initialPosition,
       referrer: owner.address,
       common: {
@@ -2141,7 +2135,7 @@ describe('Happy Path', () => {
         expiry: constants.MaxUint256,
       },
     }
-    let signature = await signMarketUpdateTaker(userB, verifier, message)
+    let signature = await signTake(userB, verifier, message)
 
     // userC executes the update
     let expectedTakerReferral = parse6decimal('0.083333') // referralFee * takerAmount = 0.0125 * |initialPosition|
@@ -2198,7 +2192,7 @@ describe('Happy Path', () => {
     // userB signs message to reduce their long position
     const positionDelta = POSITION.div(-3) // -3.333333
     message = { ...message, amount: positionDelta, common: { ...message.common, nonce: 3 } }
-    signature = await signMarketUpdateTaker(userB, verifier, message)
+    signature = await signTake(userB, verifier, message)
 
     // userC again executes the update
     expectedTakerReferral = parse6decimal('0.041666') // referralFee * takerAmount = 0.0125 * |positionDelta|
@@ -2251,7 +2245,7 @@ describe('Happy Path', () => {
       referrer: constants.AddressZero,
       common: { ...message.common, nonce: 4 },
     }
-    signature = await signMarketUpdateTaker(userB, verifier, message)
+    signature = await signTake(userB, verifier, message)
 
     // userC executes the request to close
     await expect(market.connect(userC)[MARKET_UPDATE_TAKER_PROTOTYPE](message, signature))
