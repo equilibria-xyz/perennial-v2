@@ -45,7 +45,7 @@ export const PRICE_4 = parse6decimal('117.462552')
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
 const MARKET_UPDATE_ABSOLUTE_PROTOTYPE = 'update(address,uint256,uint256,uint256,int256,bool)'
 const MARKET_UPDATE_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
-const MARKET_UPDATE_TAKER_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
 
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
@@ -2139,7 +2139,7 @@ describe('Happy Path', () => {
 
     // userC executes the update
     let expectedTakerReferral = parse6decimal('0.083333') // referralFee * takerAmount = 0.0125 * |initialPosition|
-    await expect(market.connect(userC)[MARKET_UPDATE_TAKER_PROTOTYPE](message, signature))
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
@@ -2196,7 +2196,7 @@ describe('Happy Path', () => {
 
     // userC again executes the update
     expectedTakerReferral = parse6decimal('0.041666') // referralFee * takerAmount = 0.0125 * |positionDelta|
-    await expect(market.connect(userC)[MARKET_UPDATE_TAKER_PROTOTYPE](message, signature))
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
@@ -2248,7 +2248,7 @@ describe('Happy Path', () => {
     signature = await signTake(userB, verifier, message)
 
     // userC executes the request to close
-    await expect(market.connect(userC)[MARKET_UPDATE_TAKER_PROTOTYPE](message, signature))
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,

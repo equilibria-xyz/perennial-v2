@@ -154,7 +154,7 @@ const DEFAULT_SIGNATURE =
   '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01'
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
-const MARKET_UPDATE_TAKER_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
 
 // rate_0 = 0
 // rate_1 = rate_0 + (elapsed * skew / k)
@@ -15298,6 +15298,30 @@ describe('Market', () => {
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
 
+        it('reverts if signer is unauthorized', async () => {
+          // userB signs message to open a long position for user
+          const message: TakeStruct = {
+            amount: POSITION.div(2),
+            referrer: owner.address,
+            common: {
+              account: user.address,
+              signer: userB.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: constants.MaxUint256,
+            },
+          }
+
+          // userC executes the update user on behalf of userB
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, userB.address, owner.address)
+            .returns([false, false, constants.Zero])
+          await expect(
+            market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, DEFAULT_SIGNATURE),
+          ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
+        })
+
         it('reverts if under minimum margin', async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1')).returns(true)
           await expect(
@@ -24953,7 +24977,7 @@ describe('Market', () => {
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, owner.address)
             .returns([false, true, parse6decimal('0.20')])
-          await expect(market.connect(userC)[MARKET_UPDATE_TAKER_PROTOTYPE](message, DEFAULT_SIGNATURE))
+          await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, DEFAULT_SIGNATURE))
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,

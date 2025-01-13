@@ -174,27 +174,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @notice Updates the account's taker position without collateral change
-    /// @param update_ Message requesting change in user's taker position
-    /// @param signature Taker's signature
-    function update(Take calldata update_, bytes memory signature) external {
-        verifier.verifyTake(update_, signature);
-        (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(update_.common.account, update_.common.account, update_.referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-
-        // create new order & guarantee
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            Fixed6Lib.ZERO,
-            update_.amount,
-            Fixed6Lib.ZERO,
-            false,
-            updateContext.orderReferralFee
-        );
-        Guarantee memory newGuarantee; // no guarantee is created for a market order
-
-        // process update
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, update_.referrer, address(0));
+    /// @param take Message requesting change in user's taker position
+    /// @param signature Signature of taker or authorized signer
+    function update(Take calldata take, bytes memory signature) external {
+        verifier.verifyTake(take, signature);
+        _updateMarket(take.common.account, take.common.signer, Fixed6Lib.ZERO, take.amount, Fixed6Lib.ZERO, take.referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -224,23 +208,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         address referrer
     ) public nonReentrant whenNotPaused {
-        (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-
-        // create new order & guarantee
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            makerAmount,
-            takerAmount,
-            collateral,
-            false,
-            updateContext.orderReferralFee
-        );
-        Guarantee memory newGuarantee; // no guarantee is created for a market order
-
-        // process update
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
+        _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -666,6 +634,33 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         );
 
         _updateAndStore(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
+    }
+
+    function _updateMarket(
+        address account,
+        address signer,
+        Fixed6 makerAmount,
+        Fixed6 takerAmount,
+        Fixed6 collateral,
+        address referrer
+    ) private {
+        (Context memory context, UpdateContext memory updateContext) =
+            _loadForUpdate(account, signer, referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+
+        // create new order & guarantee
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            makerAmount,
+            takerAmount,
+            collateral,
+            false,
+            updateContext.orderReferralFee
+        );
+        Guarantee memory newGuarantee; // no guarantee is created for a market order
+
+        // process update
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
     }
 
     /// @notice Updates the current position with a new order
