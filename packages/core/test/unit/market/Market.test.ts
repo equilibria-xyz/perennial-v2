@@ -23171,6 +23171,15 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
               collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL).sub(TAKER_FEE),
             })
+            expectGuaranteeEq(await market.guarantees(user.address, 1), {
+              ...DEFAULT_GUARANTEE,
+              orders: 1,
+              longPos: POSITION.div(2),
+              notional: POSITION.div(2).mul(125),
+              takerFee: 0,
+              orderReferral: POSITION.div(10),
+              solverReferral: POSITION.div(2).div(10),
+            })
             expectLocalEq(await market.locals(userB.address), {
               ...DEFAULT_LOCAL,
               currentId: 1,
@@ -23215,6 +23224,13 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
               collateral: COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             })
+            expectGuaranteeEq(await market.guarantees(userC.address, 1), {
+              ...DEFAULT_GUARANTEE,
+              orders: 1,
+              shortPos: POSITION.div(2),
+              notional: -POSITION.div(2).mul(125),
+              takerFee: POSITION.div(2),
+            })
             expectLocalEq(await market.locals(liquidator.address), {
               ...DEFAULT_LOCAL,
               claimable: TAKER_FEE.mul(2).div(10).div(2),
@@ -23255,6 +23271,14 @@ describe('Market', () => {
               longPos: POSITION.div(2),
               takerReferral: POSITION.div(2).mul(2).div(10),
               collateral: COLLATERAL.mul(2),
+            })
+            expectGuaranteeEq(await market.guarantee(2), {
+              ...DEFAULT_GUARANTEE,
+              orders: 2,
+              longPos: POSITION.div(2),
+              shortPos: POSITION.div(2),
+              takerFee: POSITION.div(2),
+              orderReferral: POSITION.div(10),
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_VERSION,
