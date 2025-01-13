@@ -50,6 +50,10 @@ abstract contract OrderTester {
         return read().isEmpty();
     }
 
+    function crossesZero() external view returns (bool) {
+        return read().crossesZero();
+    }
+
     function from(
         uint256 timestamp,
         Position memory position,

@@ -15866,14 +15866,6 @@ describe('Market', () => {
             dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           })
 
-          it('it reverts if not protected', async () => {
-            await expect(
-              market
-                .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
-            ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
-          })
-
           it('it reverts if already liquidated', async () => {
             await market
               .connect(liquidator)

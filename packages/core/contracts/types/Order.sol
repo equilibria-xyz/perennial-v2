@@ -262,12 +262,12 @@ library OrderLib {
         return Fixed6Lib.from(self.makerPos).sub(Fixed6Lib.from(self.makerNeg));
     }
 
-    /// @notice Returns the taker delta of the order
-    /// @param self The order object to check
-    /// @return The taker delta of the order
-    function taker(Order memory self) internal pure returns (Fixed6) {
-        return long(self).sub(short(self));
-    }
+    // /// @notice Returns the taker delta of the order
+    // /// @param self The order object to check
+    // /// @return The taker delta of the order
+    // function taker(Order memory self) internal pure returns (Fixed6) {
+    //     return long(self).sub(short(self));
+    // }
 
     /// @notice Returns the long delta of the order
     /// @param self The order object to check

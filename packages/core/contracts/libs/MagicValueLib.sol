@@ -54,8 +54,9 @@ library MagicValueLib {
     ) private pure returns (UFixed6) {
         if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION)) return currentPosition;
         if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
-            if (context.pendingLocal.invalidation == 0) return UFixed6Lib.ZERO;
-            else return context.pendingLocal.pos();
+            if (currentPosition.isZero()) return UFixed6Lib.ZERO;           // side is empty
+            if (context.pendingLocal.crossesZero()) return currentPosition; // pending zero-cross, max close is no-op
+            return context.pendingLocal.pos().min(currentPosition);         // minimum position is pending open, or current position if smaller (due to intents)
         }
         return newPosition;
     }
