@@ -69,21 +69,23 @@ export default task('settle-users', 'Settles all users across all markets')
       }
 
       const users = [...marketUsers[marketAddress].values()].slice(args.offset)
-      marketUserCount += users.length
+
+      const unMigratedUsers = await getUnmigratedUsers(marketAddress, users, ethers)
+      marketUserCount += unMigratedUsers.length
 
       const market = await ethers.getContractAt('IMarket', marketAddress)
 
-      console.log('[Settle Markets]    Settling', users.length, 'users to settle in market', marketAddress)
+      console.log('[Settle Markets]    Settling', unMigratedUsers.length, 'users to settle in market', marketAddress)
 
       let batchedUsers
-      while (users.length > 0) {
+      while (unMigratedUsers.length > 0) {
         // batch multicalls to handle markets with large numbers of users
-        batchedUsers = users.splice(0, batchSize)
+        batchedUsers = unMigratedUsers.splice(0, batchSize)
         console.log(
           '[Settle Markets]      batch contains',
           batchedUsers.length,
           'users',
-          users.length,
+          unMigratedUsers.length,
           'users remaining',
         )
 
@@ -117,3 +119,21 @@ export default task('settle-users', 'Settles all users across all markets')
     console.log(`[Settle Markets] ${actionString} settle on ${marketUserCount} users in ${txCount} transactions`) // 3507 total calls on Arbitrum
     console.log('[Settle Markets] Done.')
   })
+
+const getUnmigratedUsers = async (marketAddress: string, users: string[], ethers: any) => {
+  const unMigratedUsers = []
+  for (const user in users) {
+    const userPositionsMappingSlot = 17
+    const userPositionSlot = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [user, userPositionsMappingSlot]),
+    )
+    const userPositionData = await ethers.provider.getStorageAt(marketAddress, userPositionSlot)
+
+    // check if user has migrated
+    if (parseInt(userPositionData.slice(0, 4), 16) == 0) {
+      // if layout is 0
+      unMigratedUsers.push(user)
+    }
+  }
+  return unMigratedUsers
+}
