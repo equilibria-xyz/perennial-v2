@@ -14,6 +14,7 @@ import {
   signSignerUpdate,
   signAccessUpdateBatch,
   signCommon,
+  signTake,
 } from '../../helpers/erc712'
 
 const { ethers } = HRE
@@ -35,7 +36,7 @@ describe('Verifier', () => {
 
     marketFactory = await smock.fake<IMarketFactorySigners>('IMarketFactorySigners')
     verifier = await new Verifier__factory(owner).deploy()
-    verifier.initialize(marketFactory.address)
+    await verifier.initialize(marketFactory.address)
     scSigner = await smock.fake<IERC1271>('IERC1271')
 
     marketFactory.signers.whenCalledWith(caller.address, scSigner.address).returns(true)
@@ -325,7 +326,7 @@ describe('Verifier', () => {
       expect(await verifier.nonces(caller.address, 17)).to.eq(true)
     })
 
-    it('should reject intent w/ invalid nonce', async () => {
+    it('should reject intent w/ invalid group', async () => {
       const intent = {
         ...DEFAULT_INTENT,
         common: {
@@ -341,6 +342,233 @@ describe('Verifier', () => {
       await verifier.connect(caller).cancelGroup(17)
 
       await expect(verifier.connect(caller).verifyIntent(intent, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidGroupError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+  })
+
+  describe('#verifyTake', () => {
+    const DEFAULT_TAKE = {
+      amount: parse6decimal('20'),
+      referrer: constants.AddressZero,
+      common: {
+        account: constants.AddressZero,
+        signer: constants.AddressZero,
+        domain: constants.AddressZero,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    it('should verify Take message', async () => {
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        referrer: constants.AddressZero,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: market.address,
+        },
+      }
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      await expect(verifier.connect(market).verifyTake(marketUpdateTaker, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should verify Take message w/ sc signer', async () => {
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: scSigner.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      scSigner.isValidSignature.returns(0x1626ba7e)
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject Take message w/ invalid signer', async () => {
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: market.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject Take message w/ invalid sc signer', async () => {
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: scSigner.address,
+          domain: caller.address,
+        },
+      }
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      scSigner.isValidSignature.returns(false)
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should verify Take message w/ expiry', async () => {
+      const now = await time.latest()
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now + 3,
+        },
+      } // callstatic & call each take one second
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature))
+        .to.emit(verifier, 'NonceCancelled')
+        .withArgs(caller.address, 0)
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(true)
+    })
+
+    it('should reject Take message w/ invalid expiry', async () => {
+      const now = await time.latest()
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          expiry: now - 1,
+        },
+      }
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidExpiryError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject Take message w/ invalid domain', async () => {
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: market.address,
+        },
+      }
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidDomainError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject Take message w/ invalid signature', async () => {
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+        },
+      }
+      const signature = '0x885b1eefff8ef92e3acee19ba145266137cb5bc1191f796b08e3375a8b8c9458'
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignatureError',
+      )
+
+      expect(await verifier.nonces(caller.address, 0)).to.eq(false)
+    })
+
+    it('should reject Take message w/ invalid nonce', async () => {
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          nonce: 22,
+        },
+      }
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      await verifier.connect(caller).cancelNonce(22)
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature)).to.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidNonceError',
+      )
+
+      expect(await verifier.nonces(caller.address, 22)).to.eq(true)
+    })
+
+    it('should reject Take message w/ invalid group', async () => {
+      const marketUpdateTaker = {
+        ...DEFAULT_TAKE,
+        common: {
+          ...DEFAULT_TAKE.common,
+          account: caller.address,
+          signer: caller.address,
+          domain: caller.address,
+          group: 14,
+        },
+      }
+      const signature = await signTake(caller, verifier, marketUpdateTaker)
+
+      await verifier.connect(caller).cancelGroup(14)
+
+      await expect(verifier.connect(caller).verifyTake(marketUpdateTaker, signature)).to.revertedWithCustomError(
         verifier,
         'VerifierInvalidGroupError',
       )
