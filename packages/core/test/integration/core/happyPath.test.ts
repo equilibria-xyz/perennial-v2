@@ -26,8 +26,15 @@ import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
-import { IntentStruct, TakeStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import { signAccessUpdateBatch, signIntent, signTake, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
+import { IntentStruct, TakeStruct, RiskParameterStruct, FillStruct } from '../../../types/generated/contracts/Market'
+import {
+  signAccessUpdateBatch,
+  signFill,
+  signIntent,
+  signTake,
+  signOperatorUpdate,
+  signSignerUpdate,
+} from '../../helpers/erc712'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -43,8 +50,10 @@ export const PRICE_3 = parse6decimal('116.284753')
 export const PRICE_4 = parse6decimal('117.462552')
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
+const INTENT_PROTOTYPE = `(int256,int256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
 const MARKET_UPDATE_ABSOLUTE_PROTOTYPE = 'update(address,uint256,uint256,uint256,int256,bool)'
 const MARKET_UPDATE_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
+const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
 
 describe('Happy Path', () => {
@@ -2292,6 +2301,58 @@ describe('Happy Path', () => {
       ...DEFAULT_POSITION,
       timestamp: TIMESTAMP_4,
     })
+  })
+
+  it('disables fills with mismatching markets', async () => {
+    const POSITION = parse6decimal('10')
+    const { user, userB, userC, verifier } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    const badMarketAddress = verifier.address
+
+    // trader (user) signs an intent to open a long position
+    const intent: IntentStruct = {
+      amount: POSITION.div(2),
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      originator: constants.AddressZero,
+      solver: constants.AddressZero,
+      collateralization: parse6decimal('0.01'),
+      common: {
+        account: user.address,
+        signer: user.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+    const traderSignature = await signIntent(user, verifier, intent)
+
+    const fill: FillStruct = {
+      intent: intent,
+      common: {
+        account: userB.address,
+        signer: userB.address,
+        domain: badMarketAddress,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+    const solverSignature = await signFill(userB, verifier, fill)
+
+    // market of the fill (outer) does not match
+    await expect(
+      market.connect(userC)[MARKET_UPDATE_FILL_PROTOTYPE](fill, traderSignature, solverSignature),
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidDomainError')
+
+    // market of the intent (inner) does not match
+    fill.common.domain = market.address
+    fill.intent.common.domain = badMarketAddress
+    await expect(
+      market.connect(userC)[MARKET_UPDATE_FILL_PROTOTYPE](fill, traderSignature, solverSignature),
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidDomainError')
   })
 
   it('updates account access and opens intent order', async () => {

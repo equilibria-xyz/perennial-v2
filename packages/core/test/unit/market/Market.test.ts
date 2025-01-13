@@ -49,6 +49,7 @@ import {
 import {
   IMarket,
   IntentStruct,
+  FillStruct,
   MarketParameterStruct,
   TakeStruct,
   RiskParameterStruct,
@@ -154,6 +155,8 @@ const DEFAULT_SIGNATURE =
   '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01'
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
+const INTENT_PROTOTYPE = `(int256,int256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
 
 // rate_0 = 0
@@ -18896,6 +18899,66 @@ describe('Market', () => {
                 'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
+        })
+
+        it('fills intent from a signed message', async () => {
+          // trader and solver deposit collateral into the market
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, COLLATERAL, false)
+
+          // another actor establishes some liquidity in the market
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, POSITION, 0, 0, COLLATERAL, false)
+
+          // trader (user) signs an intent to open a long position
+          const intent: IntentStruct = {
+            amount: POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: constants.AddressZero,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          // solver (userB) signs a message to fill the user's intended position
+          const fill: FillStruct = {
+            intent: intent,
+            common: {
+              account: userB.address,
+              signer: userB.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          // both trader (user) and solver (userB) may sign their own messages sent by userC
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, constants.AddressZero)
+            .returns([true, true, constants.Zero])
+          factory.authorization
+            .whenCalledWith(userB.address, userC.address, userB.address, constants.AddressZero)
+            .returns([true, true, constants.Zero])
+          // fake message verification (maybe unnecessary)
+          verifier.verifyIntent.returns()
+          verifier.verifyFill.returns()
+          await market.connect(userC)[MARKET_UPDATE_FILL_PROTOTYPE](fill, DEFAULT_SIGNATURE, DEFAULT_SIGNATURE)
+
+          // TODO: tie out the market
         })
       })
 
