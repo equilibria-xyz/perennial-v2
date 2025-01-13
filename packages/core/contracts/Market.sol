@@ -20,6 +20,7 @@ import { Version, VersionStorage } from "./types/Version.sol";
 import { Order, OrderLib, OrderStorageGlobal, OrderStorageLocal } from "./types/Order.sol";
 import { Guarantee, GuaranteeLib, GuaranteeStorageGlobal, GuaranteeStorageLocal } from "./types/Guarantee.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
+import { Fill } from "./types/Fill.sol";
 import { Intent } from "./types/Intent.sol";
 import { Take } from "./types/Take.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
@@ -171,6 +172,43 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             false,
             true
         ); // signer
+    }
+
+    function update(
+        Fill calldata fill,
+        bytes memory traderSignature,
+        bytes memory solverSignature
+    ) external nonReentrant whenNotPaused {
+        if (fill.intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
+        // TODO: confirm market on Fill and Intent matches
+
+        verifier.verifyIntent(fill.intent, traderSignature);
+        verifier.verifyFill(fill, solverSignature);
+
+        _updateIntent(
+            fill.common.account,
+            fill.common.signer,
+            fill.intent.amount.mul(Fixed6Lib.NEG_ONE),
+            fill.intent.price,
+            address(0),
+            address(0),
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            true, // TODO: remove after PR#529 merged
+            false
+        ); // solver
+        _updateIntent(
+            fill.intent.common.account,
+            fill.intent.common.signer,
+            fill.intent.amount,
+            fill.intent.price,
+            fill.intent.originator,
+            fill.intent.solver,
+            fill.intent.fee,
+            fill.intent.collateralization,
+            false, // TODO: remove after PR#529 merged
+            true
+        ); // trader
     }
 
     /// @notice Updates the account's taker position without collateral change

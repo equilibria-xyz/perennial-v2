@@ -9,6 +9,7 @@ import { Initializable } from "@equilibria/root/attribute/Initializable.sol";
 
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { IMarketFactorySigners } from "./interfaces/IMarketFactorySigners.sol";
+import { Fill, FillLib } from "./types/Fill.sol";
 import { Intent, IntentLib } from "./types/Intent.sol";
 import { Take, TakeLib } from "./types/Take.sol";
 import { OperatorUpdate, OperatorUpdateLib } from "./types/OperatorUpdate.sol";
@@ -35,6 +36,18 @@ contract Verifier is VerifierBase, IVerifier, Initializable {
     /// @param marketFactory_ The market factory
     function initialize(IMarketFactorySigners marketFactory_) external initializer(1) {
         marketFactory = marketFactory_;
+    }
+
+    /// @notice Verifies the signature of a request to fill an intent order
+    function verifyFill(Fill calldata fill, bytes calldata signature)
+        external
+        validateAndCancel(fill.common, signature)
+    {
+        if (!SignatureChecker.isValidSignatureNow(
+            fill.common.signer,
+            _hashTypedDataV4(FillLib.hash(fill)),
+            signature
+        )) revert VerifierInvalidSignerError();
     }
 
     /// @notice Verifies the signature of an intent order type
