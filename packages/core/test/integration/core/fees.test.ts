@@ -2458,7 +2458,7 @@ describe('Fees', () => {
 
       expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
         ...DEFAULT_GUARANTEE,
-        orders: 1,
+        orders: 2,
         longPos: POSITION.div(2),
         shortPos: POSITION.div(2),
         takerFee: POSITION.div(2),
