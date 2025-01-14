@@ -25911,6 +25911,7 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
                 takerReferral: POSITION.div(2).mul(2).div(10),
+                invalidation: 1,
               },
               DEFAULT_GUARANTEE,
               constants.AddressZero,
