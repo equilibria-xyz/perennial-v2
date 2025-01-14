@@ -26,8 +26,8 @@ import { Market__factory } from '../../../types/generated'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { ChainlinkContext } from '../helpers/chainlinkHelpers'
-import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import { signAccessUpdateBatch, signIntent, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
+import { IntentStruct, TakeStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
+import { signAccessUpdateBatch, signIntent, signTake, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -39,7 +39,13 @@ export const TIMESTAMP_5 = 1631118731
 export const PRICE_0 = parse6decimal('113.882975')
 export const PRICE_1 = parse6decimal('113.796498')
 export const PRICE_2 = parse6decimal('115.046259')
+export const PRICE_3 = parse6decimal('116.284753')
 export const PRICE_4 = parse6decimal('117.462552')
+
+const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
+const MARKET_UPDATE_ABSOLUTE_PROTOTYPE = 'update(address,uint256,uint256,uint256,int256,bool)'
+const MARKET_UPDATE_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
+const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
 
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
@@ -2122,6 +2128,196 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_0), {
       ...DEFAULT_VERSION,
       price: PRICE_0,
+    })
+  })
+
+  it('opens, reduces, and closes a long position w/ signed message', async () => {
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('1000')
+    const { owner, user, userB, userC, dsu, marketFactory, verifier, chainlink } = instanceVars
+    const market = await createMarket(instanceVars)
+
+    // establish a referral fee
+    await expect(marketFactory.connect(owner).updateReferralFee(owner.address, parse6decimal('0.0125')))
+      .to.emit(marketFactory, 'ReferralFeeUpdated')
+      .withArgs(owner.address, parse6decimal('0.0125'))
+
+    // user opens a maker position adding liquidity to the market
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await market.connect(user)[MARKET_UPDATE_ABSOLUTE_PROTOTYPE](user.address, POSITION, 0, 0, COLLATERAL, false)
+
+    // userB deposits some collateral
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await market.connect(userB)[MARKET_UPDATE_DELTA_PROTOTYPE](userB.address, 0, COLLATERAL, constants.AddressZero)
+
+    // settle user's maker position
+    await chainlink.next()
+    await settle(market, user)
+
+    // userB signs message to open a long position
+    const initialPosition = POSITION.mul(2).div(3) // 6.666666
+    let message: TakeStruct = {
+      amount: initialPosition,
+      referrer: owner.address,
+      common: {
+        account: userB.address,
+        signer: userB.address,
+        domain: market.address,
+        nonce: 2,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+    let signature = await signTake(userB, verifier, message)
+
+    // userC executes the update
+    let expectedTakerReferral = parse6decimal('0.083333') // referralFee * takerAmount = 0.0125 * |initialPosition|
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_2,
+          orders: 1,
+          longPos: initialPosition,
+          takerReferral: expectedTakerReferral,
+        },
+        DEFAULT_GUARANTEE,
+        constants.AddressZero,
+        owner.address, // referrer
+        constants.AddressZero,
+      )
+
+    // confirm the pending order
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_2,
+      orders: 1,
+      collateral: 0,
+      makerPos: 0,
+      longPos: initialPosition,
+      takerReferral: expectedTakerReferral,
+    })
+
+    // settle userB's long position
+    await chainlink.next()
+    await settle(market, userB)
+
+    // check userB state
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 2,
+      latestId: 2,
+      collateral: COLLATERAL,
+    })
+    expectOrderEq(await market.pendingOrders(userB.address, 3), DEFAULT_ORDER)
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: COLLATERAL,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_2,
+      long: initialPosition,
+    })
+
+    // userB signs message to reduce their long position
+    const positionDelta = POSITION.div(-3) // -3.333333
+    message = { ...message, amount: positionDelta, common: { ...message.common, nonce: 3 } }
+    signature = await signTake(userB, verifier, message)
+
+    // userC again executes the update
+    expectedTakerReferral = parse6decimal('0.041666') // referralFee * takerAmount = 0.0125 * |positionDelta|
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_3,
+          orders: 1,
+          longNeg: positionDelta.mul(-1),
+          takerReferral: expectedTakerReferral,
+        },
+        DEFAULT_GUARANTEE,
+        constants.AddressZero,
+        owner.address, // referrer
+        constants.AddressZero,
+      )
+
+    // settle userB's reduced position and check state
+    await chainlink.next()
+    await settle(market, userB)
+    // pnl = priceDelta * longSocialized = (116.284753-115.046259) * 6.666666 = 8.256626
+    // interestLong = -0.003015
+    // collateralChange = pnl + interestLong = 8.256626 - 0.003015 = 8.253611
+    let collateralChange = parse6decimal('8.253611').sub(12) // loss of precision
+    const collateral3 = COLLATERAL.add(collateralChange)
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 3,
+      latestId: 3,
+      collateral: collateral3,
+    })
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: collateral3,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_3,
+      long: POSITION.div(3),
+    })
+
+    // userB signs message to close their position, this time with no referrer
+    const currentPosition = (await market.positions(userB.address)).long // 3.333333
+    message = {
+      ...message,
+      amount: currentPosition.mul(-1),
+      referrer: constants.AddressZero,
+      common: { ...message.common, nonce: 4 },
+    }
+    signature = await signTake(userB, verifier, message)
+
+    // userC executes the request to close
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_4,
+          orders: 1,
+          longNeg: currentPosition,
+        },
+        DEFAULT_GUARANTEE,
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    // settle userB's closed position and check state
+    await chainlink.next()
+    await settle(market, userB)
+    // pnl = priceDelta * longSocialized = (117.462552-116.284753) * 3.333333 = 3.925996
+    // interestLong = -0.005596
+    // collateralChange = pnl + interestLong = 3.925996 - 0.005596 = 3.9204
+    collateralChange = parse6decimal('3.9204').sub(4) // loss of precision
+    const collateral4 = collateral3.add(collateralChange)
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 4,
+      latestId: 4,
+      collateral: collateral4,
+    })
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_4), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: collateral4,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_4,
     })
   })
 
