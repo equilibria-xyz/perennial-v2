@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 import { PositionLib } from "../types/Position.sol";
