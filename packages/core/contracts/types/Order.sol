@@ -220,7 +220,9 @@ library OrderLib {
         return !self.makerNeg.isZero() || currentMajor.gt(latestMajor);
     }
 
-    // TODO
+    /// @notice Returns whether the order crosses zero (has delta on both the long and short sides)
+    /// @param self The Order object to check
+    /// @return Whether the order crosses zero
     function crossesZero(Order memory self) internal pure returns (bool) {
         return !self.longPos.add(self.longNeg).isZero() && !self.shortPos.add(self.shortNeg).isZero();
     }
@@ -261,13 +263,6 @@ library OrderLib {
     function maker(Order memory self) internal pure returns (Fixed6) {
         return Fixed6Lib.from(self.makerPos).sub(Fixed6Lib.from(self.makerNeg));
     }
-
-    // /// @notice Returns the taker delta of the order
-    // /// @param self The order object to check
-    // /// @return The taker delta of the order
-    // function taker(Order memory self) internal pure returns (Fixed6) {
-    //     return long(self).sub(short(self));
-    // }
 
     /// @notice Returns the long delta of the order
     /// @param self The order object to check
