@@ -619,6 +619,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             amount,
             Fixed6Lib.ZERO,
             false,
+            false,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee = GuaranteeLib.from(
@@ -650,6 +651,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             takerAmount,
             collateral,
             false,
+            true,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order

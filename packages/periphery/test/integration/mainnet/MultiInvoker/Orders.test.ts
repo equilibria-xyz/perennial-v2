@@ -532,6 +532,7 @@ export function RunOrderTests(
                     orders: 1,
                     longPos: userPosition,
                     takerReferral: expectedReferralFee,
+                    invalidation: 1,
                   }
                 : anyValue,
               { ...DEFAULT_GUARANTEE },
@@ -608,6 +609,7 @@ export function RunOrderTests(
                     orders: 1,
                     longPos: userPosition,
                     takerReferral: expectedReferralFee,
+                    invalidation: 1,
                   }
                 : anyValue,
               { ...DEFAULT_GUARANTEE },
@@ -686,6 +688,7 @@ export function RunOrderTests(
                     orders: 1,
                     longPos: userPosition,
                     takerReferral: expectedReferralFee,
+                    invalidation: 1,
                   }
                 : anyValue,
               { ...DEFAULT_GUARANTEE },
@@ -1029,7 +1032,7 @@ export function RunOrderTests(
               .withArgs(
                 user.address,
                 validateOrderCreatedEvents
-                  ? { ...DEFAULT_ORDER, timestamp: currentTimestamp, orders: 1, longPos: userPosition }
+                  ? { ...DEFAULT_ORDER, timestamp: currentTimestamp, orders: 1, longPos: userPosition, invalidation: 1 }
                   : anyValue,
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,

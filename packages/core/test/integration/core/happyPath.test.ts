@@ -173,6 +173,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           makerPos: POSITION,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -292,7 +293,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION.div(2) },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION.div(2), invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -417,6 +418,7 @@ describe('Happy Path', () => {
           timestamp: TIMESTAMP_2,
           orders: 1,
           makerNeg: POSITION,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -493,7 +495,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION.div(2) },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION.div(2), invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -581,6 +583,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           longPos: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -740,7 +743,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B.div(2) },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B.div(2), invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -879,6 +882,7 @@ describe('Happy Path', () => {
           timestamp: TIMESTAMP_2,
           orders: 1,
           longNeg: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -970,7 +974,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longNeg: POSITION_B.div(2) },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longNeg: POSITION_B.div(2), invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -1171,7 +1175,14 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B, collateral: COLLATERAL },
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          longPos: POSITION_B,
+          collateral: COLLATERAL,
+          invalidation: 1,
+        },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -1220,7 +1231,14 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: POSITION_B, collateral: COLLATERAL },
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          shortPos: POSITION_B,
+          collateral: COLLATERAL,
+          invalidation: 1,
+        },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -1330,7 +1348,14 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_5, orders: 1, makerPos: POSITION.div(2), collateral: -1 },
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_5,
+          orders: 1,
+          makerPos: POSITION.div(2),
+          collateral: -1,
+          invalidation: 1,
+        },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -1913,6 +1938,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           longPos: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -2030,6 +2056,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           longPos: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -2155,6 +2182,7 @@ describe('Happy Path', () => {
           orders: 1,
           longPos: initialPosition,
           takerReferral: expectedTakerReferral,
+          invalidation: 1,
         },
         DEFAULT_GUARANTEE,
         constants.AddressZero,
@@ -2212,6 +2240,7 @@ describe('Happy Path', () => {
           orders: 1,
           longNeg: positionDelta.mul(-1),
           takerReferral: expectedTakerReferral,
+          invalidation: 1,
         },
         DEFAULT_GUARANTEE,
         constants.AddressZero,
@@ -2263,6 +2292,7 @@ describe('Happy Path', () => {
           timestamp: TIMESTAMP_4,
           orders: 1,
           longNeg: currentPosition,
+          invalidation: 1,
         },
         DEFAULT_GUARANTEE,
         constants.AddressZero,
@@ -2537,6 +2567,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           longPos: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -2775,6 +2806,7 @@ describe('Happy Path', () => {
           orders: 1,
           makerPos: POSITION,
           collateral: -1,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
       )

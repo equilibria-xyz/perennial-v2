@@ -89,6 +89,7 @@ const ORDER: OrderStruct = {
   shortPos: 45,
   shortNeg: 0,
   protection: 1,
+  invalidation: 1,
   makerReferral: 10,
   takerReferral: 11,
 }

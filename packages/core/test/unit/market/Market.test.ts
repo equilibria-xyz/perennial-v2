@@ -974,7 +974,14 @@ describe('Market', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             userB.address,
-            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION, protection: 1 },
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              orders: 1,
+              makerNeg: POSITION,
+              protection: 1,
+              invalidation: 1,
+            },
             { ...DEFAULT_GUARANTEE },
             liquidator.address,
             constants.AddressZero,
@@ -1173,7 +1180,14 @@ describe('Market', () => {
           .to.emit(market, 'OrderCreated')
           .withArgs(
             userB.address,
-            { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION, protection: 1 },
+            {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_4.timestamp,
+              orders: 1,
+              makerNeg: POSITION,
+              protection: 1,
+              invalidation: 1,
+            },
             { ...DEFAULT_GUARANTEE },
             liquidator.address,
             constants.AddressZero,
@@ -1338,6 +1352,7 @@ describe('Market', () => {
               orders: 1,
               makerPos: POSITION,
               collateral: COLLATERAL,
+              invalidation: 1,
             },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
@@ -1372,6 +1387,7 @@ describe('Market', () => {
               timestamp: ORACLE_VERSION_2.timestamp,
               collateral: COLLATERAL,
               makerPos: POSITION,
+              invalidation: 1,
             },
             DEFAULT_LOCAL_ACCUMULATION_RESULT,
           )
@@ -1452,6 +1468,7 @@ describe('Market', () => {
               orders: 1,
               makerPos: POSITION,
               collateral: COLLATERAL,
+              invalidation: 1,
             },
             { ...DEFAULT_GUARANTEE },
             constants.AddressZero,
@@ -1491,6 +1508,7 @@ describe('Market', () => {
               orders: 1,
               collateral: COLLATERAL,
               makerPos: POSITION,
+              invalidation: 1,
             },
             DEFAULT_LOCAL_ACCUMULATION_RESULT,
           )
@@ -1931,6 +1949,7 @@ describe('Market', () => {
                   timestamp: ORACLE_VERSION_2.timestamp,
                   collateral: COLLATERAL,
                   makerPos: POSITION,
+                  invalidation: 1,
                 },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
@@ -2033,6 +2052,7 @@ describe('Market', () => {
                   orders: 1,
                   makerPos: POSITION,
                   collateral: COLLATERAL,
+                  invalidation: 1,
                 },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
@@ -2067,6 +2087,7 @@ describe('Market', () => {
                   orders: 1,
                   collateral: COLLATERAL,
                   makerPos: POSITION,
+                  invalidation: 1,
                 },
                 DEFAULT_LOCAL_ACCUMULATION_RESULT,
               )
@@ -2130,7 +2151,13 @@ describe('Market', () => {
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 user.address,
-                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, makerPos: POSITION },
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  makerPos: POSITION,
+                  invalidation: 1,
+                },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
                 constants.AddressZero,
@@ -2188,7 +2215,13 @@ describe('Market', () => {
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 user.address,
-                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, makerPos: POSITION },
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  makerPos: POSITION,
+                  invalidation: 1,
+                },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
                 constants.AddressZero,
@@ -2264,7 +2297,13 @@ describe('Market', () => {
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 user.address,
-                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerPos: POSITION },
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  makerPos: POSITION,
+                  invalidation: 1,
+                },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
                 constants.AddressZero,
@@ -2332,7 +2371,13 @@ describe('Market', () => {
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 user.address,
-                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerPos: POSITION },
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  makerPos: POSITION,
+                  invalidation: 1,
+                },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
                 constants.AddressZero,
@@ -2413,6 +2458,7 @@ describe('Market', () => {
                   orders: 1,
                   makerPos: POSITION,
                   collateral: COLLATERAL,
+                  invalidation: 1,
                 },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
@@ -2505,6 +2551,7 @@ describe('Market', () => {
                   orders: 1,
                   makerPos: POSITION,
                   collateral: COLLATERAL,
+                  invalidation: 1,
                 },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
@@ -2602,7 +2649,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    makerNeg: POSITION,
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -2662,7 +2715,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    makerNeg: POSITION,
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -2732,7 +2791,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    makerNeg: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -2796,7 +2861,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    makerNeg: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -2872,7 +2943,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_4.timestamp,
+                    orders: 1,
+                    makerNeg: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -2941,7 +3018,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, makerNeg: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_4.timestamp,
+                    orders: 1,
+                    makerNeg: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -3006,7 +3089,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    makerNeg: POSITION,
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -3090,7 +3179,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    makerNeg: POSITION,
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -3202,6 +3297,7 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                     orders: 1,
                     longPos: POSITION,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -3274,6 +3370,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION,
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -3357,7 +3454,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, longPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
+                    longPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -3422,7 +3525,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, longPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
+                    longPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -3510,7 +3619,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    longPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -3587,7 +3702,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    longPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -3700,6 +3821,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -3832,6 +3954,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -3983,6 +4106,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -4136,7 +4260,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -4196,7 +4326,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -4300,7 +4436,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -4365,7 +4507,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -4475,7 +4623,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_4.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -4588,7 +4742,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_4.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -4712,7 +4872,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -4833,7 +4999,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -5413,6 +5585,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -5639,6 +5812,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -5919,6 +6093,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -6161,6 +6336,7 @@ describe('Market', () => {
                     orders: 1,
                     longNeg: POSITION.div(2),
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -6371,6 +6547,7 @@ describe('Market', () => {
                     orders: 1,
                     longNeg: POSITION.div(2),
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -6708,6 +6885,7 @@ describe('Market', () => {
                     collateral: COLLATERAL,
                     orders: 1,
                     shortPos: POSITION,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -6781,6 +6959,7 @@ describe('Market', () => {
                     orders: 1,
                     shortPos: POSITION,
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -6864,7 +7043,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, shortPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
+                    shortPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -6931,7 +7116,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, shortPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
+                    shortPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -7020,7 +7211,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    shortPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -7098,7 +7295,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    shortPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -7216,6 +7419,7 @@ describe('Market', () => {
                     orders: 1,
                     shortPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -7352,6 +7556,7 @@ describe('Market', () => {
                     orders: 1,
                     shortPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -7506,6 +7711,7 @@ describe('Market', () => {
                     orders: 1,
                     shortPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -7657,7 +7863,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      shortNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -7718,7 +7930,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      shortNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -7823,7 +8041,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      shortNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -7888,7 +8112,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      shortNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -7999,7 +8229,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, shortNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_4.timestamp,
+                      orders: 1,
+                      shortNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -8112,7 +8348,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, shortNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_4.timestamp,
+                      orders: 1,
+                      shortNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -8238,7 +8480,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      shortNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -8361,7 +8609,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, shortNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      shortNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -8948,6 +9202,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -9182,6 +9437,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -9429,6 +9685,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -9663,6 +9920,7 @@ describe('Market', () => {
                     orders: 1,
                     shortNeg: POSITION.div(2),
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -9879,6 +10137,7 @@ describe('Market', () => {
                     orders: 1,
                     shortNeg: POSITION.div(2),
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -10203,7 +10462,13 @@ describe('Market', () => {
               .to.emit(market, 'OrderCreated')
               .withArgs(
                 user.address,
-                { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, makerNeg: POSITION.div(2) },
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  makerNeg: POSITION.div(2),
+                  invalidation: 1,
+                },
                 { ...DEFAULT_GUARANTEE },
                 constants.AddressZero,
                 constants.AddressZero,
@@ -10372,6 +10637,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION,
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -10446,6 +10712,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION,
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -10531,7 +10798,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, longPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
+                    longPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -10599,7 +10872,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_2.timestamp, orders: 1, longPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_2.timestamp,
+                    orders: 1,
+                    longPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -10690,7 +10969,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    longPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -10769,7 +11054,13 @@ describe('Market', () => {
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
-                  { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longPos: POSITION.div(2) },
+                  {
+                    ...DEFAULT_ORDER,
+                    timestamp: ORACLE_VERSION_3.timestamp,
+                    orders: 1,
+                    longPos: POSITION.div(2),
+                    invalidation: 1,
+                  },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
                   constants.AddressZero,
@@ -10899,6 +11190,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -11063,6 +11355,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -11210,6 +11503,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -11348,6 +11642,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -11480,6 +11775,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -11618,6 +11914,7 @@ describe('Market', () => {
                     orders: 1,
                     longPos: POSITION.div(2),
                     collateral: COLLATERAL,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   constants.AddressZero,
@@ -11787,7 +12084,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -11849,7 +12152,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -11968,7 +12277,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -12034,7 +12349,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -12159,7 +12480,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_4.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -12280,7 +12607,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(4) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_4.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(4),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -12436,7 +12769,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -12544,7 +12883,13 @@ describe('Market', () => {
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
                     user.address,
-                    { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_3.timestamp, orders: 1, longNeg: POSITION.div(2) },
+                    {
+                      ...DEFAULT_ORDER,
+                      timestamp: ORACLE_VERSION_3.timestamp,
+                      orders: 1,
+                      longNeg: POSITION.div(2),
+                      invalidation: 1,
+                    },
                     { ...DEFAULT_GUARANTEE },
                     constants.AddressZero,
                     constants.AddressZero,
@@ -13161,6 +13506,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -13434,6 +13780,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -13578,6 +13925,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -13838,6 +14186,7 @@ describe('Market', () => {
                     orders: 1,
                     makerNeg: POSITION,
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -14100,6 +14449,7 @@ describe('Market', () => {
                     orders: 1,
                     longNeg: POSITION.div(2),
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -14370,6 +14720,7 @@ describe('Market', () => {
                     orders: 1,
                     longNeg: POSITION.div(2),
                     protection: 1,
+                    invalidation: 1,
                   },
                   { ...DEFAULT_GUARANTEE },
                   liquidator.address,
@@ -15428,7 +15779,13 @@ describe('Market', () => {
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longNeg: POSITION.div(2) },
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                longNeg: POSITION.div(2),
+                invalidation: 1,
+              },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
               constants.AddressZero,
@@ -15466,7 +15823,13 @@ describe('Market', () => {
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, orders: 1, longNeg: POSITION.div(2) },
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_5.timestamp,
+                orders: 1,
+                longNeg: POSITION.div(2),
+                invalidation: 1,
+              },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
               constants.AddressZero,
@@ -15962,6 +16325,7 @@ describe('Market', () => {
                 orders: 1,
                 longNeg: POSITION.div(2),
                 protection: 1,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               liquidator.address,
@@ -16146,6 +16510,7 @@ describe('Market', () => {
                 orders: 1,
                 shortNeg: POSITION.div(2),
                 protection: 1,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               liquidator.address,
@@ -16257,6 +16622,7 @@ describe('Market', () => {
                 orders: 1,
                 shortNeg: POSITION.div(2),
                 protection: 1,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               liquidator.address,
@@ -16296,6 +16662,7 @@ describe('Market', () => {
                 orders: 1,
                 shortNeg: POSITION.div(2),
                 protection: 1,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               liquidator.address,
@@ -16903,6 +17270,7 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -17046,6 +17414,7 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -17074,7 +17443,13 @@ describe('Market', () => {
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longPos: POSITION.div(2) },
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                invalidation: 1,
+              },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
               constants.AddressZero,
@@ -17240,6 +17615,7 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -17268,7 +17644,13 @@ describe('Market', () => {
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_4.timestamp, orders: 1, longPos: POSITION.div(2) },
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                invalidation: 1,
+              },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
               constants.AddressZero,
@@ -17435,6 +17817,7 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -17617,6 +18000,7 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -17660,7 +18044,13 @@ describe('Market', () => {
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
-              { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_5.timestamp, orders: 1, longPos: POSITION.div(2) },
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_5.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                invalidation: 1,
+              },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
               constants.AddressZero,
@@ -17834,6 +18224,7 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -18064,10 +18455,24 @@ describe('Market', () => {
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
+          expect((await market.pendingOrders(user.address, 1)).invalidation).to.be.equal(0)
+          expect((await market.pendingOrders(userB.address, 1)).invalidation).to.be.equal(1)
+          expect((await market.pendingOrders(userC.address, 1)).invalidation).to.be.equal(0)
+          expect((await market.pendingOrders(userD.address, 1)).invalidation).to.be.equal(1)
+          expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userB.address)).invalidation).to.be.equal(1)
+          expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userD.address)).invalidation).to.be.equal(1)
+
           await settle(market, user)
           await settle(market, userB)
           await settle(market, userC)
           await settle(market, userD)
+
+          expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userB.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
+          expect((await market.pendings(userD.address)).invalidation).to.be.equal(0)
 
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
@@ -18517,6 +18922,7 @@ describe('Market', () => {
                 orders: 1,
                 makerPos: POSITION,
                 collateral: COLLATERAL,
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -20587,6 +20993,7 @@ describe('Market', () => {
                 makerPos: POSITION,
                 collateral: COLLATERAL,
                 makerReferral: POSITION.div(5),
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -20715,6 +21122,7 @@ describe('Market', () => {
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
                 takerReferral: POSITION.div(10),
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -20880,6 +21288,7 @@ describe('Market', () => {
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
                 takerReferral: POSITION.div(10),
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -25338,6 +25747,7 @@ describe('Market', () => {
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
                 takerReferral: POSITION.div(10),
+                invalidation: 1,
               },
               { ...DEFAULT_GUARANTEE },
               constants.AddressZero,
@@ -25501,6 +25911,7 @@ describe('Market', () => {
                 orders: 1,
                 longPos: POSITION.div(2),
                 takerReferral: POSITION.div(2).mul(2).div(10),
+                invalidation: 1,
               },
               DEFAULT_GUARANTEE,
               constants.AddressZero,

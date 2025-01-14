@@ -125,7 +125,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           user.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_1,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -228,7 +235,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           user.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_1,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -344,7 +358,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_1,
+            orders: 1,
+            longPos: LONG_POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -482,7 +503,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            longPos: LONG_POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -656,7 +684,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: LONG_POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_1,
+            orders: 1,
+            longPos: LONG_POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -832,7 +867,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_1,
+            orders: 1,
+            shortPos: SHORT_POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -970,7 +1012,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            shortPos: SHORT_POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -1142,7 +1191,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: SHORT_POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_1,
+            orders: 1,
+            shortPos: SHORT_POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
