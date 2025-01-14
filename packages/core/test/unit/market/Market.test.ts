@@ -18953,12 +18953,148 @@ describe('Market', () => {
           factory.authorization
             .whenCalledWith(userB.address, userC.address, userB.address, constants.AddressZero)
             .returns([true, true, constants.Zero])
-          // fake message verification (maybe unnecessary)
-          verifier.verifyIntent.returns()
-          verifier.verifyFill.returns()
-          await market.connect(userC)[MARKET_UPDATE_FILL_PROTOTYPE](fill, DEFAULT_SIGNATURE, DEFAULT_SIGNATURE)
+          await expect(market.connect(userC)[MARKET_UPDATE_FILL_PROTOTYPE](fill, DEFAULT_SIGNATURE, DEFAULT_SIGNATURE))
+            .to.emit(market, 'OrderCreated')
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+              },
+              {
+                ...DEFAULT_GUARANTEE,
+                orders: 1,
+                longPos: POSITION.div(2),
+                notional: POSITION.div(2).mul(125),
+              },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
+            )
+            .to.emit(market, 'OrderCreated')
+            .withArgs(
+              userB.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                shortPos: POSITION.div(2),
+              },
+              {
+                ...DEFAULT_GUARANTEE,
+                orders: 0,
+                shortPos: POSITION.div(2),
+                notional: -POSITION.div(2).mul(125),
+                takerFee: POSITION.div(2),
+              },
+              constants.AddressZero,
+              constants.AddressZero,
+              constants.AddressZero,
+            )
 
-          // TODO: tie out the market
+          // check user order and guarantee
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            longPos: POSITION.div(2),
+            collateral: COLLATERAL,
+          })
+          expectGuaranteeEq(await market.guarantees(user.address, 1), {
+            ...DEFAULT_GUARANTEE,
+            orders: 1,
+            longPos: POSITION.div(2),
+            notional: POSITION.div(2).mul(125),
+          })
+
+          // check userB order and guarantee
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            shortPos: POSITION.div(2),
+            collateral: COLLATERAL,
+          })
+          expectGuaranteeEq(await market.guarantees(userB.address, 1), {
+            ...DEFAULT_GUARANTEE,
+            orders: 0,
+            shortPos: POSITION.div(2),
+            notional: -POSITION.div(2).mul(125),
+            takerFee: POSITION.div(2),
+          })
+
+          // check market prior to settlement
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 3,
+            makerPos: POSITION,
+            shortPos: POSITION.div(2),
+            longPos: POSITION.div(2),
+            collateral: COLLATERAL.mul(3),
+          })
+
+          // settle and check the market
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+          await settle(market, user)
+          await settle(market, userB)
+          await settle(market, userC)
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+            short: POSITION.div(2),
+          })
+
+          // check user state
+          const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
+          const EXPECTED_USER_COLLATERAL = COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL)
+          const EXPECTED_USERB_COLLATERAL = COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
+            .add(EXPECTED_PNL)
+            .sub(SETTLEMENT_FEE.div(2))
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 1,
+            collateral: EXPECTED_USER_COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: EXPECTED_USER_COLLATERAL,
+          })
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+          })
+
+          // check userB state
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 1,
+            collateral: EXPECTED_USERB_COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+            collateral: EXPECTED_USERB_COLLATERAL,
+          })
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            short: POSITION.div(2),
+          })
         })
       })
 
