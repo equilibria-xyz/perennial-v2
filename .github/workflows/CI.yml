@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - v2.4-mini
+      - britz-invalidation-semaphore
   workflow_dispatch:
 
 env:
