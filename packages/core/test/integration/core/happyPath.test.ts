@@ -1967,7 +1967,7 @@ describe('Happy Path', () => {
         },
         {
           ...DEFAULT_GUARANTEE,
-          orders: 0,
+          orders: 1,
           longPos: POSITION.div(4),
           notional: POSITION.div(4).mul(125),
           takerFee: POSITION.div(4),
@@ -2002,7 +2002,7 @@ describe('Happy Path', () => {
     })
     expectGuaranteeEq(await market.guarantees(userB.address, 1), {
       ...DEFAULT_GUARANTEE,
-      orders: 0,
+      orders: 1,
       longPos: POSITION.div(4),
       notional: POSITION.div(4).mul(125),
       takerFee: POSITION.div(4),

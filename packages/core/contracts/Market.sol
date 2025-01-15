@@ -178,7 +178,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bytes memory solverSignature
     ) external nonReentrant whenNotPaused {
         if (fill.intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
-        // TODO: confirm market on Fill and Intent matches
 
         verifier.verifyIntent(fill.intent, traderSignature);
         verifier.verifyFill(fill, solverSignature);
@@ -192,7 +191,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             address(0),
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
-            true, // TODO: remove after PR#529 merged
             false
         ); // solver
         _updateIntent(
@@ -204,7 +202,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             fill.intent.solver,
             fill.intent.fee,
             fill.intent.collateralization,
-            false, // TODO: remove after PR#529 merged
             true
         ); // trader
     }

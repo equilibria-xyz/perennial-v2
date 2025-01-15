@@ -19388,7 +19388,7 @@ describe('Market', () => {
               },
               {
                 ...DEFAULT_GUARANTEE,
-                orders: 0,
+                orders: 1,
                 shortPos: POSITION.div(2),
                 notional: -POSITION.div(2).mul(125),
                 takerFee: POSITION.div(2),
@@ -19423,7 +19423,7 @@ describe('Market', () => {
           })
           expectGuaranteeEq(await market.guarantees(userB.address, 1), {
             ...DEFAULT_GUARANTEE,
-            orders: 0,
+            orders: 1,
             shortPos: POSITION.div(2),
             notional: -POSITION.div(2).mul(125),
             takerFee: POSITION.div(2),
@@ -19464,9 +19464,7 @@ describe('Market', () => {
           // check user state
           const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
           const EXPECTED_USER_COLLATERAL = COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL)
-          const EXPECTED_USERB_COLLATERAL = COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2))
-            .add(EXPECTED_PNL)
-            .sub(SETTLEMENT_FEE.div(2))
+          const EXPECTED_USERB_COLLATERAL = COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL)
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
             currentId: 1,
