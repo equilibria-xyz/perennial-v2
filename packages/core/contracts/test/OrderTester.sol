@@ -50,8 +50,8 @@ abstract contract OrderTester {
         return read().isEmpty();
     }
 
-    function magnitude() external view returns (Fixed6) {
-        return read().magnitude();
+    function crossesZero() external view returns (bool) {
+        return read().crossesZero();
     }
 
     function from(

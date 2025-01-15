@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 
@@ -52,11 +52,11 @@ library MagicValueLib {
         UFixed6 currentPosition,
         UFixed6 newPosition
     ) private pure returns (UFixed6) {
-        if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION))
-            return currentPosition;
+        if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION)) return currentPosition;
         if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
-            if (currentPosition.isZero()) return currentPosition;
-            return currentPosition.sub(context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg()));
+            if (currentPosition.isZero()) return UFixed6Lib.ZERO;           // side is empty
+            if (context.pendingLocal.crossesZero()) return currentPosition; // pending zero-cross, max close is no-op
+            return context.pendingLocal.pos().min(currentPosition);         // minimum position is pending open, or current position if smaller (due to intents)
         }
         return newPosition;
     }

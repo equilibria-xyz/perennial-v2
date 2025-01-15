@@ -52,146 +52,6 @@ describe('Order', () => {
     describe('common behavoir', () => {
       shouldBehaveLike(() => ({ order: orderGlobal, validStoredOrder: VALID_STORED_ORDER }))
     })
-
-    describe('#store', () => {
-      it('stores a new value', async () => {
-        await orderGlobal.store(VALID_STORED_ORDER)
-
-        const value = await orderGlobal.read()
-        expect(value.makerPos).to.equal(3)
-        expect(value.makerNeg).to.equal(4)
-        expect(value.longPos).to.equal(5)
-        expect(value.longNeg).to.equal(6)
-        expect(value.shortPos).to.equal(7)
-        expect(value.shortNeg).to.equal(8)
-      })
-
-      context('.makerPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.makerNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.longPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.longNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.shortPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.shortNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-    })
   })
 
   describe('local', () => {
@@ -236,132 +96,6 @@ describe('Order', () => {
         expect(value.invalidation).to.equal(13)
       })
 
-      context('.makerPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.makerNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.longPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.longNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.shortPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.shortNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
       context('.protection', async () => {
         const STORAGE_SIZE = 1
         it('saves if in range', async () => {
@@ -373,7 +107,7 @@ describe('Order', () => {
           expect(value.protection).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if protection out of range', async () => {
           await expect(
             orderLocal.store({
               ...DEFAULT_ORDER,
@@ -394,7 +128,7 @@ describe('Order', () => {
           expect(value.invalidation).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if invalidation out of range', async () => {
           await expect(
             orderLocal.store({
               ...DEFAULT_ORDER,
@@ -759,7 +493,7 @@ describe('Order', () => {
           expect(value.timestamp).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if timestamp out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
@@ -780,7 +514,7 @@ describe('Order', () => {
           expect(value.orders).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if orders out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
@@ -829,6 +563,132 @@ describe('Order', () => {
         })
       })
 
+      context('.makerPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if makerPos out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.makerNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if makerNeg out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.longPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if longPos out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.longNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            longNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.longNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if longNeg out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              longNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.shortPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if shortPos out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.shortNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if shortNeg out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+        })
+      })
+
       context('.makerReferral', async () => {
         const STORAGE_SIZE = 64
         it('saves if in range', async () => {
@@ -840,7 +700,7 @@ describe('Order', () => {
           expect(value.makerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if makerReferral out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
@@ -861,7 +721,7 @@ describe('Order', () => {
           expect(value.takerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if takerReferral out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
@@ -1261,20 +1121,25 @@ describe('Order', () => {
       })
     })
 
-    describe('#magnitude', () => {
-      it('calculate order magnitude', async () => {
-        await order.store({
-          ...DEFAULT_ORDER,
-          makerPos: 10,
-          makerNeg: 5,
-          longPos: 10,
-          longNeg: 5,
-          shortPos: 10,
-          shortNeg: 5,
-        })
-        const result = await order.magnitude()
+    describe('#crossesZero', () => {
+      it('crosses zero (long)', async () => {
+        await order.store({ ...DEFAULT_ORDER, longPos: 4, shortPos: 7, shortNeg: 8 })
+        expect(await order.crossesZero()).to.equal(true)
+      })
 
-        expect(result).to.equals(15)
+      it('crosses zero (short)', async () => {
+        await order.store({ ...DEFAULT_ORDER, longPos: 4, longNeg: 5, shortPos: 7 })
+        expect(await order.crossesZero()).to.equal(true)
+      })
+
+      it('doesnt cross zero (long)', async () => {
+        await order.store({ ...DEFAULT_ORDER, longPos: 4, longNeg: 5 })
+        expect(await order.crossesZero()).to.equal(false)
+      })
+
+      it('doesnt cross zero (short)', async () => {
+        await order.store({ ...DEFAULT_ORDER, shortPos: 7, shortNeg: 8 })
+        expect(await order.crossesZero()).to.equal(false)
       })
     })
   }

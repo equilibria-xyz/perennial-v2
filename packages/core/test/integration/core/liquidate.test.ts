@@ -116,7 +116,7 @@ describe('Liquidate', () => {
           userBCollateral.mul(-1).sub(1),
           false,
         ),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError') // underflow
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError') // underflow
 
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true) // liquidate
 
