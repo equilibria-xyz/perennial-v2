@@ -38,7 +38,12 @@ struct Order {
     UFixed6 shortNeg;
 
     /// @dev The protection status semaphore (local only)
+    ///      (0 = no protection, 1+ = protected)
     uint256 protection;
+
+    /// @dev The invalidation status semaphore (local only)
+    ///      (0 = no invalidation possible / intent only, 1+ = partially or fully invalidatable)
+    uint256 invalidation;
 
     /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 makerReferral;
@@ -72,7 +77,8 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-        (self.timestamp, self.orders, self.collateral, self.protection) = (timestamp, 0, Fixed6Lib.ZERO, 0);
+        (self.timestamp, self.orders, self.collateral, self.protection, self.invalidation) =
+            (timestamp, 0, Fixed6Lib.ZERO, 0, 0);
     }
 
     /// @notice Invalidates the non-guarantee portion of the order
@@ -100,11 +106,11 @@ library OrderLib {
         Fixed6 takerAmount,
         Fixed6 collateral,
         bool protect,
+        bool invalidatable,
         UFixed6 referralFee
     ) internal pure returns (Order memory newOrder) {
         newOrder.timestamp = timestamp;
         newOrder.collateral = collateral;
-        newOrder.orders = makerAmount.isZero() && takerAmount.isZero() ? 0 : 1;
         newOrder.protection = protect ? 1 : 0;
         newOrder.makerReferral = makerAmount.abs().mul(referralFee);
         newOrder.takerReferral = takerAmount.abs().mul(referralFee);
@@ -122,6 +128,11 @@ library OrderLib {
 
         newOrder.makerPos = makerAmount.max(Fixed6Lib.ZERO).abs();
         newOrder.makerNeg = makerAmount.min(Fixed6Lib.ZERO).abs();
+
+        if (!isEmpty(newOrder)) {
+            newOrder.orders = 1;
+            if (invalidatable) newOrder.invalidation = 1;
+        }
     }
 
     /// @notice Creates a new order from the current position and an update request
@@ -163,10 +174,14 @@ library OrderLib {
             shortAmount.max(Fixed6Lib.ZERO).abs(),
             shortAmount.min(Fixed6Lib.ZERO).abs(),
             protect ? 1 : 0,
+            0,
             makerAmount.isZero() ? UFixed6Lib.ZERO : referral,
             makerAmount.isZero() ? referral : UFixed6Lib.ZERO
         );
-        if (!isEmpty(newOrder)) newOrder.orders = 1;
+        if (!isEmpty(newOrder)) {
+            newOrder.orders = 1;
+            newOrder.invalidation = 1;
+        }
     }
 
     /// @notice Returns whether the order increases any of the account's positions
@@ -320,10 +335,11 @@ library OrderLib {
     /// @param self The order object to update
     /// @param order The new order
     function add(Order memory self, Order memory order) internal pure {
-        (self.orders, self.collateral, self.protection, self.makerReferral, self.takerReferral) = (
+        (self.orders, self.collateral, self.protection, self.invalidation, self.makerReferral, self.takerReferral) = (
             self.orders + order.orders,
             self.collateral.add(order.collateral),
             self.protection + order.protection,
+            self.invalidation + order.invalidation,
             self.makerReferral.add(order.makerReferral),
             self.takerReferral.add(order.takerReferral)
         );
@@ -342,10 +358,11 @@ library OrderLib {
     /// @param self The order object to update
     /// @param order The latest order
     function sub(Order memory self, Order memory order) internal pure {
-        (self.orders, self.collateral, self.protection, self.makerReferral, self.takerReferral) = (
+        (self.orders, self.collateral, self.protection, self.invalidation, self.makerReferral, self.takerReferral) = (
             self.orders - order.orders,
             self.collateral.sub(order.collateral),
             self.protection - order.protection,
+            self.invalidation - order.invalidation,
             self.makerReferral.sub(order.makerReferral),
             self.takerReferral.sub(order.takerReferral)
         );
@@ -397,6 +414,7 @@ library OrderStorageGlobalLib {
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)),
+            0,
             0,
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64))
@@ -451,6 +469,7 @@ library OrderStorageGlobalLib {
 ///         /* slot 1 */
 ///         uint64 takerReferral;
 ///         uint64 makerReferral;
+///         uint8 invalidation;
 ///     }
 ///
 library OrderStorageLocalLib {
@@ -472,6 +491,7 @@ library OrderStorageLocalLib {
             direction == 2 ? magnitudePos : UFixed6Lib.ZERO,
             direction == 2 ? magnitudeNeg : UFixed6Lib.ZERO,
             uint256(slot0 << (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1)) >> (256 - 1),
+            uint256(slot1 << (256 - 64 - 64 - 8)) >> (256 - 8),
             UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64))
         );
@@ -485,6 +505,7 @@ library OrderStorageLocalLib {
         if (magnitudePos.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
         if (magnitudeNeg.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
         if (newValue.protection > 1) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.invalidation > type(uint8).max) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
@@ -496,7 +517,8 @@ library OrderStorageLocalLib {
             uint256(newValue.protection << (256 - 1)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1);
         uint256 encoded1 =
             uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64) |
+            uint256(newValue.invalidation << (256 - 8)) >> (256 - 64 - 64 - 8);
 
         assembly {
             sstore(self.slot, encoded0)
