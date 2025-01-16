@@ -6,44 +6,52 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { signTake } from '@perennial/v2-core/test/helpers/erc712'
+import { signSignerUpdate, signTake } from '@perennial/v2-core/test/helpers/erc712'
 import { IMarket, IMarketFactory, IVerifier } from '@perennial/v2-core/types/generated'
-import { TakeStruct } from '@perennial/v2-core/types/generated/contracts/Market'
 
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { getEventArguments } from '../../../../common/testutil/transaction'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { signDeployAccount, signRelayedTake } from '../../helpers/CollateralAccounts/eip712'
 import {
-  IAccount,
-  IAccount__factory,
-  IERC20,
-  IERC20Metadata,
-  IEmptySetReserve,
-  IAccountVerifier,
-  AccountVerifier__factory,
-  Controller_Incentivized,
+  expectSignerUpdateEq,
+  expectTakeEq,
+  parse6decimal,
+  SignerUpdate,
+  Take,
+} from '../../../../common/testutil/types'
+import { signDeployAccount, signRelayedSignerUpdate, signRelayedTake } from '../../helpers/CollateralAccounts/eip712'
+import {
   Account__factory,
-  Controller_Arbitrum__factory,
+  AccountVerifier__factory,
   AggregatorV3Interface,
   ArbGasInfo,
+  Controller_Arbitrum__factory,
+  Controller_Incentivized,
+  IAccount,
+  IAccount__factory,
+  IAccountVerifier,
+  IERC20,
+  IEmptySetReserve,
 } from '../../../types/generated'
-import { RelayedTakeStruct } from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import {
+  RelayedTakeStruct,
+  RelayedSignerUpdateStruct,
+} from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 const { ethers } = HRE
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
 const KEEP_CONFIG = '(uint256,uint256,uint256,uint256)'
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
 
-describe('Controller', () => {
+describe('Controller_Incentivized', () => {
   let controller: Controller_Incentivized
   let marketFactory: FakeContract<IMarketFactory>
   let marketVerifier: FakeContract<IVerifier>
+  let dsu: FakeContract<IERC20>
   let verifier: IAccountVerifier
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
+  let relayer: SignerWithAddress
   let lastNonce = 0
 
   // create a default action for the specified user with reasonable fee and expiry
@@ -56,14 +64,25 @@ describe('Controller', () => {
     return {
       action: {
         maxFee: maxFee,
-        common: {
-          account: userAddress,
-          signer: signerAddress,
-          domain: controller.address,
-          nonce: nextNonce(),
-          group: 0,
-          expiry: (await currentBlockTimestamp()) + expiresInSeconds,
-        },
+        ...(await createCommon(userAddress, signerAddress, controller.address, expiresInSeconds)),
+      },
+    }
+  }
+
+  async function createCommon(
+    userAddress: Address,
+    signerAddress = userAddress,
+    domainAdress = controller.address,
+    expiresInSeconds = 6,
+  ) {
+    return {
+      common: {
+        account: userAddress,
+        signer: signerAddress,
+        domain: domainAdress,
+        nonce: nextNonce(),
+        group: 0,
+        expiry: (await currentBlockTimestamp()) + expiresInSeconds,
       },
     }
   }
@@ -89,9 +108,9 @@ describe('Controller', () => {
   }
 
   const fixture = async () => {
-    ;[owner, userA, userB] = await ethers.getSigners()
+    ;[owner, userA, userB, relayer] = await ethers.getSigners()
     const usdc = await smock.fake<IERC20>('IERC20')
-    const dsu = await smock.fake<IERC20>('IERC20')
+    dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     marketVerifier = await smock.fake<IVerifier>('IVerifier')
@@ -139,14 +158,13 @@ describe('Controller', () => {
 
   describe('#relayer', () => {
     it('relays a message for a taker to update their market position with a delta', async () => {
-      // create a collateral account for the taker
-      const account = await createCollateralAccount(userA)
+      // create a collateral account for the taker to pay the relayer
+      await createCollateralAccount(userA)
       // create a market in which taker position should be adjusted
-      const dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
       const market = await smock.fake<IMarket>('IMarket')
 
       // taker (userA) creates and signs the inner message
-      const take: TakeStruct = {
+      const take: Take = {
         amount: parse6decimal('7.5'),
         referrer: constants.AddressZero,
         common: {
@@ -160,22 +178,75 @@ describe('Controller', () => {
       }
       const innerSignature = await signTake(userA, marketVerifier, take)
 
-      // relayer (userB) creates and signs the outer message
+      // userB creates and signs the outer message
       const relayTake: RelayedTakeStruct = {
         take: take,
         ...(await createAction(userB.address)),
       }
       const outerSignature = await signRelayedTake(userB, verifier, relayTake)
+      // note the userB has no collateral account; relayer is paid from userA's collateral account
 
       // relayer relays the message
-      expect(await controller.connect(userB).relayTake(relayTake, outerSignature, innerSignature)).to.not.be.reverted
-
-      // TODO: find a cleaner way to compare these structs, maybe using the expectEq pattern
-      const actualTake = market[MARKET_UPDATE_TAKE_PROTOTYPE].getCall(0).args[0] as TakeStruct
-      expect(actualTake.amount).to.equal(take.amount)
-      expect(actualTake.referrer).to.equal(take.referrer)
-      //expect(actualTake.common).to.deep.contain(take.common) // FIXME: this doesn't work
+      expect(await controller.connect(relayer).relayTake(relayTake, outerSignature, innerSignature)).to.not.be.reverted
+      const actualTake = market[MARKET_UPDATE_TAKE_PROTOTYPE].getCall(0).args[0] as Take
+      expectTakeEq(actualTake, take)
       expect(market[MARKET_UPDATE_TAKE_PROTOTYPE].getCall(0).args[1]).to.equal(innerSignature)
+    })
+
+    it('reverts if outer message signature is invalid', async () => {
+      // taker (userA) creates and signs the inner message
+      const market = await smock.fake<IMarket>('IMarket')
+      const take: Take = {
+        amount: parse6decimal('7.5'),
+        referrer: constants.AddressZero,
+        common: {
+          account: userA.address,
+          signer: userA.address,
+          domain: market.address,
+          nonce: nextNonce(),
+          group: 0,
+          expiry: (await currentBlockTimestamp()) + 12,
+        },
+      }
+      const innerSignature = await signTake(userA, marketVerifier, take)
+
+      // relayer creates and signs an outer message to have userB pay for the update
+      const relayTake: RelayedTakeStruct = {
+        take: take,
+        ...(await createAction(userB.address)),
+      }
+      const outerSignature = await signRelayedTake(relayer, verifier, relayTake)
+
+      // but relayer is not an authorized signer for userB
+      await expect(
+        controller.connect(relayer).relayTake(relayTake, outerSignature, innerSignature),
+      ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
+    })
+
+    it('relays a signer update message', async () => {
+      await createCollateralAccount(userB)
+      // userA signs a message to approve userB as a designated signer
+      const signerUpdate = {
+        access: {
+          accessor: userB.address,
+          approved: true,
+        },
+        ...(await createCommon(userA.address, userA.address, marketFactory.address)),
+      }
+      const innerSignature = await signSignerUpdate(userA, marketVerifier, signerUpdate)
+
+      // userB relays the message
+      const relaySignerUpdate: RelayedSignerUpdateStruct = {
+        signerUpdate: signerUpdate,
+        ...(await createAction(userB.address)),
+      }
+      const outerSignature = await signRelayedSignerUpdate(userB, verifier, relaySignerUpdate)
+
+      expect(await controller.connect(relayer).relaySignerUpdate(relaySignerUpdate, outerSignature, innerSignature)).to
+        .not.be.reverted
+      const actualSignerUpdate = marketFactory.updateSignerWithSignature.getCall(0).args[0] as SignerUpdate
+      expectSignerUpdateEq(actualSignerUpdate, signerUpdate)
+      expect(marketFactory.updateSignerWithSignature.getCall(0).args[1]).to.equal(innerSignature)
     })
   })
 })
