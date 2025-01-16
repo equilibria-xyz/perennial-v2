@@ -107,7 +107,7 @@ describe('Order', () => {
           expect(value.protection).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if protection out of range', async () => {
           await expect(
             orderLocal.store({
               ...DEFAULT_ORDER,
@@ -128,7 +128,7 @@ describe('Order', () => {
           expect(value.invalidation).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if invalidation out of range', async () => {
           await expect(
             orderLocal.store({
               ...DEFAULT_ORDER,
@@ -537,7 +537,7 @@ describe('Order', () => {
           expect(value.timestamp).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if timestamp out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
@@ -558,7 +558,7 @@ describe('Order', () => {
           expect(value.orders).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if orders out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
@@ -618,7 +618,7 @@ describe('Order', () => {
           expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if makerPos out of range', async () => {
           await expect(
             order.store({
               ...DEFAULT_ORDER,
@@ -639,7 +639,7 @@ describe('Order', () => {
           expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if makerNeg out of range', async () => {
           await expect(
             order.store({
               ...DEFAULT_ORDER,
@@ -660,7 +660,7 @@ describe('Order', () => {
           expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if longPos out of range', async () => {
           await expect(
             order.store({
               ...DEFAULT_ORDER,
@@ -675,17 +675,17 @@ describe('Order', () => {
         it('saves if in range', async () => {
           await order.store({
             ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            longNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
           const value = await order.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+          expect(value.longNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if longNeg out of range', async () => {
           await expect(
             order.store({
               ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+              longNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
           ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
         })
@@ -702,7 +702,7 @@ describe('Order', () => {
           expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if shortPos out of range', async () => {
           await expect(
             order.store({
               ...DEFAULT_ORDER,
@@ -723,7 +723,7 @@ describe('Order', () => {
           expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if shortNeg out of range', async () => {
           await expect(
             order.store({
               ...DEFAULT_ORDER,
@@ -744,7 +744,7 @@ describe('Order', () => {
           expect(value.makerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if makerReferral out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
@@ -765,7 +765,7 @@ describe('Order', () => {
           expect(value.takerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if takerReferral out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
@@ -1176,13 +1176,13 @@ describe('Order', () => {
         expect(await order.crossesZero()).to.equal(true)
       })
 
-      it('doesnt crosses zero (long)', async () => {
+      it('doesnt cross zero (long)', async () => {
         await order.store({ ...DEFAULT_ORDER, longPos: 4, longNeg: 5 })
         expect(await order.crossesZero()).to.equal(false)
       })
 
-      it('doesnt crosses zero (short)', async () => {
-        await order.store({ ...DEFAULT_ORDER, longPos: 4, longNeg: 5 })
+      it('doesnt cross zero (short)', async () => {
+        await order.store({ ...DEFAULT_ORDER, shortPos: 7, shortNeg: 8 })
         expect(await order.crossesZero()).to.equal(false)
       })
     })
