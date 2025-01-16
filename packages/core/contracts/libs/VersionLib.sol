@@ -13,6 +13,7 @@ import { Guarantee } from "../types/Guarantee.sol";
 import { Version } from "../types/Version.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { OracleReceipt } from "../types/OracleReceipt.sol";
+import "hardhat/console.sol";
 
 /// @dev The response of the version accumulation
 ///      Contains only select fee information needed for the downstream market contract
@@ -366,7 +367,7 @@ library VersionLib {
         Version memory next,
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
-    ) private pure {
+    ) private view {
         Fixed6 adiabaticFee;
 
         // position fee from positive skew taker orders
@@ -387,6 +388,8 @@ library VersionLib {
             context.toOracleVersion.price.abs()
         );
         next.takerNegOffset.decrement(adiabaticFee, takerNeg);
+        console.log("adiabaticFee", uint256(Fixed6.unwrap(adiabaticFee)));
+        console.log("-adiabaticFee", uint256(-Fixed6.unwrap(adiabaticFee)));
         result.tradeOffset = result.tradeOffset.add(adiabaticFee);
     }
 
