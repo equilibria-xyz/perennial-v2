@@ -6,19 +6,26 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { signSignerUpdate, signTake } from '@perennial/v2-core/test/helpers/erc712'
+import { signAccessUpdateBatch, signSignerUpdate, signTake } from '@perennial/v2-core/test/helpers/erc712'
 import { IMarket, IMarketFactory, IVerifier } from '@perennial/v2-core/types/generated'
 
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { getEventArguments } from '../../../../common/testutil/transaction'
 import {
+  AccessUpdateBatch,
+  expectAccessUpdateBatchEq,
   expectSignerUpdateEq,
   expectTakeEq,
   parse6decimal,
   SignerUpdate,
   Take,
 } from '../../../../common/testutil/types'
-import { signDeployAccount, signRelayedSignerUpdate, signRelayedTake } from '../../helpers/CollateralAccounts/eip712'
+import {
+  signDeployAccount,
+  signRelayedAccessUpdateBatch,
+  signRelayedSignerUpdate,
+  signRelayedTake,
+} from '../../helpers/CollateralAccounts/eip712'
 import {
   Account__factory,
   AccountVerifier__factory,
@@ -51,6 +58,7 @@ describe('Controller_Incentivized', () => {
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
+  let userC: SignerWithAddress
   let relayer: SignerWithAddress
   let lastNonce = 0
 
@@ -108,7 +116,7 @@ describe('Controller_Incentivized', () => {
   }
 
   const fixture = async () => {
-    ;[owner, userA, userB, relayer] = await ethers.getSigners()
+    ;[owner, userA, userB, userC, relayer] = await ethers.getSigners()
     const usdc = await smock.fake<IERC20>('IERC20')
     dsu = await smock.fake<IERC20>('IERC20')
     const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
@@ -223,30 +231,63 @@ describe('Controller_Incentivized', () => {
       ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
     })
 
-    it('relays a signer update message', async () => {
-      await createCollateralAccount(userB)
+    it('relays a signer update message wrapped be a third party', async () => {
       // userA signs a message to approve userB as a designated signer
       const signerUpdate = {
         access: {
-          accessor: userB.address,
+          accessor: userC.address,
           approved: true,
         },
         ...(await createCommon(userA.address, userA.address, marketFactory.address)),
       }
       const innerSignature = await signSignerUpdate(userA, marketVerifier, signerUpdate)
 
-      // userB relays the message
+      // userB wraps the message and will pay the relayer
+      await createCollateralAccount(userB)
       const relaySignerUpdate: RelayedSignerUpdateStruct = {
         signerUpdate: signerUpdate,
         ...(await createAction(userB.address)),
       }
       const outerSignature = await signRelayedSignerUpdate(userB, verifier, relaySignerUpdate)
 
+      // relayer performs the action
       expect(await controller.connect(relayer).relaySignerUpdate(relaySignerUpdate, outerSignature, innerSignature)).to
         .not.be.reverted
       const actualSignerUpdate = marketFactory.updateSignerWithSignature.getCall(0).args[0] as SignerUpdate
       expectSignerUpdateEq(actualSignerUpdate, signerUpdate)
       expect(marketFactory.updateSignerWithSignature.getCall(0).args[1]).to.equal(innerSignature)
+    })
+
+    it('relays a self-wrapped batch access update', async () => {
+      // userA signs a message to approve userB and userC as operators
+      const accessUpdateBatch = {
+        operators: [
+          { accessor: userB.address, approved: true },
+          { accessor: userC.address, approved: true },
+        ],
+        signers: [],
+        ...(await createCommon(userA.address, userA.address, marketFactory.address)),
+      }
+      const innerSignature = await signAccessUpdateBatch(userA, marketVerifier, accessUpdateBatch)
+
+      // userA wraps the message and will pay the relayer themselves
+      await createCollateralAccount(userA)
+      const relayedAccessUpdateBatchMessage = {
+        accessUpdateBatch: accessUpdateBatch,
+        ...(await createAction(userA.address)),
+      }
+      const outerSignature = await signRelayedAccessUpdateBatch(userA, verifier, relayedAccessUpdateBatchMessage)
+
+      // relayer performs the action
+      expect(
+        await controller
+          .connect(relayer)
+          .relayAccessUpdateBatch(relayedAccessUpdateBatchMessage, outerSignature, innerSignature),
+      ).to.not.be.reverted
+      const actualAccessUpdateBatch = marketFactory.updateAccessBatchWithSignature.getCall(0)
+        .args[0] as AccessUpdateBatch
+      expectAccessUpdateBatchEq(actualAccessUpdateBatch, accessUpdateBatch)
+      expect(marketFactory.updateAccessBatchWithSignature.getCall(0).args[1]).to.equal(innerSignature)
     })
   })
 })

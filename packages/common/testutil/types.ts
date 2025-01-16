@@ -185,6 +185,17 @@ export interface Take {
   common: Common
 }
 
+export interface AccessUpdate {
+  accessor: string
+  approved: boolean
+}
+
+export interface AccessUpdateBatch {
+  operators: AccessUpdate[]
+  signers: AccessUpdate[]
+  common: Common
+}
+
 export interface SignerUpdate {
   access: {
     accessor: string
@@ -276,6 +287,20 @@ export function expectCommonEq(a: Common, b: Common): void {
 export function expectTakeEq(a: Take, b: Take): void {
   expect(a.amount).to.equal(b.amount, 'Take:Amount')
   expect(a.referrer).to.equal(b.referrer, 'Take:Referrer')
+  expectCommonEq(a.common, b.common)
+}
+
+export function expectAccessUpdateBatchEq(a: AccessUpdateBatch, b: AccessUpdateBatch): void {
+  expect(a.operators.length).to.equal(b.operators.length, 'AccessUpdateBatch:Operators:length')
+  for (let i = 0; i < a.operators.length; i++) {
+    expect(a.operators[i].accessor).to.equal(b.operators[i].accessor, 'AccessUpdateBatch:Operator:Accessor')
+    expect(a.operators[i].approved).to.equal(b.operators[i].approved, 'AccessUpdateBatch:Operator:Approved')
+  }
+  expect(a.signers.length).to.equal(b.signers.length, 'AccessUpdateBatch:Signers:length')
+  for (let i = 0; i < a.signers.length; i++) {
+    expect(a.signers[i].accessor).to.equal(b.signers[i].accessor, 'AccessUpdateBatch:Signer:Accessor')
+    expect(a.signers[i].approved).to.equal(b.signers[i].approved, 'AccessUpdateBatch:Signer:Approved')
+  }
   expectCommonEq(a.common, b.common)
 }
 

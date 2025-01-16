@@ -769,7 +769,7 @@ export function RunIncentivizedTests(
         const COLLATERAL_A = parse6decimal('5000')
         await ethMarket
           .connect(userA)
-          [MARKET_UPDATE_DELTA_PROTOTYPE](userA.address, 0, COLLATERAL_A, constants.AddressZero)
+          [MARKET_UPDATE_DELTA_PROTOTYPE](userA.address, 0, COLLATERAL_A, constants.AddressZero, TX_OVERRIDES)
         // userB deposits and opens maker position, adding liquidity to market
         const COLLATERAL_B = parse6decimal('10000')
         const POSITION_B = parse6decimal('2')
@@ -777,7 +777,7 @@ export function RunIncentivizedTests(
         await deployment.fundWalletDSU(userB, utils.parseEther('10000'), TX_OVERRIDES)
         await ethMarket
           .connect(userB)
-          [MARKET_UPDATE_ABSOLUTE_PROTOTYPE](userB.address, POSITION_B, 0, 0, COLLATERAL_B, false)
+          [MARKET_UPDATE_ABSOLUTE_PROTOTYPE](userB.address, POSITION_B, 0, 0, COLLATERAL_B, false, TX_OVERRIDES)
         expectOrderEq(await ethMarket.pending(), {
           ...DEFAULT_ORDER,
           orders: 1,
