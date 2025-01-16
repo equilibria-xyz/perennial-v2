@@ -1,16 +1,13 @@
 import '@nomiclabs/hardhat-ethers'
 import { task, types } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
-import { gql, request } from 'graphql-request'
-import { IMarket } from '../types/generated'
-import { MulticallABI, MulticallAddress, MulticallPayload } from './multicallUtils'
+import { MulticallABI, MulticallAddress } from './multicallUtils'
 import { getSubgraphUrlFromEnvironment } from './subgraphUtils'
-import { constants } from 'ethers'
+import { getAllMarketUsers, settleMarketUsersPayload } from './settleMarkets'
 
-const GRAPHQL_QUERY_PAGE_SIZE = 1000
 const SETTLE_MULTICALL_BATCH_SIZE = 150
 
-export default task('settle-markets', 'Settles users across all markets')
+export default task('settle-users', 'Settles all users across all markets')
   .addFlag('dry', 'Count number of users and transactions required to settle')
   .addFlag('prevabi', 'Use previous ABIs for contract interaction')
   .addOptionalParam('batchsize', 'The multicall batch size', SETTLE_MULTICALL_BATCH_SIZE, types.int)
@@ -60,15 +57,7 @@ export default task('settle-markets', 'Settles users across all markets')
     }
 
     console.log('[Settle Markets]  Fetching Users to Settle')
-    const requireSettles: { market: string; address: string }[] = await run('verify-ids', {
-      prevabi: args.prevabi,
-      batchsize: args.batchsize,
-    })
-    const marketUsers = requireSettles.reduce((acc, { market, address }) => {
-      if (acc[market]) acc[market].add(address)
-      else acc[market] = new Set([address])
-      return acc
-    }, {} as { [key: string]: Set<string> })
+    const { result: marketUsers } = await getAllMarketUsers(graphURL)
 
     let marketUserCount = 0
     let txCount = 0
@@ -80,21 +69,23 @@ export default task('settle-markets', 'Settles users across all markets')
       }
 
       const users = [...marketUsers[marketAddress].values()].slice(args.offset)
-      marketUserCount += users.length
+
+      const unMigratedUsers = await getUnmigratedUsers(marketAddress, users, ethers)
+      marketUserCount += unMigratedUsers.length
 
       const market = await ethers.getContractAt('IMarket', marketAddress)
 
-      console.log('[Settle Markets]    Settling', users.length, 'users to settle in market', marketAddress)
+      console.log('[Settle Markets]    Settling', unMigratedUsers.length, 'users to settle in market', marketAddress)
 
       let batchedUsers
-      while (users.length > 0) {
+      while (unMigratedUsers.length > 0) {
         // batch multicalls to handle markets with large numbers of users
-        batchedUsers = users.splice(0, batchSize)
+        batchedUsers = unMigratedUsers.splice(0, batchSize)
         console.log(
           '[Settle Markets]      batch contains',
           batchedUsers.length,
           'users',
-          users.length,
+          unMigratedUsers.length,
           'users remaining',
         )
 
@@ -129,50 +120,20 @@ export default task('settle-markets', 'Settles users across all markets')
     console.log('[Settle Markets] Done.')
   })
 
-export async function getAllMarketUsers(
-  graphURL: string,
-): Promise<{ result: { [key: string]: Set<string> }; numQueries: number }> {
-  const query = gql`
-    query getAllUsers($first: Int!, $skip: Int!) {
-      marketAccounts(first: $first, skip: $skip) {
-        market {
-          id
-        }
-        account {
-          id
-        }
-      }
+const getUnmigratedUsers = async (marketAddress: string, users: string[], ethers: any) => {
+  const unMigratedUsers = []
+  for (const user in users) {
+    const userPositionsMappingSlot = 17
+    const userPositionSlot = ethers.utils.keccak256(
+      ethers.utils.defaultAbiCoder.encode(['address', 'uint256'], [user, userPositionsMappingSlot]),
+    )
+    const userPositionData = await ethers.provider.getStorageAt(marketAddress, userPositionSlot)
+
+    // check if user has migrated
+    if (parseInt(userPositionData.slice(0, 4), 16) == 0) {
+      // if layout is 0
+      unMigratedUsers.push(user)
     }
-  `
-
-  let numQueries = 0
-  let page = 0
-  let res: { marketAccounts: { market: { id: string }; account: { id: string } }[] } = await request(graphURL, query, {
-    first: GRAPHQL_QUERY_PAGE_SIZE,
-    skip: page * GRAPHQL_QUERY_PAGE_SIZE,
-  })
-  const rawData = res
-  while (res.marketAccounts.length === GRAPHQL_QUERY_PAGE_SIZE) {
-    page += 1
-    res = await request(graphURL, query, {
-      first: GRAPHQL_QUERY_PAGE_SIZE,
-      skip: page * GRAPHQL_QUERY_PAGE_SIZE,
-    })
-    rawData.marketAccounts = [...rawData.marketAccounts, ...res.marketAccounts]
-    numQueries += 1
   }
-
-  const result: { [key: string]: Set<string> } = {}
-  for (const raw of rawData.marketAccounts) {
-    if (raw.market.id in result) result[raw.market.id].add(raw.account.id)
-    else result[raw.market.id] = new Set([raw.account.id, constants.AddressZero])
-  }
-
-  return { result, numQueries }
-}
-
-// prepares calldata to settle multiple users
-export function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPayload[] {
-  const settles = users.map(user => market.interface.encodeFunctionData('settle', [user]))
-  return settles.map(callData => ({ callData, allowFailure: false, target: market.address }))
+  return unMigratedUsers
 }
