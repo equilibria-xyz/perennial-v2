@@ -170,6 +170,40 @@ export interface SettlementContext {
   orderOracleVersion: OracleVersion
 }
 
+export type Common = {
+  account: string
+  signer: string
+  domain: string
+  nonce: BigNumberish
+  group: BigNumberish
+  expiry: BigNumberish
+}
+
+export interface Take {
+  amount: BigNumberish
+  referrer: string
+  common: Common
+}
+
+export interface AccessUpdate {
+  accessor: string
+  approved: boolean
+}
+
+export interface AccessUpdateBatch {
+  operators: AccessUpdate[]
+  signers: AccessUpdate[]
+  common: Common
+}
+
+export interface SignerUpdate {
+  access: {
+    accessor: string
+    approved: boolean
+  }
+  common: Common
+}
+
 export function expectCheckpointEq(a: Checkpoint, b: Checkpoint): void {
   expect(a.tradeFee).to.equal(b.tradeFee, 'Checkpoint:TradeFee')
   expect(a.settlementFee).to.equal(b.settlementFee, 'Checkpoint:SettlementFee')
@@ -239,6 +273,41 @@ export function expectVersionEq(a: Version, b: Version): void {
   expect(a.takerNegOffset._value).to.equal(b.takerNegOffset._value, 'Version:TakerNegOffset')
   expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
   expect(a.liquidationFee._value).to.equal(b.liquidationFee._value, 'Version:LiquidationFee')
+}
+
+export function expectCommonEq(a: Common, b: Common): void {
+  expect(a.account).to.equal(b.account, 'Common:Account')
+  expect(a.signer).to.equal(b.signer, 'Common:Signer')
+  expect(a.domain).to.equal(b.domain, 'Common:Domain')
+  expect(a.nonce).to.equal(b.nonce, 'Common:Nonce')
+  expect(a.group).to.equal(b.group, 'Common:Group')
+  expect(a.expiry).to.equal(b.expiry, 'Common:Expiry')
+}
+
+export function expectTakeEq(a: Take, b: Take): void {
+  expect(a.amount).to.equal(b.amount, 'Take:Amount')
+  expect(a.referrer).to.equal(b.referrer, 'Take:Referrer')
+  expectCommonEq(a.common, b.common)
+}
+
+export function expectAccessUpdateBatchEq(a: AccessUpdateBatch, b: AccessUpdateBatch): void {
+  expect(a.operators.length).to.equal(b.operators.length, 'AccessUpdateBatch:Operators:length')
+  for (let i = 0; i < a.operators.length; i++) {
+    expect(a.operators[i].accessor).to.equal(b.operators[i].accessor, 'AccessUpdateBatch:Operator:Accessor')
+    expect(a.operators[i].approved).to.equal(b.operators[i].approved, 'AccessUpdateBatch:Operator:Approved')
+  }
+  expect(a.signers.length).to.equal(b.signers.length, 'AccessUpdateBatch:Signers:length')
+  for (let i = 0; i < a.signers.length; i++) {
+    expect(a.signers[i].accessor).to.equal(b.signers[i].accessor, 'AccessUpdateBatch:Signer:Accessor')
+    expect(a.signers[i].approved).to.equal(b.signers[i].approved, 'AccessUpdateBatch:Signer:Approved')
+  }
+  expectCommonEq(a.common, b.common)
+}
+
+export function expectSignerUpdateEq(a: SignerUpdate, b: SignerUpdate): void {
+  expect(a.access.accessor).to.equal(b.access.accessor, 'SignerUpdate:Accessor')
+  expect(a.access.approved).to.equal(b.access.approved, 'SignerUpdate:Approved')
+  expectCommonEq(a.common, b.common)
 }
 
 export function parse6decimal(amount: string): BigNumber {
