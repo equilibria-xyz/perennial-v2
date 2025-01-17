@@ -149,7 +149,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _updateIntent(
             account,
-            address(0),
+            msg.sender,
             intent.amount.mul(Fixed6Lib.NEG_ONE),
             intent.price,
             address(0),
@@ -206,7 +206,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         address referrer
     ) public nonReentrant whenNotPaused {
-        _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer);
+        _updateMarket(account, msg.sender, makerAmount, takerAmount, collateral, referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -245,7 +245,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address referrer
     ) public nonReentrant whenNotPaused {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            _loadForUpdate(account, msg.sender, referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
         // magic values
         (collateral, newMaker, newLong, newShort) =
