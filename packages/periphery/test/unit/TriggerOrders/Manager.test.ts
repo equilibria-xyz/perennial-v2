@@ -12,6 +12,9 @@ import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@per
 import {
   AggregatorV3Interface,
   ArbGasInfo,
+  IAccount,
+  IAccount__factory,
+  IController,
   IEmptySetReserve,
   IOrderVerifier,
   Manager_Arbitrum,
@@ -21,6 +24,7 @@ import {
 import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import { OracleVersionStruct } from '../../../types/generated/contracts/TriggerOrders/test/TriggerOrderTester'
 import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/TriggerOrders/order'
+import { deployController } from '../../helpers/setupHelpers'
 
 const { ethers } = HRE
 
@@ -53,15 +57,24 @@ describe('Manager', () => {
   let market: FakeContract<IMarket>
   let marketOracle: FakeContract<IOracleProvider>
   let verifier: IOrderVerifier
+  let controller: IController
   let ethOracle: FakeContract<AggregatorV3Interface>
   let owner: SignerWithAddress
   let userA: SignerWithAddress
+  let collateralAccountA: IAccount
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
   let nextOrderId = FIRST_ORDER_ID
 
   function advanceOrderId(): BigNumber {
     return (nextOrderId = nextOrderId.add(BigNumber.from(1)))
+  }
+
+  // deploys a collateral account
+  async function createCollateralAccount(user: SignerWithAddress, amount: BigNumber): Promise<IAccount> {
+    const accountAddress = await controller.getAccountAddress(user.address)
+    await controller.connect(user).deployAccount()
+    return IAccount__factory.connect(accountAddress, user)
   }
 
   function createOracleVersion(price: BigNumber, valid = true): OracleVersionStruct {
@@ -79,6 +92,7 @@ describe('Manager', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
     verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
+    controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
 
     // deploy the order manager
     manager = await new Manager_Arbitrum__factory(owner).deploy(
@@ -87,6 +101,7 @@ describe('Manager', () => {
       reserve.address,
       marketFactory.address,
       verifier.address,
+      controller.address,
     )
 
     dsu.approve.whenCalledWith(manager.address).returns(true)
@@ -112,6 +127,8 @@ describe('Manager', () => {
     })
     // no need for meaningful keep configs, as keeper compensation is not tested here
     await manager.initialize(ethOracle.address, KEEP_CONFIG, KEEP_CONFIG)
+    // however users still need a collateral account
+    collateralAccountA = await createCollateralAccount(userA, parse6decimal('100000'))
   }
 
   before(async () => {

@@ -19,7 +19,12 @@ import {
 import { impersonate } from '../../../../../common/testutil'
 import { parse6decimal } from '../../../../../common/testutil/types'
 import { transferCollateral } from '../../../helpers/marketHelpers'
-import { createMarketETH, deployProtocol, deployPythOracleFactory } from '../../../helpers/setupHelpers'
+import {
+  createMarketETH,
+  deployController,
+  deployProtocol,
+  deployPythOracleFactory,
+} from '../../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
 import {
@@ -93,12 +98,14 @@ const fixture = async (): Promise<FixtureVars> => {
 
   // deploy the order manager
   const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
+  const controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
   const manager = await new Manager_Optimism__factory(owner).deploy(
     USDC_ADDRESS,
     dsu.address,
     DSU_RESERVE,
     marketFactory.address,
     verifier.address,
+    controller.address,
   )
 
   const keepConfig = {
