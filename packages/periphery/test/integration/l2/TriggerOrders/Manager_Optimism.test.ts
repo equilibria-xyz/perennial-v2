@@ -122,13 +122,6 @@ const fixture = async (): Promise<FixtureVars> => {
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
 
-  // fund accounts and deposit all into market
-  const amount = parse6decimal('100000')
-  await setupUser(dsu, marketFactory, market, manager, userA, amount)
-  await setupUser(dsu, marketFactory, market, manager, userB, amount)
-  await setupUser(dsu, marketFactory, market, manager, userC, amount)
-  await setupUser(dsu, marketFactory, market, manager, userD, amount)
-
   await mockGasInfo()
 
   return {
@@ -141,6 +134,7 @@ const fixture = async (): Promise<FixtureVars> => {
     market,
     oracle: marketWithOracle.oracle,
     verifier,
+    controller,
     owner,
     userA,
     userB,
@@ -166,4 +160,4 @@ async function mockGasInfo() {
   gasInfo.decimals.returns(6)
 }
 
-if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture)
+if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture, fundWalletDSU)

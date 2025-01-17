@@ -18,7 +18,6 @@ import {
 } from '../../../../types/generated'
 import { impersonate } from '../../../../../common/testutil'
 import { parse6decimal } from '../../../../../common/testutil/types'
-import { transferCollateral } from '../../../helpers/marketHelpers'
 import {
   createMarketETH,
   deployController,
@@ -48,24 +47,6 @@ export async function fundWalletDSU(
 
   expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
   await dsu.transfer(wallet.address, amount, overrides ?? {})
-}
-
-// prepares an account for use with the market and manager
-async function setupUser(
-  dsu: IERC20Metadata,
-  marketFactory: IMarketFactory,
-  market: IMarket,
-  manager: IManager,
-  user: SignerWithAddress,
-  amount: BigNumber,
-) {
-  // funds, approves, and deposits DSU into the market
-  await fundWalletDSU(user, amount.mul(1e12))
-  await dsu.connect(user).approve(market.address, amount.mul(1e12))
-  await transferCollateral(user, market, amount)
-
-  // allows manager to interact with markets on the user's behalf
-  await marketFactory.connect(user).updateOperator(manager.address, true)
 }
 
 const fixture = async (): Promise<FixtureVars> => {
@@ -104,13 +85,6 @@ const fixture = async (): Promise<FixtureVars> => {
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
 
-  // fund accounts and deposit all into market
-  const amount = parse6decimal('100000')
-  await setupUser(dsu, marketFactory, market, manager, userA, amount)
-  await setupUser(dsu, marketFactory, market, manager, userB, amount)
-  await setupUser(dsu, marketFactory, market, manager, userC, amount)
-  await setupUser(dsu, marketFactory, market, manager, userD, amount)
-
   await mockGasInfo()
 
   return {
@@ -123,6 +97,7 @@ const fixture = async (): Promise<FixtureVars> => {
     market,
     oracle: marketWithOracle.oracle,
     verifier,
+    controller,
     owner,
     userA,
     userB,
@@ -146,4 +121,4 @@ async function mockGasInfo() {
   gasInfo.getL1BaseFeeEstimate.returns(1)
 }
 
-if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture)
+if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture, fundWalletDSU)

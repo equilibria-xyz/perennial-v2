@@ -190,8 +190,8 @@ abstract contract Manager is IManager, Kept {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
-        _marketWithdraw(market, account, raisedKeeperFee);
-        // _collateralAccountWithdraw(account, raisedKeeperFee);
+        // _marketWithdraw(market, account, raisedKeeperFee);
+        _collateralAccountWithdraw(account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
     }
@@ -218,16 +218,18 @@ abstract contract Manager is IManager, Kept {
             order.notionalValue(market, account).mul(order.interfaceFee.amount);
 
         _marketWithdraw(market, account, feeAmount);
+        //_collateralAccountWithdraw(account, feeAmount);
 
         claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
         return true;
     }
 
+    /// @dev Transfers DSU from collateral account to manager to pay fees
+    /// @param account Address of the owner of the collateral account (not the account itself)
+    /// @param amount Quantity of DSU to transfer, converted to 18-decimal by callee
     function _collateralAccountWithdraw(address account, UFixed6 amount) private {
-        IAccount collateralAccount = IAccount(controller.getAccountAddress(account));
-        // TODO: need to do this through Controller and establish trust between Manager and Controller
-        collateralAccount.withdraw(amount, false);
+        controller.chargeFee(account, amount);
     }
 
     // TODO: replace this method with _collateralAccountWithdraw
