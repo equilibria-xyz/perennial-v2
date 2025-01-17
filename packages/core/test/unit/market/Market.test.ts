@@ -20942,7 +20942,7 @@ describe('Market', () => {
         })
       })
 
-      context.only('zero crossing', async () => {
+      context('zero crossing', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -21170,24 +21170,10 @@ describe('Market', () => {
           expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userD.address)).invalidation).to.be.equal(1)
 
-          console.log('user')
-          const events = await getOrderProcessingEvents(await settle(market, user))
-          console.log(events[0][0].accumulationResult)
-          console.log(events[0][1].accumulationResult)
-          console.log(events[1][0].accumulationResult)
-          console.log(events[1][1].accumulationResult)
-          console.log('userB')
-          const eventsB = await getOrderProcessingEvents(await settle(market, userB))
-          console.log(eventsB[0][0].accumulationResult)
-          console.log(eventsB[0][1].accumulationResult)
-          console.log('userC')
-          const eventsC = await getOrderProcessingEvents(await settle(market, userC))
-          console.log(eventsC[0][0].accumulationResult)
-          console.log(eventsC[0][1].accumulationResult)
-          console.log('userD')
-          const eventsD = await getOrderProcessingEvents(await settle(market, userD))
-          console.log(eventsD[0][0].accumulationResult)
-          console.log(eventsD[0][1].accumulationResult)
+          await settle(market, user)
+          await settle(market, userB)
+          await settle(market, userC)
+          await settle(market, userD)
 
           expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userB.address)).invalidation).to.be.equal(0)
@@ -22202,19 +22188,10 @@ describe('Market', () => {
           expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userD.address)).invalidation).to.be.equal(1)
 
-          console.log('user')
-          const eventsA1 = await getOrderProcessingEvents(await settle(market, user))
-          console.log(eventsA1[0][0].accumulationResult)
-          console.log(eventsA1[1][0].accumulationResult)
-          console.log('userB')
-          const eventsB2 = await getOrderProcessingEvents(await settle(market, userB))
-          console.log(eventsB2[0][0].accumulationResult)
-          console.log('userC')
-          const eventsC3 = await getOrderProcessingEvents(await settle(market, userC))
-          console.log(eventsC3[0][0].accumulationResult)
-          console.log('userD')
-          const eventsD4 = await getOrderProcessingEvents(await settle(market, userD))
-          console.log(eventsD4[0][0].accumulationResult)
+          await settle(market, user)
+          await settle(market, userB)
+          await settle(market, userC)
+          await settle(market, userD)
 
           expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userB.address)).invalidation).to.be.equal(0)
@@ -22291,19 +22268,10 @@ describe('Market', () => {
           expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userD.address)).invalidation).to.be.equal(0)
 
-          console.log('user')
-          const events = await getOrderProcessingEvents(await settle(market, user))
-          console.log(events[0][0].accumulationResult)
-          console.log(events[1][0].accumulationResult)
-          console.log('userB')
-          const eventsB = await getOrderProcessingEvents(await settle(market, userB))
-          console.log(eventsB[0][0].accumulationResult)
-          console.log('userC')
-          const eventsC = await getOrderProcessingEvents(await settle(market, userC))
-          console.log(eventsC[0][0].accumulationResult)
-          console.log('userD')
-          const eventsD = await getOrderProcessingEvents(await settle(market, userD))
-          console.log(eventsD[0][0].accumulationResult)
+          await settle(market, user)
+          await settle(market, userB)
+          await settle(market, userC)
+          await settle(market, userD)
 
           expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userB.address)).invalidation).to.be.equal(0)
@@ -22732,19 +22700,10 @@ describe('Market', () => {
           expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userD.address)).invalidation).to.be.equal(1)
 
-          console.log('user')
-          const eventsA1 = await getOrderProcessingEvents(await settle(market, user))
-          console.log(eventsA1[0][0].accumulationResult)
-          console.log(eventsA1[1][0].accumulationResult)
-          console.log('userB')
-          const eventsB2 = await getOrderProcessingEvents(await settle(market, userB))
-          console.log(eventsB2[0][0].accumulationResult)
-          console.log('userC')
-          const eventsC3 = await getOrderProcessingEvents(await settle(market, userC))
-          console.log(eventsC3[0][0].accumulationResult)
-          console.log('userD')
-          const eventsD4 = await getOrderProcessingEvents(await settle(market, userD))
-          console.log(eventsD4[0][0].accumulationResult)
+          await settle(market, user)
+          await settle(market, userB)
+          await settle(market, userC)
+          await settle(market, userD)
 
           expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userB.address)).invalidation).to.be.equal(0)
@@ -22872,19 +22831,10 @@ describe('Market', () => {
           expect((await market.pendings(userC.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userD.address)).invalidation).to.be.equal(0)
 
-          console.log('user')
-          const events = await getOrderProcessingEvents(await settle(market, user))
-          console.log(events[0][0].accumulationResult)
-          console.log(events[1][0].accumulationResult)
-          console.log('userB')
-          const eventsB = await getOrderProcessingEvents(await settle(market, userB))
-          console.log(eventsB[0][0].accumulationResult)
-          console.log('userC')
-          const eventsC = await getOrderProcessingEvents(await settle(market, userC))
-          console.log(eventsC[0][0].accumulationResult)
-          console.log('userD')
-          const eventsD = await getOrderProcessingEvents(await settle(market, userD))
-          console.log(eventsD[0][0].accumulationResult)
+          await settle(market, user)
+          await settle(market, userB)
+          await settle(market, userC)
+          await settle(market, userD)
 
           expect((await market.pendings(user.address)).invalidation).to.be.equal(0)
           expect((await market.pendings(userB.address)).invalidation).to.be.equal(0)
@@ -23083,9 +23033,714 @@ describe('Market', () => {
           expect(marketFee).to.be.equal(fee.add(totalPriceImpact).add(totalTakerFee).sub(35)) // loss of precision
         })
 
-        // cant cross amm first
+        it('cant over close w/ amm order pending', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
 
-        // cant cross amm last
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+          })
+
+          const intent = {
+            amount: -POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
+
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+        })
+
+        it('cant cross zero w/ amm order pending', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+          })
+
+          const intent = {
+            amount: -POSITION,
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              POSITION.div(2),
+              0,
+              COLLATERAL,
+              false,
+            )
+
+          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          verifier.verifyIntent.returns()
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+        })
+
+        it('cant amm over close w/ intent-only pending', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+          })
+
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+          verifier.verifyIntent.returns()
+
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent, DEFAULT_SIGNATURE)
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,address)'](
+                user.address,
+                -POSITION.div(2),
+                COLLATERAL,
+                constants.AddressZero,
+              ),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+        })
+
+        it('cant amm cross zero w/ intent-only pending', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+          })
+
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+          verifier.verifyIntent.returns()
+
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent, DEFAULT_SIGNATURE)
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,address)'](user.address, -POSITION, COLLATERAL, constants.AddressZero),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+        })
+
+        it('cant amm over close w/ intent-cross pending', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+          })
+
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const intent2 = {
+            amount: -POSITION,
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+          verifier.verifyIntent.returns()
+
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent, DEFAULT_SIGNATURE)
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent2, DEFAULT_SIGNATURE)
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,address)'](
+                user.address,
+                POSITION.div(2),
+                COLLATERAL,
+                constants.AddressZero,
+              ),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+        })
+
+        it('cant amm cross zero w/ intent-cross pending', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+          })
+
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const intent2 = {
+            amount: -POSITION,
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+          verifier.verifyIntent.returns()
+
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent, DEFAULT_SIGNATURE)
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent2, DEFAULT_SIGNATURE)
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+        })
+
+        it('cant liquidate zero-cross w/ non-empty order', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+          })
+
+          const intent = {
+            amount: POSITION.div(2),
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const intent2 = {
+            amount: -POSITION,
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+          verifier.verifyIntent.returns()
+
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent, DEFAULT_SIGNATURE)
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent2, DEFAULT_SIGNATURE)
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, true),
+          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
+        })
+
+        it('cant liquidate zero-cross w/ non-empty order', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+            staleAfter: 14400,
+          })
+
+          const intent = {
+            amount: -POSITION,
+            price: parse6decimal('125'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.div(20).mul(1e12)).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.div(20), false),
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+          verifier.verifyIntent.returns()
+
+          // initial position to settle + liquidate
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([{ ...ORACLE_VERSION_2 }, { ...INITIALIZED_ORACLE_RECEIPT }])
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+          await settle(market, user)
+
+          // setup pending zero-cross
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent, DEFAULT_SIGNATURE)
+
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([{ ...ORACLE_VERSION_3, price: parse6decimal('25') }, { ...INITIALIZED_ORACLE_RECEIPT }])
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          // liquidate w/ no-op
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(2), 0, true),
+          ).to.not.be.reverted
+        })
       })
 
       context('subtractive fee', async () => {
