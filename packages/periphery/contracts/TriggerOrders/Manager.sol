@@ -266,7 +266,7 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Only the account or an operator can call
     modifier onlyOperator(address account, address operator) {
-        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerInvalidOperatorError();
+        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerNotOperatorError();
         _;
     }
 }
