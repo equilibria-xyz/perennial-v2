@@ -139,6 +139,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates both the long and short positions of an intent order
     /// @dev - One side is specified in the signed intent, while the sender is assumed to be the counterparty
     ///      - The sender is charged the settlement fee
+    ///      - No collateral movement, signer is allowed to self-send
     /// @param account The account that is filling this intent (maker)
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
@@ -174,9 +175,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the account's taker position without collateral change
     /// @param take Message requesting change in user's taker position
     /// @param signature Signature of taker or authorized signer
-    function update(Take calldata take, bytes memory signature) external {
+    function update(Take calldata take, bytes memory signature) external nonReentrant whenNotPaused {
         verifier.verifyTake(take, signature);
         _updateMarket(take.common.account, take.common.signer, Fixed6Lib.ZERO, take.amount, Fixed6Lib.ZERO, take.referrer);
+    }
+
+    /// @notice Updates the account's position and collateral
+    /// @dev No collateral movement, signer is allowed to self-send
+    /// @param account The account to operate on
+    /// @param amount The position delta of the order (positive for long, negative for short)
+    /// @param referrer The referrer of the order
+    function update(address account, Fixed6 amount, address referrer) external nonReentrant whenNotPaused {
+       _updateMarket(account, msg.sender, Fixed6Lib.ZERO, amount, Fixed6Lib.ZERO, referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -189,8 +199,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 amount,
         Fixed6 collateral,
         address referrer
-    ) external {
-        update(account, Fixed6Lib.ZERO, amount, collateral, referrer);
+    ) external nonReentrant whenNotPaused {
+        _updateMarket(account, address(0), Fixed6Lib.ZERO, amount, collateral, referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -205,8 +215,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 takerAmount,
         Fixed6 collateral,
         address referrer
-    ) public nonReentrant whenNotPaused {
-        _updateMarket(account, msg.sender, makerAmount, takerAmount, collateral, referrer);
+    ) external nonReentrant whenNotPaused {
+        _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -245,7 +255,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address referrer
     ) public nonReentrant whenNotPaused {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, msg.sender, referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
         // magic values
         (collateral, newMaker, newLong, newShort) =
