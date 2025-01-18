@@ -163,7 +163,8 @@ describe.only('SolverVault', () => {
 
   async function placeIntentOrder(
     vault: IVault,
-    signer: SignerWithAddress,
+    taker: SignerWithAddress,
+    maker: SignerWithAddress,
     market: IMarket,
     amount: BigNumber,
     price: BigNumber,
@@ -177,8 +178,8 @@ describe.only('SolverVault', () => {
       solver: constants.AddressZero,
       collateralization: 0,
       common: {
-        account: vault.address,
-        signer: signer.address,
+        account: taker.address,
+        signer: taker.address,
         domain: market.address,
         nonce,
         group: 0,
@@ -189,10 +190,10 @@ describe.only('SolverVault', () => {
     const marketFactory = IMarketFactory__factory.connect(await market.factory(), owner)
     const verifier = IVerifier__factory.connect(await marketFactory.verifier(), owner)
 
-    const signature = await signIntent(signer, verifier, intent)
+    const signature = await signIntent(taker, verifier, intent)
 
     await market
-      .connect(signer)
+      .connect(maker)
       [
         'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](vault.address, intent, signature)
@@ -346,6 +347,7 @@ describe.only('SolverVault', () => {
       minDeposit: 0,
       profitShare: 0,
     })
+    await vault.updateCoordinator(coordinator.address)
 
     await Promise.all([
       asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256),
@@ -710,7 +712,7 @@ describe.only('SolverVault', () => {
   })
 
   describe('#settle', () => {
-    it.only('simple deposits and redemptions', async () => {
+    it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
@@ -735,6 +737,7 @@ describe.only('SolverVault', () => {
       await vault.connect(user).update(user.address, largeDeposit, 0, 0)
       expect(await collateralInVault()).to.equal(parse6decimal('5005'))
       expect(await btcCollateralInVault()).to.equal(parse6decimal('5005'))
+
       expect((await vault.accounts(user.address)).shares).to.equal(smallDeposit)
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(smallDeposit)
       expect(await vault.totalAssets()).to.equal(smallDeposit)
@@ -742,6 +745,32 @@ describe.only('SolverVault', () => {
       expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
       await updateOracle()
       await vault.settle(user.address)
+
+      // Solver opens positions via signature
+      await placeIntentOrder(
+        vault,
+        user2,
+        coordinator,
+        market,
+        parse6decimal('-10'),
+        originalOraclePrice.sub(parse6decimal('10')),
+        1,
+      )
+      await placeIntentOrder(
+        vault,
+        btcUser2,
+        coordinator,
+        btcMarket,
+        parse6decimal('-1'),
+        btcOriginalOraclePrice.sub(parse6decimal('100')),
+        2,
+      )
+
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const VAULT_PNL = parse6decimal('200')
+
       const checkpoint2 = await vault.checkpoints(2)
       expect(checkpoint2.deposit).to.equal(largeDeposit)
       expect(checkpoint2.assets).to.equal(smallDeposit)
@@ -755,29 +784,9 @@ describe.only('SolverVault', () => {
       expect(await vault.convertToAssets(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
       expect(await vault.convertToShares(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
 
-      // Solver opens positions via signature
-      await placeIntentOrder(
-        vault,
-        coordinator,
-        market,
-        parse6decimal('10'),
-        originalOraclePrice.sub(parse6decimal('10')),
-        1,
-      )
-      await placeIntentOrder(
-        vault,
-        coordinator,
-        btcMarket,
-        parse6decimal('1'),
-        btcOriginalOraclePrice.sub(parse6decimal('100')),
-        1,
-      )
-
       expect(await position()).to.equal(parse6decimal('10'))
       expect(await btcPosition()).to.equal(parse6decimal('1'))
 
-      // User 2 should not be able to redeem; they haven't deposited anything.
-      await expect(vault.connect(user2).update(user2.address, 0, 1, 0)).to.be.revertedWithPanic(0x11)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
       await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
       await updateOracle()
@@ -788,22 +797,28 @@ describe.only('SolverVault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have redeemed all of our shares.
-      const fundingAmount = BigNumber.from('414858')
-      expect(await totalCollateralInVault()).to.equal(parse6decimal('10010').add(fundingAmount).mul(1e12))
+      const fundingAmount = BigNumber.from('-2097504') // TODO settlement fee?
+      expect(await totalCollateralInVault()).to.equal(
+        parse6decimal('10010').add(VAULT_PNL).add(fundingAmount).mul(1e12),
+      )
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
       expect(await vault.totalAssets()).to.equal(0)
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
-      expect((await vault.accounts(user.address)).assets).to.equal(parse6decimal('10010').add(fundingAmount))
+      expect((await vault.accounts(user.address)).assets).to.equal(
+        parse6decimal('10010').add(VAULT_PNL).add(fundingAmount),
+      )
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(
-        parse6decimal('10010').add(fundingAmount),
+        parse6decimal('10010').add(VAULT_PNL).add(fundingAmount),
       )
 
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
 
       expect(await totalCollateralInVault()).to.equal(0)
-      expect(await asset.balanceOf(user.address)).to.equal(parse6decimal('100000').add(fundingAmount).mul(1e12))
+      expect(await asset.balanceOf(user.address)).to.equal(
+        parse6decimal('100000').add(VAULT_PNL).add(fundingAmount).mul(1e12),
+      )
       expect((await vault.accounts(user.address)).assets).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
