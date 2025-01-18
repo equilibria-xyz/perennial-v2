@@ -454,6 +454,50 @@ describe('Order', () => {
         expect(value.takerReferral).to.equal(0)
         expect(value.collateral).to.equal(0)
       })
+
+      it('opens an order crossing zero (pos)', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          short: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('11')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, false, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(parse6decimal('1'))
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(parse6decimal('10'))
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(0)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens an order crossing zero (neg)', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          long: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('-11')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, false, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(parse6decimal('10'))
+        expect(value.shortPos).to.equal(parse6decimal('1'))
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(0)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
     })
   })
 

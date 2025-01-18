@@ -295,6 +295,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newLong,
             newShort,
             protect,
+            true,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order

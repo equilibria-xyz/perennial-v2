@@ -109,30 +109,20 @@ library OrderLib {
         bool invalidatable,
         UFixed6 referralFee
     ) internal pure returns (Order memory newOrder) {
-        newOrder.timestamp = timestamp;
-        newOrder.collateral = collateral;
-        newOrder.protection = protect ? 1 : 0;
-        newOrder.makerReferral = makerAmount.abs().mul(referralFee);
-        newOrder.takerReferral = takerAmount.abs().mul(referralFee);
+        UFixed6 newMaker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerAmount));
+        Fixed6 newTaker = position.skew().add(takerAmount);
 
-        // If the order is not counter to the current position, it is opening
-        if (takerAmount.sign() == 0 || position.skew().sign() == 0 || position.skew().sign() == takerAmount.sign()) {
-            newOrder.longPos = takerAmount.max(Fixed6Lib.ZERO).abs();
-            newOrder.shortPos = takerAmount.min(Fixed6Lib.ZERO).abs();
-
-        // If the order is counter to the current position, it is closing
-        } else {
-            newOrder.shortNeg = takerAmount.max(Fixed6Lib.ZERO).abs();
-            newOrder.longNeg = takerAmount.min(Fixed6Lib.ZERO).abs();
-        }
-
-        newOrder.makerPos = makerAmount.max(Fixed6Lib.ZERO).abs();
-        newOrder.makerNeg = makerAmount.min(Fixed6Lib.ZERO).abs();
-
-        if (!isEmpty(newOrder)) {
-            newOrder.orders = 1;
-            if (invalidatable) newOrder.invalidation = 1;
-        }
+        return from(
+            timestamp,
+            position,
+            collateral,
+            newMaker,
+            newTaker.max(Fixed6Lib.ZERO).abs(),
+            newTaker.min(Fixed6Lib.ZERO).abs(),
+            protect,
+            invalidatable,
+            referralFee
+        );
     }
 
     /// @notice Creates a new order from the current position and an update request
@@ -153,16 +143,17 @@ library OrderLib {
         UFixed6 newLong,
         UFixed6 newShort,
         bool protect,
+        bool invalidatable,
         UFixed6 referralFee
     ) internal pure returns (Order memory newOrder) {
+        // compute side-based deltas from the current position and new position
         (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) = (
             Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(position.maker)),
             Fixed6Lib.from(newLong).sub(Fixed6Lib.from(position.long)),
             Fixed6Lib.from(newShort).sub(Fixed6Lib.from(position.short))
         );
 
-        UFixed6 referral = makerAmount.abs().add(longAmount.abs()).add(shortAmount.abs()).mul(referralFee);
-
+        // create the new order
         newOrder = Order(
             timestamp,
             0,
@@ -175,12 +166,14 @@ library OrderLib {
             shortAmount.min(Fixed6Lib.ZERO).abs(),
             protect ? 1 : 0,
             0,
-            makerAmount.isZero() ? UFixed6Lib.ZERO : referral,
-            makerAmount.isZero() ? referral : UFixed6Lib.ZERO
+            makerAmount.abs().mul(referralFee),
+            longAmount.abs().add(shortAmount.abs()).mul(referralFee)
         );
+
+        // set the order and invalidation counts
         if (!isEmpty(newOrder)) {
             newOrder.orders = 1;
-            newOrder.invalidation = 1;
+            if (invalidatable) newOrder.invalidation = 1;
         }
     }
 
