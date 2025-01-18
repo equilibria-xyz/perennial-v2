@@ -37,7 +37,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1, invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         userB.address,
         constants.AddressZero,
@@ -116,7 +116,7 @@ describe('Liquidate', () => {
           userBCollateral.mul(-1).sub(1),
           false,
         ),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError') // underflow
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError') // underflow
 
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true) // liquidate
 
@@ -179,7 +179,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1, invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         userB.address,
         constants.AddressZero,
@@ -291,7 +291,14 @@ describe('Liquidate', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_3, orders: 1, makerNeg: parse6decimal('5'), protection: 1 },
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_3,
+          orders: 1,
+          makerNeg: parse6decimal('5'),
+          protection: 1,
+          invalidation: 1,
+        },
         { ...DEFAULT_GUARANTEE },
         userC.address,
         constants.AddressZero,
@@ -365,6 +372,7 @@ describe('Liquidate', () => {
           makerNeg: POSITION,
           protection: 1,
           makerReferral: parse6decimal('1.2'),
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         userB.address,

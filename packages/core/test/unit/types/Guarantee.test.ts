@@ -12,6 +12,7 @@ import {
 import { BigNumber } from 'ethers'
 import { GuaranteeStruct } from '../../../types/generated/contracts/Market'
 import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE, expectGuaranteeEq } from '../../../../common/testutil/types'
+import exp from 'constants'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -26,11 +27,14 @@ describe('Guarantee', () => {
   describe('global', () => {
     const VALID_STORED_GUARANTEE: GuaranteeStruct = {
       orders: 2,
-      takerPos: 3,
-      takerNeg: 4,
+      longPos: 3,
+      longNeg: 4,
+      shortPos: 6,
+      shortNeg: 7,
       notional: 0,
       takerFee: 5,
-      referral: 0,
+      orderReferral: 9,
+      solverReferral: 0,
     }
 
     let guaranteeGlobal: GuaranteeGlobalTester
@@ -49,11 +53,14 @@ describe('Guarantee', () => {
 
         const value = await guaranteeGlobal.read()
         expect(value.orders).to.equal(2)
-        expect(value.takerPos).to.equal(3)
-        expect(value.takerNeg).to.equal(4)
+        expect(value.longPos).to.equal(3)
+        expect(value.longNeg).to.equal(4)
+        expect(value.shortPos).to.equal(6)
+        expect(value.shortNeg).to.equal(7)
         expect(value.notional).to.equal(0)
         expect(value.takerFee).to.equal(5)
-        expect(value.referral).to.equal(0)
+        expect(value.orderReferral).to.equal(9)
+        expect(value.solverReferral).to.equal(0)
       })
     })
   })
@@ -61,11 +68,14 @@ describe('Guarantee', () => {
   describe('local', () => {
     const VALID_STORED_GUARANTEE: GuaranteeStruct = {
       orders: 2,
-      takerPos: 3,
-      takerNeg: 4,
+      longPos: 3,
+      longNeg: 4,
+      shortPos: 6,
+      shortNeg: 7,
       notional: 14,
       takerFee: 5,
-      referral: 15,
+      orderReferral: 16,
+      solverReferral: 15,
     }
 
     let guaranteeLocal: GuaranteeLocalTester
@@ -84,11 +94,13 @@ describe('Guarantee', () => {
 
         const value = await guaranteeLocal.read()
         expect(value.orders).to.equal(2)
-        expect(value.takerPos).to.equal(3)
-        expect(value.takerNeg).to.equal(4)
+        expect(value.longPos).to.equal(3)
+        expect(value.longNeg).to.equal(4)
+        expect(value.shortPos).to.equal(6)
+        expect(value.shortNeg).to.equal(7)
         expect(value.notional).to.equal(14)
         expect(value.takerFee).to.equal(5)
-        expect(value.referral).to.equal(15)
+        expect(value.solverReferral).to.equal(15)
       })
 
       context('.notional', async () => {
@@ -130,22 +142,22 @@ describe('Guarantee', () => {
         })
       })
 
-      context('.referral', async () => {
+      context('.solverReferral', async () => {
         const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await guaranteeLocal.store({
             ...DEFAULT_GUARANTEE,
-            referral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            solverReferral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
           const value = await guaranteeLocal.read()
-          expect(value.referral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+          expect(value.solverReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if referral out of range', async () => {
+        it('reverts if solverReferral out of range', async () => {
           await expect(
             guaranteeLocal.store({
               ...DEFAULT_GUARANTEE,
-              referral: BigNumber.from(2).pow(STORAGE_SIZE),
+              solverReferral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
           ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
         })
@@ -159,14 +171,13 @@ describe('Guarantee', () => {
           parse6decimal('123'),
           0,
           false,
-          false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerPos: parse6decimal('10'),
+          longPos: parse6decimal('10'),
           notional: parse6decimal('1230'),
           takerFee: parse6decimal('10'),
         })
@@ -178,33 +189,14 @@ describe('Guarantee', () => {
           parse6decimal('123'),
           0,
           false,
-          false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerNeg: parse6decimal('10'),
+          longNeg: parse6decimal('10'),
           notional: parse6decimal('-1230'),
-          takerFee: parse6decimal('10'),
-        })
-      })
-
-      it('generates correct guarantee (long w/ settlement fee)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
-          parse6decimal('123'),
-          0,
-          true,
-          false,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-          takerPos: parse6decimal('10'),
-          notional: parse6decimal('1230'),
           takerFee: parse6decimal('10'),
         })
       })
@@ -214,7 +206,6 @@ describe('Guarantee', () => {
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
           parse6decimal('123'),
           0,
-          false,
           true,
         )
         const newGuarantee = await guaranteeLocal.read()
@@ -222,53 +213,16 @@ describe('Guarantee', () => {
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerPos: parse6decimal('10'),
+          longPos: parse6decimal('10'),
           notional: parse6decimal('1230'),
         })
       })
 
-      it('generates correct guarantee (long w/ both fee)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10') },
-          parse6decimal('123'),
-          0,
-          true,
-          true,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-          takerPos: parse6decimal('10'),
-          notional: parse6decimal('1230'),
-        })
-      })
-
-      it('generates correct guarantee (long w/ referral + settlement fee)', async () => {
+      it('generates correct guarantee (long w/ solverReferral + trade fee)', async () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
           parse6decimal('123'),
           parse6decimal('0.5'),
-          true,
-          false,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-          takerPos: parse6decimal('10'),
-          notional: parse6decimal('1230'),
-          referral: parse6decimal('1'),
-          takerFee: parse6decimal('10'),
-        })
-      })
-
-      it('generates correct guarantee (long w/ referral + trade fee)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
-          parse6decimal('123'),
-          parse6decimal('0.5'),
-          false,
           true,
         )
         const newGuarantee = await guaranteeLocal.read()
@@ -276,36 +230,18 @@ describe('Guarantee', () => {
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerPos: parse6decimal('10'),
+          longPos: parse6decimal('10'),
           notional: parse6decimal('1230'),
-          referral: parse6decimal('1'),
+          orderReferral: parse6decimal('2'),
+          solverReferral: parse6decimal('1'),
         })
       })
 
-      it('generates correct guarantee (long w/ referral + both fee)', async () => {
+      it('generates correct guarantee (long w/ solverReferral)', async () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
           parse6decimal('123'),
           parse6decimal('0.5'),
-          true,
-          true,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-          takerPos: parse6decimal('10'),
-          notional: parse6decimal('1230'),
-          referral: parse6decimal('1'),
-        })
-      })
-
-      it('generates correct guarantee (long w/ referral)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, longPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
-          parse6decimal('123'),
-          parse6decimal('0.5'),
-          false,
           false,
         )
         const newGuarantee = await guaranteeLocal.read()
@@ -313,10 +249,11 @@ describe('Guarantee', () => {
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerPos: parse6decimal('10'),
+          longPos: parse6decimal('10'),
           notional: parse6decimal('1230'),
           takerFee: parse6decimal('10'),
-          referral: parse6decimal('1'),
+          orderReferral: parse6decimal('2'),
+          solverReferral: parse6decimal('1'),
         })
       })
 
@@ -326,14 +263,13 @@ describe('Guarantee', () => {
           parse6decimal('123'),
           0,
           false,
-          false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerNeg: parse6decimal('10'),
+          shortPos: parse6decimal('10'),
           notional: parse6decimal('-1230'),
           takerFee: parse6decimal('10'),
         })
@@ -345,33 +281,14 @@ describe('Guarantee', () => {
           parse6decimal('123'),
           0,
           false,
-          false,
         )
         const newGuarantee = await guaranteeLocal.read()
 
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerPos: parse6decimal('10'),
+          shortNeg: parse6decimal('10'),
           notional: parse6decimal('1230'),
-          takerFee: parse6decimal('10'),
-        })
-      })
-
-      it('generates correct guarantee (short w/ settlement fee)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
-          parse6decimal('123'),
-          0,
-          true,
-          false,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-          takerNeg: parse6decimal('10'),
-          notional: parse6decimal('-1230'),
           takerFee: parse6decimal('10'),
         })
       })
@@ -381,7 +298,6 @@ describe('Guarantee', () => {
           { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
           parse6decimal('123'),
           0,
-          false,
           true,
         )
         const newGuarantee = await guaranteeLocal.read()
@@ -389,53 +305,16 @@ describe('Guarantee', () => {
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerNeg: parse6decimal('10'),
+          shortPos: parse6decimal('10'),
           notional: parse6decimal('-1230'),
         })
       })
 
-      it('generates correct guarantee (short w/ both fee)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10') },
-          parse6decimal('123'),
-          0,
-          true,
-          true,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-          takerNeg: parse6decimal('10'),
-          notional: parse6decimal('-1230'),
-        })
-      })
-
-      it('generates correct guarantee (short w/ referral + settlement fee)', async () => {
+      it('generates correct guarantee (short w/ solverReferral + trade fee)', async () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
           parse6decimal('123'),
           parse6decimal('0.5'),
-          true,
-          false,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-          takerNeg: parse6decimal('10'),
-          notional: parse6decimal('-1230'),
-          referral: parse6decimal('1'),
-          takerFee: parse6decimal('10'),
-        })
-      })
-
-      it('generates correct guarantee (short w/ referral + trade fee)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
-          parse6decimal('123'),
-          parse6decimal('0.5'),
-          false,
           true,
         )
         const newGuarantee = await guaranteeLocal.read()
@@ -443,36 +322,18 @@ describe('Guarantee', () => {
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerNeg: parse6decimal('10'),
+          shortPos: parse6decimal('10'),
           notional: parse6decimal('-1230'),
-          referral: parse6decimal('1'),
+          orderReferral: parse6decimal('2'),
+          solverReferral: parse6decimal('1'),
         })
       })
 
-      it('generates correct guarantee (short w/ referral + both fee)', async () => {
+      it('generates correct guarantee (short w/ solverReferral)', async () => {
         await guaranteeLocal.from(
           { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
           parse6decimal('123'),
           parse6decimal('0.5'),
-          true,
-          true,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-          takerNeg: parse6decimal('10'),
-          notional: parse6decimal('-1230'),
-          referral: parse6decimal('1'),
-        })
-      })
-
-      it('generates correct guarantee (short w/ referral)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, shortPos: parse6decimal('10'), takerReferral: parse6decimal('2') },
-          parse6decimal('123'),
-          parse6decimal('0.5'),
-          false,
           false,
         )
         const newGuarantee = await guaranteeLocal.read()
@@ -480,41 +341,54 @@ describe('Guarantee', () => {
         expectGuaranteeEq(newGuarantee, {
           ...DEFAULT_GUARANTEE,
           orders: 1,
-          takerNeg: parse6decimal('10'),
+          shortPos: parse6decimal('10'),
           notional: parse6decimal('-1230'),
           takerFee: parse6decimal('10'),
-          referral: parse6decimal('1'),
+          orderReferral: parse6decimal('2'),
+          solverReferral: parse6decimal('1'),
         })
       })
+    })
 
-      it('generates correct guarantee (maker open)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, makerPos: parse6decimal('10') },
-          parse6decimal('123'),
-          0,
-          false,
-          false,
-        )
-        const newGuarantee = await guaranteeLocal.read()
-
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-        })
+    describe('#takerPos', () => {
+      it('calculates taker pos', async () => {
+        await expect(
+          await guaranteeLocal.takerPos({
+            ...DEFAULT_GUARANTEE,
+            longPos: 1,
+            longNeg: 2,
+            shortPos: 7,
+            shortNeg: 6,
+          }),
+        ).to.equal(7)
       })
+    })
 
-      it('generates correct guarantee (maker close)', async () => {
-        await guaranteeLocal.from(
-          { ...DEFAULT_ORDER, orders: 1, makerNeg: parse6decimal('10') },
-          parse6decimal('123'),
-          0,
-          false,
-          false,
-        )
-        const newGuarantee = await guaranteeLocal.read()
+    describe('#takerNeg', () => {
+      it('calculates taker pos', async () => {
+        await expect(
+          await guaranteeLocal.takerNeg({
+            ...DEFAULT_GUARANTEE,
+            longPos: 1,
+            longNeg: 2,
+            shortPos: 7,
+            shortNeg: 6,
+          }),
+        ).to.equal(9)
+      })
+    })
 
-        expectGuaranteeEq(newGuarantee, {
-          ...DEFAULT_GUARANTEE,
-        })
+    describe('#taker', () => {
+      it('calculates taker', async () => {
+        await expect(
+          await guaranteeLocal.taker({
+            ...DEFAULT_GUARANTEE,
+            longPos: 1,
+            longNeg: 2,
+            shortPos: 7,
+            shortNeg: 6,
+          }),
+        ).to.equal(-2)
       })
     })
 
@@ -523,62 +397,162 @@ describe('Guarantee', () => {
         await expect(
           await guaranteeLocal.takerTotal({
             ...DEFAULT_GUARANTEE,
-            takerPos: 4,
-            takerNeg: 3,
+            longPos: 1,
+            longNeg: 2,
+            shortPos: 7,
+            shortNeg: 6,
           }),
-        ).to.equal(7)
+        ).to.equal(16)
+      })
+    })
+
+    describe('#isEmpty', () => {
+      it('calculates empty', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+          }),
+        ).to.equal(true)
+      })
+
+      it('calculates not empty longPos', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+            longPos: 1,
+          }),
+        ).to.equal(false)
+      })
+
+      it('calculates not empty longNeg', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+            longNeg: 1,
+          }),
+        ).to.equal(false)
+      })
+
+      it('calculates not empty shortPos', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+            shortPos: 1,
+          }),
+        ).to.equal(false)
+      })
+
+      it('calculates not empty shortNeg', async () => {
+        await expect(
+          await guaranteeLocal.isEmpty({
+            ...DEFAULT_GUARANTEE,
+            shortNeg: 1,
+          }),
+        ).to.equal(false)
       })
     })
 
     describe('#priceAdjustment', () => {
-      it('long / higher price', async () => {
+      it('long open / higher price', async () => {
         await expect(
           await guaranteeLocal.priceAdjustment(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('1230'),
-              takerPos: parse6decimal('10'),
+              longPos: parse6decimal('10'),
             },
             parse6decimal('125'),
           ),
         ).to.equal(parse6decimal('20'))
       })
 
-      it('short / lower price', async () => {
+      it('long close / lower price', async () => {
         await expect(
           await guaranteeLocal.priceAdjustment(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('-1230'),
-              takerNeg: parse6decimal('10'),
+              longNeg: parse6decimal('10'),
             },
             parse6decimal('121'),
           ),
         ).to.equal(parse6decimal('20'))
       })
 
-      it('long / lower price', async () => {
+      it('short open / lower price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('-1230'),
+              shortPos: parse6decimal('10'),
+            },
+            parse6decimal('121'),
+          ),
+        ).to.equal(parse6decimal('20'))
+      })
+
+      it('short close / higher price', async () => {
         await expect(
           await guaranteeLocal.priceAdjustment(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('1230'),
-              takerPos: parse6decimal('10'),
+              shortNeg: parse6decimal('10'),
+            },
+            parse6decimal('125'),
+          ),
+        ).to.equal(parse6decimal('20'))
+      })
+
+      it('long open / lower price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('1230'),
+              longPos: parse6decimal('10'),
             },
             parse6decimal('121'),
           ),
         ).to.equal(parse6decimal('-20'))
       })
 
-      it('short / higher price', async () => {
+      it('long neg / higher price', async () => {
         await expect(
           await guaranteeLocal.priceAdjustment(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('-1230'),
-              takerNeg: parse6decimal('10'),
+              longNeg: parse6decimal('10'),
             },
             parse6decimal('125'),
+          ),
+        ).to.equal(parse6decimal('-20'))
+      })
+
+      it('short open / higher price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('-1230'),
+              shortPos: parse6decimal('10'),
+            },
+            parse6decimal('125'),
+          ),
+        ).to.equal(parse6decimal('-20'))
+      })
+
+      it('short close / lower price', async () => {
+        await expect(
+          await guaranteeLocal.priceAdjustment(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('1230'),
+              shortNeg: parse6decimal('10'),
+            },
+            parse6decimal('121'),
           ),
         ).to.equal(parse6decimal('-20'))
       })
@@ -589,7 +563,7 @@ describe('Guarantee', () => {
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('0'),
-              takerNeg: parse6decimal('10'),
+              shortPos: parse6decimal('10'),
             },
             parse6decimal('121'),
           ),
@@ -609,56 +583,108 @@ describe('Guarantee', () => {
     })
 
     describe('#priceDeviation', () => {
-      it('long / higher price', async () => {
+      it('long open / higher price', async () => {
         await expect(
           await guaranteeLocal.priceDeviation(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('1230'),
-              takerPos: parse6decimal('10'),
+              longPos: parse6decimal('10'),
             },
             parse6decimal('125'),
           ),
         ).to.equal(parse6decimal('0.016260'))
       })
 
-      it('short / lower price', async () => {
+      it('long close / lower price', async () => {
         await expect(
           await guaranteeLocal.priceDeviation(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('-1230'),
-              takerNeg: parse6decimal('10'),
+              longNeg: parse6decimal('10'),
             },
             parse6decimal('121'),
           ),
         ).to.equal(parse6decimal('0.016528'))
       })
 
-      it('long / lower price', async () => {
+      it('short open / lower price', async () => {
+        await expect(
+          await guaranteeLocal.priceDeviation(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('-1230'),
+              shortPos: parse6decimal('10'),
+            },
+            parse6decimal('121'),
+          ),
+        ).to.equal(parse6decimal('0.016528'))
+      })
+
+      it('short close / higher price', async () => {
         await expect(
           await guaranteeLocal.priceDeviation(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('1230'),
-              takerPos: parse6decimal('10'),
+              shortNeg: parse6decimal('10'),
+            },
+            parse6decimal('125'),
+          ),
+        ).to.equal(parse6decimal('0.016260'))
+      })
+
+      it('long open / lower price', async () => {
+        await expect(
+          await guaranteeLocal.priceDeviation(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('1230'),
+              longPos: parse6decimal('10'),
             },
             parse6decimal('121'),
           ),
         ).to.equal(parse6decimal('0.016528'))
       })
 
-      it('short / higher price', async () => {
+      it('long close / higher price', async () => {
         await expect(
           await guaranteeLocal.priceDeviation(
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('-1230'),
-              takerNeg: parse6decimal('10'),
+              longNeg: parse6decimal('10'),
             },
             parse6decimal('125'),
           ),
         ).to.equal(parse6decimal('0.016260'))
+      })
+
+      it('short open / higher price', async () => {
+        await expect(
+          await guaranteeLocal.priceDeviation(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('-1230'),
+              shortPos: parse6decimal('10'),
+            },
+            parse6decimal('125'),
+          ),
+        ).to.equal(parse6decimal('0.016260'))
+      })
+
+      it('short close / lower price', async () => {
+        await expect(
+          await guaranteeLocal.priceDeviation(
+            {
+              ...DEFAULT_GUARANTEE,
+              notional: parse6decimal('1230'),
+              shortNeg: parse6decimal('10'),
+            },
+            parse6decimal('121'),
+          ),
+        ).to.equal(parse6decimal('0.016528'))
       })
 
       it('zero price', async () => {
@@ -667,7 +693,7 @@ describe('Guarantee', () => {
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('0'),
-              takerNeg: parse6decimal('10'),
+              shortPos: parse6decimal('10'),
             },
             parse6decimal('121'),
           ),
@@ -680,7 +706,7 @@ describe('Guarantee', () => {
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('1230'),
-              takerPos: parse6decimal('10'),
+              longPos: parse6decimal('10'),
             },
             parse6decimal('-125'),
           ),
@@ -693,7 +719,7 @@ describe('Guarantee', () => {
             {
               ...DEFAULT_GUARANTEE,
               notional: parse6decimal('-1230'),
-              takerPos: parse6decimal('10'),
+              longPos: parse6decimal('10'),
             },
             parse6decimal('125'),
           ),
@@ -755,43 +781,85 @@ describe('Guarantee', () => {
         })
       })
 
-      context('.takerPos', async () => {
+      context('.longPos', async () => {
         const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await guarantee.store({
             ...DEFAULT_GUARANTEE,
-            takerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
           const value = await guarantee.read()
-          expect(value.takerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if takerPos out of range', async () => {
+        it('reverts if longPos out of range', async () => {
           await expect(
             guarantee.store({
               ...DEFAULT_GUARANTEE,
-              takerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
           ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
       })
 
-      context('.takerNeg', async () => {
+      context('.longNeg', async () => {
         const STORAGE_SIZE = 64
         it('saves if in range', async () => {
           await guarantee.store({
             ...DEFAULT_GUARANTEE,
-            takerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+            longNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
           })
           const value = await guarantee.read()
-          expect(value.takerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+          expect(value.longNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if takerNeg out of range', async () => {
+        it('reverts if longNeg out of range', async () => {
           await expect(
             guarantee.store({
               ...DEFAULT_GUARANTEE,
-              takerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+              longNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+        })
+      })
+
+      context('.shortPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await guarantee.store({
+            ...DEFAULT_GUARANTEE,
+            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await guarantee.read()
+          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if shortPos out of range', async () => {
+          await expect(
+            guarantee.store({
+              ...DEFAULT_GUARANTEE,
+              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+        })
+      })
+
+      context('.shortNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await guarantee.store({
+            ...DEFAULT_GUARANTEE,
+            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await guarantee.read()
+          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if shortNeg out of range', async () => {
+          await expect(
+            guarantee.store({
+              ...DEFAULT_GUARANTEE,
+              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
           ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
@@ -816,6 +884,56 @@ describe('Guarantee', () => {
             }),
           ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
         })
+      })
+
+      context('.orderReferral', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await guarantee.store({
+            ...DEFAULT_GUARANTEE,
+            orderReferral: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await guarantee.read()
+          expect(value.orderReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if orderReferral out of range', async () => {
+          await expect(
+            guarantee.store({
+              ...DEFAULT_GUARANTEE,
+              orderReferral: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+        })
+      })
+    })
+
+    describe('#next', () => {
+      it('calculates taker', async () => {
+        await guarantee.store({
+          orders: 1,
+          longPos: 2,
+          longNeg: 3,
+          shortPos: 4,
+          shortNeg: 5,
+          notional: 6,
+          takerFee: 7,
+          orderReferral: 8,
+          solverReferral: 9,
+        })
+
+        await guarantee.next()
+        const result = await guarantee.read()
+
+        expect(result.orders).to.equal(0)
+        expect(result.longPos).to.equal(0)
+        expect(result.longNeg).to.equal(0)
+        expect(result.shortPos).to.equal(0)
+        expect(result.shortNeg).to.equal(0)
+        expect(result.notional).to.equal(0)
+        expect(result.takerFee).to.equal(0)
+        expect(result.orderReferral).to.equal(0)
+        expect(result.solverReferral).to.equal(0)
       })
     })
   }

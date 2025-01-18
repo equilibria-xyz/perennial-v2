@@ -20,7 +20,7 @@ import {
   IVault__factory,
   VaultFactory,
   VaultFactory__factory,
-  Vault__factory,
+  MakerVault__factory,
   OracleFactory,
   Oracle__factory,
   OracleFactory__factory,
@@ -278,7 +278,7 @@ export async function createVault(
       scale: parse6decimal('10'),
     },
   })
-  const vaultImpl = await new Vault__factory(owner).deploy()
+  const vaultImpl = await new MakerVault__factory(owner).deploy()
   const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
     instanceVars.marketFactory.address,
     vaultImpl.address,
@@ -305,6 +305,7 @@ export async function createVault(
   await vault.updateParameter({
     maxDeposit: maxCollateral ?? parse6decimal('500000'),
     minDeposit: 0,
+    profitShare: 0,
   })
   const asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
 
