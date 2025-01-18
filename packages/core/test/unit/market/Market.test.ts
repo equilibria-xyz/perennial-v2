@@ -15113,6 +15113,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -15175,6 +15179,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -18381,6 +18389,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -19049,10 +19061,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
-          // maker
+          // solver
           factory.authorization
-            .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
-            .returns([true, false, parse6decimal('0.20')])
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, liquidator.address, liquidator.address)
@@ -21463,6 +21475,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -21707,6 +21723,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -21952,6 +21972,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -22197,6 +22221,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -22462,6 +22490,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker 1
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -22787,7 +22819,7 @@ describe('Market', () => {
 
             // maker
             factory.authorization
-              .whenCalledWith(userC.address, userD.address, constants.AddressZero, constants.AddressZero) // userD is operator of userC
+              .whenCalledWith(userC.address, userD.address, userD.address, constants.AddressZero) // userD is operator of userC
               .returns([true, false, BigNumber.from(0)])
             // taker
             factory.authorization
@@ -23033,6 +23065,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23229,6 +23265,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23505,6 +23545,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23802,6 +23846,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -24063,6 +24111,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -24324,6 +24376,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -24585,6 +24641,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -24852,6 +24912,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -25119,6 +25183,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -25380,6 +25448,10 @@ describe('Market', () => {
 
             verifier.verifyIntent.returns()
 
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
             // taker
             factory.authorization
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -25665,8 +25737,8 @@ describe('Market', () => {
 
           // maker
           factory.authorization
-            .whenCalledWith(userC.address, userC.address, constants.AddressZero, liquidator.address)
-            .returns([false, true, parse6decimal('0.20')])
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
