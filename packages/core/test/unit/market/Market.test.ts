@@ -21250,6 +21250,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -21626,6 +21630,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -21976,6 +21984,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -22326,6 +22338,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -22667,7 +22683,7 @@ describe('Market', () => {
           expect(marketFee).to.be.equal(fee.add(totalPriceImpact).add(totalTakerFee).sub(30)) // loss of precision
         })
 
-        it('crossing zero w/ amm order (settles)', async () => {
+        it('two crossing zeros w/ amm order (settles)', async () => {
           factory.parameter.returns({
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
@@ -22784,6 +22800,13 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
+          factory.authorization
+            .whenCalledWith(user.address, user.address, user.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23307,6 +23330,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23386,6 +23413,10 @@ describe('Market', () => {
 
           verifier.verifyIntent.returns()
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23455,6 +23486,10 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23538,6 +23573,11 @@ describe('Market', () => {
           await market
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
 
           // taker
           factory.authorization
@@ -23630,6 +23670,10 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23736,6 +23780,10 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23832,6 +23880,10 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
@@ -23913,6 +23965,10 @@ describe('Market', () => {
             .connect(userC)
             ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
 
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
           // taker
           factory.authorization
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
