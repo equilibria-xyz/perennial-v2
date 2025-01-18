@@ -190,7 +190,6 @@ abstract contract Manager is IManager, Kept {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
-        // _marketWithdraw(market, account, raisedKeeperFee);
         _collateralAccountWithdraw(account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
@@ -217,8 +216,7 @@ abstract contract Manager is IManager, Kept {
             order.interfaceFee.amount :
             order.notionalValue(market, account).mul(order.interfaceFee.amount);
 
-        _marketWithdraw(market, account, feeAmount);
-        //_collateralAccountWithdraw(account, feeAmount);
+        _collateralAccountWithdraw(account, feeAmount);
 
         claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
@@ -230,12 +228,6 @@ abstract contract Manager is IManager, Kept {
     /// @param amount Quantity of DSU to transfer, converted to 18-decimal by callee
     function _collateralAccountWithdraw(address account, UFixed6 amount) private {
         controller.chargeFee(account, amount);
-    }
-
-    // TODO: replace this method with _collateralAccountWithdraw
-    /// @notice Transfers DSU from market to manager to pay keeper or interface fee
-    function _marketWithdraw(IMarket market, address account, UFixed6 amount) private {
-        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, amount), false);
     }
 
     function _placeOrder(IMarket market, address account, uint256 orderId, TriggerOrder calldata order) private {

@@ -8,16 +8,11 @@ import HRE from 'hardhat'
 import {
   ArbGasInfo,
   IEmptySetReserve__factory,
-  IERC20Metadata,
   IERC20Metadata__factory,
-  IManager,
-  IMarket,
-  IMarketFactory,
   Manager_Arbitrum__factory,
   OrderVerifier__factory,
 } from '../../../../types/generated'
 import { impersonate } from '../../../../../common/testutil'
-import { parse6decimal } from '../../../../../common/testutil/types'
 import {
   createMarketETH,
   deployController,
@@ -73,13 +68,13 @@ const fixture = async (): Promise<FixtureVars> => {
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 950_000, // buffer for withdrawing keeper fee from market
+    bufferBase: 250_000, // buffer for withdrawing keeper fee from market
     multiplierCalldata: 0,
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1.05'),
-    bufferBase: 1_875_000, // for price commitment
+    bufferBase: 1_275_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1.05'),
     bufferCalldata: 35_200,
   }

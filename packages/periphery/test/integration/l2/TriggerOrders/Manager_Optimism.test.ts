@@ -17,7 +17,6 @@ import {
   OrderVerifier__factory,
 } from '../../../../types/generated'
 import { impersonate } from '../../../../../common/testutil'
-import { parse6decimal } from '../../../../../common/testutil/types'
 import { transferCollateral } from '../../../helpers/marketHelpers'
 import {
   createMarketETH,
@@ -110,13 +109,13 @@ const fixture = async (): Promise<FixtureVars> => {
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 750_000, // buffer for withdrawing keeper fee from market
+    bufferBase: 250_000, // buffer for withdrawing keeper fee from market
     multiplierCalldata: 0,
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 900_000, // for price commitment
+    bufferBase: 650_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }

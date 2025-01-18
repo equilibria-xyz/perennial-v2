@@ -96,17 +96,7 @@ export function RunManagerTests(
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
       // keeper should be compensated between 100-200% of actual gas cost
-      // please retain below for debugging purposes
-      console.log(
-        'keeperFeesPaid',
-        keeperFeesPaid.div(1e9).toNumber() / 1e9,
-        'keeperGasCostInUSD',
-        keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
-        'keeperGasUpperLimit',
-        keeperGasCostInUSD.mul(5).div(2e9).toNumber() / 1e9,
-      )
-      // FIXME: need to adjust gas config and rerun
-      // expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(2))
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(2))
     }
 
     // commits an oracle version and advances time 10 seconds
@@ -188,14 +178,15 @@ export function RunManagerTests(
           await expect(tx)
             .to.emit(manager, 'TriggerOrderInterfaceFeeCharged')
             .withArgs(user.address, market.address, order.interfaceFee)
+          const collateralAccountAddress = await controller.getAccountAddress(user.address)
           if (order.interfaceFee.unwrap) {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(market.address, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
           } else {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(market.address, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
           }
         }
       }
