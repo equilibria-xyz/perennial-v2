@@ -11,8 +11,8 @@ abstract contract GuaranteeTester {
 
     function store(Guarantee memory newGuarantee) public virtual;
 
-    function from(Order memory order, Fixed6 price, UFixed6 referralFee, bool chargeSettlementFee, bool chargeTradeFee) external {
-        Guarantee memory newGuarantee = GuaranteeLib.from(order, price, referralFee, chargeSettlementFee, chargeTradeFee);
+    function from(Order memory order, Fixed6 price, UFixed6 referralFee, bool chargeTradeFee) external {
+        Guarantee memory newGuarantee = GuaranteeLib.from(order, price, referralFee, chargeTradeFee);
         store(newGuarantee);
     }
 
@@ -36,6 +36,10 @@ abstract contract GuaranteeTester {
 
     function takerTotal(Guarantee memory guarantee) public pure returns (UFixed6) {
         return GuaranteeLib.takerTotal(guarantee);
+    }
+
+    function isEmpty(Guarantee memory guarantee) public pure returns (bool) {
+        return GuaranteeLib.isEmpty(guarantee);
     }
 
     function priceAdjustment(Guarantee memory guarantee, Fixed6 price) public pure returns (Fixed6) {

@@ -50,8 +50,8 @@ abstract contract OrderTester {
         return read().isEmpty();
     }
 
-    function magnitude() external view returns (Fixed6) {
-        return read().magnitude();
+    function crossesZero() external view returns (bool) {
+        return read().crossesZero();
     }
 
     function from(
@@ -61,9 +61,10 @@ abstract contract OrderTester {
         Fixed6 takerAmount,
         Fixed6 collateral,
         bool protect,
+        bool invalidatable,
         UFixed6 referralFee
     ) external {
-        Order memory newOrder = OrderLib.from(timestamp, position, makerAmount, takerAmount, collateral, protect, referralFee);
+        Order memory newOrder = OrderLib.from(timestamp, position, makerAmount, takerAmount, collateral, protect, invalidatable, referralFee);
         store(newOrder);
     }
 }
