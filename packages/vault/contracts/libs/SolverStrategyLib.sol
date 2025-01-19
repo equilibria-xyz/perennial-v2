@@ -73,7 +73,7 @@ library SolverStrategyLib {
             (targets[marketId], newMarketCollateral) = _allocateMarket(
                 context.markets[marketId],
                 context.markets.length,
-                context.totalCollateral, // TODO: first deposit / zero collateral
+                context.totalCollateral,
                 newCollateral,
                 newAssets
             );
@@ -109,6 +109,7 @@ library SolverStrategyLib {
 
         UFixed6 maxMagnitude = newMarketAssets
             .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs());
+
         UFixed6 newMagnitude = marketContext.currentTaker.abs()
             .max(marketContext.minMagnitude) // can't go below closable
             .min(maxMagnitude);              // can't go above leverage cap
