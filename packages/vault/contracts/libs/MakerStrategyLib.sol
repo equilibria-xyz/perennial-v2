@@ -141,7 +141,7 @@ library MakerStrategyLib {
             .max(marketContext.minPosition)
             .min(marketContext.maxPosition);
 
-        target.position = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
+        target.maker = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 
     /// @notice Loads the strategy context of each of the underlying markets

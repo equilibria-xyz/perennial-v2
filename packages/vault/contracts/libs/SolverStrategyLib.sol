@@ -121,7 +121,7 @@ library SolverStrategyLib {
             .min(maxMagnitude);              // can't go above leverage cap
         Fixed6 newTaker = Fixed6Lib.from(marketContext.currentTaker.sign(), newMagnitude);
 
-        target.position = newTaker.sub(marketContext.currentTaker);
+        target.taker = newTaker.sub(marketContext.currentTaker);
     }
 
     function _allocateValue(
