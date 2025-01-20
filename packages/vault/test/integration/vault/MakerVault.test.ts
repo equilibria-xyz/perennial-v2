@@ -1203,7 +1203,7 @@ describe('MakerVault', () => {
 
       await expect(vault.connect(user).update(user.address, 0, maxRedeem, 0)).to.be.revertedWithCustomError(
         vault,
-        'StrategyLibInsufficientAssetsError',
+        'MakerStrategyInsufficientAssetsError',
       )
       await expect(vault.connect(user).update(user.address, 0, maxRedeem.sub(parse6decimal('1')), 0)).to.not.be.reverted
     })
@@ -1243,7 +1243,7 @@ describe('MakerVault', () => {
 
       await expect(vault.connect(user).update(user.address, 0, maxRedeem, 0)).to.be.revertedWithCustomError(
         vault,
-        'StrategyLibInsufficientAssetsError',
+        'MakerStrategyInsufficientAssetsError',
       )
       await expect(vault.connect(user).update(user.address, 0, maxRedeem.sub(parse6decimal('1')), 0)).to.not.be.reverted
     })
@@ -2130,11 +2130,14 @@ describe('MakerVault', () => {
           // Ensure the full amount cannot be redeemed.
           await expect(vault.connect(user).update(user.address, 0, depositAmount, 0)).to.be.revertedWithCustomError(
             vault,
-            'StrategyLibInsufficientCollateralError',
+            'MakerStrategyInsufficientCollateralError',
           )
 
           // Ensure a small amount cannot be redeemed.
-          await expect(smallRedeem(user)).to.be.revertedWithCustomError(vault, 'StrategyLibInsufficientCollateralError')
+          await expect(smallRedeem(user)).to.be.revertedWithCustomError(
+            vault,
+            'MakerStrategyInsufficientCollateralError',
+          )
         })
 
         it('recovers from a liquidation', async () => {

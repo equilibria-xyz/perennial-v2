@@ -164,11 +164,16 @@ abstract contract Vault is IVault, Instance {
     function register(IMarket market) external onlyOwner {
         rebalance(address(0));
 
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
-        }
+        if (_isRegistered(market)) revert VaultMarketExistsError();
 
         _register(market);
+    }
+
+    function _isRegistered(IMarket market) internal view returns (bool) {
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+            if (_registrations[marketId].read().market == market) return true;
+        }
+        return false;
     }
 
     /// @notice Handles the registration for a new market
