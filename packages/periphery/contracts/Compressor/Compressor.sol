@@ -9,7 +9,6 @@ import { IOracleFactory } from "@perennial/v2-oracle/contracts/interfaces/IOracl
 import { IPythFactory } from "@perennial/v2-oracle/contracts/interfaces/IPythFactory.sol";
 import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { Take } from "@perennial/v2-core/contracts/types/Take.sol";
-import { IMultiInvoker } from "../MultiInvoker/interfaces/IMultiInvoker.sol";
 import { Controller_Incentivized } from "../CollateralAccounts/Controller_Incentivized.sol";
 import { MarketTransfer } from "../CollateralAccounts/types/MarketTransfer.sol";
 import { RelayedTake } from "../CollateralAccounts/types/RelayedTake.sol";
@@ -30,7 +29,6 @@ contract Compressor {
 
     // protocol contracts
     Token18 public immutable dsu;
-    IMultiInvoker public immutable multiInvoker;
     IPythFactory public immutable pythFactory;
     Controller_Incentivized public immutable controller;
     IManager public immutable manager;
@@ -41,7 +39,6 @@ contract Compressor {
 
     constructor(
         Token18 dsu_,
-        IMultiInvoker multiInvoker_,
         IPythFactory pythFactory_,
         Controller_Incentivized controller_,
         IManager manager_,
@@ -49,7 +46,6 @@ contract Compressor {
         address referrer_
     ) {
         dsu = dsu_;
-        multiInvoker = multiInvoker_;
         pythFactory = pythFactory_;
         controller = controller_;
         manager = manager_;
@@ -62,7 +58,7 @@ contract Compressor {
           - Must use the specified immutable `referrer` in all applicable fields
           - Each message should use the same `group`
           - Each message should use and `expiry` value of `version + EXPIRY_PERIOD`
-          - Nonces must be incrementing form supplied nonce
+          - Nonces must be incrementing from the supplied nonce
             - marketTransferNonce (nonce)
             - marketOrderInnerNonce (nonce + 1)
             - marketOrderOuterNonce (nonce + 2)
@@ -138,7 +134,7 @@ contract Compressor {
                     Common(
                         p.account,
                         p.signer,
-                        address(controller),
+                        address(p.market),
                         p.nonce + 1,
                         p.group,
                         p.version + EXPIRY_PERIOD
@@ -221,7 +217,7 @@ contract Compressor {
                         p.account,
                         p.signer,
                         address(manager),
-                        p.nonce + 5,
+                        p.nonce + 4,
                         p.group,
                         p.version + EXPIRY_PERIOD
                     )
