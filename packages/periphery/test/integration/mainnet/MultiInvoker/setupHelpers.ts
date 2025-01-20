@@ -33,6 +33,12 @@ import {
   IEmptySetReserve,
   IBatcher__factory,
   IEmptySetReserve__factory,
+  Compressor__factory,
+  Compressor,
+  PythFactory,
+  Controller,
+  Manager,
+  Controller_Incentivized,
 } from '../../../../types/generated'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
 
@@ -60,6 +66,7 @@ export interface InstanceVars {
   userB: SignerWithAddress
   userC: SignerWithAddress
   userD: SignerWithAddress
+  referrer: SignerWithAddress
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   marketFactory: MarketFactory
@@ -88,7 +95,7 @@ export async function deployProtocol(
   dsuReserveAddress: Address,
   chainlinkKeptFeedAddress: Address,
 ): Promise<InstanceVars> {
-  const [owner, pauser, user, userB, userC, userD] = await ethers.getSigners()
+  const [owner, pauser, user, userB, userC, userD, referrer] = await ethers.getSigners()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
 
@@ -155,6 +162,7 @@ export async function deployProtocol(
     userB,
     userC,
     userD,
+    referrer,
     proxyAdmin,
     oracleFactory,
     marketFactory,
@@ -408,4 +416,23 @@ export async function createInvoker(
   await multiInvoker.initialize(instanceVars.chainlinkKeptFeed.address)
 
   return multiInvoker
+}
+
+export async function createCompressor(
+  instanceVars: InstanceVars,
+  multiInvoker: MultiInvoker,
+  pythOracleFactory: PythFactory,
+  controller: Controller_Incentivized,
+  manager: Manager,
+): Promise<Compressor> {
+  const compressor = await new Compressor__factory(instanceVars.owner).deploy(
+    instanceVars.dsu.address,
+    multiInvoker.address,
+    pythOracleFactory.address,
+    controller.address,
+    manager.address,
+    instanceVars.oracleFactory.address,
+    instanceVars.referrer.address,
+  )
+  return compressor
 }

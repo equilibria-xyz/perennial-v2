@@ -7,7 +7,10 @@ import {
 } from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 import { FakeContract } from '@defi-wonderland/smock'
 import { IOrderVerifier } from '../../../types/generated'
-import { CancelOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
+import {
+  CancelOrderActionStruct,
+  PlaceOrderActionStruct,
+} from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 function eip712Domain(verifier: IOrderVerifier | FakeContract<IOrderVerifier>): {
   name: string
@@ -45,7 +48,7 @@ const actionType = {
 
 const interfaceFeeType = {
   InterfaceFee: [
-    { name: 'amount', type: 'uint64' },
+    { name: 'amount', type: 'uint256' },
     { name: 'receiver', type: 'address' },
     { name: 'fixedFee', type: 'bool' },
     { name: 'unwrap', type: 'bool' },
@@ -56,9 +59,9 @@ const triggerOrderType = {
   TriggerOrder: [
     { name: 'side', type: 'uint8' },
     { name: 'comparison', type: 'int8' },
-    { name: 'price', type: 'int64' },
-    { name: 'delta', type: 'int64' },
-    { name: 'maxFee', type: 'uint64' },
+    { name: 'price', type: 'int256' },
+    { name: 'delta', type: 'int256' },
+    { name: 'maxFee', type: 'uint256' },
     { name: 'isSpent', type: 'bool' },
     { name: 'referrer', type: 'address' },
     { name: 'interfaceFee', type: 'InterfaceFee' },

@@ -8,11 +8,32 @@ import { ChainlinkContext } from '@perennial/v2-core/test/integration/helpers/ch
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 
-import { IERC20Metadata__factory, IOracle__factory, KeeperOracle, PythFactory } from '../../../../types/generated'
+import {
+  IERC20Metadata__factory,
+  IOracle,
+  IOracle__factory,
+  KeepeManager__factory,
+  rOracle,
+  Manager,
+  MarketFactory,
+  PythFactory,
+  OrderVerifier__factory,
+  Manager_Optimism__factory,
+  Manager_Arbitrum__factory,
+  IERC20Metadata,
+  KeeperOracle,
+} from '../../../../types/generated'
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
-import { createInvoker, deployProtocol, InstanceVars, resetBtcSubOracle, resetEthSubOracle } from './setupHelpers'
+import {
+  createCompressor,
+  createInvoker,
+  deployProtocol,
+  InstanceVars,
+  resetBtcSubOracle,
+  resetEthSubOracle,
+} from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
@@ -25,6 +46,7 @@ import {
 } from '../../../helpers/mainnetHelpers'
 import { createPythOracle, PYTH_ETH_USD_PRICE_FEED } from '../../../helpers/oracleHelpers'
 import { deployPythOracleFactory } from '../../../helpers/setupHelpers'
+import { RunCompressorTests } from '../Compressor'
 
 const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1646456563)
 
@@ -106,6 +128,18 @@ async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
   return [pythOracleFactory, keeperOracle]
 }
 
+async function getManager(dsu: IERC20Metadata, marketFactory: MarketFactory): Promise<Manager> {
+  const [owner] = await ethers.getSigners()
+  const orderVerifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
+  return await new Manager_Arbitrum__factory(owner).deploy(
+    USDC_ADDRESS,
+    dsu.address,
+    DSU_RESERVE,
+    marketFactory.address,
+    orderVerifier.address,
+  )
+}
+
 /*async function resetSubOracles(ethSubOracle: FakeContract<IOracleProvider>, btcSubOracle: FakeContract<IOracleProvider>): Promise<void> {
   resetEthSubOracle(ethSubOracle, INITIAL_ORACLE_VERSION_ETH)
   resetBtcSubOracle(btcSubOracle, INITIAL_ORACLE_VERSION_BTC)
@@ -115,6 +149,17 @@ if (process.env.FORK_NETWORK === undefined) {
   RunInvokerTests(
     getFixture,
     createInvoker,
+    fundWalletDSU,
+    fundWalletUSDC,
+    advanceToPrice,
+    INITIAL_ORACLE_VERSION_ETH,
+    INITIAL_ORACLE_VERSION_BTC,
+  )
+  RunCompressorTests(
+    getFixture,
+    createCompressor,
+    createInvoker,
+    getManager,
     fundWalletDSU,
     fundWalletUSDC,
     advanceToPrice,
