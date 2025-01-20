@@ -50,6 +50,10 @@ struct MarketSolverStrategyContext {
 ///      - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library SolverStrategyLib {
+    /// @dev Cannot reallocate position due to pending trade prevent reallocated position from being under leverage limit.
+    /// sig: 0xfadba457
+    error SolverStrategyPendingTradeError();
+
     /// @notice Compute the target allocation for each market
     /// @param registrations The registrations of the underlying markets
     /// @param deposit The amount of assets that are being deposited into the vault
@@ -109,6 +113,8 @@ library SolverStrategyLib {
 
         UFixed6 maxMagnitude = newMarketAssets
             .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs());
+
+        if (marketContext.minMagnitude.gt(maxMagnitude)) revert SolverStrategyPendingTradeError();
 
         UFixed6 newMagnitude = marketContext.currentTaker.abs()
             .max(marketContext.minMagnitude) // can't go below closable

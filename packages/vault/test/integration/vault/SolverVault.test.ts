@@ -41,7 +41,7 @@ const LEGACY_ORACLE_DELAY = 3600
 const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
-describe.only('SolverVault', () => {
+describe('SolverVault', () => {
   let vault: IVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
@@ -890,6 +890,9 @@ describe.only('SolverVault', () => {
         2,
       )
 
+      await expect(vault.connect(user).update(user.address, 0, 1, 0)) // trigger rebalance w/ capped closable
+        .to.be.revertedWithCustomError(vault, 'SolverStrategyPendingTradeError')
+
       await updateOracle()
       await vault.settle(user.address)
 
@@ -935,6 +938,7 @@ describe.only('SolverVault', () => {
       expect((await vault.accounts(user.address)).assets).to.equal(0)
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
+
     it('multiple users w/ takerFee', async () => {
       await updateOracle()
       await vault.settle(constants.AddressZero)
@@ -1464,6 +1468,94 @@ describe.only('SolverVault', () => {
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
+    it('full auto close under min margin', async () => {
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('10')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      expect(await collateralInVault()).to.equal(parse6decimal('5'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('5'))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      const checkpoint1 = await vault.checkpoints(1)
+      expect(checkpoint1.deposit).to.equal(smallDeposit)
+      expect(checkpoint1.deposits).to.equal(1)
+      expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
+
+      // We're underneath the collateral minimum, so we shouldn't have opened any positions.
+      expect(await position()).to.equal(0)
+      expect(await btcPosition()).to.equal(0)
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, largeDeposit, 0, 0)
+      expect(await collateralInVault()).to.equal(parse6decimal('5005'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('5005'))
+      expect((await vault.accounts(user.address)).shares).to.equal(smallDeposit)
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(smallDeposit)
+      expect(await vault.totalAssets()).to.equal(smallDeposit)
+      expect(await vault.convertToAssets(parse6decimal('10'))).to.equal(parse6decimal('10'))
+      expect(await vault.convertToShares(parse6decimal('10'))).to.equal(parse6decimal('10'))
+      await updateOracle()
+      await vault.rebalance(user.address)
+      const checkpoint2 = await vault.checkpoints(2)
+      expect(checkpoint2.deposit).to.equal(largeDeposit)
+      expect(checkpoint2.assets).to.equal(smallDeposit)
+      expect(checkpoint2.shares).to.equal(smallDeposit)
+      expect(checkpoint2.deposits).to.equal(1)
+      expect(checkpoint2.timestamp).to.equal((await market.pendingOrders(vault.address, 2)).timestamp)
+
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('10010'))
+      expect(await vault.totalAssets()).to.equal(parse6decimal('10010'))
+      expect(await vault.convertToAssets(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
+      expect(await vault.convertToShares(parse6decimal('10010'))).to.equal(parse6decimal('10010'))
+
+      // Solver opens positions via signature
+      await placeIntentOrder(
+        vault,
+        user2,
+        coordinator,
+        market,
+        parse6decimal('-10'),
+        originalOraclePrice.sub(parse6decimal('10')),
+        1,
+      )
+      await placeIntentOrder(
+        vault,
+        btcUser2,
+        coordinator,
+        btcMarket,
+        parse6decimal('-1'),
+        btcOriginalOraclePrice.sub(parse6decimal('100')),
+        2,
+      )
+
+      await updateOracle()
+      await vault.settle(user.address)
+
+      const VAULT_PNL = parse6decimal('200')
+
+      // Now we should have opened positions.
+      expect(await position()).to.equal(parse6decimal('10'))
+      expect(await btcPosition()).to.equal(parse6decimal('1'))
+
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('10010'))
+      await vault
+        .connect(user)
+        .update(user.address, 0, (await vault.accounts(user.address)).shares.sub(parse6decimal('10')), 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      // We should have closed all positions.
+      expect(await vault.totalAssets()).to.equal(parse6decimal('10.197705')) // non-zero
+
+      expect(await position()).to.equal(0) // zero, under min margin
+      expect(await btcPosition()).to.equal(0) // zero, under min margin
+    })
+
     context('deleverage market', () => {
       beforeEach(async () => {
         await updateOracle()
@@ -1526,10 +1618,5 @@ describe.only('SolverVault', () => {
         expect(await position()).to.be.equal(0)
       })
     })
-
-    // auto close
-    //  - under min margin - multiple users w/ takerFee ?
-    //  - cant close past closable (pending open)
-    //  - closeable min and leverage max cross (should revert)
   })
 })
