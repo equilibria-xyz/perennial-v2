@@ -75,43 +75,27 @@ describe('SolverVault', () => {
     newReceipt?: OracleReceipt,
     newReceiptBtc?: OracleReceipt,
   ) {
-    await _updateOracleEth(newPrice, newReceipt)
-    await _updateOracleBtc(newPriceBtc, newReceiptBtc)
+    await _updateOracle(oracle, newPrice, newReceipt)
+    await _updateOracle(btcOracle, newPriceBtc, newReceiptBtc)
   }
 
-  async function settleUnderlying(account: SignerWithAddress) {
-    await settle(market, account)
-    await settle(btcMarket, account)
-  }
-
-  async function _updateOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
-    const [currentTimestamp, currentPrice] = await oracle.latest()
-    const [, currentReceipt] = await btcOracle.at(currentTimestamp)
+  async function _updateOracle(
+    oracleMock: FakeContract<IOracleProvider>,
+    newPrice?: BigNumber,
+    newReceipt?: OracleReceipt,
+  ) {
+    const [currentTimestamp, currentPrice] = await oracleMock.latest()
+    const [, currentReceipt] = await oracleMock.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    oracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    oracle.request.whenCalledWith(user.address).returns()
-    oracle.latest.returns(newVersion)
-    oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    oracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
-  }
-
-  async function _updateOracleBtc(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
-    const [currentTimestamp, currentPrice] = await btcOracle.latest()
-    const [, currentReceipt] = await btcOracle.at(currentTimestamp)
-    const newVersion = {
-      timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
-      price: newPrice ?? currentPrice,
-      valid: true,
-    }
-    btcOracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    btcOracle.request.whenCalledWith(user.address).returns()
-    btcOracle.latest.returns(newVersion)
-    btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
+    oracleMock.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracleMock.request.whenCalledWith(user.address).returns()
+    oracleMock.latest.returns(newVersion)
+    oracleMock.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    oracleMock.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
   async function position() {
@@ -1786,6 +1770,103 @@ describe('SolverVault', () => {
       ).to.be.revertedWithCustomError(vault, 'SolverVaultNotRegisteredError')
     })
 
-    // TODO: test adding a market (no collateral), and rebalancing in
+    it('add market after initial deposit', async () => {
+      const realVersion3 = {
+        timestamp: STARTING_TIMESTAMP,
+        price: BigNumber.from('13720000'),
+        valid: true,
+      }
+
+      const oracle3 = await smock.fake<IOracleProvider>('IOracleProvider')
+      oracle3.status.returns([realVersion3, realVersion3.timestamp.add(LEGACY_ORACLE_DELAY)])
+      oracle3.request.whenCalledWith(user.address).returns()
+      oracle3.latest.returns(realVersion3)
+      oracle3.current.returns(realVersion3.timestamp.add(LEGACY_ORACLE_DELAY))
+      oracle3.at.whenCalledWith(realVersion3.timestamp).returns([realVersion3, DEFAULT_ORACLE_RECEIPT])
+
+      const LINK_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000003'
+      vaultOracleFactory.instances.whenCalledWith(oracle3.address).returns(true)
+      vaultOracleFactory.oracles.whenCalledWith(LINK_PRICE_FEE_ID).returns(oracle3.address)
+
+      const rootOracle3 = IOracle__factory.connect(
+        await oracleFactory.connect(owner).callStatic.create(LINK_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK-USD'),
+        owner,
+      )
+      await oracleFactory.connect(owner).create(LINK_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK-USD')
+
+      const market3 = await deployProductOnFork({
+        factory: factory,
+        token: asset,
+        owner: owner,
+        oracle: rootOracle3.address,
+        makerLimit: parse6decimal('1000000'),
+        takerFee: {
+          linearFee: 0,
+          proportionalFee: 0,
+          adiabaticFee: 0,
+          scale: parse6decimal('100000'),
+        },
+        makerFee: {
+          linearFee: 0,
+          proportionalFee: 0,
+          scale: parse6decimal('100000'),
+        },
+      })
+
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('10')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      expect(await collateralInVault()).to.equal(parse6decimal('5'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('5'))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      await updateOracle()
+      await _updateOracle(oracle3)
+      await vault['rebalance(address)'](user.address)
+
+      // add third market
+      await vault.register(market3.address)
+      expect((await market.locals(market3.address)).collateral).to.equal(0)
+
+      await updateOracle()
+      await _updateOracle(oracle3)
+
+      const checkpoint1 = await vault.checkpoints(1)
+      expect(checkpoint1.deposit).to.equal(smallDeposit)
+      expect(checkpoint1.deposits).to.equal(1)
+      expect(checkpoint1.timestamp).to.equal((await market.pendingOrders(vault.address, 1)).timestamp)
+
+      // We're underneath the collateral minimum, so we shouldn't have opened any positions.
+      expect(await position()).to.equal(0)
+      expect(await btcPosition()).to.equal(0)
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, largeDeposit, 0, 0)
+      expect(await collateralInVault()).to.equal(parse6decimal('5005'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('5005'))
+      expect((await market.locals(market3.address)).collateral).to.equal(0) // keeps pro-rata
+
+      await vault
+        .connect(coordinator)
+        ['rebalance(address,address,uint256)'](market.address, market3.address, parse6decimal('1000'))
+
+      expect(await collateralInVault()).to.equal(parse6decimal('4005'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('5005'))
+      expect((await market3.locals(vault.address)).collateral).to.equal(parse6decimal('1000'))
+
+      await updateOracle()
+      await _updateOracle(oracle3)
+
+      // redeem partial
+      await vault.connect(user).update(user.address, 0, largeDeposit.div(2), 0)
+      await updateOracle()
+      await _updateOracle(oracle3)
+      await vault.connect(user).update(user.address, 0, 0, constants.MaxUint256)
+
+      expect(await collateralInVault()).to.equal(parse6decimal('2004.5005'))
+      expect(await btcCollateralInVault()).to.equal(parse6decimal('2505'))
+      expect((await market3.locals(vault.address)).collateral).to.equal(parse6decimal('500.4995'))
+    })
   })
 })
