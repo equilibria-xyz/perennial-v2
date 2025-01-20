@@ -65,9 +65,6 @@ describe('SolverVault', () => {
   let btcOriginalOraclePrice: BigNumber
   let btcOracle: FakeContract<IOracleProvider>
   let btcMarket: IMarket
-  let vaultSigner: SignerWithAddress
-  let marketFactory: MarketFactory
-  let proxyAdmin: ProxyAdmin
 
   async function updateOracle(
     newPrice?: BigNumber,
@@ -139,17 +136,6 @@ describe('SolverVault', () => {
       .add(await asset.balanceOf(vault.address))
   }
 
-  async function currentPositionGlobal(market: IMarket) {
-    const currentPosition = { ...(await market.position()) }
-    const pending = await market.pending()
-
-    currentPosition.maker = currentPosition.maker.add(pending.makerPos).sub(pending.makerNeg)
-    currentPosition.long = currentPosition.long.add(pending.longNeg).sub(pending.longNeg)
-    currentPosition.short = currentPosition.short.add(pending.shortPos).sub(pending.shortNeg)
-
-    return currentPosition
-  }
-
   async function currentPositionLocal(market: IMarket, vault: IVault) {
     const currentPosition = { ...(await market.positions(vault.address)) }
     const pending = await market.pendings(vault.address)
@@ -207,8 +193,6 @@ describe('SolverVault', () => {
       await ethers.getSigners()
     factory = instanceVars.marketFactory
     oracleFactory = instanceVars.oracleFactory
-    marketFactory = instanceVars.marketFactory
-    proxyAdmin = instanceVars.proxyAdmin
 
     vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
     await oracleFactory.connect(owner).register(vaultOracleFactory.address)
@@ -416,8 +400,6 @@ describe('SolverVault', () => {
         parse6decimal('100000'),
         false,
       )
-
-    vaultSigner = await impersonate.impersonateWithBalance(vault.address, ethers.utils.parseEther('10'))
 
     return { instanceVars, vaultFactoryProxy, rootOracle }
   }
