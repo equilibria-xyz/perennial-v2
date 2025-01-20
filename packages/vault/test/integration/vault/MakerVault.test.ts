@@ -408,6 +408,21 @@ describe('MakerVault', () => {
     vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
   })
 
+  after(async () => {
+    _resetOracleFakes(oracle)
+    _resetOracleFakes(btcOracle)
+    vaultOracleFactory.instances.reset()
+    vaultOracleFactory.oracles.reset()
+  })
+
+  function _resetOracleFakes(oracle: FakeContract<IOracleProvider>): undefined {
+    oracle.status.reset()
+    oracle.request.reset()
+    oracle.latest.reset()
+    oracle.current.reset()
+    oracle.at.reset()
+  }
+
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
       await expect(vault.initialize(asset.address, market.address, parse6decimal('5'), 'Blue Chip'))
