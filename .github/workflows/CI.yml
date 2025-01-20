@@ -7,6 +7,8 @@ on:
     branches:
       - main
       - v2.4-mini
+      - britz-sender-is-signer
+      - britz-solver-vault
   workflow_dispatch:
 
 env:

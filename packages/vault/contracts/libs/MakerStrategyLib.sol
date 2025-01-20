@@ -63,7 +63,7 @@ struct MarketMakerStrategyContext {
     UFixed6 maxPosition;
 }
 
-/// @title Strategy
+/// @title MakerStrategy
 /// @notice Logic for vault capital allocation
 /// @dev (external-safe): this library is safe to externalize
 ///      - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
@@ -141,7 +141,7 @@ library MakerStrategyLib {
             .max(marketContext.minPosition)
             .min(marketContext.maxPosition);
 
-        target.position = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
+        target.maker = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 
     /// @notice Loads the strategy context of each of the underlying markets

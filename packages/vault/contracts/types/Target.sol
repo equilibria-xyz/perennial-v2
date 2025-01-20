@@ -5,9 +5,12 @@ import { Fixed6 } from"@equilibria/root/number/types/Fixed6.sol";
 
 /// @dev The target allocation for a market
 struct Target {
-    /// @dev The amount of change in collateral
+    /// @dev The collateral delta
     Fixed6 collateral;
 
-    /// @dev The amount of change in position
-    Fixed6 position;
+    /// @dev The maker position delta
+    Fixed6 maker;
+
+    /// @dev The taker position delta
+    Fixed6 taker;
 }

@@ -154,7 +154,7 @@ abstract contract Vault is IVault, Instance {
 
     /// @notice Updates the Vault's coordinator address
     /// @param newCoordinator The new coordinator address
-    function updateCoordinator(address newCoordinator) external onlyOwner {
+    function updateCoordinator(address newCoordinator) public virtual onlyOwner {
         coordinator = newCoordinator;
         emit CoordinatorUpdated(newCoordinator);
     }
@@ -478,8 +478,8 @@ abstract contract Vault is IVault, Instance {
     ) private {
         registration.market.update(
             address(this),
-            shouldRebalance ? target.position : Fixed6Lib.ZERO,
-            Fixed6Lib.ZERO,
+            shouldRebalance ? target.maker : Fixed6Lib.ZERO,
+            shouldRebalance ? target.taker : Fixed6Lib.ZERO,
             target.collateral,
             address(0)
         );
