@@ -24,6 +24,7 @@ import { deployProtocol, fundWallet, settle } from '@perennial/v2-core/test/inte
 import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import { MarketFactory, ProxyAdmin, TransparentUpgradeableProxy__factory } from '@perennial/v2-core/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@perennial/v2-oracle/types/generated'
+import { reset } from '../../../../common/testutil/time'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -409,19 +410,8 @@ describe('MakerVault', () => {
   })
 
   after(async () => {
-    _resetOracleFakes(oracle)
-    _resetOracleFakes(btcOracle)
-    vaultOracleFactory.instances.reset()
-    vaultOracleFactory.oracles.reset()
+    await reset()
   })
-
-  function _resetOracleFakes(oracle: FakeContract<IOracleProvider>): undefined {
-    oracle.status.reset()
-    oracle.request.reset()
-    oracle.latest.reset()
-    oracle.current.reset()
-    oracle.at.reset()
-  }
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
