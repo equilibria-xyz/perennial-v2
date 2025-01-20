@@ -797,7 +797,7 @@ describe('SolverVault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have redeemed all of our shares.
-      const fundingAmount = BigNumber.from('-2097504') // TODO settlement fee?
+      const fundingAmount = BigNumber.from('-2097504')
       expect(await totalCollateralInVault()).to.equal(
         parse6decimal('10010').add(VAULT_PNL).add(fundingAmount).mul(1e12),
       )
@@ -913,7 +913,7 @@ describe('SolverVault', () => {
       expect(await btcPosition()).to.equal(0)
 
       // We should have redeemed all of our shares.
-      const fundingAmount = BigNumber.from('-2097504') // TODO settlement fee?
+      const fundingAmount = BigNumber.from('-2097504')
       expect(await totalCollateralInVault()).to.equal(
         parse6decimal('10010').add(VAULT_PNL).add(fundingAmount).mul(1e12),
       )
