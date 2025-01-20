@@ -17,9 +17,13 @@ import {
   OrderVerifier__factory,
 } from '../../../../types/generated'
 import { impersonate } from '../../../../../common/testutil'
-import { parse6decimal } from '../../../../../common/testutil/types'
 import { transferCollateral } from '../../../helpers/marketHelpers'
-import { createMarketETH, deployProtocol, deployPythOracleFactory } from '../../../helpers/setupHelpers'
+import {
+  createMarketETH,
+  deployController,
+  deployProtocol,
+  deployPythOracleFactory,
+} from '../../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
 import {
@@ -93,34 +97,29 @@ const fixture = async (): Promise<FixtureVars> => {
 
   // deploy the order manager
   const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
+  const controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
   const manager = await new Manager_Optimism__factory(owner).deploy(
     USDC_ADDRESS,
     dsu.address,
     DSU_RESERVE,
     marketFactory.address,
     verifier.address,
+    controller.address,
   )
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 750_000, // buffer for withdrawing keeper fee from market
+    bufferBase: 250_000, // buffer for withdrawing keeper fee from market
     multiplierCalldata: 0,
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 900_000, // for price commitment
+    bufferBase: 650_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
-
-  // fund accounts and deposit all into market
-  const amount = parse6decimal('100000')
-  await setupUser(dsu, marketFactory, market, manager, userA, amount)
-  await setupUser(dsu, marketFactory, market, manager, userB, amount)
-  await setupUser(dsu, marketFactory, market, manager, userC, amount)
-  await setupUser(dsu, marketFactory, market, manager, userD, amount)
 
   await mockGasInfo()
 
@@ -134,6 +133,7 @@ const fixture = async (): Promise<FixtureVars> => {
     market,
     oracle: marketWithOracle.oracle,
     verifier,
+    controller,
     owner,
     userA,
     userB,
@@ -159,4 +159,4 @@ async function mockGasInfo() {
   gasInfo.decimals.returns(6)
 }
 
-if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture)
+if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture, fundWalletDSU)
