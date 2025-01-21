@@ -63,7 +63,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-core run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: core_unit_test_coverage
           path: ./packages/core/coverage/lcov.info
@@ -101,7 +101,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-core run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: core_integration_test_coverage
           path: ./packages/core/coverage/lcov.info
@@ -123,12 +123,12 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
       - name: Download unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: core_unit_test_coverage
           path: core_unit_test_coverage
       - name: Download integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: core_integration_test_coverage
           path: core_integration_test_coverage
@@ -171,7 +171,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oracle_unit_test_coverage
           path: ./packages/oracle/coverage/lcov.info
@@ -201,7 +201,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oracle_integration_test_coverage
           path: ./packages/oracle/coverage/lcov.info
@@ -231,7 +231,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oracle_sepolia_integration_test_coverage
           path: ./packages/oracle/coverage/lcov.info
@@ -262,7 +262,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vault_unit_test_coverage
           path: ./packages/vault/coverage/lcov.info
@@ -292,7 +292,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vault_integration_test_coverage
           path: ./packages/vault/coverage/lcov.info
@@ -323,7 +323,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_unit_test_coverage
           path: ./packages/periphery/coverage/lcov.info
@@ -353,7 +353,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_integration_test_coverage
           path: ./packages/periphery/coverage/lcov.info
@@ -383,7 +383,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_arbitrum_integration_test_coverage
           path: ./packages/periphery/coverage/lcov.info
@@ -407,17 +407,17 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
       - name: Download oracle unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: oracle_unit_test_coverage
           path: oracle_unit_test_coverage
       - name: Download vault unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vault_unit_test_coverage
           path: vault_unit_test_coverage
       - name: Download periphery unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_unit_test_coverage
           path: periphery_unit_test_coverage
@@ -429,7 +429,7 @@ jobs:
           -a periphery_unit_test_coverage/lcov.info
           --output-file periphery_unit_coverage.info
       - name: Upload combined unit test lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_unit_coverage
           path: periphery_unit_coverage.info
@@ -459,27 +459,27 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
       - name: Download oracle integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: oracle_integration_test_coverage
           path: oracle_integration_test_coverage
       - name: Download oracle sepolia integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: oracle_sepolia_integration_test_coverage
           path: oracle_sepolia_integration_test_coverage
       - name: Download vault integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vault_integration_test_coverage
           path: vault_integration_test_coverage
       - name: Download periphery integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_integration_test_coverage
           path: periphery_integration_test_coverage
       - name: Download periphery arbitrum integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_arbitrum_integration_test_coverage
           path: periphery_arbitrum_integration_test_coverage
@@ -493,7 +493,7 @@ jobs:
           -a periphery_arbitrum_integration_test_coverage/lcov.info
           --output-file periphery_integration_coverage.info
       - name: Upload combined integration test lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_integration_coverage
           path: periphery_integration_coverage.info
@@ -517,12 +517,12 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
       - name: Download periphery unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_unit_coverage
           path: periphery_unit_coverage
       - name: Download periphery integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_integration_coverage
           path: periphery_integration_coverage
