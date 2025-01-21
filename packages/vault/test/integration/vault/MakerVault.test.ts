@@ -13,8 +13,8 @@ import {
   IOracleProvider,
   VaultFactory__factory,
   IVaultFactory,
-  IVault__factory,
-  IVault,
+  IMakerVault__factory,
+  IMakerVault,
   IVaultFactory__factory,
   IOracleFactory,
   IMarketFactory,
@@ -35,7 +35,7 @@ const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000
 const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
 describe('MakerVault', () => {
-  let vault: IVault
+  let vault: IMakerVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
   let factory: IMarketFactory
@@ -68,8 +68,8 @@ describe('MakerVault', () => {
     newReceipt?: OracleReceipt,
     newReceiptBtc?: OracleReceipt,
   ) {
-    await _updateOracleEth(newPrice, newReceipt)
-    await _updateOracleBtc(newPriceBtc, newReceiptBtc)
+    await _updateOracle(oracle, newPrice, newReceipt)
+    await _updateOracle(btcOracle, newPriceBtc, newReceiptBtc)
   }
 
   async function settleUnderlying(account: SignerWithAddress) {
@@ -77,34 +77,23 @@ describe('MakerVault', () => {
     await settle(btcMarket, account)
   }
 
-  async function _updateOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
-    const [currentTimestamp, currentPrice] = await oracle.latest()
-    const [, currentReceipt] = await btcOracle.at(currentTimestamp)
+  async function _updateOracle(
+    oracleMock: FakeContract<IOracleProvider>,
+    newPrice?: BigNumber,
+    newReceipt?: OracleReceipt,
+  ) {
+    const [currentTimestamp, currentPrice] = await oracleMock.latest()
+    const [, currentReceipt] = await oracleMock.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    oracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    oracle.request.whenCalledWith(user.address).returns()
-    oracle.latest.returns(newVersion)
-    oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    oracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
-  }
-
-  async function _updateOracleBtc(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
-    const [currentTimestamp, currentPrice] = await btcOracle.latest()
-    const [, currentReceipt] = await btcOracle.at(currentTimestamp)
-    const newVersion = {
-      timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
-      price: newPrice ?? currentPrice,
-      valid: true,
-    }
-    btcOracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    btcOracle.request.whenCalledWith(user.address).returns()
-    btcOracle.latest.returns(newVersion)
-    btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
+    oracleMock.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracleMock.request.whenCalledWith(user.address).returns()
+    oracleMock.latest.returns(newVersion)
+    oracleMock.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    oracleMock.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
   async function position() {
@@ -286,7 +275,7 @@ describe('MakerVault', () => {
 
     await fundWallet(asset, owner)
     await asset.approve(vaultFactory.address, ethers.constants.MaxUint256)
-    vault = IVault__factory.connect(
+    vault = IMakerVault__factory.connect(
       await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
       owner,
     )
@@ -1208,7 +1197,7 @@ describe('MakerVault', () => {
 
       await expect(vault.connect(user).update(user.address, 0, maxRedeem, 0)).to.be.revertedWithCustomError(
         vault,
-        'StrategyLibInsufficientAssetsError',
+        'MakerStrategyInsufficientAssetsError',
       )
       await expect(vault.connect(user).update(user.address, 0, maxRedeem.sub(parse6decimal('1')), 0)).to.not.be.reverted
     })
@@ -1248,7 +1237,7 @@ describe('MakerVault', () => {
 
       await expect(vault.connect(user).update(user.address, 0, maxRedeem, 0)).to.be.revertedWithCustomError(
         vault,
-        'StrategyLibInsufficientAssetsError',
+        'MakerStrategyInsufficientAssetsError',
       )
       await expect(vault.connect(user).update(user.address, 0, maxRedeem.sub(parse6decimal('1')), 0)).to.not.be.reverted
     })
@@ -1768,7 +1757,7 @@ describe('MakerVault', () => {
 
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
-      const vault2 = IVault__factory.connect(
+      const vault2 = IMakerVault__factory.connect(
         await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
         owner,
       )
@@ -1813,7 +1802,7 @@ describe('MakerVault', () => {
 
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
-      const vault2 = IVault__factory.connect(
+      const vault2 = IMakerVault__factory.connect(
         await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
         owner,
       )
@@ -2135,11 +2124,14 @@ describe('MakerVault', () => {
           // Ensure the full amount cannot be redeemed.
           await expect(vault.connect(user).update(user.address, 0, depositAmount, 0)).to.be.revertedWithCustomError(
             vault,
-            'StrategyLibInsufficientCollateralError',
+            'MakerStrategyInsufficientCollateralError',
           )
 
           // Ensure a small amount cannot be redeemed.
-          await expect(smallRedeem(user)).to.be.revertedWithCustomError(vault, 'StrategyLibInsufficientCollateralError')
+          await expect(smallRedeem(user)).to.be.revertedWithCustomError(
+            vault,
+            'MakerStrategyInsufficientCollateralError',
+          )
         })
 
         it('recovers from a liquidation', async () => {

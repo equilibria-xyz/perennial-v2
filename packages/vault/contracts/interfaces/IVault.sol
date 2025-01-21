@@ -74,12 +74,6 @@ interface IVault is IInstance {
     error RegistrationStorageInvalidError();
     // sig: 0x0f9f8b19
     error VaultParameterStorageInvalidError();
-    // sig: 0x97635122
-    error StrategyLibInsufficientCollateralError();
-    // sig: 0xfd9cbca5
-    error StrategyLibInsufficientAssetsError();
-    // sig: 0xfadba457
-    error SolverStrategyPendingTradeError();
 
     function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, string calldata name_) external;
     function name() external view returns (string memory);
