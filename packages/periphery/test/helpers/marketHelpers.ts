@@ -12,9 +12,12 @@ import {
   PositionStorageGlobalLib__factory,
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
+  GuaranteeStorageLocalLib__factory,
+  GuaranteeStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
+  OrderStorageGlobalLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
-  MagicValueLib__factory,
 } from '@perennial/v2-core/types/generated'
 import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -103,7 +106,6 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
       'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
       'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
         await new CheckpointStorageLib__factory(owner).deploy()
       ).address,
@@ -121,6 +123,18 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+        await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageLocalLib': (
+        await new OrderStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageGlobalLib': (
+        await new OrderStorageGlobalLib__factory(owner).deploy()
+      ).address,
     },
     owner,
   ).deploy(verifierAddress)
