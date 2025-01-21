@@ -84,7 +84,7 @@ For executing orders and handling signed messages, keepers are compensated from 
 ### Usage
 
 #### Users
-All operations may be performed in a gasless manner using signed messages. Users must first deposit collateral into the market in which they wish to interact. This can be done directly or through an extension like _Collateral Accounts_.
+All operations may be performed in a gasless manner using signed messages. Users must create and fund a _Collateral Account_, which will be used to compensate keepers for processing signed messages and for executing orders.  Users must also approve the trigger order _Manager_ contract as an operator for themselves (not for their collateral account).
 
 ##### Actions
 

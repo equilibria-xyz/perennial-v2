@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
@@ -48,6 +49,10 @@ interface IController {
     // sig: 0xdc72f280
     /// @custom:error Group is balanced and ineligible for rebalance
     error ControllerGroupBalancedError();
+
+    // sig: 0x191c84f2
+    /// @custom:error Caller has not be authorized as an operator of the owner of the collateral account
+    error ControllerNotOperatorError();
 
     // sig: 0xbd3648e9
     /// @custom:error A RebalanceConfigChange message had a mismatch in number of markets and configs
@@ -157,4 +162,9 @@ interface IController {
     /// @param withdrawal Message requesting a withdrawal
     /// @param signature ERC712 message signature
     function withdrawWithSignature(Withdrawal calldata withdrawal, bytes calldata signature) external;
+
+    /// @notice Allows an operator to withdraw funds from the owner's account to pay fees
+    /// @param owner Used to determine the collateral account to charge
+    /// @param amount Quantity of DSU to transfer to the sender
+    function chargeFee(address owner, UFixed6 amount) external;
 }

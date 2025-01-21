@@ -215,7 +215,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _updateMarket(take.common.account, take.common.signer, Fixed6Lib.ZERO, take.amount, Fixed6Lib.ZERO, take.referrer);
     }
 
-    /// @notice Updates the account's position and collateral
+    /// @notice Updates the account's position
     /// @dev No collateral movement, signer is allowed to self-send
     /// @param account The account to operate on
     /// @param amount The position delta of the order (positive for long, negative for short)

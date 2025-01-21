@@ -24,6 +24,7 @@ import { deployProtocol, fundWallet, settle } from '@perennial/v2-core/test/inte
 import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import { MarketFactory, ProxyAdmin, TransparentUpgradeableProxy__factory } from '@perennial/v2-core/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@perennial/v2-oracle/types/generated'
+import { reset } from '../../../../common/testutil/time'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -395,6 +396,10 @@ describe('MakerVault', () => {
     vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(oracle.address)
     vaultOracleFactory.instances.whenCalledWith(btcOracle.address).returns(true)
     vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
+  })
+
+  after(async () => {
+    await reset()
   })
 
   describe('#initialize', () => {
