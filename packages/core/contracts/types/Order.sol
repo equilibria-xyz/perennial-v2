@@ -148,33 +148,44 @@ library OrderLib {
     ) internal pure returns (Order memory newOrder) {
         // compute side-based deltas from the current position and new position
         (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) = (
-            Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(position.maker)),
-            Fixed6Lib.from(newLong).sub(Fixed6Lib.from(position.long)),
-            Fixed6Lib.from(newShort).sub(Fixed6Lib.from(position.short))
+            _change(position.maker, newMaker),
+            _change(position.long, newLong),
+            _change(position.short, newShort)
         );
 
-        // create the new order
-        newOrder = Order(
-            timestamp,
-            0,
-            collateral,
-            makerAmount.max(Fixed6Lib.ZERO).abs(),
-            makerAmount.min(Fixed6Lib.ZERO).abs(),
-            longAmount.max(Fixed6Lib.ZERO).abs(),
-            longAmount.min(Fixed6Lib.ZERO).abs(),
-            shortAmount.max(Fixed6Lib.ZERO).abs(),
-            shortAmount.min(Fixed6Lib.ZERO).abs(),
-            protect ? 1 : 0,
-            0,
-            makerAmount.abs().mul(referralFee),
-            longAmount.abs().add(shortAmount.abs()).mul(referralFee)
-        );
+        // populate the new order
+        newOrder.timestamp = timestamp;
+        newOrder.collateral = collateral;
+        newOrder.makerPos = _positiveComponent(makerAmount);
+        newOrder.makerNeg = _negativeComponent(makerAmount);
+        newOrder.longPos = _positiveComponent(longAmount);
+        newOrder.longNeg = _negativeComponent(longAmount);
+        newOrder.shortPos = _positiveComponent(shortAmount);
+        newOrder.shortNeg = _negativeComponent(shortAmount);
+        newOrder.makerReferral = makerAmount.abs().mul(referralFee);
+        newOrder.takerReferral = longAmount.abs().add(shortAmount.abs()).mul(referralFee);
 
         // set the order and invalidation counts
+        if (protect) newOrder.protection = 1;
         if (!isEmpty(newOrder)) {
             newOrder.orders = 1;
             if (invalidatable) newOrder.invalidation = 1;
         }
+    }
+
+    /// @dev Helper function to compute the signed change between two unsigned values
+    function _change(UFixed6 fromValue, UFixed6 toValue) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(toValue).sub(Fixed6Lib.from(fromValue));
+    }
+
+    /// @dev Helper function to compute the negative component of a signed value
+    function _negativeComponent(Fixed6 value) internal pure returns (UFixed6) {
+        return value.min(Fixed6Lib.ZERO).abs();
+    }
+
+    /// @dev Helper function to compute the positive component of a signed value
+    function _positiveComponent(Fixed6 value) internal pure returns (UFixed6) {
+        return value.max(Fixed6Lib.ZERO).abs();
     }
 
     /// @notice Returns whether the order increases any of the account's positions

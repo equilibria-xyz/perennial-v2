@@ -8,6 +8,10 @@ import {
   OrderLocalTester,
   OrderGlobalTester__factory,
   OrderLocalTester__factory,
+  OrderStorageGlobalLib,
+  OrderStorageLocalLib,
+  OrderStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
 } from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
 import { OrderStruct } from '../../../types/generated/contracts/Market'
@@ -43,14 +47,23 @@ describe('Order', () => {
       takerReferral: 12,
     }
 
+    let orderStorageGlobalLib: OrderStorageGlobalLib
     let orderGlobal: OrderGlobalTester
 
     beforeEach(async () => {
-      orderGlobal = await new OrderGlobalTester__factory(owner).deploy()
+      orderStorageGlobalLib = await new OrderStorageGlobalLib__factory(owner).deploy()
+      orderGlobal = await new OrderGlobalTester__factory(
+        { 'contracts/types/Order.sol:OrderStorageGlobalLib': orderStorageGlobalLib.address },
+        owner,
+      ).deploy()
     })
 
     describe('common behavoir', () => {
-      shouldBehaveLike(() => ({ order: orderGlobal, validStoredOrder: VALID_STORED_ORDER }))
+      shouldBehaveLike(() => ({
+        order: orderGlobal,
+        storageLib: orderStorageGlobalLib,
+        validStoredOrder: VALID_STORED_ORDER,
+      }))
     })
   })
 
@@ -70,15 +83,23 @@ describe('Order', () => {
       makerReferral: 11,
       takerReferral: 12,
     }
-
+    let orderStorageLocalLib: OrderStorageLocalLib
     let orderLocal: OrderLocalTester
 
     beforeEach(async () => {
-      orderLocal = await new OrderLocalTester__factory(owner).deploy()
+      orderStorageLocalLib = await new OrderStorageLocalLib__factory(owner).deploy()
+      orderLocal = await new OrderLocalTester__factory(
+        { 'contracts/types/Order.sol:OrderStorageLocalLib': orderStorageLocalLib.address },
+        owner,
+      ).deploy()
     })
 
     describe('common behavior', () => {
-      shouldBehaveLike(() => ({ order: orderLocal, validStoredOrder: VALID_STORED_ORDER }))
+      shouldBehaveLike(() => ({
+        order: orderLocal,
+        storageLib: orderStorageLocalLib,
+        validStoredOrder: VALID_STORED_ORDER,
+      }))
     })
 
     describe('#store', () => {
@@ -113,7 +134,7 @@ describe('Order', () => {
               ...DEFAULT_ORDER,
               protection: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(orderStorageLocalLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -134,7 +155,7 @@ describe('Order', () => {
               ...DEFAULT_ORDER,
               invalidation: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(orderStorageLocalLib, 'OrderStorageInvalidError')
         })
       })
     })
@@ -504,14 +525,16 @@ describe('Order', () => {
   function shouldBehaveLike(
     getter: () => {
       order: OrderLocalTester | OrderGlobalTester
+      storageLib: OrderStorageLocalLib | OrderStorageGlobalLib
       validStoredOrder: OrderStruct
     },
   ) {
     let order: OrderLocalTester | OrderGlobalTester
+    let storageLib: OrderStorageLocalLib | OrderStorageGlobalLib
     let validStoredOrder: OrderStruct
 
     beforeEach(async () => {
-      ;({ order, validStoredOrder } = getter())
+      ;({ order, storageLib, validStoredOrder } = getter())
     })
 
     describe('#store', () => {
@@ -543,7 +566,7 @@ describe('Order', () => {
               ...validStoredOrder,
               timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -564,7 +587,7 @@ describe('Order', () => {
               ...validStoredOrder,
               orders: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -594,7 +617,7 @@ describe('Order', () => {
               ...validStoredOrder,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
 
         it('reverts if collateral out of range (below)', async () => {
@@ -603,7 +626,7 @@ describe('Order', () => {
               ...validStoredOrder,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -624,7 +647,7 @@ describe('Order', () => {
               ...DEFAULT_ORDER,
               makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -645,7 +668,7 @@ describe('Order', () => {
               ...DEFAULT_ORDER,
               makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -666,7 +689,7 @@ describe('Order', () => {
               ...DEFAULT_ORDER,
               longPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -687,7 +710,7 @@ describe('Order', () => {
               ...DEFAULT_ORDER,
               longNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -708,7 +731,7 @@ describe('Order', () => {
               ...DEFAULT_ORDER,
               shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -729,7 +752,7 @@ describe('Order', () => {
               ...DEFAULT_ORDER,
               shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -750,7 +773,7 @@ describe('Order', () => {
               ...validStoredOrder,
               makerReferral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -771,7 +794,7 @@ describe('Order', () => {
               ...validStoredOrder,
               takerReferral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
     })
