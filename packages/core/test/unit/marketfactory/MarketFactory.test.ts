@@ -21,6 +21,10 @@ import {
   PositionStorageGlobalLib__factory,
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
+  GuaranteeStorageLocalLib__factory,
+  GuaranteeStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
+  OrderStorageGlobalLib__factory,
   VersionStorageLib__factory,
   IVerifier,
   MagicValueLib__factory,
@@ -78,6 +82,18 @@ describe('MarketFactory', () => {
         ).address,
         'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
         'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
+        'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+          await new GuaranteeStorageLocalLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+          await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Order.sol:OrderStorageLocalLib': (
+          await new OrderStorageLocalLib__factory(owner).deploy()
+        ).address,
+        'contracts/types/Order.sol:OrderStorageGlobalLib': (
+          await new OrderStorageGlobalLib__factory(owner).deploy()
+        ).address,
       },
       owner,
     ).deploy(verifier.address)
