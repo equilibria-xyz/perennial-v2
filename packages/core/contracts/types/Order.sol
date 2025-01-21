@@ -403,7 +403,7 @@ library OrderStorageGlobalLib {
         );
     }
 
-    function store(OrderStorageGlobal storage self, Order memory newValue) internal {
+    function store(OrderStorageGlobal storage self, Order memory newValue) external {
         OrderStorageLib.validate(newValue);
 
         uint256 encoded0 =
@@ -473,7 +473,7 @@ library OrderStorageLocalLib {
         );
     }
 
-    function store(OrderStorageLocal storage self, Order memory newValue) internal {
+    function store(OrderStorageLocal storage self, Order memory newValue) external {
         OrderStorageLib.validate(newValue);
 
         if (newValue.protection > 1) revert OrderStorageLib.OrderStorageInvalidError();

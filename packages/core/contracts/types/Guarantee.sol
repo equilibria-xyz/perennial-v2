@@ -185,7 +185,7 @@ library GuaranteeStorageGlobalLib {
         );
     }
 
-    function store(GuaranteeStorageGlobal storage self, Guarantee memory newValue) internal {
+    function store(GuaranteeStorageGlobal storage self, Guarantee memory newValue) external {
         GuaranteeStorageLib.validate(newValue);
 
         uint256 encoded0 =
@@ -242,7 +242,7 @@ library GuaranteeStorageLocalLib {
         );
     }
 
-    function store(GuaranteeStorageLocal storage self, Guarantee memory newValue) internal {
+    function store(GuaranteeStorageLocal storage self, Guarantee memory newValue) external {
         GuaranteeStorageLib.validate(newValue);
 
         if (newValue.notional.gt(Fixed6.wrap(type(int64).max))) revert GuaranteeStorageLib.GuaranteeStorageInvalidError();
