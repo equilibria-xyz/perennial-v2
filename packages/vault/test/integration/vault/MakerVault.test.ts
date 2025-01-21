@@ -13,8 +13,8 @@ import {
   IOracleProvider,
   VaultFactory__factory,
   IVaultFactory,
-  IVault__factory,
-  IVault,
+  IMakerVault__factory,
+  IMakerVault,
   IVaultFactory__factory,
   IOracleFactory,
   IMarketFactory,
@@ -34,7 +34,7 @@ const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000
 const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
 describe('MakerVault', () => {
-  let vault: IVault
+  let vault: IMakerVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
   let factory: IMarketFactory
@@ -274,7 +274,7 @@ describe('MakerVault', () => {
 
     await fundWallet(asset, owner)
     await asset.approve(vaultFactory.address, ethers.constants.MaxUint256)
-    vault = IVault__factory.connect(
+    vault = IMakerVault__factory.connect(
       await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
       owner,
     )
@@ -1752,7 +1752,7 @@ describe('MakerVault', () => {
 
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
-      const vault2 = IVault__factory.connect(
+      const vault2 = IMakerVault__factory.connect(
         await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
         owner,
       )
@@ -1797,7 +1797,7 @@ describe('MakerVault', () => {
 
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
-      const vault2 = IVault__factory.connect(
+      const vault2 = IMakerVault__factory.connect(
         await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
         owner,
       )
