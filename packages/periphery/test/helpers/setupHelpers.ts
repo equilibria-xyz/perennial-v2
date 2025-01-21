@@ -23,7 +23,6 @@ import {
   InvariantLib__factory,
   IOracleProvider,
   IVerifier,
-  MagicValueLib__factory,
   Market__factory,
   MarketFactory,
   MarketFactory__factory,
@@ -255,7 +254,6 @@ export async function mockMarket(token: Address): Promise<IMarket> {
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
         await new GuaranteeStorageLocalLib__factory(owner).deploy()
       ).address,

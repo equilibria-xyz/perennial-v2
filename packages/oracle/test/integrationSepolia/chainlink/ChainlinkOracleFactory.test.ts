@@ -39,7 +39,6 @@ import {
   VersionStorageLib__factory,
   GasOracle,
   GasOracle__factory,
-  MagicValueLib__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -304,9 +303,6 @@ testOracles.forEach(testOracle => {
           ).address,
           '@perennial/v2-core/contracts/types/Version.sol:VersionStorageLib': (
             await new VersionStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/MagicValueLib.sol:MagicValueLib': (
-            await new MagicValueLib__factory(owner).deploy()
           ).address,
           '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
             await new GuaranteeStorageLocalLib__factory(owner).deploy()

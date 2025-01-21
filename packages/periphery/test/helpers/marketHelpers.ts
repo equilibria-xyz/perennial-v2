@@ -18,7 +18,6 @@ import {
   OrderStorageGlobalLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
-  MagicValueLib__factory,
 } from '@perennial/v2-core/types/generated'
 import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
@@ -124,7 +123,6 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
         await new GuaranteeStorageLocalLib__factory(owner).deploy()
       ).address,

@@ -20,7 +20,7 @@ library MagicValueLib {
         UFixed6 newMaker,
         UFixed6 newLong,
         UFixed6 newShort
-    ) external pure returns (Fixed6, UFixed6, UFixed6, UFixed6) {
+    ) internal pure returns (Fixed6, UFixed6, UFixed6, UFixed6) {
         return (
             _processCollateralMagicValue(context, collateral),
             _processPositionMagicValue(context, updateContext.currentPositionLocal.maker, newMaker),
@@ -54,7 +54,6 @@ library MagicValueLib {
     ) private pure returns (UFixed6) {
         if (newPosition.eq(MAGIC_VALUE_UNCHANGED_POSITION)) return currentPosition;
         if (newPosition.eq(MAGIC_VALUE_FULLY_CLOSED_POSITION)) {
-            if (currentPosition.isZero()) return UFixed6Lib.ZERO;           // side is empty
             if (context.pendingLocal.crossesZero()) return currentPosition; // pending zero-cross, max close is no-op
             return context.pendingLocal.pos().min(currentPosition);         // minimum position is pending open, or current position if smaller (due to intents)
         }

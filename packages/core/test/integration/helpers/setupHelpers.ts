@@ -29,7 +29,6 @@ import {
   OrderStorageLocalLib__factory,
   OrderStorageGlobalLib__factory,
   VersionLib__factory,
-  MagicValueLib__factory,
   Verifier,
   Verifier__factory,
 } from '../../../types/generated'
@@ -131,7 +130,6 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
       'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
         await new GuaranteeStorageLocalLib__factory(owner).deploy()
       ).address,
