@@ -647,6 +647,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const fee = parse6decimal('0.123')
             usdc.transfer.returns(true)
             market.claimFee.returns(fee)
+            margin.claim.returns(fee)
 
             usdc.balanceOf.returnsAtCall(0, 0)
             usdc.balanceOf.returnsAtCall(1, fee)
@@ -662,6 +663,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const unwrappedFee = parse6decimal('0.121')
             usdc.transfer.returns(true)
             market.claimFee.returns(fee)
+            margin.claim.returns(fee)
 
             usdc.balanceOf.returnsAtCall(0, 0)
             usdc.balanceOf.returnsAtCall(1, unwrappedFee)
@@ -676,6 +678,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const fee = parse6decimal('0.0654')
             dsu.transfer.returns(true)
             market.claimFee.returns(fee)
+            margin.claim.returns(fee)
 
             await expect(invoke(buildClaimFee({ market: market.address, unwrap: false }))).to.not.be.reverted
             expect(market.claimFee).to.have.been.calledWith(user.address)
