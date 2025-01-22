@@ -170,7 +170,7 @@ export function RunInvokerTests(
           return multiInvoker.connect(user)['invoke((uint8,bytes)[])'](args)
         },
       },
-      /*{
+      {
         context: 'From delegate',
         setup: async () => {
           const { marketFactory, user, userD } = instanceVars
@@ -180,7 +180,7 @@ export function RunInvokerTests(
           const { user, userD } = instanceVars
           return multiInvoker.connect(userD)['invoke(address,(uint8,bytes)[])'](user.address, args)
         },
-      },*/
+      },
     ]
 
     const buildMarketUpdateAction = async ({
