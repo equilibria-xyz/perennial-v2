@@ -18,8 +18,9 @@ interface IMargin is IInstance {
 
     /// @notice Emitted when user withdraws claimable balance
     /// @param account Account from which claimable balance is withdrawn
+    /// @param receiver Address to which DSU is transferred
     /// @param amount Quantity of DSU withdrawn
-    event ClaimableWithdrawn(address indexed account, UFixed6 amount);
+    event ClaimableWithdrawn(address indexed account, address indexed receiver, UFixed6 amount);
 
     /// @notice Emitted when DSU is transferred into the margin contract, increasing the cross-margin balance
     /// @param account Account credited
@@ -112,7 +113,8 @@ interface IMargin is IInstance {
     /// @notice Withdraws claimable balance
     /// @param account User whose claimable balance will be withdrawn
     /// @param receiver Claimed DSU will be transferred to this address
-    function claim(address account, address receiver) external;
+    /// @param feeReceived Amount of DSU transferred to receiver
+    function claim(address account, address receiver) external returns (UFixed6 feeReceived);
 
     /// @dev Called by market to check maintenance requirements upon market update
     /// @param account User whose maintenance requirement will be checked

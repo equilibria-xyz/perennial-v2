@@ -2066,7 +2066,7 @@ describe('Fees', () => {
       expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
       await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(user.address, expectedClaimable)
+        .withArgs(user.address, user.address, expectedClaimable)
 
       // Ensure user is not able to claim fees twice
       const userBalanceBefore = await dsu.balanceOf(user.address)
@@ -2128,7 +2128,7 @@ describe('Fees', () => {
       expect(await margin.claimables(userB.address)).to.equal(expectedClaimable)
       await expect(margin.connect(userB).claim(userB.address, userB.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(userB.address, expectedClaimable)
+        .withArgs(userB.address, userB.address, expectedClaimable)
     })
 
     it('handles a change in user referral fee', async () => {
@@ -2181,7 +2181,7 @@ describe('Fees', () => {
       expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
       await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(user.address, expectedClaimable)
+        .withArgs(user.address, user.address, expectedClaimable)
     })
 
     it('handles referral fee for multiple orders', async () => {
@@ -2240,7 +2240,7 @@ describe('Fees', () => {
       expect(await margin.claimables(userB.address)).to.equal(expectedClaimableMakerReferral)
       await expect(margin.connect(userB).claim(userB.address, userB.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(userB.address, expectedClaimableMakerReferral)
+        .withArgs(userB.address, userB.address, expectedClaimableMakerReferral)
 
       // user should be able to claim the taker referral fee at the user rate
       // takerFee = position * takerFee * price = 3 * 0.025 * 113.882975 = 8.541223
@@ -2287,7 +2287,7 @@ describe('Fees', () => {
       expect(await margin.claimables(user.address)).to.equal(expectedClaimableTakerReferral)
       await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(user.address, expectedClaimableTakerReferral)
+        .withArgs(user.address, user.address, expectedClaimableTakerReferral)
     })
 
     it('allows for a new referrer on new orders', async () => {
@@ -2347,7 +2347,7 @@ describe('Fees', () => {
       expect(await margin.claimables(userB.address)).to.equal(expectedClaimable)
       await expect(margin.connect(userB).claim(userB.address, userB.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(userB.address, expectedClaimable)
+        .withArgs(userB.address, userB.address, expectedClaimable)
 
       // userC closes a short position referred by user
       await market
@@ -2372,7 +2372,7 @@ describe('Fees', () => {
       expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1150.119246'))
       await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(user.address, expectedCloseClaimable)
+        .withArgs(user.address, user.address, expectedCloseClaimable)
       expect(await market.orderReferrers(userC.address, currentId.add(1))).to.equal(user.address)
 
       await nextWithConstantPrice()
@@ -2510,7 +2510,7 @@ describe('Fees', () => {
         .to.emit(market, 'FeeClaimed')
         .withArgs(owner.address, insuranceFund.address, expectedProtocolFee)
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(insuranceFund.address, expectedProtocolFee)
+        .withArgs(insuranceFund.address, owner.address, expectedProtocolFee)
       expect(await dsu.balanceOf(owner.address)).to.equal(balanceBefore.add(expectedProtocolFee.mul(1e12)))
     })
   })

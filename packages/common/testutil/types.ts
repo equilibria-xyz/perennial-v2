@@ -222,8 +222,7 @@ export function expectLocalEq(a: Local, b: Local): void {
   expect(a.claimable).to.equal(constants.Zero)
   // ensure no test expected a nonzero value
   expect(b.collateral).to.equal(constants.Zero)
-  // TODO: uncomment after updating tests
-  // expect(b.claimable).to.equal(constants.Zero)
+  expect(b.claimable).to.equal(constants.Zero)
 }
 
 export function expectVersionEq(a: Version, b: Version): void {

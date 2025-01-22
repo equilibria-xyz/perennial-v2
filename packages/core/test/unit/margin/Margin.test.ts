@@ -163,9 +163,11 @@ describe('Margin', () => {
       expect(await margin.claimables(user.address)).to.equal(feeEarned)
 
       dsu.transfer.whenCalledWith(user.address, feeEarned.mul(1e12)).returns(true)
+      const feeReturned = await margin.connect(user).callStatic.claim(user.address, user.address)
+      expect(feeReturned).to.equal(feeEarned)
       await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(user.address, feeEarned)
+        .withArgs(user.address, user.address, feeEarned)
       expect(dsu.transfer).to.have.been.calledWith(user.address, feeEarned.mul(1e12))
     })
 
@@ -188,9 +190,11 @@ describe('Margin', () => {
       expect(await margin.claimables(user.address)).to.equal(feeEarned)
 
       dsu.transfer.whenCalledWith(userB.address, feeEarned.mul(1e12)).returns(true)
+      const feeReturned = await margin.connect(user).callStatic.claim(user.address, userB.address)
+      expect(feeReturned).to.equal(feeEarned)
       await expect(margin.connect(user).claim(user.address, userB.address))
         .to.emit(margin, 'ClaimableWithdrawn')
-        .withArgs(user.address, feeEarned)
+        .withArgs(user.address, userB.address, feeEarned)
       expect(dsu.transfer).to.have.been.calledWith(userB.address, feeEarned.mul(1e12))
     })
 

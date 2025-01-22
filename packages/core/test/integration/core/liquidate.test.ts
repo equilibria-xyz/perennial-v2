@@ -60,7 +60,7 @@ describe('Liquidate', () => {
     await market.connect(userB).claimFee(userB.address)
     await expect(margin.connect(userB).claim(userB.address, userB.address)) // liquidator withdrawal
       .to.emit(margin, 'ClaimableWithdrawn')
-      .withArgs(userB.address, parse6decimal('10'))
+      .withArgs(userB.address, userB.address, parse6decimal('10'))
 
     expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200010')) // Original 200000 + fee
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(parse6decimal('11')))
