@@ -111,7 +111,8 @@ interface IMargin is IInstance {
 
     /// @notice Withdraws claimable balance
     /// @param account User whose claimable balance will be withdrawn
-    function claim(address account) external;
+    /// @param receiver Claimed DSU will be transferred to this address
+    function claim(address account, address receiver) external;
 
     /// @dev Called by market to check maintenance requirements upon market update
     /// @param account User whose maintenance requirement will be checked

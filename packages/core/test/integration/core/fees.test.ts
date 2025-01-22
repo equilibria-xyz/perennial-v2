@@ -2064,13 +2064,13 @@ describe('Fees', () => {
         latestId: 0,
       })
       expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
-      await expect(margin.connect(user).claim(user.address))
+      await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, expectedClaimable)
 
       // Ensure user is not able to claim fees twice
       const userBalanceBefore = await dsu.balanceOf(user.address)
-      await expect(margin.connect(user).claim(user.address))
+      await expect(margin.connect(user).claim(user.address, user.address))
       expect(await dsu.balanceOf(user.address)).to.equals(userBalanceBefore)
     })
 
@@ -2126,7 +2126,7 @@ describe('Fees', () => {
         latestId: 0,
       })
       expect(await margin.claimables(userB.address)).to.equal(expectedClaimable)
-      await expect(margin.connect(userB).claim(userB.address))
+      await expect(margin.connect(userB).claim(userB.address, userB.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(userB.address, expectedClaimable)
     })
@@ -2179,7 +2179,7 @@ describe('Fees', () => {
         latestId: 0,
       })
       expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
-      await expect(margin.connect(user).claim(user.address))
+      await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, expectedClaimable)
     })
@@ -2238,7 +2238,7 @@ describe('Fees', () => {
         latestId: 0,
       })
       expect(await margin.claimables(userB.address)).to.equal(expectedClaimableMakerReferral)
-      await expect(margin.connect(userB).claim(userB.address))
+      await expect(margin.connect(userB).claim(userB.address, userB.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(userB.address, expectedClaimableMakerReferral)
 
@@ -2285,7 +2285,7 @@ describe('Fees', () => {
       // referralFee = takerFee * referral / takerPos =  5.694148 * 0.30 / 2 = 0.854122
       expectedClaimableTakerReferral = expectedClaimableTakerReferral.add(parse6decimal('0.854122'))
       expect(await margin.claimables(user.address)).to.equal(expectedClaimableTakerReferral)
-      await expect(margin.connect(user).claim(user.address))
+      await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, expectedClaimableTakerReferral)
     })
@@ -2345,7 +2345,7 @@ describe('Fees', () => {
         latestId: 0,
       })
       expect(await margin.claimables(userB.address)).to.equal(expectedClaimable)
-      await expect(margin.connect(userB).claim(userB.address))
+      await expect(margin.connect(userB).claim(userB.address, userB.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(userB.address, expectedClaimable)
 
@@ -2370,7 +2370,7 @@ describe('Fees', () => {
       })
       expect(await margin.claimables(user.address)).to.equal(expectedCloseClaimable)
       expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1150.119246'))
-      await expect(margin.connect(user).claim(user.address))
+      await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, expectedCloseClaimable)
       expect(await market.orderReferrers(userC.address, currentId.add(1))).to.equal(user.address)
@@ -2452,7 +2452,7 @@ describe('Fees', () => {
         .withArgs(coordinator.address, coordinator.address, expectedRiskFee)
     })
 
-    it.only('claim protocol fee from insurance fund', async () => {
+    it('claim protocol fee from insurance fund', async () => {
       const COLLATERAL = parse6decimal('600')
       const POSITION = parse6decimal('3')
       const { owner, user, marketFactory, dsu, insuranceFund } = instanceVars
@@ -2498,19 +2498,20 @@ describe('Fees', () => {
       // set insurance fund as operator for market factory owner
       await marketFactory.connect(owner).updateOperator(insuranceFund.address, true)
 
+      // revert when user tries to claim protocol fee
+      await expect(market.connect(user).claimFee(owner.address)).to.be.revertedWithCustomError(
+        market,
+        'MarketNotOperatorError',
+      )
+
       // claim protocol fee
+      const balanceBefore = await dsu.balanceOf(owner.address)
       await expect(insuranceFund.connect(owner).claim(market.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(owner.address, insuranceFund.address, expectedProtocolFee)
-      expect(await margin.claimables(insuranceFund.address)).to.equal(expectedProtocolFee)
-
-      const balanceBefore = await dsu.balanceOf(owner.address)
-      // FIXME: reverts with MarginOperatorNotAllowedError, because owner is not operator for insurance fund
-      // (line 2499 sets the opposite, insurance fund as operator for owner)
-      await expect(margin.connect(owner).claim(insuranceFund.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(insuranceFund.address, expectedProtocolFee)
-      expect(await dsu.balanceOf(owner.address)).to.equal(balanceBefore.add(expectedProtocolFee))
+      expect(await dsu.balanceOf(owner.address)).to.equal(balanceBefore.add(expectedProtocolFee.mul(1e12)))
     })
   })
 
@@ -2683,7 +2684,7 @@ describe('Fees', () => {
         currentId: 1,
         latestId: 1,
       })
-      expect(await margin.claimables(userB.address)).to.equal(TRADE_FEE_A.div(10).add(1)) // loss of precision
+      expect(await margin.claimables(userC.address)).to.equal(TRADE_FEE_A.div(10).add(1)) // loss of precision
       expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.add(EXPECTED_PNL))
       expectPositionEq(await market.positions(userC.address), {
         ...DEFAULT_POSITION,

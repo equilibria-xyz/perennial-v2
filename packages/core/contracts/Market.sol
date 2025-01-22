@@ -988,7 +988,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @dev Returns true if the oracle price is stale, which should prevent position change and deisolation of collateral
-    function _stale(OracleVersion memory latest, uint256 currentTimestamp, uint256 staleAfter) private view returns (bool) {
+    function _stale(OracleVersion memory latest, uint256 currentTimestamp, uint256 staleAfter) private pure returns (bool) {
         return !latest.valid || currentTimestamp - latest.timestamp >= staleAfter;
     }
 

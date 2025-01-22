@@ -163,7 +163,7 @@ describe('Margin', () => {
       expect(await margin.claimables(user.address)).to.equal(feeEarned)
 
       dsu.transfer.whenCalledWith(user.address, feeEarned.mul(1e12)).returns(true)
-      await expect(margin.connect(user).claim(user.address))
+      await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, feeEarned)
       expect(dsu.transfer).to.have.been.calledWith(user.address, feeEarned.mul(1e12))
@@ -175,10 +175,23 @@ describe('Margin', () => {
       await expect(margin.connect(marketSigner).updateClaimable(user.address, deficit)).to.not.be.reverted
       expect(await margin.claimables(user.address)).to.equal(deficit)
 
-      await expect(margin.connect(user).claim(user.address)).to.be.revertedWithCustomError(
+      await expect(margin.connect(user).claim(user.address, user.address)).to.be.revertedWithCustomError(
         margin,
         'UFixed6UnderflowError',
       )
+    })
+
+    it('user can withdraw claimable funds to another address', async () => {
+      const feeEarned = parse6decimal('0.4')
+      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).updateClaimable(user.address, feeEarned)).to.not.be.reverted
+      expect(await margin.claimables(user.address)).to.equal(feeEarned)
+
+      dsu.transfer.whenCalledWith(userB.address, feeEarned.mul(1e12)).returns(true)
+      await expect(margin.connect(user).claim(user.address, userB.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, feeEarned)
+      expect(dsu.transfer).to.have.been.calledWith(userB.address, feeEarned.mul(1e12))
     })
 
     it('stores and reads checkpoints', async () => {

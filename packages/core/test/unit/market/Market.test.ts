@@ -16298,7 +16298,7 @@ describe('Market', () => {
           })
 
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          await expect(margin.connect(liquidator).claim(liquidator.address))
+          await expect(margin.connect(liquidator).claim(liquidator.address, liquidator.address))
             .to.emit(margin, 'ClaimableWithdrawn')
             .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
           expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
@@ -16585,7 +16585,7 @@ describe('Market', () => {
           })
 
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          await expect(margin.connect(liquidator).claim(liquidator.address))
+          await expect(margin.connect(liquidator).claim(liquidator.address, liquidator.address))
             .to.emit(margin, 'ClaimableWithdrawn')
             .withArgs(liquidator.address, EXPECTED_LIQUIDATION_FEE)
           expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
@@ -24429,7 +24429,7 @@ describe('Market', () => {
         await expect(market.connect(owner).claimFee(owner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(owner.address, owner.address, PROTOCOL_FEE)
-          .to.emit(margin, 'FundsChanged')
+          .to.emit(margin, 'ClaimableChanged')
           .withArgs(owner.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
@@ -24441,7 +24441,7 @@ describe('Market', () => {
         await expect(market.connect(oracleSigner).claimFee(oracleSigner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(oracleSigner.address, oracleSigner.address, ORACLE_FEE)
-          .to.emit(margin, 'FundsChanged')
+          .to.emit(margin, 'ClaimableChanged')
           .withArgs(oracleSigner.address, ORACLE_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
@@ -24453,7 +24453,7 @@ describe('Market', () => {
         await expect(market.connect(coordinator).claimFee(coordinator.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(coordinator.address, coordinator.address, RISK_FEE)
-          .to.emit(margin, 'FundsChanged')
+          .to.emit(margin, 'ClaimableChanged')
           .withArgs(coordinator.address, RISK_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)

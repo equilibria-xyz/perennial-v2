@@ -33,7 +33,10 @@ contract InsuranceFund is IInsuranceFund, Ownable {
 
     /// @inheritdoc IInsuranceFund
     function claim(IMarket market) external isMarketInstance(market) {
+        // claim fees from market to insurance fund (this contract) collateral balance
         market.claimFee(marketFactory.owner());
+        // withdraw fees to caller, reverting if caller is not operator
+        IMargin(market.margin()).claim(address(this), msg.sender);
     }
 
     /// @inheritdoc IInsuranceFund

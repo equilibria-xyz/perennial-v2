@@ -79,10 +79,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function claim(address account) external nonReentrant onlyOperator(account) {
+    function claim(address account, address receiver) external nonReentrant onlyOperator(account) {
         UFixed6 claimable = UFixed6Lib.from(claimables[account]);
         claimables[account] = Fixed6Lib.ZERO;
-        DSU.push(msg.sender, UFixed18Lib.from(claimable));
+        DSU.push(receiver, UFixed18Lib.from(claimable));
         emit ClaimableWithdrawn(account, claimable);
     }
 
