@@ -128,7 +128,7 @@ contract Oracle is IOracle, Instance {
     function claimFee(UFixed6 settlementFeeRequested) external onlySubOracle {
         // claim the fee from the market, withdraw from Margin contract
         UFixed6 feeReceived = market.claimFee(address(this));
-        market.margin().withdraw(address(this), feeReceived);
+        market.margin().claim(address(this), address(this));
 
         // return the settlement fee portion to the sub oracle's factory
         market.margin().DSU().push(msg.sender, UFixed18Lib.from(settlementFeeRequested));
