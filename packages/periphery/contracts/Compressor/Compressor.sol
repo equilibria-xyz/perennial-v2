@@ -176,7 +176,7 @@ contract Compressor {
                 ),
                 TOAction(
                     p.market,
-                    p.triggerOrderTPId,
+                    p.triggerOrderSLId,
                     p.triggerOrderMaxFee,
                     Common(
                         p.account,

@@ -36,7 +36,6 @@ import {
   Compressor__factory,
   Compressor,
   PythFactory,
-  Controller,
   Manager,
   Controller_Incentivized,
 } from '../../../../types/generated'
@@ -420,14 +419,12 @@ export async function createInvoker(
 
 export async function createCompressor(
   instanceVars: InstanceVars,
-  multiInvoker: MultiInvoker,
   pythOracleFactory: PythFactory,
   controller: Controller_Incentivized,
   manager: Manager,
 ): Promise<Compressor> {
   const compressor = await new Compressor__factory(instanceVars.owner).deploy(
     instanceVars.dsu.address,
-    multiInvoker.address,
     pythOracleFactory.address,
     controller.address,
     manager.address,

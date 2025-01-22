@@ -56,7 +56,7 @@ async function deployProtocol(
   return deployment
 }
 
-export async function deployController(
+async function deployController(
   owner: SignerWithAddress,
   marketFactory: IMarketFactory,
   chainlinkKeptFeed: AggregatorV3Interface,
