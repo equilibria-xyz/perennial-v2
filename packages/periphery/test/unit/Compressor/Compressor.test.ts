@@ -72,7 +72,7 @@ describe('Compressor', function () {
       group: BigNumber,
       expiresInSeconds: BigNumber,
       signerAddress = userAddress,
-      maxFee = utils.parseEther('0.3'),
+      maxFee = parse6decimal('0.3'),
     ) => {
       return {
         action: {
@@ -96,7 +96,7 @@ describe('Compressor', function () {
       userAddress: Address,
       expiresInSeconds: BigNumber,
       signerAddress = userAddress,
-      maxFee = utils.parseEther('0.3'),
+      maxFee = parse6decimal('0.3'),
     ) => {
       return {
         action: {
@@ -142,12 +142,12 @@ describe('Compressor', function () {
       const nonce = BigNumber.from(0)
       const group = BigNumber.from(0)
       const version = BigNumber.from(await currentBlockTimestamp())
-      const tradeAmount = utils.parseEther('10')
-      const maxFee = utils.parseEther('0.3')
+      const tradeAmount = parse6decimal('10')
+      const maxFee = parse6decimal('0.3')
       const interfaceFee = BigNumber.from(0)
       const marketTransfer = {
         market: market.address,
-        amount: utils.parseEther('4'),
+        amount: parse6decimal('4'),
         ...(await createCAAction(user.address, nonce, group, version.add(BigNumber.from(120)), user.address, maxFee)),
       }
 
@@ -168,7 +168,7 @@ describe('Compressor', function () {
           group,
           version.add(BigNumber.from(120)),
           user.address,
-          utils.parseEther('0.3'),
+          parse6decimal('0.3'),
         )),
       }
 
@@ -270,12 +270,12 @@ describe('Compressor', function () {
       const nonce = BigNumber.from(0)
       const group = BigNumber.from(0)
       const version = BigNumber.from(await currentBlockTimestamp())
-      const tradeAmount = utils.parseEther('10')
-      const maxFee = utils.parseEther('0.3')
+      const tradeAmount = parse6decimal('10')
+      const maxFee = parse6decimal('0.3')
       const interfaceFee = BigNumber.from(0)
       const marketTransfer = {
         market: market.address,
-        amount: utils.parseEther('4'),
+        amount: parse6decimal('4'),
         ...(await createCAAction(user.address, nonce, group, version.add(BigNumber.from(120)), user.address, maxFee)),
       }
 
@@ -296,7 +296,7 @@ describe('Compressor', function () {
           group,
           version.add(BigNumber.from(120)),
           user.address,
-          utils.parseEther('0.3'),
+          parse6decimal('0.3'),
         )),
       }
 

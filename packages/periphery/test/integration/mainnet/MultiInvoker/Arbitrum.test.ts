@@ -164,7 +164,6 @@ if (process.env.FORK_NETWORK === 'arbitrum') {
     fundWalletDSU,
     fundWalletUSDC,
     advanceToPrice,
-    INITIAL_ORACLE_VERSION_ETH,
     mockGasInfo,
   )
   RunOrderTests(getFixture, createInvoker, advanceToPrice, false)

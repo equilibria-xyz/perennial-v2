@@ -26,28 +26,39 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { InstanceVars, createVault } from './MultiInvoker/setupHelpers'
 import { BigNumber, utils, constants } from 'ethers'
 
-import { OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
+import {
+  DEFAULT_CHECKPOINT,
+  DEFAULT_LOCAL,
+  DEFAULT_ORDER,
+  DEFAULT_POSITION,
+  expectCheckpointEq,
+  expectLocalEq,
+  expectOrderEq,
+  expectPositionEq,
+  OracleReceipt,
+  parse6decimal,
+} from '../../../../common/testutil/types'
 import { use } from 'chai'
-import { FakeContract, smock } from '@defi-wonderland/smock'
+import { smock } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { createMarket } from '../../helpers/marketHelpers'
-import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 import { deployController } from '../l2/CollateralAccounts/Arbitrum.test'
-import { CHAINLINK_ETH_USD_FEED, createFactoriesForChain, PYTH_ADDRESS } from '../../helpers/baseHelpers'
-import { deployPythOracleFactory } from '../../helpers/setupHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { Compare, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/TriggerOrders/order'
+import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/TriggerOrders/order'
 import { advanceBlock, currentBlockTimestamp } from '../../../../common/testutil/time'
-import { signDeployAccount, signMarketTransfer, signRelayedTake } from '../../helpers/CollateralAccounts/eip712'
+import { signMarketTransfer, signRelayedTake } from '../../helpers/CollateralAccounts/eip712'
 import { signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import { signTake } from '@perennial/v2-core/test/helpers/erc712'
-import { MarketFactory__factory, Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
+import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
 import { getEventArguments } from '../../../../common/testutil/transaction'
 
 use(smock.matchers)
 
-const LEGACY_ORACLE_DELAY = 3600
 export const PRICE = utils.parseEther('3374.655169')
+
+function payoff(number: BigNumber): BigNumber {
+  return number.mul(number).div(utils.parseEther('1')).div(100000)
+}
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 // also, need higher gasLimit to deploy incentivized controllers with optimizer disabled
@@ -66,7 +77,6 @@ export function RunCompressorTests(
   fundWalletDSU: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
   fundWalletUSDC: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
   advanceToPrice: (price?: BigNumber) => Promise<void>,
-  initialOracleVersionEth: OracleVersionStruct,
   mockGasInfo: () => Promise<void>,
 ): void {
   describe('placeOrderBundle', () => {
@@ -91,8 +101,9 @@ export function RunCompressorTests(
       usdc = instanceVars.usdc
       referrer = instanceVars.referrer
       market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.dsu, instanceVars.oracle)
-      await instanceVars.oracle.register(market.address)
       ;[pythOracleFactory, keeperOracle] = await getKeeperOracle()
+      await keeperOracle.register(instanceVars.oracle.address)
+      await instanceVars.oracle.register(market.address)
       ;[manager, orderVerifier] = await getManager(instanceVars.dsu, instanceVars.marketFactory)
       ;[controller, controllerVerifier] = await deployController(
         instanceVars.owner,
@@ -274,7 +285,7 @@ export function RunCompressorTests(
           ...DEFAULT_TRIGGER_ORDER,
           side: Side.LONG,
           comparison: Compare.LTE,
-          price: PRICE.sub(utils.parseEther('100')).div(1e12),
+          price: payoff(PRICE.sub(utils.parseEther('100'))).div(1e12),
           delta: tradeAmount.mul(-1),
           maxFee: maxFee,
           referrer: referrer.address,
@@ -303,7 +314,7 @@ export function RunCompressorTests(
           ...DEFAULT_TRIGGER_ORDER,
           side: Side.LONG,
           comparison: Compare.GTE,
-          price: PRICE.add(utils.parseEther('100')).div(1e12),
+          price: payoff(PRICE.add(utils.parseEther('100'))).div(1e12),
           delta: tradeAmount.mul(-1),
           maxFee: maxFee,
           referrer: referrer.address,
@@ -361,6 +372,354 @@ export function RunCompressorTests(
       }
 
       await compressor.connect(instanceVars.user).placeOrderBundle(invokeParams, { value: 1 })
+
+      // check user state
+      expect((await market.pendingOrders(instanceVars.user.address, 1)).longPos).to.equal(tradeAmount)
+
+      // check order state
+      const storedSLOrder = await manager.orders(
+        market.address,
+        instanceVars.user.address,
+        triggerOrderSL.action.orderId,
+      )
+      compareOrders(storedSLOrder, triggerOrderSL.order)
+
+      const storedTPOrder = await manager.orders(
+        market.address,
+        instanceVars.user.address,
+        triggerOrderTP.action.orderId,
+      )
+      compareOrders(storedTPOrder, triggerOrderTP.order)
+    })
+
+    it('creates a valid order, and hits stop loss', async () => {
+      const nonce = BigNumber.from(0)
+      const group = BigNumber.from(0)
+      const version = BigNumber.from(await currentBlockTimestamp())
+      const tradeAmount = parse6decimal('1.5')
+      const maxFee = parse6decimal('0.3')
+      const interfaceFee = BigNumber.from(0)
+      const marketTransfer = {
+        market: market.address,
+        amount: parse6decimal('9000'),
+        ...createCAAction(
+          instanceVars.user.address,
+          nonce,
+          group,
+          version.add(BigNumber.from(120)),
+          instanceVars.user.address,
+          maxFee,
+        ),
+      }
+
+      const takeOrder = createTakeOrder(
+        market.address,
+        nonce.add(1),
+        group,
+        instanceVars.user.address,
+        version.add(BigNumber.from(120)),
+        tradeAmount,
+      )
+
+      const marketOrder = {
+        take: takeOrder,
+        ...createCAAction(
+          instanceVars.user.address,
+          nonce.add(2),
+          group,
+          version.add(BigNumber.from(120)),
+          instanceVars.user.address,
+          maxFee,
+        ),
+      }
+
+      const triggerOrderSL = {
+        order: {
+          ...DEFAULT_TRIGGER_ORDER,
+          side: Side.LONG,
+          comparison: Compare.LTE,
+          price: payoff(PRICE.sub(utils.parseEther('100'))).div(1e12),
+          delta: tradeAmount.mul(-1),
+          maxFee: maxFee,
+          referrer: referrer.address,
+          interfaceFee: {
+            ...DEFAULT_TRIGGER_ORDER.interfaceFee,
+            receiver: referrer.address,
+            amount: interfaceFee,
+            fixedFee: true,
+          },
+        },
+        ...createTOAction(
+          market.address,
+          nonce.add(3),
+          group,
+          instanceVars.user.address,
+          version.add(BigNumber.from(120)),
+          instanceVars.user.address,
+          maxFee,
+        ),
+      }
+
+      advanceOrderId()
+
+      const triggerOrderTP = {
+        order: {
+          ...DEFAULT_TRIGGER_ORDER,
+          side: Side.LONG,
+          comparison: Compare.GTE,
+          price: payoff(PRICE.add(utils.parseEther('100'))).div(1e12),
+          delta: tradeAmount.mul(-1),
+          maxFee: maxFee,
+          referrer: referrer.address,
+          interfaceFee: {
+            ...DEFAULT_TRIGGER_ORDER.interfaceFee,
+            receiver: referrer.address,
+            amount: interfaceFee,
+            fixedFee: true,
+          },
+        },
+        ...createTOAction(
+          market.address,
+          nonce.add(4),
+          group,
+          instanceVars.user.address,
+          version.add(BigNumber.from(120)),
+          instanceVars.user.address,
+          maxFee,
+        ),
+      }
+
+      const marketTransferSignature = await signMarketTransfer(instanceVars.user, controllerVerifier, marketTransfer)
+      const triggerOrderSLSignature = await signPlaceOrderAction(instanceVars.user, orderVerifier, triggerOrderSL)
+      const triggerOrderTPSignature = await signPlaceOrderAction(instanceVars.user, orderVerifier, triggerOrderTP)
+      const marketOrderOuterSignature = await signRelayedTake(instanceVars.user, controllerVerifier, marketOrder)
+      const marketOrderInnerSignature = await signTake(instanceVars.user, marketVerifier, marketOrder.take)
+
+      const invokeParams = {
+        priceCommitmentData: '0x',
+        version: version,
+
+        market: market.address,
+        account: instanceVars.user.address,
+        signer: instanceVars.user.address,
+
+        tradeCollateral: marketTransfer.amount,
+        tradeAmount: marketOrder.take.amount,
+        minPrice: triggerOrderSL.order.price,
+        maxPrice: triggerOrderTP.order.price,
+
+        group: group,
+        nonce: nonce,
+        relayerMaxFee: marketTransfer.action.maxFee,
+        triggerOrderMaxFee: triggerOrderSL.action.maxFee,
+
+        triggerOrderInterfaceFee: interfaceFee,
+        triggerOrderSLId: triggerOrderSL.action.orderId,
+        triggerOrderTPId: triggerOrderTP.action.orderId,
+
+        marketTransferSignature,
+        marketOrderOuterSignature,
+        marketOrderInnerSignature,
+        triggerOrderSLSignature,
+        triggerOrderTPSignature,
+      }
+
+      await compressor.connect(instanceVars.user).placeOrderBundle(invokeParams, { value: 1 })
+
+      // check user state
+      expect((await market.pendingOrders(instanceVars.user.address, 1)).longPos).to.equal(tradeAmount)
+
+      // check order state
+      let storedSLOrder = await manager.orders(market.address, instanceVars.user.address, triggerOrderSL.action.orderId)
+      compareOrders(storedSLOrder, triggerOrderSL.order)
+
+      const storedTPOrder = await manager.orders(
+        market.address,
+        instanceVars.user.address,
+        triggerOrderTP.action.orderId,
+      )
+      compareOrders(storedTPOrder, triggerOrderTP.order)
+
+      await advanceToPrice()
+
+      await market.connect(instanceVars.user).settle(instanceVars.user.address, TX_OVERRIDES)
+      await market.connect(instanceVars.userB).settle(instanceVars.userB.address, TX_OVERRIDES)
+
+      await advanceToPrice(PRICE.sub(utils.parseEther('100')))
+
+      await manager
+        .connect(instanceVars.user)
+        .executeOrder(market.address, instanceVars.user.address, triggerOrderSL.action.orderId, TX_OVERRIDES)
+
+      // check user state
+      expect((await market.pendingOrders(instanceVars.user.address, 2)).longNeg).to.equal(tradeAmount)
+
+      // check order state
+      storedSLOrder = await manager.orders(market.address, instanceVars.user.address, triggerOrderSL.action.orderId)
+      compareOrders(storedSLOrder, { ...triggerOrderSL.order, isSpent: true })
+    })
+
+    it('creates a valid order, and hits take profit price', async () => {
+      const nonce = BigNumber.from(0)
+      const group = BigNumber.from(0)
+      const version = BigNumber.from(await currentBlockTimestamp())
+      const tradeAmount = parse6decimal('1.5')
+      const maxFee = parse6decimal('0.3')
+      const interfaceFee = BigNumber.from(0)
+      const marketTransfer = {
+        market: market.address,
+        amount: parse6decimal('9000'),
+        ...createCAAction(
+          instanceVars.user.address,
+          nonce,
+          group,
+          version.add(BigNumber.from(120)),
+          instanceVars.user.address,
+          maxFee,
+        ),
+      }
+
+      const takeOrder = createTakeOrder(
+        market.address,
+        nonce.add(1),
+        group,
+        instanceVars.user.address,
+        version.add(BigNumber.from(120)),
+        tradeAmount,
+      )
+
+      const marketOrder = {
+        take: takeOrder,
+        ...createCAAction(
+          instanceVars.user.address,
+          nonce.add(2),
+          group,
+          version.add(BigNumber.from(120)),
+          instanceVars.user.address,
+          maxFee,
+        ),
+      }
+
+      const triggerOrderSL = {
+        order: {
+          ...DEFAULT_TRIGGER_ORDER,
+          side: Side.LONG,
+          comparison: Compare.LTE,
+          price: payoff(PRICE.sub(utils.parseEther('100'))).div(1e12),
+          delta: tradeAmount.mul(-1),
+          maxFee: maxFee,
+          referrer: referrer.address,
+          interfaceFee: {
+            ...DEFAULT_TRIGGER_ORDER.interfaceFee,
+            receiver: referrer.address,
+            amount: interfaceFee,
+            fixedFee: true,
+          },
+        },
+        ...createTOAction(
+          market.address,
+          nonce.add(3),
+          group,
+          instanceVars.user.address,
+          version.add(BigNumber.from(120)),
+          instanceVars.user.address,
+          maxFee,
+        ),
+      }
+
+      advanceOrderId()
+
+      const triggerOrderTP = {
+        order: {
+          ...DEFAULT_TRIGGER_ORDER,
+          side: Side.LONG,
+          comparison: Compare.GTE,
+          price: payoff(PRICE.add(utils.parseEther('100'))).div(1e12),
+          delta: tradeAmount.mul(-1),
+          maxFee: maxFee,
+          referrer: referrer.address,
+          interfaceFee: {
+            ...DEFAULT_TRIGGER_ORDER.interfaceFee,
+            receiver: referrer.address,
+            amount: interfaceFee,
+            fixedFee: true,
+          },
+        },
+        ...createTOAction(
+          market.address,
+          nonce.add(4),
+          group,
+          instanceVars.user.address,
+          version.add(BigNumber.from(120)),
+          instanceVars.user.address,
+          maxFee,
+        ),
+      }
+
+      const marketTransferSignature = await signMarketTransfer(instanceVars.user, controllerVerifier, marketTransfer)
+      const triggerOrderSLSignature = await signPlaceOrderAction(instanceVars.user, orderVerifier, triggerOrderSL)
+      const triggerOrderTPSignature = await signPlaceOrderAction(instanceVars.user, orderVerifier, triggerOrderTP)
+      const marketOrderOuterSignature = await signRelayedTake(instanceVars.user, controllerVerifier, marketOrder)
+      const marketOrderInnerSignature = await signTake(instanceVars.user, marketVerifier, marketOrder.take)
+
+      const invokeParams = {
+        priceCommitmentData: '0x',
+        version: version,
+
+        market: market.address,
+        account: instanceVars.user.address,
+        signer: instanceVars.user.address,
+
+        tradeCollateral: marketTransfer.amount,
+        tradeAmount: marketOrder.take.amount,
+        minPrice: triggerOrderSL.order.price,
+        maxPrice: triggerOrderTP.order.price,
+
+        group: group,
+        nonce: nonce,
+        relayerMaxFee: marketTransfer.action.maxFee,
+        triggerOrderMaxFee: triggerOrderSL.action.maxFee,
+
+        triggerOrderInterfaceFee: interfaceFee,
+        triggerOrderSLId: triggerOrderSL.action.orderId,
+        triggerOrderTPId: triggerOrderTP.action.orderId,
+
+        marketTransferSignature,
+        marketOrderOuterSignature,
+        marketOrderInnerSignature,
+        triggerOrderSLSignature,
+        triggerOrderTPSignature,
+      }
+
+      await compressor.connect(instanceVars.user).placeOrderBundle(invokeParams, { value: 1 })
+
+      // check user state
+      expect((await market.pendingOrders(instanceVars.user.address, 1)).longPos).to.equal(tradeAmount)
+
+      // check order state
+      const storedSLOrder = await manager.orders(market.address, instanceVars.user.address, triggerOrderSL.action.orderId)
+      compareOrders(storedSLOrder, triggerOrderSL.order)
+
+      let storedTPOrder = await manager.orders(market.address, instanceVars.user.address, triggerOrderTP.action.orderId)
+      compareOrders(storedTPOrder, triggerOrderTP.order)
+
+      await advanceToPrice()
+
+      await market.connect(instanceVars.user).settle(instanceVars.user.address, TX_OVERRIDES)
+      await market.connect(instanceVars.userB).settle(instanceVars.userB.address, TX_OVERRIDES)
+
+      await advanceToPrice(PRICE.add(utils.parseEther('100')))
+
+      await manager
+        .connect(instanceVars.user)
+        .executeOrder(market.address, instanceVars.user.address, triggerOrderTP.action.orderId, TX_OVERRIDES)
+
+      // check user state
+      expect((await market.pendingOrders(instanceVars.user.address, 2)).longNeg).to.equal(tradeAmount)
+
+      // check order state
+      storedTPOrder = await manager.orders(market.address, instanceVars.user.address, triggerOrderTP.action.orderId)
+      compareOrders(storedTPOrder, { ...triggerOrderTP.order, isSpent: true })
     })
   })
 }
