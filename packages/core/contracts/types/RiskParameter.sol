@@ -84,7 +84,7 @@ using RiskParameterStorageLib for RiskParameterStorage global;
 ///    }
 library RiskParameterStorageLib {
     // sig: 0x7ecd083f
-    error RiskParameterStorageInvalidError(uint256 code);
+    error RiskParameterStorageInvalidError();
 
     function read(RiskParameterStorage storage self) internal view returns (RiskParameter memory) {
         (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
@@ -123,38 +123,38 @@ library RiskParameterStorageLib {
 
     function validate(RiskParameter memory self, ProtocolParameter memory protocolParameter) private pure {
         if (self.synBook.d0.max(self.synBook.d1).max(self.synBook.d2).max(self.synBook.d3).gt(protocolParameter.maxFee))
-            revert RiskParameterStorageInvalidError(1);
+            revert RiskParameterStorageInvalidError();
 
-        if (self.liquidationFee.gt(protocolParameter.maxLiquidationFee)) revert RiskParameterStorageInvalidError(2);
+        if (self.liquidationFee.gt(protocolParameter.maxLiquidationFee)) revert RiskParameterStorageInvalidError();
 
         if (
             self.utilizationCurve.minRate.max(self.utilizationCurve.maxRate).max(self.utilizationCurve.targetRate)
                 .max(self.pController.max.abs()).max(self.pController.min.abs())
                 .gt(protocolParameter.maxRate)
-        ) revert RiskParameterStorageInvalidError(3);
+        ) revert RiskParameterStorageInvalidError();
 
-        if (self.staleAfter > protocolParameter.maxStaleAfter) revert RiskParameterStorageInvalidError(4);
+        if (self.staleAfter > protocolParameter.maxStaleAfter) revert RiskParameterStorageInvalidError();
 
-        if (self.maintenance.lt(protocolParameter.minMaintenance)) revert RiskParameterStorageInvalidError(5);
-        if (self.maintenance.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError(6);
+        if (self.maintenance.lt(protocolParameter.minMaintenance)) revert RiskParameterStorageInvalidError();
+        if (self.maintenance.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
-        if (self.margin.lt(self.maintenance)) revert RiskParameterStorageInvalidError(7);
-        if (self.margin.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError(8);
+        if (self.margin.lt(self.maintenance)) revert RiskParameterStorageInvalidError();
+        if (self.margin.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
-        if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert RiskParameterStorageInvalidError(9);
+        if (self.efficiencyLimit.lt(protocolParameter.minEfficiency)) revert RiskParameterStorageInvalidError();
 
-        if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError(10);
+        if (self.utilizationCurve.targetUtilization.gt(UFixed6Lib.ONE)) revert RiskParameterStorageInvalidError();
 
-        if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError(11);
+        if (self.minMargin.lt(self.minMaintenance)) revert RiskParameterStorageInvalidError();
 
         (UFixed6 makerLimitTruncated, UFixed6 synBookScaleTruncated) = (
             UFixed6Lib.from(self.makerLimit.truncate()),
             UFixed6Lib.from(self.synBook.scale.truncate())
         );
         if (synBookScaleTruncated.lt(makerLimitTruncated.div(self.efficiencyLimit).mul(protocolParameter.minScale)))
-            revert RiskParameterStorageInvalidError(12);
+            revert RiskParameterStorageInvalidError();
 
-        if (self.minMaintenance.lt(protocolParameter.minMinMaintenance)) revert RiskParameterStorageInvalidError(13);
+        if (self.minMaintenance.lt(protocolParameter.minMinMaintenance)) revert RiskParameterStorageInvalidError();
     }
 
     function validateAndStore(
@@ -164,12 +164,12 @@ library RiskParameterStorageLib {
     ) external {
         validate(newValue, protocolParameter);
 
-        if (newValue.margin.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError(14);
-        if (newValue.minMargin.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError(15);
-        if (newValue.efficiencyLimit.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError(16);
-        if (newValue.makerLimit.gt(UFixed6Lib.from(type(uint48).max))) revert RiskParameterStorageInvalidError(17);
-        if (newValue.pController.k.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError(18);
-        if (newValue.synBook.scale.gt(UFixed6Lib.from(type(uint48).max))) revert RiskParameterStorageInvalidError(19);
+        if (newValue.margin.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.minMargin.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.efficiencyLimit.gt(UFixed6.wrap(type(uint24).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.makerLimit.gt(UFixed6Lib.from(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.pController.k.gt(UFixed6.wrap(type(uint48).max))) revert RiskParameterStorageInvalidError();
+        if (newValue.synBook.scale.gt(UFixed6Lib.from(type(uint48).max))) revert RiskParameterStorageInvalidError();
 
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.margin)                    << (256 - 24)) >> (256 - 24) |
