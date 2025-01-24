@@ -91,7 +91,9 @@ library InvariantLib {
                 context.latestOracleVersion,
                 context.riskParameter,
                 updateContext.collateralization,
-                context.local.collateral.add(newGuarantee.priceAdjustment(context.latestOracleVersion.price)) // apply price override adjustment from intent if present
+                context.local.collateral
+                    .add(updateContext.priceAdjustment)                                     // apply price override adjustment from pending intents if present
+                    .add(newGuarantee.priceAdjustment(context.latestOracleVersion.price))   // apply price override adjustment from new intent if present
             )
         ) revert IMarket.MarketInsufficientMarginError();
 
