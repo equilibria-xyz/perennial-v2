@@ -24,6 +24,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     // TODO: Introduce an iterable collection of cross-margained markets for a user.
 
+    // TODO: Once exposure is eliminated, make this unsigned
+    /// @notice Storage for claimable balances: user -> market -> balance
+    mapping(address => Fixed6) public claimables;
+
     /// @notice Storage for account balances: user -> market -> balance
     /// Cross-margin balances stored under IMarket(address(0))
     mapping(address => mapping(IMarket => Fixed6)) private _balances;
@@ -75,6 +79,14 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
+    function claim(address account, address receiver) external nonReentrant onlyOperator(account) returns (UFixed6 feeReceived) {
+        feeReceived = UFixed6Lib.from(claimables[account]);
+        claimables[account] = Fixed6Lib.ZERO;
+        DSU.push(receiver, UFixed18Lib.from(feeReceived));
+        emit ClaimableWithdrawn(account, receiver, feeReceived);
+    }
+
+    /// @inheritdoc IMargin
     function maintained(
         address account
     ) external onlyMarket view returns (bool isMaintained) {
@@ -107,8 +119,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function updateBalance(address account, Fixed6 collateralDelta) external onlyMarket {
-        _updateCollateralBalance(account, IMarket(msg.sender), collateralDelta);
+    function updateClaimable(address account, Fixed6 collateralDelta) external onlyMarket {
+        claimables[account] = claimables[account].add(collateralDelta);
+        emit ClaimableChanged(account, collateralDelta);
     }
 
     /// @inheritdoc IMargin

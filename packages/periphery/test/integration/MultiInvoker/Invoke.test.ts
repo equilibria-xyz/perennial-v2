@@ -7,6 +7,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
 import {
+  IMargin,
   IMarket,
   IVault,
   IVaultFactory,
@@ -851,13 +852,15 @@ export function RunInvokerTests(
             let userB: SignerWithAddress
             let dsu: IERC20Metadata
             let usdc: IERC20Metadata
+            let margin: IMargin
 
             beforeEach(async () => {
               user = instanceVars.user
               userB = instanceVars.userB
               dsu = instanceVars.dsu
               usdc = instanceVars.usdc
-              const { owner, marketFactory, margin } = instanceVars
+              margin = instanceVars.margin
+              const { owner, marketFactory } = instanceVars
               await dsu.connect(user).approve(margin.address, parse6decimal('600').mul(1e12))
               await dsu.connect(userB).approve(margin.address, parse6decimal('600').mul(1e12))
               // set up the market to pay out a maker referral fee
@@ -891,12 +894,12 @@ export function RunInvokerTests(
             })
 
             it('claims fee from a market', async () => {
-              const expectedFee = (await market.locals(user.address)).claimable
+              const expectedFee = await margin.claimables(user.address)
 
               // user invokes to claim their fee
               if (instanceVars.dsuBatcher) {
                 await expect(invoke(buildClaimFee({ market: market.address, unwrap: true })))
-                  .to.emit(market, 'FeeClaimed')
+                  .to.emit(margin, 'ClaimableWithdrawn')
                   .withArgs(user.address, multiInvoker.address, expectedFee)
                   .to.emit(instanceVars.dsuBatcher, 'Unwrap')
                   .withArgs(user.address, expectedFee.mul(1e12))
@@ -904,7 +907,7 @@ export function RunInvokerTests(
                   .withArgs(instanceVars.dsuBatcher.address, user.address, expectedFee)
               } else {
                 await expect(invoke(buildClaimFee({ market: market.address, unwrap: true })))
-                  .to.emit(market, 'FeeClaimed')
+                  .to.emit(margin, 'ClaimableWithdrawn')
                   .withArgs(user.address, multiInvoker.address, expectedFee)
                   .to.emit(instanceVars.dsuReserve, 'Redeem')
                   .withArgs(multiInvoker.address, expectedFee.mul(1e12), anyValue)
@@ -916,11 +919,11 @@ export function RunInvokerTests(
             })
 
             it('claims fee from a market without unwrapping', async () => {
-              const expectedFee = (await market.locals(user.address)).claimable
+              const expectedFee = await margin.claimables(user.address)
 
               // user invokes to claim their fee
               await expect(invoke(buildClaimFee({ market: market.address, unwrap: false })))
-                .to.emit(market, 'FeeClaimed')
+                .to.emit(margin, 'ClaimableWithdrawn')
                 .withArgs(user.address, multiInvoker.address, expectedFee)
                 .to.emit(dsu, 'Transfer')
                 .withArgs(multiInvoker.address, user.address, expectedFee.mul(1e12))

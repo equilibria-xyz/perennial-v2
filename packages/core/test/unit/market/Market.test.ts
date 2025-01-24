@@ -551,6 +551,9 @@ describe('Market', () => {
     factory.authorization
       .whenCalledWith(userD.address, userD.address, constants.AddressZero, constants.AddressZero)
       .returns([true, false, BigNumber.from(0)])
+    factory.authorization
+      .whenCalledWith(liquidator.address, liquidator.address, constants.AddressZero, constants.AddressZero)
+      .returns([true, false, BigNumber.from(0)])
 
     // deposit collateral into margin accounts
     dsu.transferFrom.whenCalledWith(user.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
@@ -5571,8 +5574,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 1,
@@ -5825,8 +5828,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -6179,8 +6182,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 3,
@@ -6308,8 +6311,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_5.timestamp,
@@ -6612,8 +6615,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -9083,8 +9086,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 1,
@@ -9315,8 +9318,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 1,
@@ -9657,8 +9660,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 3,
@@ -9773,8 +9776,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 2,
@@ -10094,8 +10097,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 3,
@@ -13335,8 +13338,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 1,
@@ -13591,8 +13594,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
 
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
@@ -13746,8 +13749,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 1,
@@ -14120,8 +14123,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(userB.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 3,
@@ -14259,8 +14262,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 2,
@@ -14644,8 +14647,8 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 0,
                 latestId: 0,
-                claimable: EXPECTED_LIQUIDATION_FEE,
               })
+              expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
                 currentId: 3,
@@ -16306,8 +16309,8 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 0,
             latestId: 0,
-            claimable: EXPECTED_LIQUIDATION_FEE, // does not double charge
           })
+          expect(await margin.claimables(liquidator.address)).to.equal(EXPECTED_LIQUIDATION_FEE) // does not double charge
           expectLocalEq(await market.locals(user.address), {
             ...DEFAULT_LOCAL,
             currentId: 3,
@@ -16452,10 +16455,10 @@ describe('Market', () => {
             liquidationFee: { _value: parse6decimal('-10') },
           })
 
-          await expect(market.connect(liquidator).claimFee(liquidator.address))
-            .to.emit(market, 'FeeClaimed')
+          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
+          await expect(margin.connect(liquidator).claim(liquidator.address, liquidator.address))
+            .to.emit(margin, 'ClaimableWithdrawn')
             .withArgs(liquidator.address, liquidator.address, EXPECTED_LIQUIDATION_FEE)
-
           expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
         })
       })
@@ -16536,8 +16539,8 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 2,
             latestId: 2,
-            claimable: EXPECTED_LIQUIDATION_FEE,
           })
+          expect(await margin.claimables(user.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
           expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
             parse6decimal('216')
               .sub(EXPECTED_SETTLEMENT_FEE)
@@ -18521,14 +18524,10 @@ describe('Market', () => {
           expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
           })
-          expectLocalEq(await market.locals(liquidator.address), {
-            ...DEFAULT_LOCAL,
-            claimable: TAKER_FEE.mul(2).div(10).div(2),
-          })
-          expectLocalEq(await market.locals(owner.address), {
-            ...DEFAULT_LOCAL,
-            claimable: TAKER_FEE.mul(2).div(10).div(2),
-          })
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+          expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+          expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+          expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
           const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)))
           expectGlobalEq(await market.global(), {
             ...DEFAULT_GLOBAL,
@@ -19294,10 +19293,8 @@ describe('Market', () => {
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
           })
-          expectLocalEq(await market.locals(liquidator.address), {
-            ...DEFAULT_LOCAL,
-            claimable: MAKER_FEE.mul(2).div(10),
-          })
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+          expect(await margin.claimables(liquidator.address)).to.equal(MAKER_FEE.mul(2).div(10))
           const totalFee = MAKER_FEE.sub(MAKER_FEE.mul(2).div(10))
           expectGlobalEq(await market.global(), {
             ...DEFAULT_GLOBAL,
@@ -19454,10 +19451,8 @@ describe('Market', () => {
           expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
           })
-          expectLocalEq(await market.locals(liquidator.address), {
-            ...DEFAULT_LOCAL,
-            claimable: TAKER_FEE.mul(2).div(10),
-          })
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+          expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10))
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
             TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)),
           )
@@ -19573,8 +19568,8 @@ describe('Market', () => {
             ...DEFAULT_LOCAL,
             currentId: 1,
             latestId: 1,
-            claimable: TAKER_FEE.mul(2).div(10),
           })
+          expect(await margin.claimables(user.address)).to.equal(TAKER_FEE.mul(2).div(10))
           expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
             COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
               .sub(EXPECTED_INTEREST_5_123)
@@ -19874,14 +19869,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)))
             expectGlobalEq(await market.global(), {
               ...DEFAULT_GLOBAL,
@@ -20132,14 +20123,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)))
             expectGlobalEq(await market.global(), {
               ...DEFAULT_GLOBAL,
@@ -20390,14 +20377,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)))
             expectGlobalEq(await market.global(), {
               ...DEFAULT_GLOBAL,
@@ -20647,14 +20630,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)))
             expectGlobalEq(await market.global(), {
               ...DEFAULT_GLOBAL,
@@ -21008,14 +20987,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10), // solver + originator
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10), // solver + originator
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10)) // solver + originator
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10)) // solver + originator
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF_2.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)).mul(2))
             expectGlobalEq(await market.global(), {
               ...DEFAULT_GLOBAL,
@@ -21269,14 +21244,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)))
             expectGlobalEq(await market.global(), {
               ...DEFAULT_GLOBAL,
@@ -21774,14 +21745,10 @@ describe('Market', () => {
               ...DEFAULT_CHECKPOINT,
             })
 
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             expectPositionEq(await market.position(), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
@@ -22028,14 +21995,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_5_123.add(EXPECTED_FUNDING_FEE_1_5_123)
               .add(TAKER_FEE) // setup
               .add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10))) // fill
@@ -22301,14 +22264,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_5_123.add(EXPECTED_FUNDING_FEE_1_5_123)
               .add(TAKER_FEE) // setup
               .add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10))) // fill
@@ -22575,14 +22534,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_5_123.add(EXPECTED_FUNDING_FEE_1_5_123)
               .add(TAKER_FEE) // setup
               .add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10))) // fill
@@ -22849,14 +22804,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = EXPECTED_INTEREST_FEE_5_123.add(EXPECTED_FUNDING_FEE_1_5_123)
               .add(TAKER_FEE) // setup
               .add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10))) // fill
@@ -23127,14 +23078,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = TAKER_FEE.mul(2) // setup
               .add(EXPECTED_INTEREST_FEE_10_123_EFF) // while open
               .add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10))) // fill
@@ -23405,14 +23352,10 @@ describe('Market', () => {
             expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
-            expectLocalEq(await market.locals(liquidator.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
-            expectLocalEq(await market.locals(owner.address), {
-              ...DEFAULT_LOCAL,
-              claimable: TAKER_FEE.mul(2).div(10).div(2),
-            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
             const totalFee = TAKER_FEE.mul(2) // setup
               .add(EXPECTED_INTEREST_FEE_10_123_EFF) // while open
               .add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10))) // fill
@@ -23998,10 +23941,8 @@ describe('Market', () => {
           expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
           })
-          expectLocalEq(await market.locals(liquidator.address), {
-            ...DEFAULT_LOCAL,
-            claimable: TAKER_FEE.mul(2).div(10),
-          })
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+          expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10))
           const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123).add(
             TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)),
           )
@@ -24473,7 +24414,7 @@ describe('Market', () => {
         await expect(market.connect(owner).claimFee(owner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(owner.address, owner.address, PROTOCOL_FEE)
-          .to.emit(margin, 'FundsChanged')
+          .to.emit(margin, 'ClaimableChanged')
           .withArgs(owner.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
@@ -24485,7 +24426,7 @@ describe('Market', () => {
         await expect(market.connect(oracleSigner).claimFee(oracleSigner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(oracleSigner.address, oracleSigner.address, ORACLE_FEE)
-          .to.emit(margin, 'FundsChanged')
+          .to.emit(margin, 'ClaimableChanged')
           .withArgs(oracleSigner.address, ORACLE_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
@@ -24497,7 +24438,7 @@ describe('Market', () => {
         await expect(market.connect(coordinator).claimFee(coordinator.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(coordinator.address, coordinator.address, RISK_FEE)
-          .to.emit(margin, 'FundsChanged')
+          .to.emit(margin, 'ClaimableChanged')
           .withArgs(coordinator.address, RISK_FEE)
 
         expect((await market.global()).protocolFee).to.equal(PROTOCOL_FEE)
@@ -24520,8 +24461,8 @@ describe('Market', () => {
         await expect(market.connect(userB).claimFee(owner.address))
           .to.emit(market, 'FeeClaimed')
           .withArgs(owner.address, userB.address, PROTOCOL_FEE)
-          .to.emit(margin, 'IsolatedFundsChanged')
-          .withArgs(userB.address, market.address, PROTOCOL_FEE)
+          .to.emit(margin, 'ClaimableChanged')
+          .withArgs(userB.address, PROTOCOL_FEE)
 
         expect((await market.global()).protocolFee).to.equal(0)
       })

@@ -27,7 +27,6 @@ import {
   VersionLib__factory,
   Verifier,
   Verifier__factory,
-  IInsuranceFund__factory,
   InsuranceFund__factory,
   InsuranceFund,
   Margin__factory,
@@ -191,7 +190,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
   )
   await oracleFactory.connect(owner).create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD')
 
-  const insuranceFundImpl = await new InsuranceFund__factory(owner).deploy(marketFactory.address, dsu.address)
+  const insuranceFundImpl = await new InsuranceFund__factory(owner).deploy(marketFactory.address, margin.address)
 
   const insuranceFundProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     insuranceFundImpl.address,

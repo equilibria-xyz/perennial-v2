@@ -280,9 +280,11 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @param account Address of the user who earned fees
     /// @param unwrap Set true to unwrap DSU to USDC when withdrawing
     function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
-        UFixed6 claimAmount = market.claimFee(account);
-        // market awards fees to the sender, which in this case is the MultiInvoker
-        market.margin().withdraw(address(this), claimAmount);
+        // claim fees from the market
+        market.claimFee(account);
+        // withdraw claimable balance from Margin account to MultiInvoker
+        UFixed6 claimAmount = market.margin().claim(account, address(this));
+        // withdraw claimable balance from MultiInvoker to account
         _withdraw(account, claimAmount, unwrap);
     }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { CheckpointAccumulationResponse } from "../libs/CheckpointLib.sol";
 
@@ -16,7 +16,7 @@ struct Local {
     /// @dev DEPRECATED The collateral balance, used for 2.3 -> 2.4 migration only
     Fixed6 collateral;
 
-    /// @dev The claimable balance
+    /// @dev DEPRECATED The claimable balance, used for 2.3 -> 2.4 migration only
     UFixed6 claimable;
 }
 using LocalLib for Local global;
@@ -37,13 +37,6 @@ library LocalLib {
     ) internal pure returns (Fixed6 pnl) {
         pnl = accumulation.collateral.sub(Fixed6Lib.from(accumulation.liquidationFee));
         self.latestId = newId;
-    }
-
-    /// @notice Updates the claimable with the new amount
-    /// @param self The Local object to update
-    /// @param amount The amount to update the claimable by
-    function credit(Local memory self, UFixed6 amount) internal pure {
-        self.claimable = self.claimable.add(amount);
     }
 }
 
@@ -77,7 +70,7 @@ library LocalStorageLib {
         if (newValue.currentId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (newValue.latestId > uint256(type(uint32).max)) revert LocalStorageInvalidError();
         if (!newValue.collateral.eq(Fixed6Lib.ZERO)) revert LocalStorageInvalidError();
-        if (newValue.claimable.gt(UFixed6.wrap(type(uint64).max))) revert LocalStorageInvalidError();
+        if (!newValue.claimable.eq(UFixed6Lib.ZERO)) revert LocalStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.currentId << (256 - 32)) >> (256 - 32) |

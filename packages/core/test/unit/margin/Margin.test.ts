@@ -156,26 +156,46 @@ describe('Margin', () => {
       expect(dsu.transfer).to.have.been.calledWith(userB.address, amount.mul(1e12))
     })
 
-    it('market can adjust balances for fees and exposure', async () => {
-      const balanceBefore = await margin.crossMarginBalances(user.address)
-
-      // cross-margin
+    it('user can withdraw claimable funds', async () => {
       const feeEarned = parse6decimal('0.2')
-      let marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-      await expect(margin.connect(marketSigner).updateBalance(user.address, feeEarned))
-        .to.emit(margin, 'FundsChanged')
-        .withArgs(user.address, feeEarned)
-      expect(await margin.crossMarginBalances(user.address)).to.equal(balanceBefore.add(feeEarned))
+      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).updateClaimable(user.address, feeEarned)).to.not.be.reverted
+      expect(await margin.claimables(user.address)).to.equal(feeEarned)
 
-      // isolated
-      const depositAmount = parse6decimal('300')
-      await deposit(user, depositAmount)
-      await margin.connect(user).isolate(user.address, marketB.address, depositAmount)
-      marketSigner = await impersonate.impersonateWithBalance(marketB.address, utils.parseEther('10'))
-      await expect(margin.connect(marketSigner).updateBalance(user.address, feeEarned))
-        .to.emit(margin, 'IsolatedFundsChanged')
-        .withArgs(user.address, marketB.address, feeEarned)
-      expect(await margin.isolatedBalances(user.address, marketB.address)).to.equal(depositAmount.add(feeEarned))
+      dsu.transfer.whenCalledWith(user.address, feeEarned.mul(1e12)).returns(true)
+      const feeReturned = await margin.connect(user).callStatic.claim(user.address, user.address)
+      expect(feeReturned).to.equal(feeEarned)
+      await expect(margin.connect(user).claim(user.address, user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, user.address, feeEarned)
+      expect(dsu.transfer).to.have.been.calledWith(user.address, feeEarned.mul(1e12))
+    })
+
+    it('user cannot withdraw negative claimable balance from exposure', async () => {
+      const deficit = parse6decimal('-0.3')
+      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).updateClaimable(user.address, deficit)).to.not.be.reverted
+      expect(await margin.claimables(user.address)).to.equal(deficit)
+
+      await expect(margin.connect(user).claim(user.address, user.address)).to.be.revertedWithCustomError(
+        margin,
+        'UFixed6UnderflowError',
+      )
+    })
+
+    it('user can withdraw claimable funds to another address', async () => {
+      const feeEarned = parse6decimal('0.4')
+      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).updateClaimable(user.address, feeEarned)).to.not.be.reverted
+      expect(await margin.claimables(user.address)).to.equal(feeEarned)
+
+      dsu.transfer.whenCalledWith(userB.address, feeEarned.mul(1e12)).returns(true)
+      const feeReturned = await margin.connect(user).callStatic.claim(user.address, userB.address)
+      expect(feeReturned).to.equal(feeEarned)
+      await expect(margin.connect(user).claim(user.address, userB.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, userB.address, feeEarned)
+      expect(dsu.transfer).to.have.been.calledWith(userB.address, feeEarned.mul(1e12))
     })
 
     it('stores and reads checkpoints', async () => {
@@ -477,9 +497,9 @@ describe('Margin', () => {
       ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
     })
 
-    it('only market can call updateBalance', async () => {
+    it('only market can call updateClaimable', async () => {
       await expect(
-        margin.connect(badMarketSigner).updateBalance(user.address, parse6decimal('0.2')),
+        margin.connect(badMarketSigner).updateClaimable(user.address, parse6decimal('0.2')),
       ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
     })
 
@@ -579,5 +599,7 @@ describe('Margin', () => {
         'ReentrancyGuardReentrantCallError',
       )
     })
+
+    // TODO: test coverage for Margin.claim
   })
 })
