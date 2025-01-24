@@ -71,16 +71,13 @@ library StrategyLib {
     error StrategyLibInsufficientCollateralError();
     error StrategyLibInsufficientAssetsError();
 
-    /// @dev The maximum multiplier that is allowed for leverage
-    UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
-
     /// @dev The target allocation for a market
     struct MarketTarget {
         /// @dev The amount of change in collateral
         Fixed6 collateral;
 
-        /// @dev The new position
-        UFixed6 position;
+        /// @dev The amount of change in position
+        Fixed6 position;
     }
 
     /// @notice Loads the strategy context of each of the underlying markets
@@ -111,7 +108,8 @@ library StrategyLib {
         Strategy memory strategy,
         UFixed6 deposit,
         UFixed6 withdrawal,
-        UFixed6 ineligible
+        UFixed6 ineligible,
+        UFixed6 leverageBuffer
     ) internal pure returns (MarketTarget[] memory targets) {
         UFixed6 collateral = UFixed6Lib.unsafeFrom(strategy.totalCollateral).add(deposit).unsafeSub(withdrawal);
         UFixed6 assets = collateral.unsafeSub(ineligible);
@@ -127,7 +125,8 @@ library StrategyLib {
                 strategy.marketContexts[marketId],
                 strategy.totalMargin,
                 collateral,
-                assets
+                assets,
+                leverageBuffer
             );
             totalMarketCollateral = totalMarketCollateral.add(marketCollateral);
         }
@@ -145,14 +144,15 @@ library StrategyLib {
         MarketStrategyContext memory marketContext,
         UFixed6 totalMargin,
         UFixed6 collateral,
-        UFixed6 assets
+        UFixed6 assets,
+        UFixed6 leverageBuffer
     ) private pure returns (MarketTarget memory target, UFixed6 marketCollateral) {
         marketCollateral = marketContext.margin
             .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
 
         UFixed6 marketAssets = assets
             .mul(marketContext.registration.weight)
-            .min(marketCollateral.mul(LEVERAGE_BUFFER));
+            .min(marketCollateral.mul(leverageBuffer));
 
         target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
 
@@ -161,10 +161,7 @@ library StrategyLib {
 
         if (marketContext.marketParameter.closed || marketAssets.lt(minAssets)) marketAssets = UFixed6Lib.ZERO;
 
-        target.position = marketAssets
-            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
-            .max(marketContext.minPosition)
-            .min(marketContext.maxPosition);
+        target.position = _getTargetPosition(marketContext, marketAssets);
     }
 
     /// @notice Load the context of a market
@@ -205,5 +202,14 @@ library StrategyLib {
                 .unsafeSub(marketContext.currentPosition.skew().abs()).min(marketContext.closable));
         marketContext.maxPosition = marketContext.currentAccountPosition.maker
             .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
+    }
+
+    function _getTargetPosition(MarketStrategyContext memory marketContext, UFixed6 marketAssets) private pure returns (Fixed6) {
+        UFixed6 newMaker = marketAssets
+            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
+            .max(marketContext.minPosition)
+            .min(marketContext.maxPosition);
+
+        return Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 }

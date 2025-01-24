@@ -281,10 +281,15 @@ export async function createVault(
   const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
   await vaultFactory.initialize()
   const vault = IVault__factory.connect(
-    await vaultFactory.callStatic.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip'),
+    await vaultFactory.callStatic.create(
+      instanceVars.dsu.address,
+      ethMarket.address,
+      parse6decimal('1.2'),
+      'Blue Chip',
+    ),
     owner,
   )
-  await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip')
+  await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, parse6decimal('1.2'), 'Blue Chip')
 
   await vault.register(btcMarket.address)
   await vault.connect(owner).updateCoordinator(coordinator.address)
@@ -293,6 +298,7 @@ export async function createVault(
   await vault.connect(coordinator).updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
 
   await vault.connect(owner).updateParameter({
+    ...(await vault.parameter()),
     maxDeposit: maxCollateral ?? parse6decimal('500000'),
     minDeposit: 0,
   })
@@ -314,46 +320,42 @@ export async function createVault(
   await margin.connect(user).deposit(user.address, depositAmount)
   await ethMarket
     .connect(user)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       user.address,
       parse6decimal('100'),
       0,
-      0,
       depositAmount,
-      false,
+      constants.AddressZero,
     )
   await margin.connect(userB).deposit(userB.address, depositAmount)
   await ethMarket
     .connect(userB)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userB.address,
       0,
       parse6decimal('50'),
-      0,
       depositAmount,
-      false,
+      constants.AddressZero,
     )
   await margin.connect(userC).deposit(userC.address, depositAmount)
   await btcMarket
     .connect(userC)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userC.address,
       parse6decimal('20'),
       0,
-      0,
       depositAmount,
-      false,
+      constants.AddressZero,
     )
   await margin.connect(userD).deposit(userD.address, depositAmount)
   await btcMarket
     .connect(userD)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userD.address,
       0,
       parse6decimal('10'),
-      0,
       depositAmount,
-      false,
+      constants.AddressZero,
     )
 
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]

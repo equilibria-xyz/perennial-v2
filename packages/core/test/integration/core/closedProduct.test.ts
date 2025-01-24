@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import { Market } from '../../../types/generated'
@@ -27,7 +27,7 @@ describe('Closed Market', () => {
     await margin.connect(user).deposit(user.address, COLLATERAL)
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     expect((await market.parameter()).closed).to.be.false
 
@@ -58,10 +58,10 @@ describe('Closed Market', () => {
       await margin.connect(userB).deposit(userB.address, COLLATERAL)
       await market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
       await market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
+        ['update(address,int256,int256,int256,address)'](userB.address, 0, POSITION, COLLATERAL, constants.AddressZero)
       const parameters = { ...(await market.parameter()) }
       parameters.closed = true
       await market.updateParameter(parameters)
@@ -75,7 +75,7 @@ describe('Closed Market', () => {
       await expect(
         market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+          ['update(address,int256,int256,int256,address)'](user.address, 0, POSITION, 0, constants.AddressZero),
       ).to.be.revertedWithCustomError(market, 'MarketClosedError')
     })
 
@@ -84,11 +84,7 @@ describe('Closed Market', () => {
 
       await chainlink.next()
 
-      await expect(
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
-      ).to.not.be.reverted
+      await expect(await market.connect(user).close(user.address, false, constants.AddressZero)).to.not.be.reverted
     })
   })
 
@@ -104,10 +100,10 @@ describe('Closed Market', () => {
     await margin.connect(userB).deposit(userB.address, COLLATERAL)
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, 0, POSITION, COLLATERAL, constants.AddressZero)
 
     await chainlink.next()
     await chainlink.next()
@@ -126,8 +122,9 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
 
-    await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true)
-    await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
+    const LIQUIDATION_FEE = BigNumber.from('1000000000')
+    await market.connect(user).close(user.address, true, constants.AddressZero)
+    await market.connect(userB).close(userB.address, true, constants.AddressZero)
 
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(userCollateralBefore)
     expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(userBCollateralBefore)
@@ -148,16 +145,14 @@ describe('Closed Market', () => {
     await margin.connect(userB).deposit(userB.address, COLLATERAL)
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, 0, POSITION, COLLATERAL, constants.AddressZero)
 
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
-    await expect(
-      market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-    ).to.not.be.reverted
+    await expect(market.connect(userB).close(user.address, true, constants.AddressZero)).to.not.be.reverted
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
@@ -179,7 +174,7 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(4))
 
     await settle(market, user)
-    await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
+    await market.connect(userB).close(userB.address, true, constants.AddressZero)
 
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(userCollateralBefore)
     expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(userBCollateralBefore)

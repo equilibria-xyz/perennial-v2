@@ -93,7 +93,7 @@ export function RunPythOracleTests(
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, deposit, false),
+              ['update(address,int256,int256,int256,address)'](user.address, 1, 0, deposit, constants.AddressZero),
           vaaVars.startingTime,
         )
 

@@ -69,6 +69,7 @@ contract Vault is IVault, Instance {
         Token18 asset_,
         IMarket initialMarket,
         UFixed6 initialDeposit,
+        UFixed6 leverageBuffer,
         string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
@@ -77,7 +78,7 @@ contract Vault is IVault, Instance {
         _name = name_;
         margin = initialMarket.margin();
         _register(initialMarket);
-        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, leverageBuffer));
 
         // permits the vault factory to make the initial deposit to prevent inflation attacks
         allowed[msg.sender] = true;
@@ -425,7 +426,8 @@ contract Vault is IVault, Instance {
             .allocate(
                 deposit,
                 withdrawal,
-                _ineligible(context, deposit, withdrawal)
+                _ineligible(context, deposit, withdrawal),
+                context.parameter.leverageBuffer
             );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
@@ -466,23 +468,13 @@ contract Vault is IVault, Instance {
         StrategyLib.MarketTarget memory target,
         bool shouldRebalance
     ) private {
-        if (shouldRebalance) {
-            registration.market.update(
-                address(this),
-                target.position,
-                UFixed6Lib.ZERO,
-                UFixed6Lib.ZERO,
-                target.collateral,
-                false
-            );
-        } else {
-            registration.market.update(
-                address(this),
-                Fixed6Lib.ZERO,
-                target.collateral,
-                address(0)
-            );
-        }
+        registration.market.update(
+            address(this),
+            shouldRebalance ? target.position : Fixed6Lib.ZERO,
+            Fixed6Lib.ZERO,
+            target.collateral,
+            address(0)
+        );
     }
 
     /// @notice Loads the context for the given `account`
