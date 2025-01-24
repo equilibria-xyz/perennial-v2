@@ -289,16 +289,17 @@ describe('Vault', () => {
     await fundWallet(asset, owner)
     await asset.approve(vaultFactory.address, ethers.constants.MaxUint256)
     vault = IVault__factory.connect(
-      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
+      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, parse6decimal('1.2'), 'Blue Chip'),
       owner,
     )
-    await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
+    await vaultFactory.create(instanceVars.dsu.address, market.address, parse6decimal('1.2'), 'Blue Chip')
     await vault.register(btcMarket.address)
     await vault.connect(owner).updateCoordinator(coordinator.address)
     await vault.connect(coordinator).updateLeverage(0, leverage)
     await vault.connect(coordinator).updateLeverage(1, leverage)
     await vault.connect(coordinator).updateWeights([0.8e6, 0.2e6])
     await vault.connect(owner).updateParameter({
+      ...(await vault.parameter()),
       maxDeposit: maxCollateral,
       minDeposit: 0,
     })
@@ -337,32 +338,42 @@ describe('Vault', () => {
     await margin.connect(user).deposit(user.address, deposit)
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, parse6decimal('200'), 0, 0, deposit, false)
+      ['update(address,int256,int256,int256,address)'](
+        user.address,
+        parse6decimal('200'),
+        0,
+        deposit,
+        constants.AddressZero,
+      )
     await margin.connect(user2).deposit(user2.address, deposit)
     await market
       .connect(user2)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user2.address, 0, parse6decimal('100'), 0, deposit, false)
+      ['update(address,int256,int256,int256,address)'](
+        user2.address,
+        0,
+        parse6decimal('100'),
+        deposit,
+        constants.AddressZero,
+      )
     await margin.connect(btcUser1).deposit(btcUser1.address, deposit)
     await btcMarket
       .connect(btcUser1)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
+      ['update(address,int256,int256,int256,address)'](
         btcUser1.address,
         parse6decimal('20'),
         0,
-        0,
         deposit,
-        false,
+        constants.AddressZero,
       )
     await margin.connect(btcUser2).deposit(btcUser2.address, deposit)
     await btcMarket
       .connect(btcUser2)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
+      ['update(address,int256,int256,int256,address)'](
         btcUser2.address,
         0,
         parse6decimal('10'),
-        0,
         deposit,
-        false,
+        constants.AddressZero,
       )
 
     vaultSigner = await impersonate.impersonateWithBalance(vault.address, ethers.utils.parseEther('10'))
@@ -407,7 +418,9 @@ describe('Vault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address, parse6decimal('5'), 'Blue Chip'))
+      await expect(
+        vault.initialize(asset.address, market.address, parse6decimal('5'), parse6decimal('1.2'), 'Blue Chip'),
+      )
         .to.revertedWithCustomError(vault, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -500,7 +513,7 @@ describe('Vault', () => {
       await unsupportedToken.transfer(owner.address, await vaultFactory.initialAmount())
 
       await expect(
-        vaultFactory.create(UNSUPPORTED_TOKEN_ADDRESS, market.address, 'Unsupported'),
+        vaultFactory.create(UNSUPPORTED_TOKEN_ADDRESS, market.address, parse6decimal('1.1'), 'Unsupported'),
       ).to.be.revertedWithCustomError(vault, 'VaultIncorrectAssetError')
     })
   })
@@ -510,6 +523,7 @@ describe('Vault', () => {
       const newParameter = {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
+        leverageBuffer: parse6decimal('10'),
       }
       await expect(vault.connect(owner).updateParameter(newParameter))
         .to.emit(vault, 'ParameterUpdated')
@@ -518,12 +532,14 @@ describe('Vault', () => {
       const parameter = await vault.parameter()
       expect(parameter.maxDeposit).to.deep.contain(newParameter.maxDeposit)
       expect(parameter.minDeposit).to.deep.contain(newParameter.minDeposit)
+      expect(parameter.leverageBuffer).to.deep.contain(newParameter.leverageBuffer)
     })
 
     it('reverts when not owner', async () => {
       const newParameter = {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
+        leverageBuffer: parse6decimal('1000000'),
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
@@ -1016,13 +1032,12 @@ describe('Vault', () => {
       await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
       const nonVaultDeposit = parse6decimal('662500')
       await margin.connect(perennialUser).deposit(perennialUser.address, nonVaultDeposit)
-      await market.connect(perennialUser)['update(address,uint256,uint256,uint256,int256,bool)'](
+      await market.connect(perennialUser)['update(address,int256,int256,int256,address)'](
         perennialUser.address,
         makerAvailable.sub(reservedForVault), // 795
         0,
-        0,
         nonVaultDeposit,
-        false,
+        constants.AddressZero,
       )
 
       const deposit = parse6decimal('11000')
@@ -1208,13 +1223,12 @@ describe('Vault', () => {
       await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await market
         .connect(perennialUser)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           0,
           currentPosition.maker.sub(currentNet).sub(parse6decimal('1')),
-          0,
           takerDeposit,
-          false,
+          constants.AddressZero,
         )
 
       // Settle the take position
@@ -1250,13 +1264,12 @@ describe('Vault', () => {
       await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await btcMarket
         .connect(perennialUser)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           0,
           currentPosition.maker.sub(currentNet).sub(parse6decimal('0.1')),
-          0,
           takerDeposit,
-          false,
+          constants.AddressZero,
         )
 
       // Settle the take position
@@ -1367,13 +1380,12 @@ describe('Vault', () => {
       await margin.connect(perennialUser).deposit(perennialUser.address, makerDeposit)
       await market
         .connect(perennialUser)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           parse6decimal('480'),
           0,
-          0,
           makerDeposit,
-          false,
+          constants.AddressZero,
         )
       await updateOracle()
       await vault.rebalance(user.address)
@@ -1398,13 +1410,12 @@ describe('Vault', () => {
       await margin.connect(perennialUser).deposit(perennialUser.address, makerDeposit)
       await market
         .connect(perennialUser)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           makerAvailable,
           0,
-          0,
           makerDeposit,
-          false,
+          constants.AddressZero,
         )
 
       await updateOracle()
@@ -1435,13 +1446,12 @@ describe('Vault', () => {
       await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await market
         .connect(perennialUser)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           0,
           parse6decimal('110'),
-          0,
           takerDeposit,
-          false,
+          constants.AddressZero,
         )
 
       await updateOracle()
@@ -1798,10 +1808,10 @@ describe('Vault', () => {
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
       const vault2 = IVault__factory.connect(
-        await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
+        await vaultFactory2.callStatic.create(asset.address, market.address, parse6decimal('1.2'), 'Blue Chip'),
         owner,
       )
-      await vaultFactory2.create(asset.address, market.address, 'Blue Chip')
+      await vaultFactory2.create(asset.address, market.address, parse6decimal('1.2'), 'Blue Chip')
 
       await updateOracle()
 
@@ -1843,10 +1853,10 @@ describe('Vault', () => {
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
       const vault2 = IVault__factory.connect(
-        await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
+        await vaultFactory2.callStatic.create(asset.address, market.address, parse6decimal('1.2'), 'Blue Chip'),
         owner,
       )
-      await vaultFactory2.create(asset.address, market.address, 'Blue Chip')
+      await vaultFactory2.create(asset.address, market.address, parse6decimal('1.2'), 'Blue Chip')
 
       await updateOracle()
 
@@ -1900,8 +1910,33 @@ describe('Vault', () => {
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
+    it('market positions reduces significantly with lower leverage buffer', async () => {
+      await vault.connect(user).update(user.address, parse6decimal('10000'), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+      expect(await position()).to.be.equal(parse6decimal('12.212633'))
+      expect(await btcPosition()).to.be.equal(parse6decimal('0.205981'))
+
+      // set leverage buffer to 0.4
+      const leverageBuffer = parse6decimal('0.4')
+      await vault
+        .connect(owner)
+        .updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10'), leverageBuffer })
+      await vault.connect(user).update(user.address, parse6decimal('10'), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      // expect position to be reduced
+      expect(await position()).to.be.equal(parse6decimal('4.889940'))
+      expect(await btcPosition()).to.be.equal(parse6decimal('0.082475'))
+    })
+
     it('reverts when below minDeposit', async () => {
-      await vault.connect(owner).updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10') })
+      await vault.connect(owner).updateParameter({
+        ...(await vault.parameter()),
+        maxDeposit: maxCollateral,
+        minDeposit: parse6decimal('10'),
+      })
       await expect(vault.connect(user).update(user.address, parse6decimal('0.50'), 0, 0)).to.revertedWithCustomError(
         vault,
         'VaultInsufficientMinimumError',
@@ -1941,6 +1976,7 @@ describe('Vault', () => {
       await vault.connect(owner).updateParameter({
         maxDeposit: parse6decimal('100'),
         minDeposit: 0,
+        leverageBuffer: parse6decimal('1.2'),
       })
 
       await updateOracle()
@@ -2063,9 +2099,7 @@ describe('Vault', () => {
 
           // 2. Settle accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('5149547500')
-          await btcMarket
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+          await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
           expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('4428767485').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
@@ -2099,9 +2133,7 @@ describe('Vault', () => {
 
           // 2. Settle accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('8239276000')
-          await btcMarket
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+          await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
           expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('-26673235277').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
@@ -2132,12 +2164,8 @@ describe('Vault', () => {
         beforeEach(async () => {
           await updateOracle()
 
-          await market
-            .connect(user2)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user2.address, 0, 0, 0, 0, false)
-          await btcMarket
-            .connect(btcUser2)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](btcUser2.address, 0, 0, 0, 0, false)
+          await market.connect(user2).close(user2.address, false, constants.AddressZero)
+          await btcMarket.connect(btcUser2).close(btcUser2.address, false, constants.AddressZero)
           await updateOracle()
 
           // get utilization closer to target in order to trigger pnl on price deviation
@@ -2145,24 +2173,22 @@ describe('Vault', () => {
           await margin.connect(user2).deposit(user2.address, deposit)
           await market
             .connect(user2)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               user2.address,
               0,
-              0,
-              parse6decimal('100'),
+              parse6decimal('100').mul(-1),
               deposit,
-              false,
+              constants.AddressZero,
             )
           await margin.connect(btcUser2).deposit(btcUser2.address, deposit)
           await btcMarket
             .connect(btcUser2)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               btcUser2.address,
               0,
-              0,
-              parse6decimal('10'),
+              parse6decimal('10').mul(-1),
               deposit,
-              false,
+              constants.AddressZero,
             )
           await updateOracle()
           await vault.rebalance(user.address)
@@ -2177,9 +2203,7 @@ describe('Vault', () => {
 
           // 2. Settle accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('2059819000')
-          await btcMarket
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+          await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
           expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('350411418').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
@@ -2213,9 +2237,7 @@ describe('Vault', () => {
 
           // 2. Settle accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('1956828050')
-          await btcMarket
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+          await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
           expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('-480340107').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
@@ -2256,13 +2278,9 @@ describe('Vault', () => {
 
         // 3. An oracle update makes the long position liquidatable, initiate take close
         await updateOracle(parse6decimal('10000'))
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await market.connect(user).close(vault.address, true, constants.AddressZero)
         await settle(market, user2)
-        await market
-          .connect(user2)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user2.address, 0, 0, 0, 0, false)
+        await market.connect(user2).close(user2.address, false, constants.AddressZero)
 
         // 4. Settle the vault to recover and rebalance
         await updateOracle() // let take settle at high price
@@ -2319,9 +2337,7 @@ describe('Vault', () => {
 
         // 3. An oracle update makes the long position liquidatable, initiate take close
         await updateOracle(parse6decimal('20000'))
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await market.connect(user).close(vault.address, true, constants.AddressZero)
         await updateOracle()
         await vault.connect(user).update(user.address, 0, 1, 0) // redeem 1 share to trigger rebalance
 

@@ -113,20 +113,18 @@ export function RunControllerBaseTests(
     // updates the market and returns the version timestamp
     async function changePosition(
       user: SignerWithAddress,
-      newMaker?: BigNumber,
-      newLong?: BigNumber,
-      newShort?: BigNumber,
+      makerDelta: BigNumber,
+      longDelta: BigNumber,
+      shortDelta: BigNumber,
     ): Promise<BigNumber> {
-      const positions = await ethMarket.positions(user.address)
       const tx = await ethMarket
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,int256,address)'](
           user.address,
-          newMaker ?? positions.maker,
-          newLong ?? positions.long,
-          newShort ?? positions.short,
-          0,
-          false,
+          makerDelta,
+          longDelta.sub(shortDelta),
+          BigNumber.from(0),
+          constants.AddressZero,
           TX_OVERRIDES,
         )
       return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
@@ -536,7 +534,7 @@ export function RunControllerBaseTests(
         await transfer(depositAmount, userA)
 
         // create a maker position
-        currentTime = await changePosition(userA, parse6decimal('1.5'))
+        currentTime = await changePosition(userA, parse6decimal('1.5'), parse6decimal('0'), parse6decimal('0'))
 
         await advanceAndSettle(userA, receiver)
         expect((await ethMarket.positions(userA.address)).maker).to.equal(parse6decimal('1.5'))

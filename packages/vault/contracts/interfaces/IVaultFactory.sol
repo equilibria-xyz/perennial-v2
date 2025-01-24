@@ -14,5 +14,5 @@ interface IVaultFactory is IFactory {
     function initialAmount() external view returns (UFixed6);
     function marketFactory() external view returns (IMarketFactory);
     function initialize() external;
-    function create(Token18 asset, IMarket initialMarket, string calldata name) external returns (IVault);
+    function create(Token18 asset, IMarket initialMarket, UFixed6 leverageBuffer, string calldata name) external returns (IVault);
 }

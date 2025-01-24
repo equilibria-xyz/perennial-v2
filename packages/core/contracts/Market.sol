@@ -177,16 +177,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @notice Updates the account's position and collateral
     /// @param account The account to operate on
-    /// @param amount The position delta of the order (positive for long, negative for short)
+    /// @param takerAmount The position delta of the order (positive for long, negative for short)
     /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
     /// @param referrer The referrer of the order
     function update(
         address account,
-        Fixed6 amount,
+        Fixed6 takerAmount,
         Fixed6 collateral,
         address referrer
     ) external {
-        update(account, Fixed6Lib.ZERO, amount, collateral, referrer);
+        update(account, Fixed6Lib.ZERO, takerAmount, collateral, referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -213,61 +213,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             takerAmount,
             collateral,
             false,
-            updateContext.orderReferralFee
-        );
-        Guarantee memory newGuarantee; // no guarantee is created for a market order
-
-        // process update
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
-    }
-
-    /// @notice Updates the account's position and collateral
-    /// @param account The account to operate on
-    /// @param newMaker The new maker position for the account
-    /// @param newMaker The new long position for the account
-    /// @param newMaker The new short position for the account
-    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
-    /// @param protect Whether to put the account into a protected status for liquidations
-    function update(
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect
-    ) external {
-        update(account, newMaker, newLong, newShort, collateral, protect, address(0));
-    }
-
-    /// @notice Updates the account's position and collateral
-    /// @param account The account to operate on
-    /// @param newMaker The new maker position for the account
-    /// @param newLong The new long position for the account
-    /// @param newShort The new short position for the account
-    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
-    /// @param protect Whether to put the account into a protected status for liquidations
-    /// @param referrer The referrer of the order
-    function update(
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect,
-        address referrer
-    ) public nonReentrant whenNotPaused {
-        (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-
-        // create new order & guarantee
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            collateral,
-            newMaker,
-            newLong,
-            newShort,
-            protect,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee; // no guarantee is created for a market order
