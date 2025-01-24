@@ -617,7 +617,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         if (newOrder.protected() && (
             !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) || // total pending close is not equal to latest position
             margin.maintained(context.account) ||                                      // latest position is properly maintained
-            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                    // collateral is not being isolated
+            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                    // TODO: can eliminate because close method doesn't touch collateral
         )) revert IMarket.MarketInvalidProtectionError();
 
         // TODO: This doesn't need to be done post-save; keeping adjacent to maintenance/margin checks for future refactoring.

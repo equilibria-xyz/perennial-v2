@@ -9,7 +9,6 @@ import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { IMarket, IMargin } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { Checkpoint as PerennialCheckpoint } from  "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { OracleVersion } from  "@perennial/v2-core/contracts/types/OracleVersion.sol";
-import { Local } from  "@perennial/v2-core/contracts/types/Local.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IVault } from "./interfaces/IVault.sol";
 import { IVaultFactory } from "./interfaces/IVaultFactory.sol";
@@ -500,11 +499,9 @@ contract Vault is IVault, Instance {
             else if (currentTimestamp != context.currentTimestamp) revert VaultCurrentOutOfSyncError();
 
             // local
-            Local memory local = registration.market.locals(address(this));
-            // TODO: maybe shouldn't be reusing a field we're trying to deprecate
-            local.collateral = margin.isolatedBalances(address(this), registration.market);
-            context.collaterals[marketId] = local.collateral;
-            context.totalCollateral = context.totalCollateral.add(local.collateral);
+            Fixed6 collateral = margin.isolatedBalances(address(this), registration.market);
+            context.collaterals[marketId] = collateral;
+            context.totalCollateral = context.totalCollateral.add(collateral);
         }
 
         if (account != address(0)) context.local = _accounts[account].read();
