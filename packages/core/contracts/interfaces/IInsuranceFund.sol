@@ -22,9 +22,13 @@ interface IInsuranceFund is IOwnable {
     /// @dev This contract must be approved as an operator of the market factory owner to claim protocol fees.
     function claim(IMarket market) external;
 
-    /// @notice Resolves any shortfall in an isolated market or the user's cross-margin balance.
-    /// @param market Market to settle and identify the shortfall.
+    /// @notice Resolves any shortfall in a user's cross-margin balance
     /// @param account User for which to resolve the shortfall.
     /// @dev This contract must be approved as an extension on the market factory to resolve market shortfall.
-    function resolve(IMarket market, address account) external;
+    function resolve(address account) external;
+
+    /// @notice Resolves shortfall in an isolated market
+    /// @param market Market to settle and identify the shortfall.
+    /// @param account User for which to resolve the shortfall.
+    function resolveIsolated(IMarket market, address account) external;
 }

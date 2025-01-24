@@ -193,7 +193,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account to operate on
     /// @param makerAmount The maker of the order
     /// @param takerAmount The taker of the order (positive for long, negative for short)
-    /// @param collateral The collateral delta of the order (positive for deposit, negative for withdrawal)
+    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
     /// @param referrer The referrer of the order
     function update(
         address account,

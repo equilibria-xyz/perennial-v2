@@ -38,7 +38,7 @@ describe('InsuranceFund', () => {
     margin = await smock.fake<IMargin>('IMargin')
     factory = await smock.fake<IMarketFactory>('IMarketFactory')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
-    insuranceFund = await new InsuranceFund__factory(owner).deploy(factory.address, dsu.address)
+    insuranceFund = await new InsuranceFund__factory(owner).deploy(factory.address, margin.address)
 
     factory.owner.whenCalledWith().returns(factoryOwner.address)
     market1.margin.returns(margin.address)
@@ -87,42 +87,40 @@ describe('InsuranceFund', () => {
 
     context('#resolve', async () => {
       it('resolves cross-margin shortfall', async () => {
-        dsu.approve.whenCalledWith(market1.address).returns(true)
         market1.settle.whenCalledWith(user.address).returns()
-        const resolutionAmount = parse6decimal('-1000')
-        margin.isolatedBalances.whenCalledWith(user.address, market1.address).returns(constants.Zero)
-        margin.crossMarginBalances.whenCalledWith(user.address).returns(resolutionAmount)
+        const shortfall = parse6decimal('-1000')
+        margin.crossMarginBalances.whenCalledWith(user.address).returns(shortfall)
 
-        await insuranceFund.connect(owner).resolve(market1.address, user.address)
-        expect(dsu.approve).to.have.been.calledWith(market1.address, constants.MaxUint256)
-        expect(market1.settle).to.have.been.calledWith(user.address)
-        expect(margin.deposit).to.have.been.calledWith(user.address, resolutionAmount.mul(-1))
+        await insuranceFund.connect(owner).resolve(user.address)
+        expect(margin.deposit).to.have.been.calledWith(user.address, shortfall.mul(-1))
       })
 
       it('resolves shortfall for an isolated market', async () => {
-        dsu.approve.whenCalledWith(market2.address).returns(true)
         market2.settle.whenCalledWith(user.address).returns()
-        const resolutionAmount = parse6decimal('-1200')
-        margin.isolatedBalances.whenCalledWith(user.address, market2.address).returns(resolutionAmount)
-        market2['update(address,int256,int256,address)']
-          .whenCalledWith(user.address, 0, resolutionAmount, constants.AddressZero)
-          .returns()
+        const shortfall = parse6decimal('-1200')
+        margin.isolatedBalances.whenCalledWith(user.address, market2.address).returns(shortfall)
 
-        await insuranceFund.connect(owner).resolve(market2.address, user.address)
-        expect(dsu.approve).to.have.been.calledWith(market2.address, constants.MaxUint256)
+        await insuranceFund.connect(owner).resolveIsolated(market2.address, user.address)
         expect(market2.settle).to.have.been.calledWith(user.address)
         expect(market2['update(address,int256,int256,address)']).to.have.been.calledWith(
           user.address,
           0,
-          resolutionAmount.mul(-1),
+          shortfall.mul(-1),
           constants.AddressZero,
         )
       })
 
-      // TODO: reverts if no shortfall
+      it('reverts if no cross-margined shortfall', async () => {
+        const shortfall = parse6decimal('100')
+        margin.crossMarginBalances.whenCalledWith(user.address).returns(shortfall)
+        await expect(insuranceFund.connect(owner).resolve(user.address)).to.be.revertedWithCustomError(
+          insuranceFund,
+          'UFixed6UnderflowError',
+        )
+      })
 
       it('reverts if not owner', async () => {
-        await expect(insuranceFund.connect(user).resolve(market1.address, user.address)).to.be.revertedWithCustomError(
+        await expect(insuranceFund.connect(user).resolve(user.address)).to.be.revertedWithCustomError(
           insuranceFund,
           'OwnableNotOwnerError',
         )
@@ -131,10 +129,9 @@ describe('InsuranceFund', () => {
       it('reverts with invalid market instance', async () => {
         factory.instances.whenCalledWith(market1.address).returns(false)
 
-        await expect(insuranceFund.connect(owner).resolve(market1.address, user.address)).to.be.revertedWithCustomError(
-          insuranceFund,
-          'InsuranceFundInvalidInstanceError',
-        )
+        await expect(
+          insuranceFund.connect(owner).resolveIsolated(market1.address, user.address),
+        ).to.be.revertedWithCustomError(insuranceFund, 'InsuranceFundInvalidInstanceError')
       })
     })
   })

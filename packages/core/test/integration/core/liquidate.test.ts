@@ -259,7 +259,7 @@ describe('Liquidate', () => {
     await fundWallet(dsu, insuranceFundSigner)
 
     // resolve the shortfall
-    await expect(insuranceFund.connect(owner).resolve(market.address, user.address))
+    await expect(insuranceFund.connect(owner).resolveIsolated(market.address, user.address))
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,

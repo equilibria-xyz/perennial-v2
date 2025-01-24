@@ -2,7 +2,6 @@
 pragma solidity 0.8.24;
 
 import { Ownable } from "@equilibria/root/attribute/Ownable.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
@@ -15,15 +14,15 @@ import { IMarket, IMargin } from "./interfaces/IMarket.sol";
 /// @notice This contract manages the protocol fee and shortfalls for markets.
 contract InsuranceFund is IInsuranceFund, Ownable {
 
-    /// @dev The address of the market factory
+    /// @dev Identifies the deployment, owner, and validates markets
     IFactory public immutable marketFactory;
 
-    /// @dev The address of token
-    Token18 public immutable token;
+    /// @dev Manages collateral across markets
+    IMargin public immutable margin;
 
-    constructor(IFactory _marketFactory, Token18 _token) {
-        marketFactory = _marketFactory;
-        token = _token;
+    constructor(IFactory marketFactory_, IMargin margin_) {
+        marketFactory = marketFactory_;
+        margin = margin_;
     }
 
     /// @inheritdoc IInsuranceFund
@@ -36,22 +35,23 @@ contract InsuranceFund is IInsuranceFund, Ownable {
         // claim fees from market to insurance fund (this contract) collateral balance
         market.claimFee(marketFactory.owner());
         // withdraw fees to caller, reverting if caller is not operator
-        IMargin(market.margin()).claim(address(this), msg.sender);
+        margin.claim(address(this), msg.sender);
     }
 
     /// @inheritdoc IInsuranceFund
-    function resolve(IMarket market, address account) external onlyOwner isMarketInstance(market) {
-        token.approve(address(market));
+    function resolve(address account) external onlyOwner {
+        // TODO: settle all cross-margined markets
+        Fixed6 resolutionAmount = margin.crossMarginBalances(account).mul(Fixed6Lib.NEG_ONE);
+        // reverts if cross-margin balance was not negative or contract balance insufficient
+        margin.deposit(account, UFixed6Lib.from(resolutionAmount));
+    }
+
+    /// @inheritdoc IInsuranceFund
+    function resolveIsolated(IMarket market, address account) external onlyOwner isMarketInstance(market) {
         market.settle(account);
-        IMargin margin = market.margin();
         Fixed6 resolutionAmount = margin.isolatedBalances(account, market).mul(Fixed6Lib.NEG_ONE);
-        if (resolutionAmount.isZero()) { // Cross-margin shortfall
-            resolutionAmount = margin.crossMarginBalances(account).mul(Fixed6Lib.NEG_ONE);
-            margin.deposit(account, UFixed6Lib.from(resolutionAmount));
-        } else { // Isolated shortfall
-            // TODO: Shouldn't we revert if resolutionAmount is negative?
-            market.update(account, Fixed6Lib.ZERO, resolutionAmount, address(0));
-        }
+        // reverts if isolated balance was not negative or contract balance insufficient
+        market.update(account, Fixed6Lib.ZERO, resolutionAmount, address(0));
     }
 
     /// @notice Validates that a market was created by the market factory
